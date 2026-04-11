@@ -1,0 +1,14 @@
+{
+  "name": "quantum-hybrid-pinn-v8",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "cd apps/api && uvicorn main:app --reload",
+    "build:web": "pnpm --filter web build",
+    "start:web": "pnpm --filter web start"
+  }
+}
