@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -15,12 +19,40 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
-    }
+      "@/*": [
+        "./src/*",
+        "./*"
+      ],
+      "@shared/*": [
+        "../../packages/shared/*"
+      ]
+    },
+    "allowJs": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["app/**/*", "components/**/*", "hooks/**/*", "lib/**/*", "types/**/*", "next-env.d.ts"],
-  "exclude": ["node_modules", "build", "dist", "**/*.test.ts"]
+  "include": [
+    "app/**/*",
+    "components/**/*",
+    "hooks/**/*",
+    "lib/**/*",
+    "next-env.d.ts",
+    "src/**/*",
+    "types/**/*",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "dist",
+    "**/*.test.ts"
+  ]
 }
