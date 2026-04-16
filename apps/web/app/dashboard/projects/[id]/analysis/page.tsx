@@ -5,7 +5,6 @@ import { useLocation } from 'wouter'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Loader2, Play, Download, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import VerificationBadge from '@/components/verification-badge'
@@ -35,11 +34,9 @@ interface SovereigntyScore {
   overallSovereigntyIndex: number
 }
 
-export default function ProjectAnalysisPage({
-  params,
-}: {
-  params: { id: string }
-}) {
+export default async function ProjectAnalysisPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params  // ← déconstruction asynchrone
+
   const [, setLocation] = useLocation()
   const [project, setProject] = useState<Project | null>(null)
   const [auditData, setAuditData] = useState<AuditData | null>(null)
@@ -47,9 +44,7 @@ export default function ProjectAnalysisPage({
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
   const [downloading, setDownloading] = useState(false)
-  const [verificationStatus, setVerificationStatus] = useState<
-    'idle' | 'loading' | 'coherent' | 'anomaly' | 'impossible'
-  >('idle')
+  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'loading' | 'coherent' | 'anomaly' | 'impossible'>('idle')
   const supabase = createClient()
 
   useEffect(() => {
@@ -58,7 +53,7 @@ export default function ProjectAnalysisPage({
         const { data: projectData, error: projectError } = await supabase
           .from('projects')
           .select('*')
-          .eq('id', params.id)
+          .eq('id', id)
           .single()
 
         if (projectError || !projectData) {
@@ -73,7 +68,7 @@ export default function ProjectAnalysisPage({
         const { data: auditData } = await supabase
           .from('physics_validations')
           .select('*')
-          .eq('project_id', params.id)
+          .eq('project_id', id)
           .order('created_at', { ascending: false })
           .limit(1)
           .single()
@@ -92,7 +87,7 @@ export default function ProjectAnalysisPage({
         const { data: sovereigntyData } = await supabase
           .from('sovereignty_scores')
           .select('*')
-          .eq('project_id', params.id)
+          .eq('project_id', id)
           .order('created_at', { ascending: false })
           .limit(1)
           .single()
@@ -114,7 +109,7 @@ export default function ProjectAnalysisPage({
     }
 
     fetchProject()
-  }, [params.id, supabase, setLocation])
+  }, [id, supabase, setLocation])
 
   const handlePhysicsCheck = async () => {
     if (!project?.transcription) {
@@ -135,7 +130,7 @@ export default function ProjectAnalysisPage({
             Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({
-            projectId: params.id,
+            projectId: id,
             analysisId: `analysis_${Date.now()}`,
             transcription: project.transcription,
             context: 'hydrogen_storage',
@@ -167,7 +162,6 @@ export default function ProjectAnalysisPage({
           : 'impossible'
       )
 
-      // Generate sovereignty score (mock for now)
       const defaultSovereignty: SovereigntyScore = {
         dataSecurityScore: 85,
         intellectualPropertyScore: 80,
@@ -195,7 +189,7 @@ export default function ProjectAnalysisPage({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: params.id,
+          projectId: id,
           projectName: project?.name,
           auditData,
         }),
@@ -248,7 +242,7 @@ export default function ProjectAnalysisPage({
         {/* Header */}
         <div className="mb-8">
           <Button
-            onClick={() => setLocation(`/dashboard/projects/${params.id}`)}
+            onClick={() => setLocation(`/dashboard/projects/${id}`)}
             variant="outline"
             className="mb-4"
           >
