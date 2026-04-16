@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, Play, Download, ArrowLeft } from 'lucide-react'
+import { toast } from 'sonner'
 import VerificationBadge from '@/components/verification-badge'
 import ScientificAuditCard from '@/components/scientific-audit-card'
 import SovereigntyIndicator from '@/components/sovereignty-indicator'
@@ -45,6 +46,7 @@ export default function ProjectAnalysisPage({
   const [sovereigntyScore, setSovereigntyScore] = useState<SovereigntyScore | null>(null)
   const [loading, setLoading] = useState(true)
   const [verifying, setVerifying] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [verificationStatus, setVerificationStatus] = useState<
     'idle' | 'loading' | 'coherent' | 'anomaly' | 'impossible'
   >('idle')
@@ -52,65 +54,71 @@ export default function ProjectAnalysisPage({
 
   useEffect(() => {
     const fetchProject = async () => {
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', params.id)
-        .single()
+      try {
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', params.id)
+          .single()
 
-      if (projectError || !projectData) {
-        setLocation('/dashboard/projects')
-        return
+        if (projectError || !projectData) {
+          toast.error('Projet non trouvé')
+          setLocation('/dashboard/projects')
+          return
+        }
+
+        setProject(projectData)
+
+        // Fetch existing audit if available
+        const { data: auditData } = await supabase
+          .from('physics_validations')
+          .select('*')
+          .eq('project_id', params.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (auditData) {
+          setAuditData({
+            isPhysicallyCoherent: auditData.is_physically_coherent,
+            credibilityScore: auditData.credibility_score,
+            anomalies: auditData.anomalies || [],
+            extractedData: auditData.extracted_data || {},
+            predictions: auditData.pinn_results?.predictions || [],
+          })
+        }
+
+        // Fetch sovereignty score
+        const { data: sovereigntyData } = await supabase
+          .from('sovereignty_scores')
+          .select('*')
+          .eq('project_id', params.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (sovereigntyData) {
+          setSovereigntyScore({
+            dataSecurityScore: sovereigntyData.data_security_score,
+            intellectualPropertyScore: sovereigntyData.intellectual_property_score,
+            independenceScore: sovereigntyData.independence_score,
+            overallSovereigntyIndex: sovereigntyData.overall_sovereignty_index,
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching project:', error)
+        toast.error('Erreur lors du chargement du projet')
+      } finally {
+        setLoading(false)
       }
-
-      setProject(projectData)
-
-      // Fetch existing audit if available
-      const { data: auditData } = await supabase
-        .from('physics_validations')
-        .select('*')
-        .eq('project_id', params.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-
-      if (auditData) {
-        setAuditData({
-          isPhysicallyCoherent: auditData.is_physically_coherent,
-          credibilityScore: auditData.credibility_score,
-          anomalies: auditData.anomalies || [],
-          extractedData: auditData.extracted_data || {},
-          predictions: auditData.pinn_results?.predictions || [],
-        })
-      }
-
-      // Fetch sovereignty score
-      const { data: sovereigntyData } = await supabase
-        .from('sovereignty_scores')
-        .select('*')
-        .eq('project_id', params.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-
-      if (sovereigntyData) {
-        setSovereigntyScore({
-          dataSecurityScore: sovereigntyData.data_security_score,
-          intellectualPropertyScore: sovereigntyData.intellectual_property_score,
-          independenceScore: sovereigntyData.independence_score,
-          overallSovereigntyIndex: sovereigntyData.overall_sovereignty_index,
-        })
-      }
-
-      setLoading(false)
     }
 
     fetchProject()
-  }, [params.id])
+  }, [params.id, supabase, setLocation])
 
   const handlePhysicsCheck = async () => {
     if (!project?.transcription) {
-      alert('Veuillez d\'abord transcrire la vidéo')
+      toast.warning('Veuillez d’abord transcrire la vidéo')
       return
     }
 
@@ -118,7 +126,6 @@ export default function ProjectAnalysisPage({
     setVerificationStatus('loading')
 
     try {
-      // Call Edge Function
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/verify-physics-logic`,
         {
@@ -137,7 +144,8 @@ export default function ProjectAnalysisPage({
       )
 
       if (!response.ok) {
-        throw new Error('Verification failed')
+        const errorText = await response.text()
+        throw new Error(`Verification failed: ${errorText}`)
       }
 
       const result = await response.json()
@@ -155,11 +163,11 @@ export default function ProjectAnalysisPage({
         data.isPhysicallyCoherent
           ? 'coherent'
           : data.anomalies.length > 0
-            ? 'anomaly'
-            : 'impossible'
+          ? 'anomaly'
+          : 'impossible'
       )
 
-      // Generate sovereignty score
+      // Generate sovereignty score (mock for now)
       const defaultSovereignty: SovereigntyScore = {
         dataSecurityScore: 85,
         intellectualPropertyScore: 80,
@@ -167,19 +175,22 @@ export default function ProjectAnalysisPage({
         overallSovereigntyIndex: 80,
       }
       setSovereigntyScore(defaultSovereignty)
+
+      toast.success('Analyse physique terminée avec succès')
     } catch (error) {
       console.error('Physics check error:', error)
       setVerificationStatus('impossible')
+      toast.error('Échec de la vérification physique')
     } finally {
       setVerifying(false)
     }
   }
 
   const handleDownloadReport = async () => {
-    if (!auditData) return
+    if (!auditData || downloading) return
 
+    setDownloading(true)
     try {
-      // Generate PDF report
       const response = await fetch('/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -190,16 +201,25 @@ export default function ProjectAnalysisPage({
         }),
       })
 
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `audit_${project?.name}_${Date.now()}.pdf`
-        a.click()
+      if (!response.ok) {
+        throw new Error('Failed to generate report')
       }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `audit_${project?.name || 'project'}_${Date.now()}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      toast.success('Rapport téléchargé avec succès')
     } catch (error) {
       console.error('Download error:', error)
+      toast.error('Erreur lors de la génération du rapport')
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -247,11 +267,7 @@ export default function ProjectAnalysisPage({
             </CardHeader>
             <CardContent>
               <div className="aspect-video bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center">
-                <video
-                  src={project.video_url}
-                  controls
-                  className="w-full h-full"
-                />
+                <video src={project.video_url} controls className="w-full h-full" />
               </div>
             </CardContent>
           </Card>
@@ -308,6 +324,7 @@ export default function ProjectAnalysisPage({
               auditData={auditData}
               projectName={project.name}
               onDownloadReport={handleDownloadReport}
+              isLoading={downloading}
             />
 
             {sovereigntyScore && (
@@ -320,9 +337,7 @@ export default function ProjectAnalysisPage({
         {!auditData && verificationStatus === 'idle' && (
           <Card className="text-center py-12">
             <CardContent>
-              <p className="text-slate-600 mb-4">
-                Aucune analyse physique pour le moment
-              </p>
+              <p className="text-slate-600 mb-4">Aucune analyse physique pour le moment</p>
               <p className="text-sm text-slate-500">
                 Cliquez sur "Lancer Physics-Check" pour commencer l'analyse
               </p>
