@@ -45,7 +45,6 @@
     "hooks/**/*",
     "lib/**/*",
     "next-env.d.ts",
-    "src/**/*",
     "types/**/*",
     ".next/types/**/*.ts"
   ],
