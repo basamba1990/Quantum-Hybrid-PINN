@@ -17,7 +17,6 @@ interface SovereigntyIndicatorProps {
 
 export default function SovereigntyIndicator({
   score,
-  projectName = 'Project',
 }: SovereigntyIndicatorProps) {
   const getScoreColor = (value: number) => {
     if (value >= 80) return 'text-green-600'
