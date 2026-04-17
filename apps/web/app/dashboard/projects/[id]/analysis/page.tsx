@@ -213,7 +213,7 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
       if (auditData.anomalies.length > 0) {
         doc.text('Anomalies détectées :', 20, 95)
         let y = 105
-        auditData.anomalies.forEach((anomaly, index) => {
+        auditData.anomalies.forEach((anomaly) => {
           doc.text(`- ${anomaly}`, 25, y)
           y += 10
         })
