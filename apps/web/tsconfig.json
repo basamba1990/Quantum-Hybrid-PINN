@@ -23,8 +23,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./src/*",
-        "./*"
+        "./*",
+        "./app/*",
+        "./components/*",
+        "./lib/*"
       ],
       "@shared/*": [
         "../../packages/shared/*"
