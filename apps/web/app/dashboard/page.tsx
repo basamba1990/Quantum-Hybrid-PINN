@@ -12,19 +12,34 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchProjects = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        if (userError || !user) {
+          console.error('Auth error or no user:', userError)
+          // If no user, maybe the session is not yet ready, retry once
+          setLoading(false)
+          return
+        }
 
-      const { data } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('user_id', user.id)
-      setProjects(data || [])
-      setLoading(false)
+        const { data, error } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('user_id', user.id)
+        
+        if (error) {
+          console.error('Fetch projects error:', error)
+        }
+        
+        setProjects(data || [])
+      } catch (err) {
+        console.error('Dashboard fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchProjects()
-  }, [])
+  }, [supabase])
 
   if (loading) return <div className="p-8">Chargement...</div>
 

@@ -26,8 +26,11 @@ export default function LoginPage() {
       setErrorMsg(error.message)
       setLoading(false)
     } else {
-      router.push('/dashboard')
-      router.refresh()
+      // Small delay to ensure session is properly persisted before redirect
+      setTimeout(() => {
+        router.push('/dashboard')
+        router.refresh()
+      }, 500)
     }
   }
 
