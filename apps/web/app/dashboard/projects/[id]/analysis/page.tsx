@@ -5,11 +5,13 @@ import { useLocation } from 'wouter'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2, Play, ArrowLeft } from 'lucide-react'
+import { Loader2, Play, ArrowLeft, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import VerificationBadge from '@/components/verification-badge'
 import ScientificAuditCard from '@/components/scientific-audit-card'
 import SovereigntyIndicator from '@/components/sovereignty-indicator'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 interface Project {
   id: string
@@ -70,7 +72,7 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
           .eq('project_id', id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single()
+          .maybeSingle()
 
         if (auditDataResult) {
           setAuditData({
@@ -80,6 +82,12 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
             extractedData: auditDataResult.extracted_data || {},
             predictions: auditDataResult.pinn_results?.predictions || [],
           })
+          
+          setVerificationStatus(
+            auditDataResult.is_physically_coherent
+              ? 'coherent'
+              : (auditDataResult.anomalies?.length > 0 ? 'anomaly' : 'impossible')
+          )
         }
 
         // Fetch sovereignty score
@@ -89,7 +97,7 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
           .eq('project_id', id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single()
+          .maybeSingle()
 
         if (sovereigntyData) {
           setSovereigntyScore({
@@ -179,38 +187,55 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
     }
   }
 
-  const handleDownloadReport = async () => {
-    if (!auditData || downloading) return
+  const handleDownloadReport = () => {
+    if (!auditData || !project) return
 
     setDownloading(true)
     try {
-      const response = await fetch('/api/generate-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: id,
-          projectName: project?.name,
-          auditData,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to generate report')
+      const doc = new jsPDF()
+      
+      // Titre
+      doc.setFontSize(20)
+      doc.text('Rapport d\'Audit Scientifique - SpotBulle', 20, 20)
+      
+      doc.setFontSize(14)
+      doc.text(`Projet : ${project.name}`, 20, 35)
+      doc.text(`Date : ${new Date().toLocaleDateString()}`, 20, 45)
+      
+      // Score de crédibilité
+      doc.setFontSize(16)
+      doc.text('Résultats de l\'Analyse', 20, 60)
+      doc.setFontSize(12)
+      doc.text(`Score de crédibilité : ${auditData.credibilityScore}/100`, 20, 70)
+      doc.text(`Cohérence physique : ${auditData.isPhysicallyCoherent ? 'OUI' : 'NON'}`, 20, 80)
+      
+      // Anomalies
+      if (auditData.anomalies.length > 0) {
+        doc.text('Anomalies détectées :', 20, 95)
+        let y = 105
+        auditData.anomalies.forEach((anomaly, index) => {
+          doc.text(`- ${anomaly}`, 25, y)
+          y += 10
+        })
+      } else {
+        doc.text('Aucune anomalie majeure détectée.', 20, 95)
+      }
+      
+      // Données extraites
+      if (Object.keys(auditData.extractedData).length > 0) {
+        const tableData = Object.entries(auditData.extractedData).map(([key, value]) => [key, value.toString()])
+        autoTable(doc, {
+          startY: 130,
+          head: [['Paramètre', 'Valeur']],
+          body: tableData,
+        })
       }
 
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `audit_${project?.name || 'project'}_${Date.now()}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-      toast.success('Rapport téléchargé avec succès')
+      doc.save(`audit_${project.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`)
+      toast.success('Rapport généré et téléchargé')
     } catch (error) {
-      console.error('Download error:', error)
-      toast.error('Erreur lors de la génération du rapport')
+      console.error('PDF Generation error:', error)
+      toast.error('Erreur lors de la génération du PDF')
     } finally {
       setDownloading(false)
     }
@@ -239,17 +264,29 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="container mx-auto py-8 px-4">
         {/* Header */}
-        <div className="mb-8">
-          <Button
-            onClick={() => setLocation(`/dashboard/projects/${id}`)}
-            variant="outline"
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour
-          </Button>
-          <h1 className="text-4xl font-bold text-slate-900">{project.name}</h1>
-          <p className="text-slate-600 mt-2">{project.description}</p>
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <Button
+              onClick={() => setLocation(`/dashboard/projects/${id}`)}
+              variant="outline"
+              className="mb-4"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Retour
+            </Button>
+            <h1 className="text-4xl font-bold text-slate-900">{project.name}</h1>
+            <p className="text-slate-600 mt-2">{project.description}</p>
+          </div>
+          {auditData && (
+            <Button 
+              onClick={handleDownloadReport} 
+              disabled={downloading}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {downloading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Download className="mr-2 h-4 w-4" />}
+              Télécharger le Rapport PDF
+            </Button>
+          )}
         </div>
 
         {/* Video Section */}
