@@ -22,12 +22,7 @@
     "jsx": "preserve",
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@shared/*": [
-        "../../packages/shared/*"
-      ]
+      "@/*": ["./*"]
     },
     "allowJs": true,
     "incremental": true,
