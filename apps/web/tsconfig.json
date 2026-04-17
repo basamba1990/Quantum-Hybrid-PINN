@@ -40,7 +40,7 @@
     ]
   },
   "include": [
-    "app/**/*",
+    "app/**/*", "src/**/*",
     "components/**/*",
     "hooks/**/*",
     "lib/**/*",
