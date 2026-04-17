@@ -128,6 +128,28 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
     setVerificationStatus('loading')
 
     try {
+      // 1. Create a real analysis record first to get a valid UUID
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Utilisateur non authentifié')
+
+      const { data: analysisRecord, error: analysisError } = await supabase
+        .from('analyses')
+        .insert({
+          project_id: id,
+          user_id: user.id,
+          title: `Analyse Physique - ${new Date().toLocaleString()}`,
+          status: 'pending',
+          analysis_type: 'physics_verification',
+          transcription: project.transcription
+        })
+        .select()
+        .single()
+
+      if (analysisError || !analysisRecord) {
+        throw new Error(`Erreur lors de la création de l'analyse: ${analysisError?.message}`)
+      }
+
+      // 2. Call the edge function with the real UUID
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/verify-physics-logic`,
         {
@@ -138,7 +160,7 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
           },
           body: JSON.stringify({
             projectId: id,
-            analysisId: `analysis_${Date.now()}`,
+            analysisId: analysisRecord.id,
             transcription: project.transcription,
             context: 'hydrogen_storage',
           }),
