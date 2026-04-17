@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useLocation } from 'wouter'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -34,9 +34,8 @@ interface SovereigntyScore {
   overallSovereigntyIndex: number
 }
 
-export default async function ProjectAnalysisPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params  // ← déconstruction asynchrone
-
+export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [, setLocation] = useLocation()
   const [project, setProject] = useState<Project | null>(null)
   const [auditData, setAuditData] = useState<AuditData | null>(null)
@@ -65,7 +64,7 @@ export default async function ProjectAnalysisPage({ params }: { params: Promise<
         setProject(projectData)
 
         // Fetch existing audit if available
-        const { data: auditData } = await supabase
+        const { data: auditDataResult } = await supabase
           .from('physics_validations')
           .select('*')
           .eq('project_id', id)
@@ -73,13 +72,13 @@ export default async function ProjectAnalysisPage({ params }: { params: Promise<
           .limit(1)
           .single()
 
-        if (auditData) {
+        if (auditDataResult) {
           setAuditData({
-            isPhysicallyCoherent: auditData.is_physically_coherent,
-            credibilityScore: auditData.credibility_score,
-            anomalies: auditData.anomalies || [],
-            extractedData: auditData.extracted_data || {},
-            predictions: auditData.pinn_results?.predictions || [],
+            isPhysicallyCoherent: auditDataResult.is_physically_coherent,
+            credibilityScore: auditDataResult.credibility_score,
+            anomalies: auditDataResult.anomalies || [],
+            extractedData: auditDataResult.extracted_data || {},
+            predictions: auditDataResult.pinn_results?.predictions || [],
           })
         }
 
