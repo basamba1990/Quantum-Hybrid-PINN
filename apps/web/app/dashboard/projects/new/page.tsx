@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useForm } from 'react-hook-form'
@@ -12,22 +13,46 @@ export default function NewProjectPage() {
     description: string
   }>()
 
-  const onSubmit = async (data: { name: string; description: string }) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-    const { data: newProject, error } = await supabase
-      .from('projects')
-      .insert({
-        name: data.name,
-        description: data.description,
-        user_id: user.id,
-      })
-      .select()
-      .single()
+  const onSubmit = async (formData: { name: string; description: string }) => {
+    setLoading(true)
+    setErrorMsg(null)
+    
+    try {
+      // 1. Get the authenticated user
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError || !user) {
+        throw new Error("Session expirée ou utilisateur non trouvé. Veuillez vous reconnecter.")
+      }
 
-    if (!error && newProject) {
-      router.push(`/dashboard/projects/${newProject.id}`)
+      // 2. Insert the project
+      // Note: user.id is the UUID from auth.users, which matches our 'projects' user_id via RLS
+      const { data: newProject, error: insertError } = await supabase
+        .from('projects')
+        .insert({
+          name: formData.name,
+          description: formData.description,
+          user_id: user.id,
+          status: 'draft'
+        })
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error('Insert error:', insertError)
+        throw new Error(`Erreur lors de la création : ${insertError.message}`)
+      }
+
+      if (newProject) {
+        router.push(`/dashboard/projects/${newProject.id}`)
+        router.refresh()
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -60,11 +85,18 @@ export default function NewProjectPage() {
           />
         </div>
 
+        {errorMsg && (
+          <p className="text-red-500 text-sm p-2 bg-red-50 border border-red-200 rounded">
+            {errorMsg}
+          </p>
+        )}
+
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          disabled={loading}
+          className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors"
         >
-          Créer le projet
+          {loading ? 'Création en cours...' : 'Créer le projet'}
         </button>
       </form>
     </div>
