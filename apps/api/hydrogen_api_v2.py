@@ -102,6 +102,7 @@ class ModelStatusResponse(BaseModel):
 
 class InitializeRequestV8(BaseModel):
     layers: List[int] = [4, 256, 256, 256, 256, 5]
+    fluid_type: str = "H2"
 
 class TrainRequestV8(BaseModel):
     N_pde: int = 5000
@@ -226,8 +227,8 @@ async def predict(request: PredictionRequest):
 async def initialize_model_v8(request: InitializeRequestV8):
     global current_model_v8
     try:
-        current_model_v8 = HydrogenPINNV8(layers=request.layers)
-        models_v8["default_v8"] = current_model_v8
+        current_model_v8 = HydrogenPINNV8(layers=request.layers, fluid_type=request.fluid_type)
+        models_v8[f"default_v8_{request.fluid_type}"] = current_model_v8
         return {
             "status": "success",
             "message": "Model V8 initialized successfully",
