@@ -26,7 +26,9 @@ interface AuditData {
   credibilityScore: number
   anomalies: string[]
   extractedData: Record<string, number>
-  predictions: any[]
+  predictions?: any[]
+  predictions3d?: any[]
+  assimilation?: any
 }
 
 interface SovereigntyScore {
@@ -81,6 +83,8 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
             anomalies: auditDataResult.anomalies || [],
             extractedData: auditDataResult.extracted_data || {},
             predictions: auditDataResult.pinn_results?.predictions || [],
+            predictions3d: auditDataResult.pinn_results?.predictions3d || [],
+            assimilation: auditDataResult.pinn_results?.assimilation || null,
           })
           
           setVerificationStatus(
@@ -181,6 +185,8 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
         anomalies: data.anomalies,
         extractedData: data.extractedData,
         predictions: data.predictions,
+        predictions3d: data.predictions3d,
+        assimilation: data.assimilation,
       })
 
       setVerificationStatus(
