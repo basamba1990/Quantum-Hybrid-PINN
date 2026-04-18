@@ -4,7 +4,10 @@ import React, { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 
 // Dynamically import Plotly to avoid SSR issues
-const Plot = dynamic(() => import('react-plotly.js'), { ssr: false })
+const Plot = dynamic(() => import('react-plotly.js').then((mod) => mod.default), { 
+  ssr: false,
+  loading: () => <div className="h-full w-full flex items-center justify-center bg-slate-50 animate-pulse rounded-lg text-slate-400 text-xs">Initialisation du moteur 3D...</div>
+})
 
 interface Prediction3D {
   time: number
