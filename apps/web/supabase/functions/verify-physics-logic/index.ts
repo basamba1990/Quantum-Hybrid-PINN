@@ -1,10 +1,11 @@
 /**
- * Supabase Edge Function: verify-physics-logic
+ * Supabase Edge Function: verify-physics-logic (V8 3D Integrated)
  * Orchestrates physics verification workflow:
  * 1. Extracts physical parameters from transcription (GPT-4o)
- * 2. Validates against PINN model (H2-Inference API)
- * 3. Calculates credibility score
- * 4. Stores results in database
+ * 2. Validates against V8 3D PINN model (H2-Inference API /v2/validate-3d)
+ * 3. Performs Data Assimilation with Deep Kalman Filter (/v2/assimilate)
+ * 4. Calculates credibility score based on 3D residuals and physical limits
+ * 5. Stores results in database
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
@@ -23,6 +24,9 @@ interface PhysicalParameters {
   velocity?: number
   efficiency?: number
   power?: number
+  x?: number
+  y?: number
+  z?: number
   [key: string]: number | undefined
 }
 
@@ -31,13 +35,23 @@ interface VerificationResult {
   credibilityScore: number
   anomalies: string[]
   extractedData: PhysicalParameters
-  predictions: Array<{
+  predictions3d: Array<{
     time: number
-    position: number
+    x: number
+    y: number
+    z: number
     pressure: number
-    velocity: number
+    velocity_u: number
+    velocity_v: number
+    velocity_w: number
     temperature: number
+    density: number
   }>
+  assimilation?: {
+    initial_state: number[]
+    observation: number[]
+    assimilated_state: number[]
+  }
 }
 
 serve(async (req: Request) => {
@@ -56,7 +70,7 @@ serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseKey)
 
     // Step 1: Extract physical parameters using GPT-4o
-    console.log("[1/4] Extracting physical parameters from transcription...")
+    console.log("[1/5] Extracting physical parameters from transcription...")
     const extractionResponse = await fetch(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -79,6 +93,7 @@ Extract all physical parameters from the following text. Return a JSON object wi
 - power (W)
 - volume (m³)
 - mass_flow_rate (kg/s)
+- x, y, z (coordinates in meters if mentioned, else default to 0.5)
 
 Include only parameters explicitly mentioned. Return null for missing values.
 Respond ONLY with valid JSON, no additional text.`,
@@ -106,133 +121,132 @@ Respond ONLY with valid JSON, no additional text.`,
 
     console.log("[✓] Extracted parameters:", extractedParams)
 
-    // Step 2: Call H2-Inference API for PINN validation
-    console.log("[2/4] Validating with PINN model...")
+    // Step 2: Call H2-Inference API for PINN V8 3D validation
+    console.log("[2/5] Validating with V8 3D PINN model...")
     const h2ApiUrl = Deno.env.get("H2_INFERENCE_API_URL") || "http://localhost:8000"
 
-    const predictionPoints = [
-      { time: 0.0, position: 0.0 },
-      { time: 2.5, position: 0.25 },
-      { time: 5.0, position: 0.5 },
-      { time: 7.5, position: 0.75 },
-      { time: 10.0, position: 1.0 },
+    // Default 3D point if not specified
+    const x = extractedParams.x ?? 0.5
+    const y = extractedParams.y ?? 0.5
+    const z = extractedParams.z ?? 0.5
+    const t = 5.0 // Mid-simulation time
+
+    const predictions3d: any[] = []
+    
+    // We do multiple points for a better 3D overview
+    const points = [
+        { time: t, x, y, z },
+        { time: t, x: 0.2, y: 0.2, z: 0.2 },
+        { time: t, x: 0.8, y: 0.8, z: 0.8 }
     ]
 
-    const predictionsResponse = await fetch(`${h2ApiUrl}/predict/batch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ batch: predictionPoints }),
-    })
-
-    if (!predictionsResponse.ok) {
-      console.warn(
-        `H2-Inference API warning: ${predictionsResponse.status}. Continuing with validation...`
-      )
+    for (const point of points) {
+        try {
+            const predResponse = await fetch(`${h2ApiUrl}/v2/validate-3d`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(point),
+            })
+            if (predResponse.ok) {
+                const data = await predResponse.json()
+                predictions3d.push(data)
+            }
+        } catch (e) {
+            console.warn(`Failed to get 3D prediction for point`, point, e)
+        }
     }
 
-    const predictionsData = await predictionsResponse.json()
-    const predictions = predictionsData.predictions || []
+    console.log(`[✓] Retrieved ${predictions3d.length} 3D PINN predictions`)
 
-    console.log("[✓] PINN predictions retrieved")
+    // Step 3: Data Assimilation with Deep Kalman Filter
+    console.log("[3/5] Performing Data Assimilation...")
+    let assimilationResult = null
+    if (predictions3d.length > 0 && extractedParams.pressure !== undefined) {
+        const firstPred = predictions3d[0]
+        // state: [rho, u, v, w, T]
+        const currentState = [firstPred.density, firstPred.velocity_u, firstPred.velocity_v, firstPred.velocity_w, firstPred.temperature]
+        // obs: [pressure, temperature, flow_rate]
+        const observation = [extractedParams.pressure, extractedParams.temperature ?? firstPred.temperature, extractedParams.mass_flow_rate ?? 0.1]
+        
+        try {
+            const assimResponse = await fetch(`${h2ApiUrl}/v2/assimilate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    current_state: currentState,
+                    observation: observation
+                }),
+            })
+            if (assimResponse.ok) {
+                const data = await assimResponse.json()
+                assimilationResult = {
+                    initial_state: currentState,
+                    observation: observation,
+                    assimilated_state: data.assimilated_state
+                }
+                console.log("[✓] Data assimilation successful")
+            }
+        } catch (e) {
+            console.warn("Assimilation failed", e)
+        }
+    }
 
-    // Step 3: Calculate credibility score and detect anomalies
-    console.log("[3/4] Calculating credibility score...")
+    // Step 4: Calculate credibility score and detect anomalies (Enhanced for V8)
+    console.log("[4/5] Calculating enhanced credibility score...")
     let credibilityScore = 100
     const anomalies: string[] = []
 
-    // Validate pressure
+    // 1. Physical range checks (Liquid Hydrogen context)
     if (extractedParams.pressure !== undefined) {
-      if (extractedParams.pressure < 1e5 || extractedParams.pressure > 700e5) {
-        anomalies.push(
-          `Pressure ${(extractedParams.pressure / 1e5).toFixed(1)} bar is outside valid range (1-700 bar)`
-        )
-        credibilityScore -= 20
-      } else if (predictions.length > 0) {
-        const avgPredictedPressure =
-          predictions.reduce((sum: number, p: any) => sum + p.pressure, 0) /
-          predictions.length
-        const pressureDiff = Math.abs(
-          extractedParams.pressure - avgPredictedPressure
-        )
-        const pressureDeviation = (pressureDiff / avgPredictedPressure) * 100
-
-        if (pressureDeviation > 20) {
-          anomalies.push(
-            `Pressure deviation: ${pressureDeviation.toFixed(1)}% from PINN predictions`
-          )
-          credibilityScore -= 15
-        }
-      }
-    }
-
-    // Validate temperature
-    if (extractedParams.temperature !== undefined) {
-      if (extractedParams.temperature < 250 || extractedParams.temperature > 350) {
-        anomalies.push(
-          `Temperature ${extractedParams.temperature.toFixed(1)} K is outside valid range (250-350 K)`
-        )
-        credibilityScore -= 15
-      } else if (predictions.length > 0) {
-        const avgPredictedTemp =
-          predictions.reduce((sum: number, p: any) => sum + p.temperature, 0) /
-          predictions.length
-        const tempDiff = Math.abs(extractedParams.temperature - avgPredictedTemp)
-        const tempDeviation = (tempDiff / avgPredictedTemp) * 100
-
-        if (tempDeviation > 10) {
-          anomalies.push(
-            `Temperature deviation: ${tempDeviation.toFixed(1)}% from PINN predictions`
-          )
-          credibilityScore -= 10
-        }
-      }
-    }
-
-    // Validate efficiency (Carnot limit check)
-    if (extractedParams.efficiency !== undefined) {
-      if (extractedParams.efficiency > 100) {
-        anomalies.push(
-          `Efficiency ${extractedParams.efficiency.toFixed(1)}% exceeds physical limit (100%)`
-        )
+      if (extractedParams.pressure < 1e5 || extractedParams.pressure > 1000e5) {
+        anomalies.push(`Pressure ${(extractedParams.pressure / 1e5).toFixed(1)} bar is outside safety limits (1-1000 bar)`)
         credibilityScore -= 25
-      } else if (
-        extractedParams.efficiency > 85 &&
-        extractedParams.temperature !== undefined
-      ) {
-        // Carnot efficiency check
-        const carnotEfficiency = 1 - 300 / extractedParams.temperature
-        if (extractedParams.efficiency > carnotEfficiency * 100) {
-          anomalies.push(
-            `Efficiency exceeds Carnot limit (${(carnotEfficiency * 100).toFixed(1)}%) for given temperature`
-          )
-          credibilityScore -= 20
-        }
       }
     }
 
-    // Validate power
-    if (extractedParams.power !== undefined) {
-      if (extractedParams.power < 0) {
-        anomalies.push(`Power cannot be negative: ${extractedParams.power} W`)
-        credibilityScore -= 15
+    if (extractedParams.temperature !== undefined) {
+      if (extractedParams.temperature < 14 || extractedParams.temperature > 500) {
+        anomalies.push(`Temperature ${extractedParams.temperature.toFixed(1)} K is outside liquid/supercritical range for H2`)
+        credibilityScore -= 20
       }
+    }
+
+    // 2. PINN Residual/Deviation check
+    if (predictions3d.length > 0 && extractedParams.pressure !== undefined) {
+        const avgPredP = predictions3d[0].pressure
+        const devP = Math.abs(extractedParams.pressure - avgPredP) / avgPredP
+        if (devP > 0.3) {
+            anomalies.push(`High pressure deviation (${(devP*100).toFixed(1)}%) from 3D PINN model`)
+            credibilityScore -= 15
+        }
+    }
+
+    // 3. Assimilation Correction check
+    if (assimilationResult) {
+        const stateDiff = assimilationResult.assimilated_state.reduce((acc: number, val: number, i: number) => 
+            acc + Math.abs(val - assimilationResult.initial_state[i]), 0)
+        if (stateDiff > 50) { // Arbitrary threshold for high correction
+            anomalies.push("High state correction required by Kalman Filter, indicating low model-data agreement")
+            credibilityScore -= 10
+        }
     }
 
     credibilityScore = Math.max(0, Math.min(100, credibilityScore))
+    console.log(`[✓] Final Credibility score: ${credibilityScore}/100`)
 
-    console.log(`[✓] Credibility score: ${credibilityScore}/100`)
-
-    // Step 4: Store results in database
-    console.log("[4/4] Storing results in database...")
+    // Step 5: Store results in database
+    console.log("[5/5] Storing V8 results in database...")
 
     const verificationResult: VerificationResult = {
-      isPhysicallyCoherent: anomalies.length === 0 && credibilityScore > 70,
+      isPhysicallyCoherent: anomalies.length === 0 && credibilityScore > 75,
       credibilityScore,
       anomalies,
       extractedData: extractedParams,
-      predictions,
+      predictions3d,
+      assimilation: assimilationResult ?? undefined
     }
 
+    // Insert into physics_validations (legacy and new fields)
     const { error: insertError } = await supabase
       .from("physics_validations")
       .insert({
@@ -240,7 +254,9 @@ Respond ONLY with valid JSON, no additional text.`,
         analysis_id: analysisId,
         extracted_data: extractedParams,
         pinn_results: {
-          predictions,
+          predictions3d,
+          assimilation: assimilationResult,
+          version: "V8-3D",
           validation_timestamp: new Date().toISOString(),
         },
         credibility_score: credibilityScore,
@@ -248,12 +264,9 @@ Respond ONLY with valid JSON, no additional text.`,
         anomalies: anomalies,
       })
 
-    if (insertError) {
-      console.error("Database insert error:", insertError)
-      throw insertError
-    }
+    if (insertError) throw insertError
 
-    // Update analysis status
+    // Update analysis record
     const { error: updateError } = await supabase
       .from("analyses")
       .update({
@@ -263,12 +276,9 @@ Respond ONLY with valid JSON, no additional text.`,
       })
       .eq("id", analysisId)
 
-    if (updateError) {
-      console.error("Analysis update error:", updateError)
-      throw updateError
-    }
+    if (updateError) throw updateError
 
-    console.log("[✓] Verification complete!")
+    console.log("[✓] V8 Verification complete!")
 
     return new Response(
       JSON.stringify({
