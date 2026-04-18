@@ -27,7 +27,8 @@ interface PhysicalParameters {
   x?: number
   y?: number
   z?: number
-  [key: string]: number | undefined
+  fluid_type?: string
+  [key: string]: number | string | undefined
 }
 
 interface VerificationResult {
@@ -94,6 +95,7 @@ Extract all physical parameters from the following text. Return a JSON object wi
 - volume (m³)
 - mass_flow_rate (kg/s)
 - x, y, z (coordinates in meters if mentioned, else default to 0.5)
+- fluid_type (One of: "H2", "NH3", "CH4", "sCO2". Default to "H2" if not clear)
 
 Include only parameters explicitly mentioned. Return null for missing values.
 Respond ONLY with valid JSON, no additional text.`,
@@ -191,16 +193,21 @@ Respond ONLY with valid JSON, no additional text.`,
         }
     }
 
-    // Step 4: Calculate credibility score and detect anomalies (Enhanced for V8)
+    // Step 4: Calculate credibility score and detect anomalies (Enhanced for V8 Multi-Fluid)
     console.log("[4/5] Calculating enhanced credibility score...")
     let credibilityScore = 100
     const anomalies: string[] = []
+    const fluidType = (extractedParams.fluid_type as string) || "H2"
 
-    // 1. Physical range checks (Liquid Hydrogen context)
+    // 1. Physical range checks based on Fluid Type
     if (extractedParams.pressure !== undefined) {
-      if (extractedParams.pressure < 1e5 || extractedParams.pressure > 1000e5) {
-        anomalies.push(`Pressure ${(extractedParams.pressure / 1e5).toFixed(1)} bar is outside safety limits (1-1000 bar)`)
+      const p = extractedParams.pressure as number
+      if (fluidType === "H2" && (p < 1e5 || p > 1000e5)) {
+        anomalies.push(`Pressure ${(p / 1e5).toFixed(1)} bar is outside safety limits for Hydrogen`)
         credibilityScore -= 25
+      } else if (fluidType === "NH3" && (p < 1e5 || p > 200e5)) {
+        anomalies.push(`Pressure ${(p / 1e5).toFixed(1)} bar is unusual for Ammonia storage`)
+        credibilityScore -= 20
       }
     }
 
