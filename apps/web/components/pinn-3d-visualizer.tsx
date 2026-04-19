@@ -70,7 +70,7 @@ export default function PINN3DVisualizer({ predictions, title = "Visualisation 3
                   size: 8,
                   color: pressure,
                   colorscale: 'Viridis',
-                  colorbar: { title: 'Pression (Pa)', thickness: 15 },
+                  colorbar: { title: { text: 'Pression (Pa)' }, thickness: 15 },
                   opacity: 0.8
                 },
                 text: predictions.map(p => `P: ${p.pressure.toExponential(2)} Pa, T: ${p.temperature.toFixed(1)} K`),
@@ -107,7 +107,7 @@ export default function PINN3DVisualizer({ predictions, title = "Visualisation 3
                 colorscale: 'Portland',
                 sizemode: 'scaled',
                 sizeref: 0.5,
-                colorbar: { title: 'Vitesse (m/s)', thickness: 15 }
+                colorbar: { title: { text: 'Vitesse (m/s)' }, thickness: 15 }
               }
             ]}
             layout={{
