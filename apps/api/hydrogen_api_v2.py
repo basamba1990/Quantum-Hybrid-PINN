@@ -1,5 +1,5 @@
 """
-FastAPI server for Hydrogen PINN Model - V2
+FastAPI server for Hydrogen PINN Model - V2 (CORRECTED)
 Provides REST endpoints for training, inference, and data assimilation with 3D PINN and Deep Kalman Filter
 """
 
@@ -36,10 +36,10 @@ app = FastAPI(
     version="2.0.0",
 )
 
-# CORS middleware
+# CORS middleware - FIXED: Added missing comma
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"]
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

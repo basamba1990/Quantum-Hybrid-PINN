@@ -5,6 +5,7 @@ from typing import Dict, List
 
 from pinn_3d_navier_stokes import PINN3DNavierStokes, T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
 from deep_kalman_filter import DeepKalmanFilter
+from quantum_eos_torch import SilveraGoldmanEOS, integrate_eos_in_pinn_loss
 
 # Utility function to get device
 def get_device():
@@ -23,6 +24,8 @@ class HydrogenPINNV8:
         # Assuming state_dim for DKL is (rho, u, v, w, T) = 5
         # Assuming observation_dim is 3 (pressure, temperature, flow rate)
         self.dkl_model = DeepKalmanFilter(state_dim=5, observation_dim=3).to(self.device)
+        # Quantum EOS Model
+        self.eos_model = SilveraGoldmanEOS(device=self.device)
 
     def train_pinn(self, epochs: int = 5000, learning_rate: float = 1e-3, N_pde: int = 5000) -> Dict[str, List[float]]:
         optimizer = torch.optim.Adam(self.pinn_model.parameters(), lr=learning_rate)
@@ -42,7 +45,15 @@ class HydrogenPINNV8:
             rho_pred, u_pred, v_pred, w_pred, T_pred = self.pinn_model(t_pde, x_pde, y_pde, z_pde)
             pde_loss = self.pinn_model.loss(t_pde, x_pde, y_pde, z_pde, rho_pred, u_pred, v_pred, w_pred, T_pred)
 
-            total_loss = pde_loss
+            # Integrate Quantum EOS Loss
+            eos_loss = integrate_eos_in_pinn_loss(
+                self.eos_model,
+                rho_pred,
+                T_pred,
+                weight=0.1
+            )
+
+            total_loss = pde_loss + eos_loss
 
             total_loss.backward()
             optimizer.step()
@@ -56,7 +67,6 @@ class HydrogenPINNV8:
         return history
 
     def predict_state(self, t: float, x: float, y: float, z: float):
-        from fluid_properties import get_eos
         self.pinn_model.eval()
         with torch.no_grad():
             t_tensor = torch.tensor([[t]], dtype=torch.float32, device=self.device)
@@ -64,7 +74,9 @@ class HydrogenPINNV8:
             y_tensor = torch.tensor([[y]], dtype=torch.float32, device=self.device)
             z_tensor = torch.tensor([[z]], dtype=torch.float32, device=self.device)
             rho, u, v, w, T = self.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
-            p = get_eos(self.fluid_type, rho, T)
+            
+            # Use Quantum EOS for pressure prediction
+            p = self.eos_model(rho, T)
 
         return {
             "pressure": p.item(),
