@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'SpotBulle Science Verify',
+  title: 'Q-Hybrid Science Verify',
   description: 'Gestion de projets, analyses et rapports scientifiques',
 }
 
