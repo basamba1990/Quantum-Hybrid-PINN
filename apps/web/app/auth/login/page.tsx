@@ -56,7 +56,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
         <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">
-          Connexion à Q-Science-Verify
+          Connexion à Q-Hybrid Science Verify
         </h1>
         
         <form onSubmit={handleLogin} className="space-y-4">
