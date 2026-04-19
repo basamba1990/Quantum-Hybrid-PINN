@@ -107,7 +107,7 @@ export default function PINN3DVisualizer({ predictions, title = "Visualisation 3
                 colorscale: 'Portland',
                 sizemode: 'scaled',
                 sizeref: 0.5,
-                colorbar: { title: 'Vitesse (m/s)', thickness: 15 }
+                colorbar: { title: { text: 'Vitesse (m/s)' }, thickness: 15 }
               }
             ]}
             layout={{
