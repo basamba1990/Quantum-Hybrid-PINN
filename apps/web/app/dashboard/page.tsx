@@ -55,7 +55,7 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-bold tracking-tight">Tableau de bord</h1>
-          <p className="text-gray-400 mt-2">Gérez vos simulations Quantum-Hybrid PINN</p>
+          <p className="text-gray-400 mt-2">Gérez vos simulations Q-Hybrid-Science-Verify</p>
         </div>
         <Link href="/dashboard/projects/new">
           <Button className="glass-button bg-primary/20 text-primary hover:bg-primary/30 border-primary/20">
