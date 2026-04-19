@@ -1,5 +1,3 @@
-'use client'
-
 import React, { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 
@@ -35,7 +33,11 @@ export default function PINN3DVisualizer({ predictions, title = "Visualisation 3
   }, [])
 
   if (!isMounted || !predictions || predictions.length === 0) {
-    return <div className="h-64 flex items-center justify-center bg-gray-100 rounded-lg">Chargement de la visualisation 3D...</div>
+    return (
+      <div className="h-[400px] w-full flex items-center justify-center bg-slate-50 rounded-lg text-slate-400 border border-dashed">
+        En attente des données de prédiction...
+      </div>
+    )
   }
 
   // Extract data for plotting
@@ -43,21 +45,17 @@ export default function PINN3DVisualizer({ predictions, title = "Visualisation 3
   const y = predictions.map(p => p.y)
   const z = predictions.map(p => p.z)
   const pressure = predictions.map(p => p.pressure)
-  const temperature = predictions.map(p => p.temperature)
-  const density = predictions.map(p => p.density)
-
-  // Velocity vectors
   const u = predictions.map(p => p.velocity_u)
   const v = predictions.map(p => p.velocity_v)
   const w = predictions.map(p => p.velocity_w)
 
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-      <h3 className="text-lg font-semibold mb-4 text-slate-800">{title}</h3>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Pressure Isosurface/Scatter */}
-        <div className="h-[400px]">
+    <div className="space-y-8">
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+        <h3 className="text-lg font-semibold text-slate-800 mb-4">{title}</h3>
+        
+        {/* Pressure Distribution Plot */}
+        <div className="h-[400px] mb-8">
           <Plot
             data={[
               {
@@ -108,7 +106,7 @@ export default function PINN3DVisualizer({ predictions, title = "Visualisation 3
                 sizemode: 'scaled',
                 sizeref: 0.5,
                 colorbar: { title: { text: 'Vitesse (m/s)' }, thickness: 15 }
-              }
+              } as any
             ]}
             layout={{
               title: 'Vecteurs de Vitesse',
@@ -123,21 +121,6 @@ export default function PINN3DVisualizer({ predictions, title = "Visualisation 3
             style={{ width: '100%', height: '100%' }}
             config={{ responsive: true }}
           />
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs text-slate-500">
-        <div className="p-2 bg-slate-50 rounded">
-          <span className="block font-bold text-slate-700">Densité Moyenne</span>
-          {(density.reduce((a, b) => a + b, 0) / density.length).toFixed(2)} kg/m³
-        </div>
-        <div className="p-2 bg-slate-50 rounded">
-          <span className="block font-bold text-slate-700">Temp. Max</span>
-          {Math.max(...temperature).toFixed(1)} K
-        </div>
-        <div className="p-2 bg-slate-50 rounded">
-          <span className="block font-bold text-slate-700">Pression Max</span>
-          {Math.max(...pressure).toExponential(2)} Pa
         </div>
       </div>
     </div>
