@@ -1,6 +1,6 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { 
   LayoutDashboard, 
   FlaskConical, 
@@ -11,6 +11,9 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
+import type { User } from '@supabase/supabase-js'
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Tableau de bord', href: '/dashboard' },
@@ -20,8 +23,30 @@ const menuItems = [
   { icon: Settings, label: 'Paramètres', href: '/dashboard/settings' },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  user?: User
+}
+
+export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const supabase = createClient()
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        toast.error('Erreur lors de la déconnexion')
+        return
+      }
+      toast.success('Déconnecté avec succès')
+      router.push('/auth/login')
+      router.refresh()
+    } catch (error) {
+      console.error('Logout error:', error)
+      toast.error('Une erreur s\'est produite')
+    }
+  }
 
   return (
     <div className="w-64 glass-card border-r border-white/10 flex flex-col h-screen sticky top-0">
@@ -29,6 +54,9 @@ export function Sidebar() {
         <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
           Quantum PINN
         </h1>
+        {user && (
+          <p className="text-xs text-gray-500 mt-2 truncate">{user.email}</p>
+        )}
       </div>
       
       <nav className="flex-1 px-4 space-y-2">
@@ -56,7 +84,10 @@ export function Sidebar() {
       </nav>
 
       <div className="p-4 border-t border-white/10">
-        <button className="flex items-center gap-3 px-4 py-3 w-full text-gray-400 hover:text-red-400 transition-colors">
+        <button 
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-4 py-3 w-full text-gray-400 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10"
+        >
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Déconnexion</span>
         </button>
