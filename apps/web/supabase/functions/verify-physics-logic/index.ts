@@ -28,6 +28,7 @@ const PhysicalParametersSchema = z.object({
   x: z.number().min(0).max(1).default(0.5),
   y: z.number().min(0).max(1).default(0.5),
   z: z.number().min(0).max(1).default(0.5),
+  fluid: z.string().optional(),
   fluid_type: z.enum(["H2", "NH3", "CH4", "sCO2"]).default("H2"),
 }).strict()
 
@@ -113,6 +114,7 @@ Extract all physical parameters from the following text. Return a JSON object wi
 - volume (m³)
 - mass_flow_rate (kg/s)
 - x, y, z (coordinates in meters if mentioned, else default to 0.5)
+- fluid (Name of the fluid as mentioned in the text)
 - fluid_type (One of: "H2", "NH3", "CH4", "sCO2". Default to "H2" if not clear)
 
 Include only parameters explicitly mentioned. Return null for missing values.
