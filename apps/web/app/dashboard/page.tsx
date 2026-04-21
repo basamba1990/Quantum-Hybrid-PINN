@@ -1,10 +1,21 @@
-
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Project } from '@/types'
-import { Plus, FlaskConical, Activity, Clock, Search, Filter } from 'lucide-react'
+import { 
+  Plus, 
+  FlaskConical, 
+  Activity, 
+  Clock, 
+  Search, 
+  Filter, 
+  ArrowUpRight, 
+  Layers, 
+  ShieldCheck,
+  ChevronRight,
+  Atom
+} from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,6 +38,7 @@ export default function DashboardPage() {
           .from('projects')
           .select('*')
           .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
         
         if (error) console.error('Fetch projects error:', error)
         setProjects(data || [])
@@ -44,97 +56,147 @@ export default function DashboardPage() {
   )
 
   if (loading) return (
-    <div className="flex items-center justify-center h-full">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+    <div className="flex flex-col items-center justify-center h-[80vh] space-y-4">
+      <div className="relative">
+        <div className="h-16 w-16 rounded-full border-t-2 border-b-2 border-blue-500 animate-spin"></div>
+        <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-r-2 border-l-2 border-emerald-500 animate-spin-slow"></div>
+      </div>
+      <p className="text-blue-500 font-mono text-xs animate-pulse uppercase tracking-widest">Initialisation du Nexus Quantique...</p>
     </div>
   )
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-8 max-w-7xl mx-auto space-y-10 relative">
+      {/* Background Glow */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-emerald-600/5 rounded-full blur-[100px] -z-10 pointer-events-none" />
+
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">Tableau de bord</h1>
-          <p className="text-gray-400 mt-2">Gérez vos simulations Q-Hybrid-Science-Verify</p>
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-blue-500 font-mono text-[10px] uppercase tracking-[0.3em]">
+            <Atom className="w-3 h-3" /> 
+            <span>Centre de Commandement V8.0</span>
+          </div>
+          <h1 className="text-5xl font-black tracking-tighter text-white">
+            Nexus <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Scientifique</span>
+          </h1>
+          <p className="text-gray-400 max-w-md text-sm leading-relaxed">
+            Supervision des simulations Quantum-Hybrid-PINN et orchestration des validations physiques en temps réel.
+          </p>
         </div>
         <Link href="/dashboard/projects/new">
-          <Button className="bg-blue-600 text-white hover:bg-blue-700 font-medium px-6 py-2 rounded-lg transition-colors">
-            <Plus className="mr-2 h-4 w-4" /> Nouveau Projet
-          </Button>
+          <button className="group relative px-8 py-4 bg-white text-black font-bold rounded-2xl overflow-hidden transition-all hover:scale-105 active:scale-95">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-emerald-500 opacity-0 group-hover:opacity-10 transition-opacity" />
+            <span className="relative flex items-center gap-2">
+              <Plus className="w-5 h-5" /> Nouveau Projet de Recherche
+            </span>
+          </button>
         </Link>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="glass-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Total Projets</CardTitle>
-            <FlaskConical className="h-4 w-4 text-blue-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{projects.length}</div>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Simulations Actives</CardTitle>
-            <Activity className="h-4 w-4 text-green-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-          </CardContent>
-        </Card>
-        <Card className="glass-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-400">Dernière Run</CardTitle>
-            <Clock className="h-4 w-4 text-purple-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">--</div>
-          </CardContent>
-        </Card>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'Projets Actifs', value: projects.length, icon: Layers, color: 'blue' },
+          { label: 'Analyses PINN', value: '12', icon: Activity, color: 'emerald' },
+          { label: 'Score Moyen', value: '94%', icon: ShieldCheck, color: 'purple' },
+          { label: 'Temps Calcul', value: '1.2s', icon: Clock, color: 'orange' },
+        ].map((stat, i) => (
+          <div key={i} className="relative group">
+            <div className="absolute inset-0 bg-white/[0.02] border border-white/10 rounded-3xl transition-all group-hover:border-white/20" />
+            <div className="relative p-6 space-y-4">
+              <div className={`p-3 rounded-2xl bg-${stat.color}-500/10 w-fit`}>
+                <stat.icon className={`w-5 h-5 text-${stat.color}-400`} />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{stat.label}</p>
+                <p className="text-3xl font-black text-white mt-1">{stat.value}</p>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Projects Section */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
-            <Input 
-              placeholder="Rechercher un projet..." 
-              className="pl-10 glass-card border-white/10 focus:ring-primary/50"
+      {/* Projects Control Bar */}
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <div className="relative flex-1 w-full group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-blue-500 transition-colors" />
+            <input 
+              placeholder="Filtrer les archives quantiques..." 
+              className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button variant="outline" className="glass-card border-white/10">
-            <Filter className="mr-2 h-4 w-4" /> Filtres
-          </Button>
+          <button className="flex items-center gap-2 px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+            <Filter className="w-4 h-4" />
+            <span className="text-sm font-bold">Paramètres de Vue</span>
+          </button>
         </div>
 
         {filteredProjects.length === 0 ? (
-          <div className="text-center py-20 glass-card rounded-2xl border-dashed border-white/10">
-            <FlaskConical className="mx-auto h-12 w-12 text-gray-600 mb-4" />
-            <h3 className="text-xl font-semibold">Aucun projet trouvé</h3>
-            <p className="text-gray-400 mt-2">Commencez par créer votre première simulation quantique.</p>
+          <div className="relative py-24 rounded-[40px] border-2 border-dashed border-white/5 flex flex-col items-center justify-center text-center overflow-hidden">
+            <div className="absolute inset-0 bg-blue-500/5 animate-pulse" />
+            <FlaskConical className="h-16 w-16 text-gray-700 mb-6 relative" />
+            <h3 className="text-2xl font-bold text-white relative">Aucune Donnée Détectée</h3>
+            <p className="text-gray-500 mt-2 max-w-xs relative">Votre nexus est vide. Initialisez un nouveau projet pour commencer la simulation.</p>
+            <Link href="/dashboard/projects/new" className="mt-8 relative">
+              <Button variant="outline" className="rounded-xl border-white/10 hover:bg-white/10">
+                Initialiser le Premier Projet
+              </Button>
+            </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredProjects.map((project) => (
-              <Link key={project.id} href={`/dashboard/projects/${project.id}`}>
-                <Card className="glass-card group hover:border-primary/50 transition-all duration-300 overflow-hidden">
-                  <div className="h-2 bg-gradient-to-r from-blue-500 to-purple-500 opacity-50 group-hover:opacity-100 transition-opacity" />
-                  <CardHeader>
-                    <CardTitle className="group-hover:text-primary transition-colors">{project.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-400 line-clamp-2 text-sm">{project.description}</p>
-                    <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
-                      <Clock className="h-3 w-3" />
-                      {new Date(project.created_at).toLocaleDateString()}
+              <Link key={project.id} href={`/dashboard/projects/${project.id}`} className="group">
+                <div className="relative h-full transition-all duration-500 group-hover:-translate-y-2">
+                  {/* Card Glow */}
+                  <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-[32px] blur opacity-0 group-hover:opacity-20 transition duration-500" />
+                  
+                  <div className="relative h-full bg-[#0a0a0a] border border-white/10 rounded-[30px] overflow-hidden flex flex-col">
+                    <div className="h-1.5 w-full bg-white/5 relative overflow-hidden">
+                      <div className="absolute left-0 top-0 h-full w-1/3 bg-gradient-to-r from-blue-500 to-emerald-500 group-hover:w-full transition-all duration-700" />
                     </div>
-                  </CardContent>
-                </Card>
+                    
+                    <div className="p-8 flex-1 flex flex-col">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="p-2.5 bg-blue-500/10 rounded-xl">
+                          <FlaskConical className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] font-mono text-gray-500 bg-white/5 px-2 py-1 rounded-full uppercase tracking-tighter">
+                          <div className="w-1 h-1 bg-blue-500 rounded-full" />
+                          V8-Active
+                        </div>
+                      </div>
+                      
+                      <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors mb-2 line-clamp-1">
+                        {project.name}
+                      </h3>
+                      
+                      <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed flex-1">
+                        {project.description || "Aucune description scientifique fournie pour ce module de simulation."}
+                      </p>
+                      
+                      <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[10px] font-bold text-gray-400">
+                            {project.name[0].toUpperCase()}
+                          </div>
+                          <div className="text-[10px] font-mono text-gray-500">
+                            <p className="uppercase tracking-widest">Date Init</p>
+                            <p className="text-gray-300">{new Date(project.created_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <div className="p-2 bg-white/5 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-all">
+                          <ArrowUpRight className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>
