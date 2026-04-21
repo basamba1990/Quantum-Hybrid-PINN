@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Project, Report } from '@/types'
 import PDFViewer from '@/components/pdf-viewer'
+import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import { 
   ArrowLeft, 
