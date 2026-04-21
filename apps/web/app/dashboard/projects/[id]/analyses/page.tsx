@@ -49,7 +49,7 @@ export default function AnalysesPage() {
           <tbody>
             {analyses.map((a) => (
               <tr key={a.id}>
-                <td className="px-4 py-2 border">{a.title}</td>
+                <td className="px-4 py-2 border">{a.title || (a as any).name}</td>
                 <td className="px-4 py-2 border">{a.status}</td>
                 <td className="px-4 py-2 border">
                   {format(new Date(a.created_at), 'dd/MM/yyyy HH:mm')}
