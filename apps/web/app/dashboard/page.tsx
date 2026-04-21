@@ -58,7 +58,7 @@ export default function DashboardPage() {
           <p className="text-gray-400 mt-2">Gérez vos simulations Q-Hybrid-Science-Verify</p>
         </div>
         <Link href="/dashboard/projects/new">
-          <Button className="glass-button bg-primary/20 text-primary hover:bg-primary/30 border-primary/20">
+          <Button className="bg-blue-600 text-white hover:bg-blue-700 font-medium px-6 py-2 rounded-lg transition-colors">
             <Plus className="mr-2 h-4 w-4" /> Nouveau Projet
           </Button>
         </Link>

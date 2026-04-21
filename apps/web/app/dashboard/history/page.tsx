@@ -2,7 +2,7 @@
 import { Card, CardContent } from '@/components/ui/card'  // Supprimé CardHeader, CardTitle
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { History, Search, Download, Trash2, ExternalLink } from 'lucide-react'
+import { History, Search, Download, Trash2, ExternalLink, AlertCircle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 
 const historyData = [
@@ -65,14 +65,32 @@ export default function HistoryPage() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" className="hover:bg-white/5 text-gray-400">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="hover:bg-white/5 text-gray-400 group relative"
+                    title="Télécharger les résultats"
+                  >
                     <Download size={18} />
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Télécharger</span>
                   </Button>
-                  <Button variant="ghost" size="icon" className="hover:bg-white/5 text-gray-400">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="hover:bg-white/5 text-gray-400 group relative"
+                    title="Voir les détails"
+                  >
                     <ExternalLink size={18} />
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Voir détails</span>
                   </Button>
-                  <Button variant="ghost" size="icon" className="hover:bg-white/5 text-gray-400 hover:text-red-400">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="hover:bg-white/5 text-gray-400 hover:text-red-400 group relative"
+                    title="Supprimer"
+                  >
                     <Trash2 size={18} />
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Supprimer</span>
                   </Button>
                 </div>
               </div>
