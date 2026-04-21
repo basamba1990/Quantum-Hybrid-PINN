@@ -3,6 +3,8 @@ export interface Project {
   user_id: string
   name: string
   description?: string
+  category?: string
+  status?: string
   video_url?: string
   transcription?: string
   created_at: string
