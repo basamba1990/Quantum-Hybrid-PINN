@@ -177,22 +177,22 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
       }
 
       const result = await response.json()
-      const data = result.data
+      const data = result.status === 'success' ? result : result.data
 
       setAuditData({
-        isPhysicallyCoherent: data.isPhysicallyCoherent,
+        isPhysicallyCoherent: data.credibilityScore > 50,
         credibilityScore: data.credibilityScore,
-        anomalies: data.anomalies,
-        extractedData: data.extractedData,
-        predictions: data.predictions,
-        predictions3d: data.predictions3d,
+        anomalies: data.anomalies || [],
+        extractedData: data.extractedData || {},
+        predictions: data.predictions3d || [],
+        predictions3d: data.predictions3d || [],
         assimilation: data.assimilation,
       })
 
       setVerificationStatus(
-        data.isPhysicallyCoherent
+        data.credibilityScore > 50
           ? 'coherent'
-          : data.anomalies.length > 0
+          : data.anomalies && data.anomalies.length > 0
           ? 'anomaly'
           : 'impossible'
       )
@@ -204,6 +204,19 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
         overallSovereigntyIndex: 80,
       }
       setSovereigntyScore(defaultSovereignty)
+
+      const { error: updateError } = await supabase
+        .from('analyses')
+        .update({
+          status: 'completed',
+          credibility_score: data.credibilityScore,
+          results: data,
+        })
+        .eq('id', analysisRecord.id)
+
+      if (updateError) {
+        console.error('Error updating analysis status:', updateError)
+      }
 
       toast.success('Analyse physique terminée avec succès')
     } catch (error) {

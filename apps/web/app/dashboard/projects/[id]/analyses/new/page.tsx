@@ -34,9 +34,12 @@ export default function NewAnalysisPage() {
       const { data: newAnalysis, error: insertError } = await supabase
         .from('analyses')
         .insert({
-          name: formData.name,
+          title: formData.name,
           project_id: projectId,
-          status: 'pending'
+          user_id: user.id,
+          status: 'pending',
+          analysis_type: 'physics_verification',
+          transcription: project.transcription
         })
         .select()
         .single()
@@ -89,6 +92,23 @@ export default function NewAnalysisPage() {
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}))
         throw new Error(errorData.error || "Erreur lors de l'analyse IA / PINN")
+      }
+
+      const result = await res.json()
+      const data = result.status === 'success' ? result : result.data
+
+      // Mettre à jour le statut de l'analyse à 'completed'
+      const { error: updateError } = await supabase
+        .from('analyses')
+        .update({
+          status: 'completed',
+          credibility_score: data.credibilityScore,
+          results: data,
+        })
+        .eq('id', newAnalysis.id)
+
+      if (updateError) {
+        console.error('Error updating analysis status:', updateError)
       }
 
       toast.success('Analyse lancée avec succès 🚀')
