@@ -14,7 +14,7 @@ export interface Project {
 export interface Analysis {
   id: string
   project_id: string
-  name: string
+  title: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   created_at: string
   updated_at: string
