@@ -38,6 +38,12 @@ const VerificationRequestSchema = z.object({
   context: z.string().default("hydrogen_storage"),
 })
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, x-client-version, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 const PredictionResponseSchema = z.object({
   pressure: z.number(),
   velocity_u: z.number(),
@@ -284,18 +290,35 @@ function calculateCredibilityScore(
 // ============================================================================
 
 serve(async (req: Request) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   try {
     // Parse and validate request
-    let payload
-    const contentType = req.headers.get("content-type")
-    if (contentType && contentType.includes("application/json")) {
-      try {
-        payload = await req.json()
-      } catch (e) {
-        throw new Error("Invalid JSON in request body: " + e.message)
+    // Robust parsing following smoovebox-v2 pattern
+    let payload;
+    try {
+      const rawBody = await req.text();
+      if (!rawBody || rawBody.trim().length === 0) {
+        throw new Error("Empty request body");
       }
-    } else {
-      throw new Error("Request must have 'Content-Type: application/json' header.")
+      payload = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error("❌ JSON parsing error:", parseError);
+      return new Response(
+        JSON.stringify({
+          status: "error",
+          error: "Invalid JSON in request body",
+          details: parseError.message,
+          timestamp: new Date().toISOString(),
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     const validatedRequest = VerificationRequestSchema.parse(payload)
@@ -452,7 +475,7 @@ serve(async (req: Request) => {
         timestamp: new Date().toISOString(),
       }),
       {
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       }
     )
@@ -475,7 +498,7 @@ serve(async (req: Request) => {
         timestamp: new Date().toISOString(),
       }),
       {
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: statusCode,
       }
     )
