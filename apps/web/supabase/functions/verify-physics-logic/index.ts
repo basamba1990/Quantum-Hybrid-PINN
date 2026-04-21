@@ -398,7 +398,10 @@ serve(async (req: Request) => {
 
     const { score, anomalies } = calculateCredibilityScore(extractedParams, predictions3d, assimilationResult);
 
-    const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '');
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '', 
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    );
     // Store results in database (Optional: don't block if table doesn't exist yet)
     try {
       const { error: dbError } = await supabase.from('analysis_results').insert({

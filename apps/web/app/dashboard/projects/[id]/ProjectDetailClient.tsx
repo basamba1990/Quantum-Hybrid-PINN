@@ -17,7 +17,8 @@ import {
   Cpu,
   Database,
   ChevronRight,
-  FlaskConical
+  FlaskConical,
+  Clock
 } from 'lucide-react'
 
 export default function ProjectDetailClient({ id }: { id: string }) {
