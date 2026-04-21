@@ -30,7 +30,22 @@ export default function NewAnalysisPage() {
         throw new Error("Session expirée ou utilisateur non trouvé. Veuillez vous reconnecter.")
       }
 
-      // 2. Insert the analysis record (initial status: pending)
+      // 2. Get project details FIRST (specifically transcription for the PINN model)
+      const { data: project, error: projectError } = await supabase
+        .from('projects')
+        .select('transcription')
+        .eq('id', projectId)
+        .single()
+
+      if (projectError || !project) {
+        throw new Error("Impossible de récupérer les données du projet.")
+      }
+
+      if (!project.transcription) {
+        throw new Error("Aucune transcription ou donnée physique trouvée pour ce projet. Veuillez ajouter une transcription dans les paramètres du projet.")
+      }
+
+      // 3. Insert the analysis record (initial status: pending)
       const { data: newAnalysis, error: insertError } = await supabase
         .from('analyses')
         .insert({
@@ -49,23 +64,7 @@ export default function NewAnalysisPage() {
         throw new Error(`Erreur lors de la création : ${insertError.message}`)
       }
 
-      // 3. Get project details (specifically transcription for the PINN model)
-      const { data: project, error: projectError } = await supabase
-        .from('projects')
-        .select('transcription')
-        .eq('id', projectId)
-        .single()
-
-      if (projectError || !project) {
-        throw new Error("Impossible de récupérer les données du projet.")
-      }
-
-      if (!project.transcription) {
-        throw new Error("Aucune transcription ou donnée physique trouvée pour ce projet. Veuillez ajouter une transcription dans les paramètres du projet.")
-      }
-
       // 4. 🔥 CALL EDGE FUNCTION (The Real Physics Engine)
-      // We use the environment variables for the Supabase URL and Anon Key
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
