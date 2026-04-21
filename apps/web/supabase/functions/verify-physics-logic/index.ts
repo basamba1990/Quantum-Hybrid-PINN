@@ -286,7 +286,18 @@ function calculateCredibilityScore(
 serve(async (req: Request) => {
   try {
     // Parse and validate request
-    const payload = await req.json()
+    let payload
+    const contentType = req.headers.get("content-type")
+    if (contentType && contentType.includes("application/json")) {
+      try {
+        payload = await req.json()
+      } catch (e) {
+        throw new Error("Invalid JSON in request body: " + e.message)
+      }
+    } else {
+      throw new Error("Request must have 'Content-Type: application/json' header.")
+    }
+
     const validatedRequest = VerificationRequestSchema.parse(payload)
     const {
       projectId,
