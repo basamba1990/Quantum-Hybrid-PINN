@@ -30,10 +30,10 @@ export default function NewAnalysisPage() {
         throw new Error("Session expirée ou utilisateur non trouvé. Veuillez vous reconnecter.")
       }
 
-      // 2. Get project details FIRST (specifically transcription for the PINN model)
+      // 2. Get project details FIRST (specifically transcription and user_id for the PINN model)
       const { data: project, error: projectError } = await supabase
         .from('projects')
-        .select('transcription')
+        .select('transcription, user_id')
         .eq('id', projectId)
         .single()
 
@@ -52,7 +52,7 @@ export default function NewAnalysisPage() {
           name: formData.name,
           title: formData.name,
           project_id: projectId,
-          user_id: user.id,
+          user_id: project.user_id, // Use the project's user_id to ensure foreign key consistency
           status: 'pending',
           analysis_type: 'physics_verification',
           transcription: project.transcription
