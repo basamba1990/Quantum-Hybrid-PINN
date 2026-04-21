@@ -49,6 +49,7 @@ export default function NewAnalysisPage() {
       const { data: newAnalysis, error: insertError } = await supabase
         .from('analyses')
         .insert({
+          name: formData.name,
           title: formData.name,
           project_id: projectId,
           user_id: user.id,
