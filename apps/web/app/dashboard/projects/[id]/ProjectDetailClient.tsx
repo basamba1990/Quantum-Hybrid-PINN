@@ -25,6 +25,7 @@ import {
 export default function ProjectDetailClient({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
@@ -43,7 +44,14 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         .order('created_at', { ascending: false })
 
       setProject(projectData)
-      setReports(reportsData || [])
+      const fetchedReports = reportsData || []
+      setReports(fetchedReports)
+      
+      // Sélectionner automatiquement le dernier rapport par défaut
+      if (fetchedReports.length > 0) {
+        setSelectedReport(fetchedReports[0])
+      }
+      
       setLoading(false)
     }
 
@@ -169,19 +177,32 @@ export default function ProjectDetailClient({ id }: { id: string }) {
               reports.map((report) => (
                 <div 
                   key={report.id}
-                  className="group relative p-4 bg-white/5 border border-white/10 rounded-2xl hover:border-blue-500/30 transition-all cursor-pointer"
+                  onClick={() => setSelectedReport(report)}
+                  className={`group relative p-4 border rounded-2xl transition-all cursor-pointer ${
+                    selectedReport?.id === report.id 
+                      ? 'bg-blue-500/10 border-blue-500/50' 
+                      : 'bg-white/5 border-white/10 hover:border-blue-500/30'
+                  }`}
                 >
                   <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-xl bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-all">
+                    <div className={`p-3 rounded-xl transition-all ${
+                      selectedReport?.id === report.id
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white'
+                    }`}>
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-white truncate group-hover:text-blue-400 transition-colors">{report.name}</p>
+                      <p className={`text-sm font-bold truncate transition-colors ${
+                        selectedReport?.id === report.id ? 'text-blue-400' : 'text-white group-hover:text-blue-400'
+                      }`}>{report.name}</p>
                       <p className="text-[10px] font-mono text-gray-500 uppercase mt-1">
                         {format(new Date(report.created_at), 'dd.MM.yyyy HH:mm')}
                       </p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-gray-700 group-hover:text-blue-500 transition-colors" />
+                    <ChevronRight className={`w-4 h-4 transition-colors ${
+                      selectedReport?.id === report.id ? 'text-blue-500' : 'text-gray-700 group-hover:text-blue-500'
+                    }`} />
                   </div>
                 </div>
               ))
@@ -202,9 +223,9 @@ export default function ProjectDetailClient({ id }: { id: string }) {
               <Eye className="w-5 h-5 text-emerald-500" />
               Aperçu Scientifique
             </h2>
-            {reports.length > 0 && (
+            {selectedReport && (
               <a 
-                href={reports[0].file_url} 
+                href={selectedReport.file_url} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-[10px] font-bold text-blue-500 hover:text-blue-400 transition-colors uppercase tracking-widest"
@@ -215,9 +236,9 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           </div>
           
           <div className="relative rounded-[32px] border border-white/10 bg-black/40 overflow-hidden min-h-[600px] flex flex-col items-center justify-center">
-            {reports.length > 0 ? (
+            {selectedReport ? (
               <div className="w-full h-full p-4">
-                <PDFViewer url={reports[0].file_url} />
+                <PDFViewer url={selectedReport.file_url} />
               </div>
             ) : (
               <div className="text-center p-12 space-y-6">
@@ -230,7 +251,9 @@ export default function ProjectDetailClient({ id }: { id: string }) {
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-white">Visualiseur Inactif</h3>
                   <p className="text-sm text-gray-500 max-w-xs mx-auto">
-                    Sélectionnez un rapport d'analyse dans la colonne de gauche pour charger l'aperçu technique.
+                    {reports.length > 0 
+                      ? "Sélectionnez un rapport d'analyse dans la colonne de gauche pour charger l'aperçu technique."
+                      : "Générez votre première analyse pour visualiser les résultats techniques."}
                   </p>
                 </div>
                 <Link href={`/dashboard/projects/${id}/analyses/new`}>
