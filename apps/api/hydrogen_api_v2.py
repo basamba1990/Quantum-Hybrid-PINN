@@ -28,6 +28,7 @@ from hydrogen_pinn_model import (
     generate_training_data,
 )
 from hydrogen_pinn_v8 import HydrogenPINNV8, get_device
+from fno_3d_navier_stokes import PINO3DNavierStokes
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -103,6 +104,7 @@ class ModelStatusResponse(BaseModel):
 class InitializeRequestV8(BaseModel):
     layers: List[int] = [4, 256, 256, 256, 256, 5]
     fluid_type: str = "H2"
+    use_fno: bool = False
 
 class TrainRequestV8(BaseModel):
     N_pde: int = 5000
@@ -227,7 +229,16 @@ async def predict(request: PredictionRequest):
 async def initialize_model_v8(request: InitializeRequestV8):
     global current_model_v8
     try:
-        current_model_v8 = HydrogenPINNV8(layers=request.layers, fluid_type=request.fluid_type)
+        if request.use_fno:
+            # Initialize PINO (Physics-Informed Neural Operator)
+            model = PINO3DNavierStokes(modes1=8, modes2=8, modes3=8, width=32, fluid_type=request.fluid_type)
+            # Store in a special wrapper or directly
+            current_model_v8 = HydrogenPINNV8(layers=request.layers, fluid_type=request.fluid_type)
+            current_model_v8.pinn_model = model
+            current_model_v8.is_fno = True
+        else:
+            current_model_v8 = HydrogenPINNV8(layers=request.layers, fluid_type=request.fluid_type)
+            current_model_v8.is_fno = False
         models_v8[f"default_v8_{request.fluid_type}"] = current_model_v8
         return {
             "status": "success",
