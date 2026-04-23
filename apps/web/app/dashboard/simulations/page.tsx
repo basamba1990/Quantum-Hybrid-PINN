@@ -66,7 +66,7 @@ export default function SimulationsPage() {
     const predictions = selectedAnalysis?.results?.predictions3d || []
     if (predictions.length === 0) return { x: [], pressure: [], velocity: [], isEmpty: true }
     
-    const x = predictions.map((_, i) => i)
+    const x = predictions.map(p => p.time)
     const pressure = predictions.map(p => p.pressure)
     const velocity = predictions.map(p => Math.sqrt(p.velocity_u**2 + p.velocity_v**2 + p.velocity_w**2))
     return { x, pressure, velocity, isEmpty: false }
@@ -147,15 +147,15 @@ export default function SimulationsPage() {
                 </TabsList>
                 <TabsContent value="pressure" className="mt-6 h-[400px]">
                   <Plot
-                    data={[{ x, y: pressure, type: 'scatter', mode: 'lines', line: { color: '#3b82f6', width: 3 }, fill: 'tozeroy', fillcolor: 'rgba(59, 130, 246, 0.1)' }]}
-                    layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { t: 0, r: 0, b: 40, l: 40 }, xaxis: { gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } }, yaxis: { gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } } }}
+                    data={[{ x, y: pressure, type: 'scatter', mode: 'lines+markers', line: { color: '#3b82f6', width: 3, shape: 'spline' }, marker: { size: 6, color: '#3b82f6' }, fill: 'tozeroy', fillcolor: 'rgba(59, 130, 246, 0.1)' }]}
+                    layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { t: 20, r: 20, b: 40, l: 60 }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } }, yaxis: { title: 'Pression (Pa)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } } }}
                     useResizeHandler={true} style={{ width: '100%', height: '100%' }} config={{ displayModeBar: false }}
                   />
                 </TabsContent>
                 <TabsContent value="velocity" className="mt-6 h-[400px]">
                   <Plot
-                    data={[{ x, y: velocity, type: 'scatter', mode: 'lines', line: { color: '#a855f7', width: 3 } }]}
-                    layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { t: 0, r: 0, b: 40, l: 40 }, xaxis: { gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } }, yaxis: { gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } } }}
+                    data={[{ x, y: velocity, type: 'scatter', mode: 'lines+markers', line: { color: '#a855f7', width: 3, shape: 'spline' }, marker: { size: 6, color: '#a855f7' } }]}
+                    layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { t: 20, r: 20, b: 40, l: 60 }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } }, yaxis: { title: 'Vitesse (m/s)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } } }}
                     useResizeHandler={true} style={{ width: '100%', height: '100%' }}
                   />
                 </TabsContent>
