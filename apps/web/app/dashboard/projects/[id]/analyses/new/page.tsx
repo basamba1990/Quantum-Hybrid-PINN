@@ -24,13 +24,15 @@ export default function NewAnalysisPage() {
     setErrorMsg(null)
     
     try {
-      // 1. Get the authenticated user
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      if (authError || !user) {
-        throw new Error("Session expirée ou utilisateur non trouvé. Veuillez vous reconnecter.")
+      // 1. Vérifier que l'utilisateur est authentifié et récupérer son token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session) {
+        throw new Error("Session expirée. Veuillez vous reconnecter.")
       }
+      const accessToken = session.access_token
+      const user = session.user
 
-      // 2. Get project details FIRST (specifically transcription and user_id for the PINN model)
+      // 2. Récupérer le projet (transcription + user_id pour garantir la clé étrangère)
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .select('transcription, user_id')
@@ -42,17 +44,17 @@ export default function NewAnalysisPage() {
       }
 
       if (!project.transcription) {
-        throw new Error("Aucune transcription ou donnée physique trouvée pour ce projet. Veuillez ajouter une transcription dans les paramètres du projet.")
+        throw new Error("Aucune transcription trouvée. Veuillez ajouter une transcription dans les paramètres du projet.")
       }
 
-      // 3. Insert the analysis record (initial status: pending)
+      // 3. Créer l'enregistrement d'analyse (statut pending)
       const { data: newAnalysis, error: insertError } = await supabase
         .from('analyses')
         .insert({
           name: formData.name,
           title: formData.name,
           project_id: projectId,
-          user_id: project.user_id, // Use the project's user_id to ensure foreign key consistency
+          user_id: project.user_id,
           status: 'pending',
           analysis_type: 'physics_verification',
           transcription: project.transcription
@@ -62,42 +64,52 @@ export default function NewAnalysisPage() {
 
       if (insertError) {
         console.error('Insert error:', insertError)
-        throw new Error(`Erreur lors de la création : ${insertError.message}`)
+        throw new Error(`Erreur lors de la création de l'analyse : ${insertError.message}`)
       }
 
-      // 4. 🔥 CALL EDGE FUNCTION (The Real Physics Engine)
+      // 4. Appeler l'Edge Function avec le token utilisateur
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-      if (!supabaseUrl || !supabaseAnonKey) {
-        console.warn("Supabase environment variables are missing, attempting relative call...")
+      if (!supabaseUrl) {
+        throw new Error("Configuration manquante : NEXT_PUBLIC_SUPABASE_URL")
       }
 
-      const res = await fetch(
-        `${supabaseUrl}/functions/v1/verify-physics-logic`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-          },
-          body: JSON.stringify({
-            projectId: projectId,
-            analysisId: newAnalysis.id,
-            transcription: project.transcription,
-          }),
-        }
-      )
+      // Timeout de 30 secondes pour la fonction (peut être long à cause de GPT-4o)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/verify-physics-logic`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          projectId: projectId,
+          analysisId: newAnalysis.id,
+          transcription: project.transcription,
+          context: 'hydrogen_storage', // optionnel
+        }),
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.error || "Erreur lors de l'analyse IA / PINN")
+        let errorDetail = `Erreur HTTP ${res.status}`
+        try {
+          const errorBody = await res.json()
+          errorDetail = errorBody.error || errorDetail
+        } catch {
+          // ignore
+        }
+        throw new Error(errorDetail)
       }
 
       const result = await res.json()
-      const data = result.status === 'success' ? result : result.data
+      // La réponse de la fonction a la forme { status: "success", credibilityScore, anomalies, ... }
+      const data = result.status === 'success' ? result : result
 
-      // Mettre à jour le statut de l'analyse à 'completed'
+      // Mettre à jour l'analyse avec les résultats
       const { error: updateError } = await supabase
         .from('analyses')
         .update({
@@ -108,19 +120,19 @@ export default function NewAnalysisPage() {
         .eq('id', newAnalysis.id)
 
       if (updateError) {
-        console.error('Error updating analysis status:', updateError)
+        console.error('Erreur mise à jour analyse:', updateError)
+        // Non bloquant : l'analyse est déjà créée, on continue
       }
 
       toast.success('Analyse lancée avec succès 🚀')
-      
-      // Redirect to the analyses list
       router.push(`/dashboard/projects/${projectId}/analyses`)
       router.refresh()
       
     } catch (err: any) {
       console.error('Analysis execution error:', err)
-      setErrorMsg(err.message)
-      toast.error(err.message)
+      const message = err.message || 'Erreur inconnue'
+      setErrorMsg(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
