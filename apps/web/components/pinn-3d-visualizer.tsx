@@ -40,10 +40,13 @@ export default function PINN3DVisualizer({ predictions, title = "Visualisation 3
     )
   }
 
-  // Extract data for plotting
-  const x = predictions.map(p => p.x)
-  const y = predictions.map(p => p.y)
-  const z = predictions.map(p => p.z)
+  // For 3D visualization, we might want to show the spatial distribution or the evolution
+  // If all points are at the same x,y,z (time series at one point), we add small offsets for visibility in 3D
+  const isPointSeries = new Set(predictions.map(p => `${p.x},${p.y},${p.z}`)).size === 1;
+  
+  const x = predictions.map((p, i) => isPointSeries ? p.x + (i * 0.01) : p.x)
+  const y = predictions.map((p, i) => isPointSeries ? p.y + (Math.sin(i) * 0.01) : p.y)
+  const z = predictions.map((p, i) => isPointSeries ? p.z + (Math.cos(i) * 0.01) : p.z)
   const pressure = predictions.map(p => p.pressure)
   const u = predictions.map(p => p.velocity_u)
   const v = predictions.map(p => p.velocity_v)
