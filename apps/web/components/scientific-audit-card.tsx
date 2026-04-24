@@ -6,25 +6,13 @@ import {
   AlertTriangle,
   FileText,
   Download,
-  TrendingUp,
   Zap,
   Box,
   Activity
 } from 'lucide-react'
 import PINN3DVisualizer from './pinn-3d-visualizer'
-
-interface Prediction3D {
-  time: number
-  x: number
-  y: number
-  z: number
-  pressure: number
-  velocity_u: number
-  velocity_v: number
-  velocity_w: number
-  temperature: number
-  density: number
-}
+// ✅ Importer le type partagé
+import type { Prediction3D } from '@/types'
 
 interface AuditData {
   isPhysicallyCoherent: boolean
@@ -38,7 +26,7 @@ interface AuditData {
     velocity: number
     temperature: number
   }>
-  predictions3d?: Prediction3D[]
+  predictions3d?: Prediction3D[] // ✅ Utilise le type global avec timestamp
   assimilation?: {
     initial_state: number[]
     observation: number[]
