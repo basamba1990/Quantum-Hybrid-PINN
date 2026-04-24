@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState, useCallback, useEffect } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Prediction3D } from '@/types'
@@ -113,11 +113,6 @@ export default function PINN3DVisualizer({
     [predictions]
   )
 
-  // Callback for handling plot interactions
-  const handlePlotlyClick = useCallback((event: any) => {
-    console.log('Plot interaction:', event)
-  }, [])
-
   return (
     <div className="space-y-4">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
@@ -163,7 +158,6 @@ export default function PINN3DVisualizer({
               }}
               config={{ responsive: true, displayModeBar: true }}
               style={{ width: '100%', height: '100%' }}
-              onClick={handlePlotlyClick}
             />
           </TabsContent>
 
@@ -198,7 +192,6 @@ export default function PINN3DVisualizer({
               }}
               config={{ responsive: true, displayModeBar: true }}
               style={{ width: '100%', height: '100%' }}
-              onClick={handlePlotlyClick}
             />
           </TabsContent>
 
@@ -235,7 +228,6 @@ export default function PINN3DVisualizer({
               }}
               config={{ responsive: true, displayModeBar: true }}
               style={{ width: '100%', height: '100%' }}
-              onClick={handlePlotlyClick}
             />
           </TabsContent>
         </Tabs>
