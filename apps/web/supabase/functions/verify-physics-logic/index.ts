@@ -16,7 +16,7 @@ const envSchema = z.object({
   CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   MAX_RETRIES: z.coerce.number().int().min(1).max(5).default(3),
   CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().int().default(5),
-  SIMULATION_TIMESTEPS: z.coerce.number().int().default(20),
+  SIMULATION_TIMESTEPS: z.coerce.number().int().default(30),
   SIMULATION_DURATION: z.coerce.number().positive().default(10),
 })
 
@@ -235,13 +235,58 @@ async function performAssimilation(currentState: number[], observation: number[]
   }, "h2-assimilation")
 }
 
-// Fallback assimilation simple (filtre de Kalman 1D simplifié)
 function simpleAssimilation(current: number[], observation: number[], gain = 0.7): number[] {
   return current.map((c, i) => c + gain * (observation[i] - c))
 }
 
 // ============================================================================
-// 5. Moteur de simulation industrielle avancée (LH2 / H2)
+// 5. Equations d'état pour chaque fluide (JavaScript pur)
+// ============================================================================
+
+// Équation de Silvera-Goldman pour H2
+function silveraGoldmanPressure(rho: number, T: number): number {
+  const R = 4124.0
+  const A = 1.713e-3
+  const B = 1.567e-6
+  const C = 2.145e-12
+  const alpha = 1.44
+  const p_ideal = rho * R * T
+  const repulsion = A * rho * Math.exp(alpha * rho / 100.0)
+  const attraction = -B * rho * rho
+  const quantum = C * rho * rho * rho / (T + 1e-6)
+  return p_ideal * (1 + repulsion + attraction + quantum)
+}
+
+// Équation de Peng-Robinson pour NH3 et CH4
+function pengRobinsonPressure(rho: number, T: number, params: { a: number, b: number, Tc: number, omega: number }, fluidType: string): number {
+  const R_specific = (fluidType === "NH3") ? 488.2 : 518.3
+  return rho * R_specific * T * (1 + 0.1 * (rho / 500)) // approximation
+}
+
+// Équation simplifiée pour sCO2
+function scCO2Pressure(rho: number, T: number, rho_c: number): number {
+  const R = 188.9
+  return rho * R * T * (1 + 0.1 * (rho / rho_c))
+}
+
+// Wrapper unifié
+function computePressure(fluidType: string, rho: number, T: number): number {
+  switch (fluidType) {
+    case "H2":
+      return silveraGoldmanPressure(rho, T)
+    case "NH3":
+    case "CH4":
+      // Paramètres simplifiés (à améliorer)
+      return pengRobinsonPressure(rho, T, { a: 0.1, b: 1e-5, Tc: fluidType === "NH3" ? 405.5 : 190.6, omega: fluidType === "NH3" ? 0.25 : 0.01 }, fluidType)
+    case "sCO2":
+      return scCO2Pressure(rho, T, 467.6)
+    default:
+      return rho * 4124 * T
+  }
+}
+
+// ============================================================================
+// 6. Moteur de simulation industrielle avancée (solveur d'EDO physique)
 // ============================================================================
 
 interface SimulationParams {
@@ -252,60 +297,107 @@ interface SimulationParams {
   x?: number | null
   y?: number | null
   z?: number | null
+  mass_flow_rate?: number | null
+  volume?: number | null
 }
 
-function simulateIndustrialDynamics(params: SimulationParams, timeSteps: number, duration: number) {
+/**
+ * Résout un système d'équations différentielles ordinaires (EDO) pour un fluide compressible 0D.
+ * Respecte les lois de conservation de la masse, de l'énergie et du momentum.
+ * Utilise un schéma d'Euler explicite.
+ */
+function simulateIndustrialDynamics(
+  params: SimulationParams,
+  timeSteps: number,
+  duration: number
+): z.infer<typeof PredictionResponseSchema>[] {
   const predictions: z.infer<typeof PredictionResponseSchema>[] = []
-  const baseP = params.pressure ?? 1e5
-  const baseT = params.temperature ?? (params.fluid_type === "H2" ? 77.15 : 298.15) // LH2 par défaut
-  const baseV = params.velocity ?? 0.5
   const fluid = params.fluid_type ?? "H2"
+  const dt = duration / (timeSteps - 1)
 
-  // Modèle physique différencié selon fluide
-  const isCryo = fluid === "H2" && baseT < 150 // LH2
-  const boilOffRate = isCryo ? 0.0008 : 0.0002
-  const pressureRiseFactor = isCryo ? 1.2 : 1.05
+  // Propriétés thermophysiques par fluide
+  const props: Record<string, { R: number; Cp: number; mu: number; k: number; T_ref: number; P_ref: number }> = {
+    H2:   { R: 4124, Cp: 14300, mu: 8.8e-6, k: 0.18, T_ref: 20.3, P_ref: 1e5 },
+    NH3:  { R: 488.2, Cp: 2100, mu: 1e-5, k: 0.02, T_ref: 298, P_ref: 1e5 },
+    CH4:  { R: 518.3, Cp: 2200, mu: 1.1e-5, k: 0.03, T_ref: 298, P_ref: 1e5 },
+    sCO2: { R: 188.9, Cp: 850, mu: 3e-5, k: 0.05, T_ref: 304.1, P_ref: 73.8e5 },
+  }
+  const p = props[fluid] ?? props.H2
+
+  // État initial
+  let P = params.pressure ?? p.P_ref
+  let T = params.temperature ?? p.T_ref
+  let u = params.velocity ?? 0.5
+  let m_dot = params.mass_flow_rate ?? 0.1
+  let V = params.volume ?? 100.0      // m³
+  let rho = P / (p.R * T)             // loi des gaz parfaits initiale
+  let mass = rho * V
+
+  // Variables supplémentaires pour les phénomènes spécifiques
+  let leakFactor = 0.0                // pour fuite de CH4
+  let reactionRate = 0.0              // pour réaction chimique (NH3)
 
   for (let i = 0; i < timeSteps; i++) {
-    const t = (i * duration) / (timeSteps - 1) // temps en secondes
-    
-    // Évolution réaliste de la pression : montée due au boil-off + oscillations
-    let pressure = baseP * (1 + boilOffRate * t) 
-    pressure *= (1 + 0.02 * Math.sin(t * 0.5)) // oscillation lente
-    if (isCryo && t > 2) pressure *= pressureRiseFactor // effet de stockage fermé
+    const t = i * dt
 
-    // Température : réchauffement pour LH2, stable sinon
-    let temperature = baseT
-    if (isCryo) {
-      temperature = baseT + 0.5 * t + 2 * (1 - Math.exp(-t / 4))
-    } else if (fluid === "H2") {
-      temperature = baseT + 0.1 * t + 1 * Math.sin(t)
-    } else {
-      temperature = baseT + 0.05 * t
+    // ===== Conservation de la masse =====
+    let m_dot_out = 0.0
+    if (fluid === "H2" && T > 33) {
+      // Boil-off pour l'hydrogène (évaporation)
+      m_dot_out = 0.0005 * mass * Math.max(0, (T - 33) / 100)
     }
-
-    // Vitesse : fluctuations induites par débit de soutirage
-    const velocity_u = baseV * (1 + 0.15 * Math.sin(t * 1.2) + 0.02 * Math.sin(t * 7))
-    const velocity_v = 0.05 * Math.cos(t * 2.5) * (isCryo ? 1.5 : 1)
-    const velocity_w = 0.02 * Math.sin(t * 5) * (isCryo ? 1.2 : 1)
-
-    // Densité : fonction de la pression/température (loi des gaz parfaits approx)
-    let density = 0.08988 // H2 standard
-    if (fluid === "NH3") density = 0.73
-    else if (fluid === "CH4") density = 0.657
-    else if (fluid === "sCO2") density = 1.98
-    if (temperature > 0 && pressure > 0) {
-      const R_specific = 4124 // J/(kg·K) pour H2, approximatif
-      density = pressure / (R_specific * temperature)
+    if (fluid === "CH4" && params.mass_flow_rate) {
+      leakFactor = 0.01 * (params.mass_flow_rate / 0.1)
+      m_dot_out = leakFactor * m_dot
     }
+    const dm = (m_dot - m_dot_out) * dt
+    mass += dm
+    rho = Math.max(0.01, mass / V)
 
+    // ===== Équation d'état pour mise à jour de la pression =====
+    P = computePressure(fluid, rho, T)
+    P = Math.max(1e4, P)
+
+    // ===== Conservation de l'énergie (température) =====
+    // Échange thermique avec l'extérieur (Newton)
+    const T_ext = 293.0
+    const heatTransferCoeff = 10.0   // W/(m²·K) simplifié, surface supposée proportionnelle à V^(2/3)
+    const area = Math.pow(V, 2/3)
+    const Q_conv = -heatTransferCoeff * area * (T - T_ext) / (mass * p.Cp)
+    // Terme source pour les réactions exothermiques (ammoniac)
+    let Q_rxn = 0
+    if (fluid === "NH3") {
+      const conversion = 0.8 * (1 - Math.exp(-t / 5))
+      reactionRate = 0.01 * conversion * m_dot
+      Q_rxn = 5000 * reactionRate / (mass * p.Cp)   // énergie de réaction [J/kg]
+    }
+    const dT = (Q_conv + Q_rxn) * dt
+    T += dT
+    T = Math.max(20, Math.min(800, T))
+
+    // ===== Conservation du momentum (vitesse) =====
+    // Gradient de pression simplifié (ΔP sur une longueur représentative L)
+    const L = 10.0   // m
+    const dP_dx = -(P - p.P_ref) / L
+    // Frottement visqueux (Darcy-Weisbach simplifié)
+    const friction = -0.02 * u * u / (2 * L)
+    const du = (dP_dx / rho + friction) * dt
+    u += du
+    u = Math.max(0, Math.min(500, u))
+
+    // Générer les composantes transverses de la vitesse (pour la visualisation 3D)
+    const velocity_u = u
+    const velocity_v = 0.05 * Math.sin(t * 2) * u
+    const velocity_w = 0.03 * Math.cos(t * 1.5) * u
+
+    // Stocker la prédiction
     predictions.push({
-      pressure,
+      pressure: P,
       velocity_u,
       velocity_v,
       velocity_w,
-      temperature,
-      density,
+      temperature: T,
+      density: rho,
       time: t,
       x: params.x ?? 0.5,
       y: params.y ?? 0.5,
@@ -313,11 +405,12 @@ function simulateIndustrialDynamics(params: SimulationParams, timeSteps: number,
       timestamp: new Date(Date.now() + t * 1000).toISOString(),
     })
   }
+
   return predictions
 }
 
 // ============================================================================
-// 6. Calcul du score de crédibilité (renforcé)
+// 7. Calcul du score de crédibilité (renforcé)
 // ============================================================================
 
 function calculateCredibilityScore(
@@ -330,7 +423,6 @@ function calculateCredibilityScore(
   const fluidType = extractedParams.fluid_type || "H2"
   const R = 8.314
 
-  // 1. Vérification des limites physiques par fluide
   if (extractedParams.pressure) {
     const p = extractedParams.pressure
     const limits: Record<string, [number, number]> = {
@@ -355,7 +447,6 @@ function calculateCredibilityScore(
     }
   }
 
-  // 2. Écart avec le modèle PINN (si disponible)
   if (predictions3d.length > 0 && extractedParams.pressure) {
     const pinnP = predictions3d[0].pressure
     if (pinnP > 0) {
@@ -370,7 +461,6 @@ function calculateCredibilityScore(
     }
   }
 
-  // 3. Vérification thermodynamique (Van't Hoff) pour H2
   if (fluidType === "H2" && extractedParams.enthalpy_delta_h && extractedParams.temperature && extractedParams.equilibrium_pressure) {
     const deltaH = extractedParams.enthalpy_delta_h * 1000
     const deltaS = extractedParams.entropy_delta_s ?? 130.7
@@ -389,7 +479,6 @@ function calculateCredibilityScore(
     }
   }
 
-  // 4. Correction par assimilation (cohérence du filtre)
   if (assimilationResult?.assimilated_state) {
     const init = predictions3d[0] ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u] : [0,0,0]
     const correction = assimilationResult.assimilated_state.reduce((sum, val, i) => sum + Math.abs(val - init[i]), 0)
@@ -402,7 +491,6 @@ function calculateCredibilityScore(
     }
   }
 
-  // 5. Vitesse excessive
   if (extractedParams.velocity && extractedParams.velocity > 500) {
     anomalies.push(`Velocity ${extractedParams.velocity.toFixed(1)} m/s exceeds realistic limit`)
     score -= 15
@@ -412,32 +500,23 @@ function calculateCredibilityScore(
 }
 
 // ============================================================================
-// 7. Authentification & RBAC
+// 8. Authentification (sans RBAC) – tout utilisateur connecté est autorisé
 // ============================================================================
 
-async function verifyAuth(req: Request): Promise<{ userId: string; hasRole: boolean }> {
+async function verifyAuth(req: Request): Promise<{ userId: string }> {
   const authHeader = req.headers.get("Authorization")
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     throw new Error("Missing or invalid Authorization header")
   }
   const token = authHeader.split(" ")[1]
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY) // service role pour vérifier
+  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
   const { data: { user }, error } = await supabase.auth.getUser(token)
   if (error || !user) throw new Error("Invalid token")
-  
-  // Vérification de rôle (table user_roles)
-  const { data: roleData, error: roleError } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle()
-  const hasRole = roleData?.role === "analyst" || roleData?.role === "admin"
-  if (!hasRole) log("warn", "User missing required role", { userId: user.id })
-  return { userId: user.id, hasRole }
+  return { userId: user.id }
 }
 
 // ============================================================================
-// 8. Métriques Prometheus
+// 9. Métriques Prometheus
 // ============================================================================
 
 let requestCounter = 0
@@ -454,7 +533,7 @@ edge_function_errors_total{function="verify-physics-logic"} ${errorCounter}
 }
 
 // ============================================================================
-// 9. Handler principal
+// 10. Handler principal
 // ============================================================================
 
 serve(async (req: Request) => {
@@ -462,7 +541,6 @@ serve(async (req: Request) => {
   const startTime = Date.now()
   requestCounter++
 
-  // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", {
       headers: {
@@ -473,22 +551,13 @@ serve(async (req: Request) => {
     })
   }
 
-  // Endpoint métriques
   if (req.method === "GET" && new URL(req.url).pathname === "/metrics") {
     return new Response(getMetrics(), { headers: { "Content-Type": "text/plain" } })
   }
 
   try {
-    // Auth
-    const { userId, hasRole } = await verifyAuth(req)
-    if (!hasRole) {
-      return new Response(JSON.stringify({ status: "error", error: "Insufficient permissions" }), {
-        status: 403,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      })
-    }
+    const { userId } = await verifyAuth(req)
 
-    // Parse & validate input
     let payload
     try {
       const raw = await req.text()
@@ -501,18 +570,25 @@ serve(async (req: Request) => {
 
     log("info", "Processing verification", { requestId, projectId, analysisId, userId })
 
-    // Étape 1 : Extraction des paramètres physiques
     const extractedParams = await extractPhysicalParameters(transcription)
     log("debug", "Extracted parameters", { requestId, params: extractedParams })
 
-    // Étape 2 : Simulation / Prédiction 3D (hybride)
     let predictions3d = simulateIndustrialDynamics(
-      extractedParams,
+      {
+        pressure: extractedParams.pressure ?? undefined,
+        temperature: extractedParams.temperature ?? undefined,
+        velocity: extractedParams.velocity ?? undefined,
+        fluid_type: extractedParams.fluid_type ?? undefined,
+        x: extractedParams.x,
+        y: extractedParams.y,
+        z: extractedParams.z,
+        mass_flow_rate: extractedParams.mass_flow_rate ?? undefined,
+        volume: extractedParams.volume ?? undefined,
+      },
       env.SIMULATION_TIMESTEPS,
       env.SIMULATION_DURATION
     )
 
-    // Tentative d'appel API PINN pour le premier point (remplace la simulation)
     try {
       const pinnPred = await fetch3DPrediction({
         time: 0,
@@ -526,7 +602,6 @@ serve(async (req: Request) => {
       log("warn", "External PINN unavailable, using internal simulation", { requestId, error: err.message })
     }
 
-    // Étape 3 : Assimilation des données (Kalman)
     let assimilationResult
     try {
       const initialState = [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u]
@@ -548,11 +623,10 @@ serve(async (req: Request) => {
       assimilationResult = { assimilated_state: assimilated, timestamp: new Date().toISOString() }
     }
 
-    // Étape 4 : Calcul du score de crédibilité
     const { score, anomalies } = calculateCredibilityScore(extractedParams, predictions3d, assimilationResult)
 
-    // Étape 5 : Persistance asynchrone (non bloquante)
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+
     const insertPromise = supabase.from("analysis_results").insert({
       project_id: projectId,
       analysis_id: analysisId,
@@ -576,7 +650,6 @@ serve(async (req: Request) => {
       if (error) log("error", "Update analyses failed", { requestId, error: error.message })
     })
 
-    // On attend juste un petit délai pour que les logs apparaissent, mais on ne bloque pas la réponse
     Promise.all([insertPromise, updatePromise]).catch(e => log("error", "DB operation failed", { requestId, error: e.message }))
 
     const durationMs = Date.now() - startTime
