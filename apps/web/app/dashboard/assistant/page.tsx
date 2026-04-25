@@ -255,7 +255,8 @@ export default function AssistantPage() {
           .replace("High kinetic Riser condition required", "Vitesse cinétique anormalement élevée détectée")
           .replace("Oneri HSE de 210%", "Incertitude thermohydraulique critique (seuil HSE dépassé)")
           .replace("High pressure deviation", "Déviation de pression importante")
-          .replace("High Kalman Filter correction required", "Correction majeure du filtre de Kalman requise");
+          .replace("High Kalman Filter correction required", "Correction majeure du filtre de Kalman requise")
+          .replace(/Kasten[-‑]Flotte/gi, "Filtre de Kalman");  // ← Correction ajoutée
         response += `- ${cleanAnomaly}\n`
       })
     } else {
