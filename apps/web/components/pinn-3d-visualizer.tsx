@@ -47,10 +47,10 @@ export default function PINN3DVisualizer({
     const y = predictions.map((p, i) => (isPointSeries ? p.y + Math.sin(i * 0.1) * 0.001 : p.y))
     const z = predictions.map((p, i) => (isPointSeries ? p.z + Math.cos(i * 0.1) * 0.001 : p.z))
 
-    // Velocity components with proper scaling for visualization
-    const u = predictions.map((p) => p.velocity_u * 10)
-    const v = predictions.map((p) => p.velocity_v * 10)
-    const w = predictions.map((p) => p.velocity_w * 10)
+    // Velocity components
+    const u = predictions.map((p) => p.velocity_u)
+    const v = predictions.map((p) => p.velocity_v)
+    const w = predictions.map((p) => p.velocity_w)
 
     return {
       x,
@@ -63,7 +63,7 @@ export default function PINN3DVisualizer({
       v,
       w,
       velocityMagnitude: predictions.map(
-        (p) => Math.sqrt(p.velocity_u ** 2 + p.velocity_v ** 2 + p.velocity_w ** 2) * 10
+        (p) => Math.sqrt(p.velocity_u ** 2 + p.velocity_v ** 2 + p.velocity_w ** 2)
       ),
     }
   }, [predictions])
