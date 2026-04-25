@@ -39,6 +39,7 @@ const PhysicalParametersSchema = z.object({
   z: z.number().min(0).max(1).default(0.5).nullable(),
   fluid: z.string().optional().nullable(),
   fluid_type: z.enum(["H2","NH3","CH4","sCO2"]).default("H2").nullable(),
+  scenario: z.enum(["storage", "transport", "pipeline"]).default("storage").nullable(),
   enthalpy_delta_h: z.number().optional().nullable(),
   entropy_delta_s: z.number().optional().nullable(),
   gravimetric_density_w: z.number().optional().nullable(),
@@ -164,10 +165,11 @@ async function extractPhysicalParameters(transcription: string): Promise<z.infer
                 role: "system",
                 content: `You are an expert physicist specializing in hydrogen storage and thermodynamics.
 Extract all physical parameters from the following text. Return a JSON object with:
-- pressure (Pa), temperature (K), velocity (m/s), efficiency (%), power (W), volume (m³), mass_flow_rate (kg/s)
-- x, y, z (coordinates 0-1, default 0.5)
-- fluid, fluid_type ("H2", "NH3", "CH4", "sCO2")
-- enthalpy_delta_h (kJ/mol), entropy_delta_s (J/K/mol), gravimetric_density_w (wt.%), equilibrium_pressure (Pa)
+	- pressure (Pa), temperature (K), velocity (m/s), efficiency (%), power (W), volume (m³), mass_flow_rate (kg/s)
+	- x, y, z (coordinates 0-1, default 0.5)
+	- fluid, fluid_type ("H2", "NH3", "CH4", "sCO2")
+	- scenario ("storage", "transport", "pipeline")
+	- enthalpy_delta_h (kJ/mol), entropy_delta_s (J/K/mol), gravimetric_density_w (wt.%), equilibrium_pressure (Pa)
 Respond ONLY with valid JSON, no other text.`,
               },
               { role: "user", content: transcription },
@@ -376,15 +378,26 @@ function simulateIndustrialDynamics(
     T = Math.max(20, Math.min(800, T))
 
     // ===== Conservation du momentum (vitesse) =====
-    // Pour un réservoir statique, le gradient de pression macroscopique est quasi nul.
-    // On réduit drastiquement l'influence du gradient de pression pour éviter les accélérations irréalistes.
+    const scenario = params.scenario ?? "storage"
     const L = 10.0   // m
-    const dP_dx = -(P - p.P_ref) / (L * 1000) // Amortissement du gradient
-    // Frottement visqueux (Amortissement fort pour stabiliser la vitesse en stockage)
-    const friction = -0.5 * u 
+    
+    let dP_dx, friction, maxU
+    
+    if (scenario === "storage") {
+      // Réservoir statique : gradient faible, frottement fort, vitesse < 2 m/s
+      dP_dx = -(P - p.P_ref) / (L * 1000)
+      friction = -0.5 * u
+      maxU = 2.0
+    } else {
+      // Transport / Pipeline : gradient fort, frottement faible, vitesse jusqu'à 100 m/s
+      dP_dx = -(P - p.P_ref) / L
+      friction = -0.02 * u * u / (2 * L)
+      maxU = 100.0
+    }
+    
     const du = (dP_dx / rho + friction) * dt
     u += du
-    u = Math.max(0, Math.min(2.0, u)) // Limite physique réaliste pour du LH2 en convection
+    u = Math.max(0, Math.min(maxU, u))
 
     // Générer les composantes transverses de la vitesse (pour la visualisation 3D)
     const velocity_u = u
@@ -426,18 +439,24 @@ function calculateCredibilityScore(
 
     if (extractedParams.pressure) {
     const p = extractedParams.pressure
+    const scenario = extractedParams.scenario ?? "storage"
+    
     const limits: Record<string, [number, number]> = {
-      H2: [1e5, 10e5], // LH2 storage is typically low pressure (1-10 bar)
+      H2_storage: [1e5, 10e5],   // LH2 cryogénique
+      H2_transport: [1e5, 800e5], // Hydrogène gazeux haute pression
       NH3: [1e5, 200e5], 
       CH4: [1e5, 300e5], 
       sCO2: [73.8e5, 250e5]
     }
-    const [minP, maxP] = limits[fluidType] || [1e4, 1e8]
+    
+    const key = (fluidType === "H2") ? `H2_${scenario}` : fluidType
+    const [minP, maxP] = limits[key] || limits[fluidType] || [1e4, 1e8]
+    
     if (p < minP || p > maxP) {
       const pBar = (p/1e5).toFixed(1)
       const minBar = (minP/1e5).toFixed(1)
       const maxBar = (maxP/1e5).toFixed(1)
-      anomalies.push(`Pression de ${pBar} bar hors limites physiques pour ${fluidType} [${minBar}-${maxBar} bar]`)
+      anomalies.push(`Pression de ${pBar} bar hors limites physiques pour ${fluidType} (${scenario}) [${minBar}-${maxBar} bar]`)
       score -= 25
     }
   }
@@ -586,6 +605,7 @@ serve(async (req: Request) => {
         temperature: extractedParams.temperature ?? undefined,
         velocity: extractedParams.velocity ?? undefined,
         fluid_type: extractedParams.fluid_type ?? undefined,
+        scenario: extractedParams.scenario ?? undefined,
         x: extractedParams.x,
         y: extractedParams.y,
         z: extractedParams.z,
