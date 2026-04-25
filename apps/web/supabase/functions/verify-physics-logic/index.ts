@@ -376,14 +376,15 @@ function simulateIndustrialDynamics(
     T = Math.max(20, Math.min(800, T))
 
     // ===== Conservation du momentum (vitesse) =====
-    // Gradient de pression simplifié (ΔP sur une longueur représentative L)
+    // Pour un réservoir statique, le gradient de pression macroscopique est quasi nul.
+    // On réduit drastiquement l'influence du gradient de pression pour éviter les accélérations irréalistes.
     const L = 10.0   // m
-    const dP_dx = -(P - p.P_ref) / L
-    // Frottement visqueux (Darcy-Weisbach simplifié)
-    const friction = -0.02 * u * u / (2 * L)
+    const dP_dx = -(P - p.P_ref) / (L * 1000) // Amortissement du gradient
+    // Frottement visqueux (Amortissement fort pour stabiliser la vitesse en stockage)
+    const friction = -0.5 * u 
     const du = (dP_dx / rho + friction) * dt
     u += du
-    u = Math.max(0, Math.min(500, u))
+    u = Math.max(0, Math.min(2.0, u)) // Limite physique réaliste pour du LH2 en convection
 
     // Générer les composantes transverses de la vitesse (pour la visualisation 3D)
     const velocity_u = u
@@ -423,14 +424,20 @@ function calculateCredibilityScore(
   const fluidType = extractedParams.fluid_type || "H2"
   const R = 8.314
 
-  if (extractedParams.pressure) {
+    if (extractedParams.pressure) {
     const p = extractedParams.pressure
     const limits: Record<string, [number, number]> = {
-      H2: [1e5, 800e5], NH3: [1e5, 200e5], CH4: [1e5, 300e5], sCO2: [73.8e5, 250e5]
+      H2: [1e5, 10e5], // LH2 storage is typically low pressure (1-10 bar)
+      NH3: [1e5, 200e5], 
+      CH4: [1e5, 300e5], 
+      sCO2: [73.8e5, 250e5]
     }
     const [minP, maxP] = limits[fluidType] || [1e4, 1e8]
     if (p < minP || p > maxP) {
-      anomalies.push(`Pressure ${(p/1e5).toFixed(1)} bar outside typical ${fluidType} range [${minP/1e5}-${maxP/1e5}]`)
+      const pBar = (p/1e5).toFixed(1)
+      const minBar = (minP/1e5).toFixed(1)
+      const maxBar = (maxP/1e5).toFixed(1)
+      anomalies.push(`Pression de ${pBar} bar hors limites physiques pour ${fluidType} [${minBar}-${maxBar} bar]`)
       score -= 25
     }
   }

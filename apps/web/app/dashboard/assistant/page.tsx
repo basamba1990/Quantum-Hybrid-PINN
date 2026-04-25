@@ -248,12 +248,18 @@ export default function AssistantPage() {
     response += `**Cohérence physique:** ${isPhysicallyCoherent ? '✓ Valide' : '✗ Anomalies détectées'}\n\n`
 
     if (anomalies.length > 0) {
-      response += `**Anomalies détectées:**\n`
+      response += `**Anomalies physiques détectées:**\n`
       anomalies.forEach((anomaly: string) => {
-        response += `- ${anomaly}\n`
+        // Nettoyage des messages d'anomalies pour plus de clarté
+        const cleanAnomaly = anomaly
+          .replace("High kinetic Riser condition required", "Vitesse cinétique anormalement élevée détectée")
+          .replace("Oneri HSE de 210%", "Incertitude thermohydraulique critique (seuil HSE dépassé)")
+          .replace("High pressure deviation", "Déviation de pression importante")
+          .replace("High Kalman Filter correction required", "Correction majeure du filtre de Kalman requise");
+        response += `- ${cleanAnomaly}\n`
       })
     } else {
-      response += `Aucune anomalie majeure détectée.\n`
+      response += `Aucune anomalie majeure détectée. Le système est stable.\n`
     }
 
     if (extractedData.pressure) {
