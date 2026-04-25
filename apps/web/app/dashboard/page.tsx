@@ -76,13 +76,13 @@ export default function DashboardPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-blue-500 font-mono text-[10px] uppercase tracking-[0.3em]">
             <Atom className="w-3 h-3" /> 
-            <span>Centre de Commandement V8.0</span>
+            <span>Centre de Commandement</span>
           </div>
           <h1 className="text-5xl font-black tracking-tighter text-white">
             Nexus <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Scientifique</span>
           </h1>
           <p className="text-gray-400 max-w-md text-sm leading-relaxed">
-            Supervision des simulations Quantum-Hybrid-PINN et orchestration des validations physiques en temps réel.
+            Supervision des simulations Quantum-Hybrid-FNO et orchestration des validations physiques en temps réel.
           </p>
         </div>
         <Link href="/dashboard/projects/new">
