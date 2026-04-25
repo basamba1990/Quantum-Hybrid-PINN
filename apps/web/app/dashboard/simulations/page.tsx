@@ -67,7 +67,8 @@ export default function SimulationsPage() {
     if (predictions.length === 0) return { x: [], pressure: [], velocity: [], isEmpty: true }
     
     const x = predictions.map(p => p.time)
-    const pressure = predictions.map(p => p.pressure)
+    // Convertir Pa en bar pour affichage lisible
+    const pressure = predictions.map(p => p.pressure / 1e5)
     const velocity = predictions.map(p => Math.sqrt(p.velocity_u**2 + p.velocity_v**2 + p.velocity_w**2))
     return { x, pressure, velocity, isEmpty: false }
   }
@@ -148,7 +149,7 @@ export default function SimulationsPage() {
                 <TabsContent value="pressure" className="mt-6 h-[400px]">
                   <Plot
                     data={[{ x, y: pressure, type: 'scatter', mode: 'lines+markers', line: { color: '#3b82f6', width: 3, shape: 'spline' }, marker: { size: 6, color: '#3b82f6' }, fill: 'tozeroy', fillcolor: 'rgba(59, 130, 246, 0.1)' }]}
-                    layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { t: 20, r: 20, b: 40, l: 60 }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } }, yaxis: { title: 'Pression (Pa)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } } }}
+                    layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { t: 20, r: 20, b: 40, l: 60 }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } }, yaxis: { title: 'Pression (bar)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } } }}
                     useResizeHandler={true} style={{ width: '100%', height: '100%' }} config={{ displayModeBar: false }}
                   />
                 </TabsContent>
