@@ -26,7 +26,7 @@ export default function HomePage() {
             className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm font-mono"
           >
             <Cpu className="w-3 h-3" />
-            <span>Quantum-Hybrid PINN V8.0 – Production Ready</span>
+            <span>Quantum-Hybrid-FNO – Production Ready</span>
           </motion.div>
 
           <motion.h1
@@ -44,7 +44,7 @@ export default function HomePage() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed"
           >
-            Plateforme de simulation et validation scientifique par réseaux de neurones informés par la physique (PINN). 
+            Plateforme de simulation et validation scientifique par Neural Operators (FNO) et réseaux de neurones informés par la physique (PINN). 
             Analysez, visualisez et auditez la cohérence physique de vos données.
           </motion.p>
 
@@ -78,7 +78,7 @@ export default function HomePage() {
           <Card className="glass-card border-white/10 bg-white/5 backdrop-blur-sm">
             <CardHeader>
               <FlaskConical className="w-8 h-8 text-blue-400 mb-2" />
-              <CardTitle className="text-white">Simulation PINN 3D</CardTitle>
+              <CardTitle className="text-white">Simulation FNO/PINN 3D</CardTitle>
               <CardDescription className="text-gray-400">
                 Résolution des équations de Navier-Stokes avec apprentissage profond et EOS quantique.
               </CardDescription>
@@ -123,7 +123,7 @@ export default function HomePage() {
 
         {/* Pied de page */}
         <footer className="mt-32 text-center text-sm text-gray-600 border-t border-white/10 pt-8">
-          <p>Quantum-Hybrid PINN V8 – Infrastructure DeepTech pour la recherche et l'industrie</p>
+          <p>Quantum-Hybrid-FNO/PIN – Infrastructure DeepTech pour la recherche et l'industrie</p>
         </footer>
       </div>
     </div>
