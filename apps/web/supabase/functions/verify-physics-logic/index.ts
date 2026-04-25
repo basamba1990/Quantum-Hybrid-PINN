@@ -296,6 +296,7 @@ interface SimulationParams {
   temperature?: number | null
   velocity?: number | null
   fluid_type?: string | null
+  scenario?: string | null
   x?: number | null
   y?: number | null
   z?: number | null
@@ -437,7 +438,7 @@ function calculateCredibilityScore(
   const fluidType = extractedParams.fluid_type || "H2"
   const R = 8.314
 
-    if (extractedParams.pressure) {
+  if (extractedParams.pressure) {
     const p = extractedParams.pressure
     const scenario = extractedParams.scenario ?? "storage"
     
@@ -461,14 +462,18 @@ function calculateCredibilityScore(
     }
   }
 
+  // ✅ CORRECTION MAJEURE : Plages de température étendues pour NH3, CH4, sCO2
   if (extractedParams.temperature) {
     const T = extractedParams.temperature
     const limits: Record<string, [number, number]> = {
-      H2: [20, 800], NH3: [195, 500], CH4: [90, 600], sCO2: [304, 700]
+      H2: [20, 800],
+      NH3: [195, 800],   // étendu pour réacteur de synthèse (typ. 673 K)
+      CH4: [90, 800],    // étendu pour hautes températures
+      sCO2: [304, 800]   // étendu pour cycles supercritiques
     }
     const [minT, maxT] = limits[fluidType] || [14, 1000]
     if (T < minT || T > maxT) {
-      anomalies.push(`Temperature ${T.toFixed(1)}K outside ${fluidType} range [${minT}-${maxT}]`)
+      anomalies.push(`Température ${T.toFixed(1)} K hors plage ${fluidType} [${minT}-${maxT}]`)
       score -= 20
     }
   }
