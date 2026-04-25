@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         .eq('user_id', user.id)
         .single()
       if (!convError && conv) {
-        conversationHistory = conv.messages || []
+        conversationHistory = (conv.messages as any) || []
       }
     }
 
@@ -86,8 +86,8 @@ export async function POST(request: NextRequest) {
     // 6. Mise à jour de l'historique (sauvegarde en base)
     const newMessages: ConversationMessage[] = [
       ...conversationHistory,
-      { role: 'user', content: query, timestamp: new Date().toISOString() },
-      { role: 'assistant', content: assistantReply, timestamp: new Date().toISOString() },
+      { role: 'user' as const, content: query, timestamp: new Date().toISOString() },
+      { role: 'assistant' as const, content: assistantReply, timestamp: new Date().toISOString() },
     ].slice(-MAX_HISTORY_MESSAGES)
 
     if (currentConversationId) {
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Assistant API error:', error)
     const status = error instanceof z.ZodError ? 400 : 500
-    const message = error instanceof z.ZodError ? error.errors[0].message : 'Internal server error'
+    const message = error instanceof z.ZodError ? error.issues[0].message : 'Internal server error'
     return NextResponse.json({ error: message }, { status })
   }
 }
