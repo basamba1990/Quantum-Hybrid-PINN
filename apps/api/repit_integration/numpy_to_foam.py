@@ -8,7 +8,6 @@ import numpy as np
 import torch
 import Ofpp
 
-# Correction des imports : chemins relatifs au package repit_integration
 from .config import TrainingConfig, OpenfoamConfig
 from .utils import OpenfoamUtils
 
@@ -379,6 +378,65 @@ def numpyToFoamDirect(
             data_dict["T"], latestML_time_dir, data_dict["U"], adjust_phi=True
         )
     return output_string
+
+
+class NumpyToFoamConverter:
+    """
+    Convertisseur de données NumPy vers fichiers OpenFOAM.
+    Utilisé par l'API pour l'endpoint /openfoam/reinject-data.
+    """
+
+    def __init__(self, case_path: Union[str, Path]):
+        """
+        Initialise le convertisseur avec le chemin du cas OpenFOAM.
+
+        Args:
+            case_path: Chemin vers le répertoire du cas OpenFOAM
+        """
+        self.case_path = Path(case_path)
+
+    def convert_and_write(
+        self,
+        field_name: str,
+        data: List[List[float]],
+        time_step: float,
+        latestCFD_time: Optional[Union[int, float]] = None,
+    ) -> str:
+        """
+        Convertit une matrice 2D (liste de listes) en champ OpenFOAM et l'écrit
+        dans le répertoire de temps correspondant.
+
+        Args:
+            field_name: Nom du champ (ex: "U", "p", "T")
+            data: Données 2D (ex: numpy array converti en liste)
+            time_step: Instant auquel écrire le champ
+            latestCFD_time: Dernier temps CFD existant (optionnel)
+
+        Returns:
+            Chemin du fichier OpenFOAM créé
+        """
+        # Convertir la liste en numpy array
+        np_data = np.array(data, dtype=np.float64)
+
+        # Créer un dictionnaire avec le champ
+        data_dict = {field_name: np_data}
+
+        # Utiliser numpyToFoamDirect pour écrire le champ
+        config = TrainingConfig()
+        config.solver_dir = self.case_path
+
+        output_log = numpyToFoamDirect(
+            training_config=config,
+            latestML_time=time_step,
+            data_dict=data_dict,
+            latestCFD_time=latestCFD_time,
+            solver_dir=self.case_path,
+        )
+
+        # Retourner le chemin du fichier créé
+        time_dir_name = str(int(time_step)) if float(time_step).is_integer() else str(time_step)
+        output_file = self.case_path / time_dir_name / field_name
+        return str(output_file)
 
 
 if __name__ == "__main__":
