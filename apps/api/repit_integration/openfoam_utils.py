@@ -1,254 +1,174 @@
 from pathlib import Path
 import subprocess
+import re
 from datetime import datetime
-from typing import List, Union
+from typing import List, Union, Optional
 import timeit
 
-import Ofpp
 import numpy as np
+import Ofpp
 
-# Assuming OpenfoamConfig is imported from your framework
-# from repitframework.config import OpenfoamConfig
 
-class OpenfoamUtils:
-    def __init__(self, openfoam_config, solver_dir: Path = None, assets_dir: Path = None):
-        self.config = openfoam_config
-        
-        # Enforce Path objects and default to config if not provided
-        self.solver_dir = Path(solver_dir) if solver_dir else Path(self.config.solver_dir)
-        self.assets_dir = Path(assets_dir) if assets_dir else Path(self.config.assets_dir)
-        
-        self.assets_path = self._setup_assets_path()
-        self.mesh_type = self._get_mesh_type()
-        self.solver_type = self._read_solver_type()
-        
-        # Look for num_processors in config, default to 1 (serial)
-        self.num_processors = getattr(self.config, 'num_processors', 1)
+class OpenFOAMUtils:
+    """Classe utilitaire pour interagir avec OpenFOAM (mesh, décomposition, solveur, reconstruction)"""
 
-    def _setup_assets_path(self) -> Path:
-        """Creates and returns the case-specific assets directory."""
-        assets_path = self.assets_dir / self.solver_dir.name
-        assets_path.mkdir(parents=True, exist_ok=True)
-        return assets_path
-    
-    def _get_mesh_type(self) -> str:
-        """Determines mesh type by inspecting the system directory."""
-        if getattr(self.config, 'mesh_type', None):
-            return self.config.mesh_type
-        
-        system_dir = self.solver_dir / "system"
-        if (system_dir / "blockMeshDict").exists():
-            return "blockMesh"
-        if (system_dir / "snappyHexMeshDict").exists():
-            return "snappyHexMesh"
-            
-        raise ValueError("Mesh type not recognized. Please set it manually in OpenfoamConfig.")
-    
-    def _read_solver_type(self) -> str:
-        """Reads the application type from system/controlDict."""
-        if getattr(self.config, 'solver_type', None):
-            return self.config.solver_type
+    def __init__(self, case_path: Union[str, Path]):
+        """
+        Initialise l'utilitaire avec le chemin du cas OpenFOAM.
 
-        command = [
-            "foamDictionary", "-case", str(self.solver_dir),
-            "-entry", "application", "-value", "system/controlDict"
-        ]
-        try:
-            output = self.run_subprocess(command, capture_output=True, text=True)
-            return output.strip()
-        except subprocess.CalledProcessError as e:
-            self.config.logger.exception(f"Error reading solver type: {e}")
-            return ""
-
-    def _run_mesh_utility(self):
-        """Creates the mesh if it doesn't already exist."""
-        polyMesh_dir = self.solver_dir / "constant" / "polyMesh"
-        if polyMesh_dir.exists():
-            return "Mesh already exists! Skipping generation."
-            
-        self.config.logger.debug(f"Creating mesh using {self.mesh_type}...")
-        return self.run_subprocess([self.mesh_type, "-case", str(self.solver_dir)], capture_output=True, text=True)
-
-    def decompose_case(self):
-        """Decomposes the mesh and fields for parallel processing."""
-        self.config.logger.debug(f"Decomposing case for {self.num_processors} processors...")
-        # -force is used to overwrite any existing processor directories
-        return self.run_subprocess(["decomposePar", "-force", "-case", str(self.solver_dir)], capture_output=True, text=True)
-
-    def reconstruct_case(self):
-        """Reconstructs the parallel results back into single time directories."""
-        self.config.logger.debug("Reconstructing parallel results...")
-        return self.run_subprocess(["reconstructPar", "-case", str(self.solver_dir)], capture_output=True, text=True)
+        Args:
+            case_path: Chemin vers le répertoire du cas OpenFOAM
+        """
+        self.case_path = Path(case_path).resolve()
+        if not self.case_path.exists():
+            raise FileNotFoundError(f"Le chemin du cas n'existe pas : {self.case_path}")
 
     @staticmethod
-    def generate_intervals(start_time: float, end_time: float, time_step: float, round_to: int = 2) -> list:
-        """Generates consistent time intervals, avoiding numpy float drift."""
-        time_list = []
-        current_time = start_time
-        while current_time <= end_time:
-            time_list.append(round(current_time, round_to))
-            current_time = round(current_time + time_step, round_to)
-        return time_list
-
-    @staticmethod
-    def run_subprocess(command_list: list, capture_output: bool = True, text: bool = True) -> str:
-        """Wrapper for subprocess calls."""
-        result = subprocess.run(command_list, capture_output=capture_output, text=text, check=True)
+    def run_subprocess(command: List[str], capture_output: bool = True, text: bool = True) -> str:
+        """Exécute une commande shell et retourne sa sortie."""
+        result = subprocess.run(command, capture_output=capture_output, text=text, check=True)
         return result.stdout
 
     @staticmethod
-    def parse_to_numpy(
-        config,
-        start_time: float,
-        end_time: float,
-        solver_dir: Path = None,
-        save_path: Path = None,
-        variables: list = None,
-        write_interval: float = 0.01,
-        del_dirs: bool = False
-    ) -> Path:
-        """Parses OpenFOAM internal fields to numpy arrays using Ofpp."""
-        solver_dir = Path(solver_dir) if solver_dir else Path(config.solver_dir)
-        
-        if not save_path:
-            save_path = Path(str(solver_dir).replace("Solvers", "Assets"))
-        save_path = Path(save_path)
-        save_path.mkdir(parents=True, exist_ok=True)
-        
-        variables = variables or config.get_variables()
-        time_list = OpenfoamUtils.generate_intervals(start_time, end_time, write_interval, config.round_to)
+    def generate_intervals(start: float, end: float, step: float, round_to: int = 6) -> List[float]:
+        """Génère une liste d'intervalles de temps sans dérive des flottants."""
+        intervals = []
+        current = start
+        while current <= end + 1e-12:
+            intervals.append(round(current, round_to))
+            current = round(current + step, round_to)
+        return intervals
 
-        # Clean integer casting for folder names (e.g., '10' instead of '10.0')
-        time_folders = [str(int(t)) if float(t).is_integer() else str(t) for t in time_list]
-
-        for time_folder in time_folders:
-            time_dir = solver_dir / time_folder
-            if not time_dir.exists():
-                config.logger.warning(f"Time directory missing: {time_dir}")
-                continue
-                
-            for var in variables:
-                target_file = time_dir / var
-                if not target_file.exists():
-                    config.logger.warning(f"Variable file missing: {target_file}")
+    @staticmethod
+    def max_time_directory(case_path: Path, round_to: int = 2) -> float:
+        """
+        Trouve le plus grand répertoire de temps dans le cas OpenFOAM.
+        Ignore 'constant', 'system', 'processor*'.
+        """
+        max_time = 0.0
+        for item in case_path.iterdir():
+            if item.is_dir() and item.name not in ['constant', 'system'] and not item.name.startswith('processor'):
+                try:
+                    t = float(item.name)
+                    if t > max_time:
+                        max_time = t
+                except ValueError:
                     continue
-                    
-                data = Ofpp.parse_internal_field(str(target_file))
-                config.logger.debug(f"Parsed {var}_{time_folder} --> {data.shape}")
-                
-                np_file = save_path / f"{var}_{float(time_folder)}.npy"
-                np.save(np_file, data)
-
-        if del_dirs and len(time_folders) > 1:
-            # Delete all but the last time directory
-            times_to_remove = ",".join(time_folders[:-1])
-            OpenfoamUtils.run_subprocess([
-                "foamListTimes", "-case", str(solver_dir), "-rm", "-time", times_to_remove
-            ], capture_output=True, text=True)
-            config.logger.debug(f"Deleted time directories: {times_to_remove}")
-            
-        return save_path
+        return round(max_time, round_to)
 
     @staticmethod
-    def update_control_dict(config, solver_dir: Path, start_time: float, end_time: float, write_interval: float) -> bool:
-        """Updates controlDict time settings using foamDictionary."""
-        time_string = f"startTime={start_time},endTime={end_time},writeInterval={write_interval}"
-        command = [
-            "foamDictionary", "-case", str(solver_dir),
-            "-set", time_string, "system/controlDict"
+    def update_decompose_par_dict(case_path: Path, num_processors: int) -> str:
+        """Met à jour le fichier decomposeParDict avec le nombre de sous-domaines."""
+        dict_path = case_path / "system" / "decomposeParDict"
+        if not dict_path.exists():
+            raise FileNotFoundError(f"decomposeParDict introuvable : {dict_path}")
+        cmd = [
+            "foamDictionary", "-case", str(case_path),
+            "-entry", "numberOfSubdomains", "-set", str(num_processors),
+            "system/decomposeParDict"
         ]
-        
-        output = OpenfoamUtils.run_subprocess(command, capture_output=True, text=True)
-        config.logger.debug(f"Time updated successfully: {output}")
-        return True
-    
-    @staticmethod
-    def update_subdomains(config, solver_dir: Path, num_processors: int) -> bool:
-        """Updates decomposeParDict with the number of subdomains for parallel runs."""
-        command = [
-            "foamDictionary", "-case", str(solver_dir),
-            "-set", f"numberOfSubdomains={num_processors}", "system/decomposeParDict"
-        ]
-        
-        output = OpenfoamUtils.run_subprocess(command, capture_output=True, text=True)
-        config.logger.debug(f"Subdomains updated successfully: {output}")
-        return True
+        return OpenFOAMUtils.run_subprocess(cmd, capture_output=True, text=True)
 
-    def run_solver(
-        self, 
-        start_time: float = None,
-        end_time: float = None,
-        write_interval: float = None,
-        save_to_numpy: bool = True,
-        del_dirs: bool = False
-    ) -> float:
-        """Orchestrates mesh generation, decomposition (if parallel), running, and reconstruction."""
-        # Setup variables
-        write_interval = write_interval or self.config.write_interval
-        start_time = round(start_time or self.config.start_time, self.config.round_to)
-        end_time = round(end_time or self.config.end_time, self.config.round_to)
+    def decompose_case(self, n_processors: int) -> str:
+        """
+        Décompose le cas pour une exécution parallèle.
 
-        # 1. Update Time
-        self.update_control_dict(self.config, self.solver_dir, start_time, end_time, write_interval)
-        
-        # 2. Mesh Generation
-        mesh_result = self._run_mesh_utility()
-        self.config.logger.debug(f"Mesh Output: {mesh_result}")
+        Args:
+            n_processors: Nombre de processeurs pour la décomposition
 
-        # 3. Setup Command (Serial vs Parallel)
-        if self.num_processors > 1:
-            updated_subdomains = self.update_subdomains(self.config, self.solver_dir, self.num_processors)
-            print(f"Updated decomposeParDict with {self.num_processors} subdomains: {updated_subdomains}")
-            decompose_case_result = self.decompose_case()
-            self.config.logger.debug(f"DecomposePar Output: {decompose_case_result}")
-            command = ["mpirun", "-np", str(self.num_processors), self.solver_type, "-parallel", "-case", str(self.solver_dir)]
-            print(f"Running OpenFOAM {self.solver_type} in PARALLEL on {self.num_processors} cores...")
+        Returns:
+            Log de la commande decomposePar
+        """
+        # Mettre à jour decomposeParDict avec le nombre de processeurs
+        self.update_decompose_par_dict(self.case_path, n_processors)
+
+        # Exécuter decomposePar
+        cmd = ["decomposePar", "-force", "-case", str(self.case_path)]
+        log = self.run_subprocess(cmd, capture_output=True, text=True)
+        return f"✅ Décomposition effectuée sur {n_processors} sous-domaines.\n{log}"
+
+    def run_solver(self, solver: str, n_processors: int = 1) -> str:
+        """
+        Exécute le solveur OpenFOAM en série ou en parallèle.
+
+        Args:
+            solver: Nom du solveur (ex: simpleFoam, pisoFoam)
+            n_processors: Nombre de processeurs (1 = série)
+
+        Returns:
+            Log de l'exécution du solveur
+        """
+        if n_processors > 1:
+            # Vérifier que la décomposition a été faite
+            processor_dirs = list(self.case_path.glob("processor*"))
+            if not processor_dirs:
+                raise RuntimeError("Le cas n'a pas été décomposé. Appelez decompose_case() d'abord.")
+            cmd = ["mpirun", "-np", str(n_processors), solver, "-parallel", "-case", str(self.case_path)]
+            log = self.run_subprocess(cmd, capture_output=True, text=True)
+            return f"✅ Solveur parallèle terminé ({n_processors} cœurs).\n{log}"
         else:
-            command = [self.solver_type, "-case", str(self.solver_dir)]
-            print(f"Running OpenFOAM {self.solver_type} in SERIAL...")
+            cmd = [solver, "-case", str(self.case_path)]
+            log = self.run_subprocess(cmd, capture_output=True, text=True)
+            return f"✅ Solveur série terminé.\n{log}"
 
-        # 4. Run Solver
-        solver_start_time = timeit.default_timer()
-        solver_result = self.run_subprocess(command, capture_output=True, text=True)
-        elapsed_time = timeit.default_timer() - solver_start_time
-        self.config.logger.debug(f"Solver Output: {solver_result}")
+    def reconstruct_case(self) -> str:
+        """Reconstruit les résultats parallèles en un seul répertoire de temps."""
+        cmd = ["reconstructPar", "-case", str(self.case_path)]
+        log = self.run_subprocess(cmd, capture_output=True, text=True)
+        return f"✅ Reconstruction terminée.\n{log}"
 
-        # 5. Reconstruct (if Parallel)
-        if self.num_processors > 1:
-            self.reconstruct_case()
+    # ========== Méthodes supplémentaires utiles ==========
 
-        # 6. Parse to Numpy
-        if save_to_numpy:
-            self.parse_to_numpy(
-                config=self.config,
-                start_time=start_time,
-                end_time=end_time,
-                solver_dir=self.solver_dir,
-                write_interval=write_interval,
-                del_dirs=del_dirs
-            )
+    def generate_mesh(self, mesh_utility: str = "blockMesh") -> str:
+        """Génère le maillage si nécessaire."""
+        poly_mesh = self.case_path / "constant" / "polyMesh"
+        if poly_mesh.exists():
+            return "ℹ️ Le maillage existe déjà, aucune génération effectuée."
 
-        return elapsed_time
+        cmd = [mesh_utility, "-case", str(self.case_path)]
+        log = self.run_subprocess(cmd, capture_output=True, text=True)
+        return f"✅ Maillage généré avec {mesh_utility}.\n{log}"
+
+    @staticmethod
+    def parse_to_numpy(
+        case_path: Path,
+        variables: List[str],
+        time_list: List[float],
+        save_dir: Optional[Path] = None,
+        round_to: int = 6
+    ) -> Path:
+        """
+        Parse les champs OpenFOAM vers des fichiers NumPy.
+
+        Args:
+            case_path: Chemin du cas OpenFOAM
+            variables: Liste des noms de champs (ex: ['U', 'p', 'T'])
+            time_list: Liste des instants à parser
+            save_dir: Répertoire de sauvegarde (par défaut : case_path/../Assets)
+            round_to: Précision pour les noms de fichiers
+
+        Returns:
+            Chemin du répertoire contenant les fichiers .npy
+        """
+        if save_dir is None:
+            save_dir = case_path.parent / "Assets" / case_path.name
+        save_dir = Path(save_dir)
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+        for t in time_list:
+            t_str = str(int(t)) if t.is_integer() else str(round(t, round_to))
+            time_dir = case_path / t_str
+            if not time_dir.exists():
+                continue
+            for var in variables:
+                foam_file = time_dir / var
+                if not foam_file.exists():
+                    continue
+                data = Ofpp.parse_internal_field(str(foam_file))
+                np_file = save_dir / f"{var}_{t_str}.npy"
+                np.save(np_file, data)
+        return save_dir
 
 
-if __name__ == "__main__":
-    # Example Usage
-    # NOTE: Ensure `openfoam_config.num_processors` is set appropriately in your dataclass
-    # openfoam_config = OpenfoamConfig(num_processors=4) 
-    
-    # openfoam_utils = OpenfoamUtils(
-    #     openfoam_config,
-    #     solver_dir=Path("/home/shilaj/shilaj_data/repitframework/repitframework/Solvers/natural_convection_case1"),
-    #     assets_dir=Path("/home/shilaj/shilaj_data/repitframework/repitframework/Assets")
-    # )
-    
-    # start_time = timeit.default_timer()
-    # elapsed_cfd_time = openfoam_utils.run_solver(
-    #     start_time=10.0, 
-    #     end_time=110.0, 
-    #     write_interval=0.01,
-    #     save_to_numpy=True, 
-    #     del_dirs=False
-    # )
-    # print(f"Simulation completed in: {elapsed_cfd_time:.2f} seconds")
-    pass
+# Alias pour rétrocompatibilité avec l'ancien nom (OpenfoamUtils sans majuscule F)
+OpenfoamUtils = OpenFOAMUtils
