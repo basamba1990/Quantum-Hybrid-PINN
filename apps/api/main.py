@@ -11,6 +11,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Dict, List, Optional
 
+from repit_integration.openfoam_utils import OpenFOAMUtils
+from repit_integration.fvmn_dataset import FVMNDataset
+from repit_integration.numpy_to_foam import NumpyToFoamConverter
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -48,6 +52,16 @@ class HealthResponse(BaseModel):
     gpu_available: bool
     memory_usage: Dict[str, float]
 
+class OpenFOAMSimulationRequest(BaseModel):
+    case_path: str = Field(..., description="Path to the OpenFOAM case directory")
+    solver: str = Field(..., description="OpenFOAM solver to use (e.g., simpleFoam, pisoFoam)")
+    n_processors: int = Field(1, gt=0, description="Number of processors for parallel execution")
+
+class OpenFOAMSimulationResponse(BaseModel):
+    status: str
+    log: str
+    output_path: Optional[str] = None
+
 class ValidationRequest(BaseModel):
     pressure: float = Field(..., gt=0, lt=2000, description="Pressure in bar (0-2000)")
     temperature: float = Field(..., gt=10, lt=5000, description="Temperature in K (10-5000)")
@@ -59,6 +73,27 @@ class ValidationRequest(BaseModel):
         if v < 13.8: # Triple point of Hydrogen
             logger.warning(f"Temperature {v}K is below hydrogen triple point")
         return v
+
+class CFDDataProcessRequest(BaseModel):
+    case_path: str = Field(..., description="Path to the OpenFOAM case directory containing CFD results")
+    output_path: str = Field(..., description="Path to save the processed dataset")
+    fields: List[str] = Field(..., description="List of CFD fields to process (e.g., U, p, T)")
+
+class CFDDataProcessResponse(BaseModel):
+    status: str
+    message: str
+    dataset_path: Optional[str] = None
+
+class ReinjectionRequest(BaseModel):
+    case_path: str = Field(..., description="Path to the OpenFOAM case directory")
+    field_name: str = Field(..., description="Name of the field to reinject (e.g., U, p, T)")
+    data: List[List[float]] = Field(..., description="2D array of data to reinject (e.g., numpy array converted to list)")
+    time_step: float = Field(..., description="Time step for the re-injected field")
+
+class ReinjectionResponse(BaseModel):
+    status: str
+    message: str
+    output_file: Optional[str] = None
 
 class ValidationResponse(BaseModel):
     credibility_score: float
@@ -136,6 +171,82 @@ async def health_check():
             "vms": mem_info.vms / (1024 * 1024)  # MB
         }
     )
+
+@app.post("/openfoam/run-simulation", response_model=OpenFOAMSimulationResponse)
+async def run_openfoam_simulation(request: OpenFOAMSimulationRequest, background_tasks: BackgroundTasks):
+    try:
+        logger.info(f"Running OpenFOAM simulation for case: {request.case_path} with solver: {request.solver}")
+        openfoam_runner = OpenFOAMUtils(request.case_path)
+        
+        # Decompose case
+        log_decompose = openfoam_runner.decompose_case(request.n_processors)
+        
+        # Run solver
+        log_solver = openfoam_runner.run_solver(request.solver, request.n_processors)
+        
+        # Reconstruct case
+        log_reconstruct = openfoam_runner.reconstruct_case()
+        
+        full_log = f"Decompose Log:\n{log_decompose}\n\nSolver Log:\n{log_solver}\n\nReconstruct Log:\n{log_reconstruct}"
+        
+        # Placeholder for actual output path, assuming results are in case_path/processor*/
+        output_path = os.path.join(request.case_path, "reconstructed_results") # This needs to be more specific
+
+        background_tasks.add_task(cleanup_memory)
+
+        return OpenFOAMSimulationResponse(
+            status="success",
+            log=full_log,
+            output_path=output_path
+        )
+    except Exception as e:
+        logger.error(f"OpenFOAM simulation error: {str(e)}")
+        cleanup_memory()
+        raise HTTPException(status_code=500, detail=f"OpenFOAM simulation failed: {str(e)}")
+
+
+@app.post("/cfd/process-data", response_model=CFDDataProcessResponse)
+async def process_cfd_data(request: CFDDataProcessRequest, background_tasks: BackgroundTasks):
+    try:
+        logger.info(f"Processing CFD data from: {request.case_path}")
+        # Assuming FVMNDataset can be initialized with a case path and processes data
+        # This part might need more specific adaptation based on how FVMNDataset works
+        # For now, a placeholder for processing
+        dataset_processor = FVMNDataset(case_path=request.case_path, fields=request.fields)
+        processed_data_path = dataset_processor.process_and_save(request.output_path)
+
+        background_tasks.add_task(cleanup_memory)
+
+        return CFDDataProcessResponse(
+            status="success",
+            message="CFD data processed successfully",
+            dataset_path=processed_data_path
+        )
+    except Exception as e:
+        logger.error(f"CFD data processing error: {str(e)}")
+        cleanup_memory()
+        raise HTTPException(status_code=500, detail=f"CFD data processing failed: {str(e)}")
+
+
+@app.post("/openfoam/reinject-data", response_model=ReinjectionResponse)
+async def reinject_openfoam_data(request: ReinjectionRequest, background_tasks: BackgroundTasks):
+    try:
+        logger.info(f"Reinjecting data for field {request.field_name} into OpenFOAM case: {request.case_path}")
+        converter = NumpyToFoamConverter(request.case_path)
+        output_file = converter.convert_and_write(request.field_name, request.data, request.time_step)
+
+        background_tasks.add_task(cleanup_memory)
+
+        return ReinjectionResponse(
+            status="success",
+            message=f"Data for {request.field_name} reinjected successfully",
+            output_file=output_file
+        )
+    except Exception as e:
+        logger.error(f"OpenFOAM data reinjection error: {str(e)}")
+        cleanup_memory()
+        raise HTTPException(status_code=500, detail=f"OpenFOAM data reinjection failed: {str(e)}")
+
 
 @app.post("/v2/validate-3d", response_model=ValidationResponse)
 async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTasks):
