@@ -17,48 +17,28 @@ class TFCPINN3DNavierStokes(PINN3DNavierStokes):
 
     def constrained_expression(self, t, x, y, z, g_rho, g_u, g_v, g_w, g_T):
         """
-        Applique la formulation TFC pour garantir les BC/IC.
-        u(t,x,y,z) = g(t,x,y,z) + A(t,x,y,z) [ f(BC) - g(BC) ]
-        
-        Pour cet exemple, nous allons imposer :
-        1. Conditions Initiales (t=0) : Valeurs de repos ou profils connus.
-        2. Conditions aux Limites (Parois) : Vitesse nulle (No-slip).
+        Applique la formulation TFC pour garantir les BC/IC avec support de géométries complexes.
         """
+        from tank_geometry import TankGeometry
         
-        # Normalisation du temps pour faciliter les calculs TFC
+        # Initialisation de la géométrie (peut être paramétrée via l'init du modèle)
+        geom = TankGeometry(geometry_type="cylindrical", radius=0.5, length=1.0)
+        mask = geom.get_mask(x, y, z)
+        
+        # Normalisation du temps
         tau = (t - T_MIN) / (T_MAX - T_MIN)
         
-        # 1. Satisfaction de la Condition Initiale (t=0)
-        # u(t,x,y,z) = g(t,x,y,z) + (1 - tau) * [ u_initial(x,y,z) - g(0,x,y,z) ]
-        # Ici on suppose u_initial = 0 pour les vitesses, et des valeurs constantes pour rho et T.
+        # Valeurs initiales (t=0)
+        rho_0 = 1.0 
+        T_0 = 293.15
         
-        rho_0 = 1.0 # Densité initiale normalisée
-        u_0, v_0, w_0 = 0.0, 0.0, 0.0
-        T_0 = 293.15 # Température initiale (20°C)
+        # Application des contraintes de paroi (No-slip) via le masque géométrique
+        # Les vitesses s'annulent exactement sur la frontière définie par la SDF
+        u_constrained = g_u * mask
+        v_constrained = g_v * mask
+        w_constrained = g_w * mask
         
-        # On doit évaluer le réseau à t=0 pour obtenir g(0,x,y,z)
-        # Pour simplifier et éviter une double passe, on utilise une forme simplifiée :
-        # u = g + (initial_value - g_at_t0) * phi(t)
-        
-        # Note: Dans une implémentation TFC complète, on utiliserait les fonctions de support.
-        # Ici, on implémente une version "Deep-TFC" où le réseau apprend la fonction libre.
-        
-        # Exemple pour la vitesse u (No-slip aux parois x=0, x=L)
-        # u = g(t,x,y,z) - (1-x/L)*g(t,0,y,z) - (x/L)*g(t,L,y,z)
-        
-        # Pour simplifier l'implémentation sans alourdir le graphe de calcul :
-        # On utilise des fonctions de masquage qui s'annulent aux limites.
-        
-        def mask_boundary(val, x, x_min, x_max):
-            return val * (x - x_min) * (x_max - x) / ((x_max - x_min)**2)
-
-        # Application des contraintes (Exemple simplifié de satisfaction exacte)
-        # Vitesse nulle aux parois (x, y, z aux limites)
-        u_constrained = g_u * (x - X_MIN) * (X_MAX - x) * (y - Y_MIN) * (Y_MAX - y) * (z - Z_MIN) * (Z_MAX - z)
-        v_constrained = g_v * (x - X_MIN) * (X_MAX - x) * (y - Y_MIN) * (Y_MAX - y) * (z - Z_MIN) * (Z_MAX - z)
-        w_constrained = g_w * (x - X_MIN) * (X_MAX - x) * (y - Y_MIN) * (Y_MAX - y) * (z - Z_MIN) * (Z_MAX - z)
-        
-        # Condition initiale pour la température et densité (mélange progressif)
+        # Condition initiale (t=0)
         rho_constrained = rho_0 + tau * (g_rho - rho_0)
         T_constrained = T_0 + tau * (g_T - T_0)
         
