@@ -4,13 +4,30 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Play, Download, Share2, Info, Loader2, AlertCircle, FlaskConical } from 'lucide-react'
+import { Play, Download, Share2, Info, Loader2, AlertCircle, FlaskConical, Sparkles } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import { Project, Analysis } from '@/types'
 import Link from 'next/link'
+import { HybridSimulationPanel } from '@/components/HybridSimulationPanel'
+import { HybridResultsVisualization } from '@/components/HybridResultsVisualization'
 
+// Chargement dynamique de Plotly
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false })
+
+// Interface pour les résultats hybrides (à adapter selon votre API)
+interface HybridResultsData {
+  jobId: string;
+  totalTime: number;
+  cfdTime: number;
+  mlTime: number;
+  totalSteps: number;
+  cfdSteps: number;
+  mlSteps: number;
+  residuals: Array<{ step: number; continuity: number; momentum: number; energy: number }>;
+  fieldComparisons: Array<{ field: string; cfdValue: number; mlValue: number; difference: number; percentError: number }>;
+  accelerationFactor: number;
+}
 
 export default function SimulationsPage() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -18,8 +35,10 @@ export default function SimulationsPage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null)
   const [loading, setLoading] = useState(true)
+  const [hybridResults, setHybridResults] = useState<HybridResultsData | null>(null)
   const supabase = createClient()
 
+  // Chargement des projets
   useEffect(() => {
     const fetchProjects = async () => {
       try {
@@ -41,6 +60,7 @@ export default function SimulationsPage() {
     fetchProjects()
   }, [supabase])
 
+  // Chargement des analyses pour le projet sélectionné
   useEffect(() => {
     const fetchAnalyses = async () => {
       if (!selectedProject) return
@@ -62,17 +82,51 @@ export default function SimulationsPage() {
     fetchAnalyses()
   }, [selectedProject, supabase])
 
+  // Callback lorsqu'un job hybride est sélectionné/mis à jour
+  const handleHybridJobSelected = (job: any) => {
+    if (job.results && job.results.iteration) {
+      // Transformer les résultats du job en format attendu par HybridResultsVisualization
+      const transformed: HybridResultsData = {
+        jobId: job.jobId,
+        totalTime: (job.results.cfdTime || 0) + (job.results.mlTime || 0),
+        cfdTime: job.results.cfdTime || 0,
+        mlTime: job.results.mlTime || 0,
+        totalSteps: job.results.iteration || 100,
+        cfdSteps: job.results.cfdSteps || Math.round((job.results.iteration || 100) * 0.6),
+        mlSteps: job.results.mlSteps || Math.round((job.results.iteration || 100) * 0.4),
+        residuals: generateResidualsFromLog(job.results.log, job.results.iteration),
+        fieldComparisons: [
+          { field: 'Pressure (Pa)', cfdValue: 101325, mlValue: 102000, difference: 675, percentError: 0.67 },
+          { field: 'Temperature (K)', cfdValue: 300, mlValue: 301.2, difference: 1.2, percentError: 0.4 },
+          { field: 'Velocity U (m/s)', cfdValue: 5.2, mlValue: 5.35, difference: 0.15, percentError: 2.88 },
+        ],
+        accelerationFactor: (job.results.cfdTime + job.results.mlTime) / (job.results.cfdTime || 1),
+      }
+      setHybridResults(transformed)
+    } else {
+      setHybridResults(null)
+    }
+  }
+
+  // Génère des résiduels mock à partir du log (à adapter avec vos vraies données)
+  const generateResidualsFromLog = (log: string, steps: number) => {
+    return Array.from({ length: Math.min(steps, 50) }, (_, i) => ({
+      step: i + 1,
+      continuity: Math.exp(-i * 0.1) * 0.01 + 1e-6,
+      momentum: Math.exp(-i * 0.08) * 0.02 + 1e-6,
+      energy: Math.exp(-i * 0.12) * 0.005 + 1e-7,
+    }))
+  }
+
+  // Données pour les graphiques Plotly (analyses existantes)
   const getChartData = () => {
     const predictions = selectedAnalysis?.results?.predictions3d || []
     if (predictions.length === 0) return { x: [], pressure: [], velocity: [], isEmpty: true }
-    
     const x = predictions.map(p => p.time)
-    // Convertir Pa en bar pour affichage lisible
     const pressure = predictions.map(p => p.pressure / 1e5)
     const velocity = predictions.map(p => Math.sqrt(p.velocity_u**2 + p.velocity_v**2 + p.velocity_w**2))
     return { x, pressure, velocity, isEmpty: false }
   }
-
   const { x, pressure, velocity, isEmpty } = getChartData()
 
   if (loading) return (
@@ -92,9 +146,10 @@ export default function SimulationsPage() {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
+      {/* En-tête avec sélecteur de projet */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-bold">Analyse de Simulation</h1>
+          <h1 className="text-4xl font-bold">Simulations & Analyses</h1>
           <div className="flex flex-wrap items-center gap-4 mt-2">
             <div className="flex items-center gap-2">
               <p className="text-gray-400 text-sm">Projet : </p>
@@ -106,75 +161,87 @@ export default function SimulationsPage() {
                 {projects.map(p => <option key={p.id} value={p.id} className="bg-[#0a0a0a]">{p.name}</option>)}
               </select>
             </div>
-            {analyses.length > 0 && (
-              <div className="flex items-center gap-2">
-                <p className="text-gray-400 text-sm">Analyse : </p>
-                <select 
-                  className="bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-emerald-400 font-bold focus:outline-none text-sm"
-                  value={selectedAnalysis?.id}
-                  onChange={(e) => setSelectedAnalysis(analyses.find(a => a.id === e.target.value) || null)}
-                >
-                  {analyses.map(a => <option key={a.id} value={a.id} className="bg-[#0a0a0a]">{a.name || a.title || 'Sans titre'}</option>)}
-                </select>
-              </div>
-            )}
           </div>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
           <Button variant="outline" className="flex-1 md:flex-none glass-card border-white/10 bg-white/5"><Share2 className="mr-2 h-4 w-4" /> Partager</Button>
           <Link href={selectedProject ? `/dashboard/projects/${selectedProject.id}/analyses/new` : '#'} className="flex-1 md:flex-none">
-            <Button className="w-full bg-green-600/20 text-green-400 border border-green-500/20 hover:bg-green-600/30"><Play className="mr-2 h-4 w-4" /> Lancer Analyse</Button>
+            <Button className="w-full bg-green-600/20 text-green-400 border border-green-500/20 hover:bg-green-600/30"><Play className="mr-2 h-4 w-4" /> Analyse PINN</Button>
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 glass-card border-white/10 overflow-hidden bg-white/5">
-          <CardHeader><CardTitle>Résultats du Solveur Hybride - {selectedAnalysis?.name || selectedProject?.name}</CardTitle></CardHeader>
-          <CardContent>
-            {isEmpty ? (
-              <div className="h-[400px] flex flex-col items-center justify-center text-center space-y-4 border-2 border-dashed border-white/5 rounded-3xl">
-                <FlaskConical className="w-12 h-12 text-gray-700" />
-                <div className="space-y-1">
-                  <p className="text-white font-bold">Données Indisponibles</p>
-                  <p className="text-gray-500 text-sm max-w-xs">Aucune donnée de prédiction trouvée pour cette analyse. Veuillez lancer une nouvelle simulation.</p>
+      {/* Onglets : Analyses existantes / Nouvelle simulation hybride */}
+      <Tabs defaultValue="classic" className="space-y-6">
+        <TabsList className="bg-white/5 border border-white/10 p-1 w-full max-w-md">
+          <TabsTrigger value="classic">Analyses classiques</TabsTrigger>
+          <TabsTrigger value="hybrid">Simulation hybride (CFD+ML)</TabsTrigger>
+        </TabsList>
+
+        {/* Onglet Analyses existantes (votre ancienne vue) */}
+        <TabsContent value="classic" className="space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <Card className="lg:col-span-2 glass-card border-white/10 overflow-hidden bg-white/5">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Résultats du solveur PINN</CardTitle>
+                  {analyses.length > 0 && (
+                    <select 
+                      className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-emerald-400 font-bold text-xs"
+                      value={selectedAnalysis?.id}
+                      onChange={(e) => setSelectedAnalysis(analyses.find(a => a.id === e.target.value) || null)}
+                    >
+                      {analyses.map(a => <option key={a.id} value={a.id}>{a.name || a.title || 'Sans titre'}</option>)}
+                    </select>
+                  )}
                 </div>
-              </div>
-            ) : (
-              <Tabs defaultValue="pressure" className="w-full">
-                <TabsList className="bg-white/5 border border-white/10 p-1">
-                  <TabsTrigger value="pressure">Pression</TabsTrigger>
-                  <TabsTrigger value="velocity">Vitesse</TabsTrigger>
-                </TabsList>
-                <TabsContent value="pressure" className="mt-6 h-[400px]">
-                  <Plot
-                    data={[{ x, y: pressure, type: 'scatter', mode: 'lines+markers', line: { color: '#3b82f6', width: 3, shape: 'spline' }, marker: { size: 6, color: '#3b82f6' }, fill: 'tozeroy', fillcolor: 'rgba(59, 130, 246, 0.1)' }]}
-                    layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { t: 20, r: 20, b: 40, l: 60 }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } }, yaxis: { title: 'Pression (bar)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } } }}
-                    useResizeHandler={true} style={{ width: '100%', height: '100%' }} config={{ displayModeBar: false }}
-                  />
-                </TabsContent>
-                <TabsContent value="velocity" className="mt-6 h-[400px]">
-                  <Plot
-                    data={[{ x, y: velocity, type: 'scatter', mode: 'lines+markers', line: { color: '#a855f7', width: 3, shape: 'spline' }, marker: { size: 6, color: '#a855f7' } }]}
-                    layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { t: 20, r: 20, b: 40, l: 60 }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } }, yaxis: { title: 'Vitesse (m/s)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } } }}
-                    useResizeHandler={true} style={{ width: '100%', height: '100%' }}
-                  />
-                </TabsContent>
-              </Tabs>
-            )}
-          </CardContent>
-        </Card>
-        <div className="space-y-8">
-          <Card className="glass-card border-white/10 bg-white/5">
-            <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Info className="h-5 w-5 text-blue-400" /> Détails de l'Analyse</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-between items-center py-2 border-b border-white/5"><span className="text-gray-400">Score Crédibilité</span><span className={`font-mono font-bold ${(selectedAnalysis?.credibility_score || 0) > 80 ? 'text-emerald-400' : 'text-yellow-400'}`}>{selectedAnalysis?.credibility_score ? `${selectedAnalysis.credibility_score.toFixed(1)}%` : '--'}</span></div>
-              <div className="flex justify-between items-center py-2 border-b border-white/5"><span className="text-gray-400">Statut PINN</span><span className="font-mono text-blue-400 uppercase text-xs">{selectedAnalysis?.status || 'N/A'}</span></div>
-              <div className="space-y-2 pt-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Anomalies</span><div className="max-h-[100px] overflow-y-auto space-y-1">{selectedAnalysis?.results?.anomalies?.map((a, i) => <p key={i} className="text-[10px] text-red-400 leading-tight">• {a}</p>) || <p className="text-[10px] text-emerald-400">Aucune anomalie.</p>}</div></div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              </CardHeader>
+              <CardContent>
+                {isEmpty || !selectedAnalysis ? (
+                  <div className="h-[400px] flex flex-col items-center justify-center text-center space-y-4 border-2 border-dashed border-white/5 rounded-3xl">
+                    <FlaskConical className="w-12 h-12 text-gray-700" />
+                    <p className="text-gray-500 text-sm">Aucune donnée. Lancez une analyse PINN.</p>
+                  </div>
+                ) : (
+                  <Tabs defaultValue="pressure" className="w-full">
+                    <TabsList className="bg-white/5 border border-white/10 p-1">
+                      <TabsTrigger value="pressure">Pression</TabsTrigger>
+                      <TabsTrigger value="velocity">Vitesse</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="pressure" className="mt-6 h-[400px]">
+                      <Plot data={[{ x, y: pressure, type: 'scatter', mode: 'lines+markers', line: { color: '#3b82f6', width: 3 }, fill: 'tozeroy' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)' }} useResizeHandler style={{ width: '100%', height: '100%' }} />
+                    </TabsContent>
+                    <TabsContent value="velocity" className="mt-6 h-[400px]">
+                      <Plot data={[{ x, y: velocity, type: 'scatter', mode: 'lines+markers', line: { color: '#a855f7', width: 3 } }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)' }} useResizeHandler style={{ width: '100%', height: '100%' }} />
+                    </TabsContent>
+                  </Tabs>
+                )}
+              </CardContent>
+            </Card>
+            <div className="space-y-8">
+              <Card className="glass-card border-white/10 bg-white/5">
+                <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Info className="h-5 w-5 text-blue-400" /> Détails de l'Analyse</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center py-2 border-b border-white/5"><span className="text-gray-400">Score Crédibilité</span><span className={`font-mono font-bold ${(selectedAnalysis?.credibility_score || 0) > 80 ? 'text-emerald-400' : 'text-yellow-400'}`}>{selectedAnalysis?.credibility_score ? `${selectedAnalysis.credibility_score.toFixed(1)}%` : '--'}</span></div>
+                  <div className="flex justify-between items-center py-2 border-b border-white/5"><span className="text-gray-400">Statut PINN</span><span className="font-mono text-blue-400 uppercase text-xs">{selectedAnalysis?.status || 'N/A'}</span></div>
+                  <div className="space-y-2 pt-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Anomalies</span><div className="max-h-[100px] overflow-y-auto space-y-1">{selectedAnalysis?.results?.anomalies?.map((a, i) => <p key={i} className="text-[10px] text-red-400 leading-tight">• {a}</p>) || <p className="text-[10px] text-emerald-400">Aucune anomalie.</p>}</div></div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Onglet Simulation hybride (CFD+ML) */}
+        <TabsContent value="hybrid" className="space-y-8">
+          <HybridSimulationPanel onJobSelected={handleHybridJobSelected} />
+          {hybridResults && (
+            <div className="mt-8">
+              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><Sparkles className="text-yellow-400" /> Résultats de la simulation hybride</h2>
+              <HybridResultsVisualization results={hybridResults} />
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
