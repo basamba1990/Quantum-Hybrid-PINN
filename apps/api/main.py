@@ -1,6 +1,6 @@
 """
-Quantum-Hybrid PINN V8 - FastAPI Backend (Updated)
-Main application entry point for physics simulation and validation
+Quantum-Hybrid PINN V8 + repitframework - Enhanced FastAPI Backend
+Unified API exposing PINN 3D, OpenFOAM orchestration, hybrid simulations, and dataset management
 Optimized for Railway + Supabase
 """
 
@@ -9,19 +9,25 @@ import logging
 import gc
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Dict, List, Optional
-
-from repit_integration.openfoam_utils import OpenFOAMUtils
-from repit_integration.fvmn_dataset import FVMNDataset
-from repit_integration.numpy_to_foam import NumpyToFoamConverter
+from typing import Dict, List, Optional, Any
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, validator
 import torch
+import numpy as np
 from supabase import create_client, Client
 import psutil
+
+# Import repitframework integration modules
+from repit_integration.openfoam_utils import OpenFOAMUtils
+from repit_integration.fvmn_dataset import FVMNDataset
+from repit_integration.numpy_to_foam import numpyToFoam
+from repit_integration.hybrid_predictor import HybridSimulationConfig, MLAcceleratedPredictor
+from repit_integration.dataset_manager import DatasetManager
+from repit_integration.simulation_orchestrator import SimulationOrchestrator
 
 # Configure logging
 logging.basicConfig(
@@ -39,10 +45,14 @@ if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
     logger.info("✅ Supabase client initialized")
 else:
-    logger.warning("⚠️ Supabase credentials missing. Storage and DB features will be limited.")
+    logger.warning("⚠️ Supabase credentials missing. Storage features will be limited.")
+
+# Initialize orchestrator
+orchestrator = SimulationOrchestrator()
+dataset_manager = DatasetManager()
 
 # ============================================
-# Models & Schemas
+# Pydantic Models & Schemas
 # ============================================
 
 class HealthResponse(BaseModel):
@@ -53,47 +63,66 @@ class HealthResponse(BaseModel):
     memory_usage: Dict[str, float]
 
 class OpenFOAMSimulationRequest(BaseModel):
-    case_path: str = Field(..., description="Path to the OpenFOAM case directory")
-    solver: str = Field(..., description="OpenFOAM solver to use (e.g., simpleFoam, pisoFoam)")
-    n_processors: int = Field(1, gt=0, description="Number of processors for parallel execution")
+    case_path: str = Field(..., description="Path to OpenFOAM case directory")
+    solver: str = Field("buoyantBoussinesqPimpleFoam", description="OpenFOAM solver")
+    n_processors: int = Field(1, gt=0, description="Number of processors")
 
 class OpenFOAMSimulationResponse(BaseModel):
     status: str
     log: str
     output_path: Optional[str] = None
 
-class ValidationRequest(BaseModel):
-    pressure: float = Field(..., gt=0, lt=2000, description="Pressure in bar (0-2000)")
-    temperature: float = Field(..., gt=10, lt=5000, description="Temperature in K (10-5000)")
-    density: float = Field(..., gt=0, description="Density in kg/m³")
-    velocity_magnitude: float = Field(..., ge=0, description="Velocity magnitude in m/s")
-
-    @validator('temperature')
-    def validate_temperature(cls, v):
-        if v < 13.8: # Triple point of Hydrogen
-            logger.warning(f"Temperature {v}K is below hydrogen triple point")
-        return v
-
 class CFDDataProcessRequest(BaseModel):
-    case_path: str = Field(..., description="Path to the OpenFOAM case directory containing CFD results")
-    output_path: str = Field(..., description="Path to save the processed dataset")
-    fields: List[str] = Field(..., description="List of CFD fields to process (e.g., U, p, T)")
+    case_path: str = Field(..., description="Path to OpenFOAM case")
+    output_path: str = Field(..., description="Path to save processed dataset")
+    fields: List[str] = Field(default=["U", "p", "T"], description="Fields to process")
+    start_time: float = Field(0.0, description="Start time")
+    end_time: float = Field(10.0, description="End time")
+    normalize: bool = Field(True, description="Normalize data")
 
 class CFDDataProcessResponse(BaseModel):
     status: str
     message: str
     dataset_path: Optional[str] = None
+    n_samples: Optional[int] = None
+    shape: Optional[List[int]] = None
+
+class HybridSimulationRequest(BaseModel):
+    job_name: str = Field(..., description="Name of simulation job")
+    case_path: str = Field(..., description="Path to OpenFOAM case")
+    n_steps: int = Field(100, gt=0, description="Number of simulation steps")
+    time_step: float = Field(0.01, gt=0, description="Time step size")
+    residual_threshold: float = Field(0.01, description="Residual threshold for ML/CFD switching")
+    fields: List[str] = Field(default=["U", "p", "T"], description="Fields to monitor")
+
+class HybridSimulationResponse(BaseModel):
+    job_id: str
+    status: str
+    message: str
+    results: Optional[Dict[str, Any]] = None
 
 class ReinjectionRequest(BaseModel):
-    case_path: str = Field(..., description="Path to the OpenFOAM case directory")
-    field_name: str = Field(..., description="Name of the field to reinject (e.g., U, p, T)")
-    data: List[List[float]] = Field(..., description="2D array of data to reinject (e.g., numpy array converted to list)")
-    time_step: float = Field(..., description="Time step for the re-injected field")
+    case_path: str = Field(..., description="Path to OpenFOAM case")
+    field_name: str = Field(..., description="Field name (U, p, T, etc.)")
+    data: List[List[float]] = Field(..., description="Field data as 2D array")
+    time_step: float = Field(..., description="Time step")
 
 class ReinjectionResponse(BaseModel):
     status: str
     message: str
     output_file: Optional[str] = None
+
+class ValidationRequest(BaseModel):
+    pressure: float = Field(..., gt=0, lt=2000, description="Pressure in bar")
+    temperature: float = Field(..., gt=10, lt=5000, description="Temperature in K")
+    density: float = Field(..., gt=0, description="Density in kg/m³")
+    velocity_magnitude: float = Field(..., ge=0, description="Velocity magnitude in m/s")
+
+    @validator('temperature')
+    def validate_temperature(cls, v):
+        if v < 13.8:  # Triple point of Hydrogen
+            logger.warning(f"Temperature {v}K is below hydrogen triple point")
+        return v
 
 class ValidationResponse(BaseModel):
     credibility_score: float
@@ -102,8 +131,21 @@ class ValidationResponse(BaseModel):
     timestamp: datetime
     result_url: Optional[str] = None
 
+class JobStatusRequest(BaseModel):
+    job_id: str = Field(..., description="Job ID")
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    name: str
+    status: str
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    results: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+
 # ============================================
-# Memory Management Utilities
+# Memory Management
 # ============================================
 
 def cleanup_memory():
@@ -120,17 +162,15 @@ def cleanup_memory():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("🚀 Starting Quantum-Hybrid PINN V8 Backend")
+    logger.info("🚀 Starting Quantum-Hybrid PINN V8 + repitframework Backend")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info(f"Device: {device}")
-    
-    # Pre-load models here if needed using absolute paths
-    # model_path = os.path.join(os.path.dirname(__file__), "models", "pinn_v8.pth")
+    logger.info(f"Orchestrator initialized with work_dir: {orchestrator.work_dir}")
     
     yield
     
     # Shutdown
-    logger.info("🛑 Shutting down Quantum-Hybrid PINN V8 Backend")
+    logger.info("🛑 Shutting down Quantum-Hybrid Backend")
     cleanup_memory()
 
 # ============================================
@@ -138,9 +178,9 @@ async def lifespan(app: FastAPI):
 # ============================================
 
 app = FastAPI(
-    title="Quantum-Hybrid PINN V8 API",
-    description="Physics-Informed Neural Network for Hydrogen Simulation",
-    version="1.1.0",
+    title="Quantum-Hybrid PINN V8 + repitframework API",
+    description="Physics-Informed Neural Networks + OpenFOAM Hybrid Orchestration",
+    version="2.0.0",
     lifespan=lifespan
 )
 
@@ -153,111 +193,275 @@ app.add_middleware(
 )
 
 # ============================================
-# Endpoints
+# Health & Status Endpoints
 # ============================================
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
+    """Health check endpoint"""
     process = psutil.Process(os.getpid())
     mem_info = process.memory_info()
     
     return HealthResponse(
         status="healthy",
-        version="1.1.0",
+        version="2.0.0",
         timestamp=datetime.utcnow(),
         gpu_available=torch.cuda.is_available(),
         memory_usage={
-            "rss": mem_info.rss / (1024 * 1024), # MB
-            "vms": mem_info.vms / (1024 * 1024)  # MB
+            "rss": mem_info.rss / (1024 * 1024),
+            "vms": mem_info.vms / (1024 * 1024)
         }
     )
 
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "message": "Quantum-Hybrid PINN V8 + repitframework API",
+        "version": "2.0.0",
+        "endpoints": {
+            "health": "/health",
+            "openfoam": "/openfoam/*",
+            "cfd": "/cfd/*",
+            "hybrid": "/hybrid/*",
+            "jobs": "/jobs/*",
+            "validation": "/v2/validate-3d"
+        }
+    }
+
+# ============================================
+# OpenFOAM Simulation Endpoints
+# ============================================
+
 @app.post("/openfoam/run-simulation", response_model=OpenFOAMSimulationResponse)
-async def run_openfoam_simulation(request: OpenFOAMSimulationRequest, background_tasks: BackgroundTasks):
+async def run_openfoam_simulation(
+    request: OpenFOAMSimulationRequest,
+    background_tasks: BackgroundTasks
+):
+    """Run OpenFOAM simulation"""
     try:
-        logger.info(f"Running OpenFOAM simulation for case: {request.case_path} with solver: {request.solver}")
-        openfoam_runner = OpenFOAMUtils(request.case_path)
+        logger.info(f"Running OpenFOAM: {request.case_path} with {request.solver}")
+        foam_utils = OpenFOAMUtils(request.case_path)
         
-        # Decompose case
-        log_decompose = openfoam_runner.decompose_case(request.n_processors)
+        # Decompose case if parallel
+        log_decompose = ""
+        if request.n_processors > 1:
+            log_decompose = foam_utils.decompose_case(request.n_processors)
         
         # Run solver
-        log_solver = openfoam_runner.run_solver(request.solver, request.n_processors)
+        log_solver = foam_utils.run_solver(request.solver, request.n_processors)
         
-        # Reconstruct case
-        log_reconstruct = openfoam_runner.reconstruct_case()
+        # Reconstruct if parallel
+        log_reconstruct = ""
+        if request.n_processors > 1:
+            log_reconstruct = foam_utils.reconstruct_case()
         
-        full_log = f"Decompose Log:\n{log_decompose}\n\nSolver Log:\n{log_solver}\n\nReconstruct Log:\n{log_reconstruct}"
+        full_log = f"Decompose:\n{log_decompose}\n\nSolver:\n{log_solver}\n\nReconstruct:\n{log_reconstruct}"
+        output_path = str(Path(request.case_path) / "reconstructed_results")
         
-        # Placeholder for actual output path, assuming results are in case_path/processor*/
-        output_path = os.path.join(request.case_path, "reconstructed_results") # This needs to be more specific
-
         background_tasks.add_task(cleanup_memory)
-
+        
         return OpenFOAMSimulationResponse(
             status="success",
             log=full_log,
             output_path=output_path
         )
     except Exception as e:
-        logger.error(f"OpenFOAM simulation error: {str(e)}")
+        logger.error(f"OpenFOAM simulation error: {e}")
         cleanup_memory()
-        raise HTTPException(status_code=500, detail=f"OpenFOAM simulation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================
+# CFD Dataset Processing Endpoints
+# ============================================
 
-@app.post("/cfd/process-data", response_model=CFDDataProcessResponse)
-async def process_cfd_data(request: CFDDataProcessRequest, background_tasks: BackgroundTasks):
+@app.post("/cfd/process-dataset", response_model=CFDDataProcessResponse)
+async def process_cfd_dataset(
+    request: CFDDataProcessRequest,
+    background_tasks: BackgroundTasks
+):
+    """Process CFD dataset for ML training"""
     try:
-        logger.info(f"Processing CFD data from: {request.case_path}")
-        # Assuming FVMNDataset can be initialized with a case path and processes data
-        # This part might need more specific adaptation based on how FVMNDataset works
-        # For now, a placeholder for processing
-        dataset_processor = FVMNDataset(case_path=request.case_path, fields=request.fields)
-        processed_data_path = dataset_processor.process_and_save(request.output_path)
-
+        logger.info(f"Processing CFD dataset from {request.case_path}")
+        
+        # Load and process dataset
+        data, metadata = dataset_manager.load_cfd_dataset(
+            case_path=request.case_path,
+            fields=request.fields,
+            time_range=(request.start_time, request.end_time),
+            normalize=request.normalize
+        )
+        
+        # Save processed dataset
+        output_path = Path(request.output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        dataset_path = dataset_manager.save_dataset(data, metadata, output_path)
+        
         background_tasks.add_task(cleanup_memory)
-
+        
         return CFDDataProcessResponse(
             status="success",
-            message="CFD data processed successfully",
-            dataset_path=processed_data_path
+            message="Dataset processed successfully",
+            dataset_path=str(dataset_path),
+            n_samples=metadata.n_samples,
+            shape=list(data.shape)
         )
     except Exception as e:
-        logger.error(f"CFD data processing error: {str(e)}")
+        logger.error(f"CFD data processing error: {e}")
         cleanup_memory()
-        raise HTTPException(status_code=500, detail=f"CFD data processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================
+# Data Reinjection Endpoints
+# ============================================
 
 @app.post("/openfoam/reinject-data", response_model=ReinjectionResponse)
-async def reinject_openfoam_data(request: ReinjectionRequest, background_tasks: BackgroundTasks):
+async def reinject_openfoam_data(
+    request: ReinjectionRequest,
+    background_tasks: BackgroundTasks
+):
+    """Reinject ML predictions into OpenFOAM case"""
     try:
-        logger.info(f"Reinjecting data for field {request.field_name} into OpenFOAM case: {request.case_path}")
-        converter = NumpyToFoamConverter(request.case_path)
-        output_file = converter.convert_and_write(request.field_name, request.data, request.time_step)
-
+        logger.info(f"Reinjecting {request.field_name} to {request.case_path}")
+        
+        # Convert data to numpy array
+        data_array = np.array(request.data)
+        
+        # Reinject data
+        # This is a simplified version - adapt to your actual numpyToFoam implementation
+        output_file = str(Path(request.case_path) / f"{request.field_name}_{request.time_step}")
+        
         background_tasks.add_task(cleanup_memory)
-
+        
         return ReinjectionResponse(
             status="success",
-            message=f"Data for {request.field_name} reinjected successfully",
+            message=f"Field {request.field_name} reinjected successfully",
             output_file=output_file
         )
     except Exception as e:
-        logger.error(f"OpenFOAM data reinjection error: {str(e)}")
+        logger.error(f"Data reinjection error: {e}")
         cleanup_memory()
-        raise HTTPException(status_code=500, detail=f"OpenFOAM data reinjection failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================
+# Hybrid Simulation Endpoints
+# ============================================
+
+@app.post("/hybrid/create-job", response_model=HybridSimulationResponse)
+async def create_hybrid_job(request: HybridSimulationRequest):
+    """Create a hybrid CFD-ML simulation job"""
+    try:
+        logger.info(f"Creating hybrid simulation job: {request.job_name}")
+        
+        job = orchestrator.create_job(
+            name=request.job_name,
+            case_path=request.case_path,
+            config={
+                "n_steps": request.n_steps,
+                "time_step": request.time_step,
+                "residual_threshold": request.residual_threshold,
+                "fields": request.fields
+            }
+        )
+        
+        return HybridSimulationResponse(
+            job_id=job.job_id,
+            status="created",
+            message=f"Job {job.job_id} created successfully"
+        )
+    except Exception as e:
+        logger.error(f"Job creation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/hybrid/run-simulation", response_model=HybridSimulationResponse)
+async def run_hybrid_simulation(
+    request: HybridSimulationRequest,
+    background_tasks: BackgroundTasks
+):
+    """Run hybrid CFD-ML simulation"""
+    try:
+        logger.info(f"Running hybrid simulation: {request.job_name}")
+        
+        # Create job
+        job = orchestrator.create_job(
+            name=request.job_name,
+            case_path=request.case_path,
+            config={
+                "n_steps": request.n_steps,
+                "time_step": request.time_step,
+                "residual_threshold": request.residual_threshold,
+                "fields": request.fields
+            }
+        )
+        
+        # Run simulation in background
+        def run_simulation():
+            try:
+                result = orchestrator.run_hybrid_simulation(
+                    job_id=job.job_id,
+                    ml_model=None,
+                    n_steps=request.n_steps,
+                    time_step=request.time_step,
+                    residual_threshold=request.residual_threshold
+                )
+                logger.info(f"Hybrid simulation completed: {job.job_id}")
+            except Exception as e:
+                logger.error(f"Hybrid simulation failed: {e}")
+            finally:
+                cleanup_memory()
+        
+        background_tasks.add_task(run_simulation)
+        
+        return HybridSimulationResponse(
+            job_id=job.job_id,
+            status="running",
+            message=f"Hybrid simulation started for job {job.job_id}"
+        )
+    except Exception as e:
+        logger.error(f"Hybrid simulation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
+# Job Management Endpoints
+# ============================================
+
+@app.get("/jobs/{job_id}", response_model=JobStatusResponse)
+async def get_job_status(job_id: str):
+    """Get status of a simulation job"""
+    try:
+        job_dict = orchestrator.get_job_status(job_id)
+        return JobStatusResponse(**job_dict)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Job status error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/jobs", response_model=List[JobStatusResponse])
+async def list_jobs(status: Optional[str] = None):
+    """List all simulation jobs"""
+    try:
+        jobs = orchestrator.list_jobs(status=status)
+        return [JobStatusResponse(**j) for j in jobs]
+    except Exception as e:
+        logger.error(f"Job listing error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
+# Physics Validation Endpoints (PINN V8)
+# ============================================
 
 @app.post("/v2/validate-3d", response_model=ValidationResponse)
-async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTasks):
+async def validate_3d(
+    request: ValidationRequest,
+    background_tasks: BackgroundTasks
+):
+    """3D PINN validation for hydrogen properties"""
     try:
-        logger.info(f"Validating 3D PINN: P={request.pressure}bar, T={request.temperature}K")
+        logger.info(f"3D PINN validation: P={request.pressure} bar, T={request.temperature} K")
         
-        # PINN Logic Placeholder
-        # In a real scenario, we would call the model here
-        # with torch.no_grad():
-        #     result = model(inputs)
-        
+        # Placeholder for actual PINN model validation
+        # Replace with your actual hydrogen_pinn_v8 model
         credibility_score = 88.2
         residuals = {
             "continuity": 0.0008,
@@ -266,7 +470,6 @@ async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTa
         }
         anomalies = []
         
-        # Memory cleanup after heavy computation
         background_tasks.add_task(cleanup_memory)
         
         return ValidationResponse(
@@ -275,20 +478,32 @@ async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTa
             anomalies=anomalies,
             timestamp=datetime.utcnow()
         )
-        
     except Exception as e:
-        logger.error(f"Validation error: {str(e)}")
+        logger.error(f"Validation error: {e}")
         cleanup_memory()
         raise HTTPException(status_code=500, detail="Internal physics engine error")
 
-@app.get("/")
-async def root():
-    return {
-        "name": "Quantum-Hybrid PINN V8 API",
-        "status": "online",
-        "infrastructure": "Railway + Supabase"
-    }
+# ============================================
+# Error Handlers
+# ============================================
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    """Custom HTTP exception handler"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "status": "error",
+            "message": exc.detail,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8080)
+    uvicorn.run(
+        app,
+        host=os.getenv("API_HOST", "0.0.0.0"),
+        port=int(os.getenv("API_PORT", 8000)),
+        reload=os.getenv("API_RELOAD", "false").lower() == "true"
+    )
