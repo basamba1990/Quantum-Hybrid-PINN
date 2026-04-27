@@ -8,4 +8,299 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 // Type definitions
-interface HybridSimulationRequest {\n  projectId: string;\n  userId: string;\n  jobName: string;\n  casePath: string;\n  nSteps: number;\n  timeStep: number;\n  residualThreshold: number;\n  fields: string[];\n}\n\ninterface HybridSimulationResponse {\n  status: 'success' | 'error';\n  jobId?: string;\n  message: string;\n  error?: string;\n}\n\ninterface SimulationJob {\n  id: string;\n  project_id: string;\n  user_id: string;\n  job_name: string;\n  case_path: string;\n  status: 'pending' | 'running' | 'completed' | 'failed';\n  config: Record<string, any>;\n  results?: Record<string, any>;\n  created_at: string;\n  started_at?: string;\n  completed_at?: string;\n  error_message?: string;\n}\n\n// Configuration\nconst SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';\nconst SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';\nconst API_BASE_URL = Deno.env.get('API_BASE_URL') || 'http://localhost:8000';\nconst MAX_RETRIES = 3;\nconst RETRY_DELAY = 1000; // ms\n\n// Initialize Supabase client\nconst supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);\n\n/**\n * Retry logic for API calls\n */\nasync function retryRequest(\n  fn: () => Promise<Response>,\n  retries: number = MAX_RETRIES\n): Promise<Response> {\n  for (let i = 0; i < retries; i++) {\n    try {\n      const response = await fn();\n      if (response.ok) return response;\n      if (i < retries - 1) {\n        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));\n      }\n    } catch (error) {\n      if (i === retries - 1) throw error;\n      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));\n    }\n  }\n  throw new Error('Max retries exceeded');\n}\n\n/**\n * Create simulation job in database\n */\nasync function createSimulationJob(\n  request: HybridSimulationRequest\n): Promise<SimulationJob> {\n  const { data, error } = await supabase\n    .from('hybrid_simulations')\n    .insert([\n      {\n        project_id: request.projectId,\n        user_id: request.userId,\n        job_name: request.jobName,\n        case_path: request.casePath,\n        status: 'pending',\n        config: {\n          n_steps: request.nSteps,\n          time_step: request.timeStep,\n          residual_threshold: request.residualThreshold,\n          fields: request.fields,\n        },\n        created_at: new Date().toISOString(),\n      },\n    ])\n    .select()\n    .single();\n\n  if (error) {\n    throw new Error(`Failed to create job: ${error.message}`);\n  }\n\n  return data as SimulationJob;\n}\n\n/**\n * Update job status in database\n */\nasync function updateJobStatus(\n  jobId: string,\n  status: string,\n  updates?: Record<string, any>\n): Promise<void> {\n  const { error } = await supabase\n    .from('hybrid_simulations')\n    .update({\n      status,\n      ...updates,\n      updated_at: new Date().toISOString(),\n    })\n    .eq('id', jobId);\n\n  if (error) {\n    console.error(`Failed to update job ${jobId}:`, error);\n  }\n}\n\n/**\n * Call FastAPI backend to run hybrid simulation\n */\nasync function runHybridSimulation(\n  jobId: string,\n  request: HybridSimulationRequest\n): Promise<Record<string, any>> {\n  const payload = {\n    job_name: request.jobName,\n    case_path: request.casePath,\n    n_steps: request.nSteps,\n    time_step: request.timeStep,\n    residual_threshold: request.residualThreshold,\n    fields: request.fields,\n  };\n\n  const response = await retryRequest(() =>\n    fetch(`${API_BASE_URL}/hybrid/run-simulation`, {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n      },\n      body: JSON.stringify(payload),\n    })\n  );\n\n  if (!response.ok) {\n    throw new Error(`API error: ${response.statusText}`);\n  }\n\n  return await response.json();\n}\n\n/**\n * Poll job status from FastAPI backend\n */\nasync function pollJobStatus(\n  jobId: string,\n  maxAttempts: number = 60,\n  interval: number = 5000\n): Promise<Record<string, any>> {\n  for (let i = 0; i < maxAttempts; i++) {\n    try {\n      const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`);\n      if (response.ok) {\n        const data = await response.json();\n        return data;\n      }\n    } catch (error) {\n      console.error(`Error polling job ${jobId}:`, error);\n    }\n\n    if (i < maxAttempts - 1) {\n      await new Promise((resolve) => setTimeout(resolve, interval));\n    }\n  }\n\n  throw new Error(`Job ${jobId} polling timeout`);\n}\n\n/**\n * Main handler function\n */\nserve(async (req: Request) => {\n  // CORS headers\n  if (req.method === 'OPTIONS') {\n    return new Response(null, {\n      headers: {\n        'Access-Control-Allow-Origin': '*',\n        'Access-Control-Allow-Methods': 'POST, OPTIONS',\n        'Access-Control-Allow-Headers': 'Content-Type, Authorization',\n      },\n    });\n  }\n\n  try {\n    // Parse request\n    const body = await req.json() as HybridSimulationRequest;\n\n    // Validate required fields\n    const required = ['projectId', 'userId', 'jobName', 'casePath'];\n    for (const field of required) {\n      if (!(field in body)) {\n        return new Response(\n          JSON.stringify({\n            status: 'error',\n            message: `Missing required field: ${field}`,\n          }),\n          {\n            status: 400,\n            headers: {\n              'Content-Type': 'application/json',\n              'Access-Control-Allow-Origin': '*',\n            },\n          }\n        );\n      }\n    }\n\n    // Set defaults\n    const request: HybridSimulationRequest = {\n      nSteps: 100,\n      timeStep: 0.01,\n      residualThreshold: 0.01,\n      fields: ['U', 'p', 'T'],\n      ...body,\n    };\n\n    console.log(`[${new Date().toISOString()}] Starting hybrid simulation:`, request);\n\n    // Create job in database\n    const job = await createSimulationJob(request);\n    console.log(`Created job: ${job.id}`);\n\n    // Update job status to running\n    await updateJobStatus(job.id, 'running', {\n      started_at: new Date().toISOString(),\n    });\n\n    // Call FastAPI backend\n    const apiResponse = await runHybridSimulation(job.id, request);\n    console.log(`API response for job ${job.id}:`, apiResponse);\n\n    // Poll for completion (with timeout)\n    let finalStatus: Record<string, any> | null = null;\n    try {\n      finalStatus = await pollJobStatus(job.id, 120, 2000); // 4 minutes max\n    } catch (error) {\n      console.warn(`Polling timeout for job ${job.id}, continuing with async updates`);\n    }\n\n    // Update job with results if available\n    if (finalStatus) {\n      await updateJobStatus(job.id, finalStatus.status, {\n        results: finalStatus.results,\n        completed_at:\n          finalStatus.status === 'completed' || finalStatus.status === 'failed'\n            ? new Date().toISOString()\n            : undefined,\n        error_message: finalStatus.error_message,\n      });\n    }\n\n    // Return response\n    const response: HybridSimulationResponse = {\n      status: 'success',\n      jobId: job.id,\n      message: `Hybrid simulation job ${job.id} created and started`,\n    };\n\n    return new Response(JSON.stringify(response), {\n      status: 200,\n      headers: {\n        'Content-Type': 'application/json',\n        'Access-Control-Allow-Origin': '*',\n      },\n    });\n  } catch (error) {\n    console.error('Error in hybrid-simulation-orchestrator:', error);\n\n    const response: HybridSimulationResponse = {\n      status: 'error',\n      message: 'Failed to start hybrid simulation',\n      error: error instanceof Error ? error.message : 'Unknown error',\n    };\n\n    return new Response(JSON.stringify(response), {\n      status: 500,\n      headers: {\n        'Content-Type': 'application/json',\n        'Access-Control-Allow-Origin': '*',\n      },\n    });\n  }\n});\n
+interface HybridSimulationRequest {
+  projectId: string;
+  userId: string;
+  jobName: string;
+  casePath: string;
+  nSteps: number;
+  timeStep: number;
+  residualThreshold: number;
+  fields: string[];
+}
+
+interface HybridSimulationResponse {
+  status: 'success' | 'error';
+  jobId?: string;
+  message: string;
+  error?: string;
+}
+
+interface SimulationJob {
+  id: string;
+  project_id: string;
+  user_id: string;
+  job_name: string;
+  case_path: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  config: Record<string, any>;
+  results?: Record<string, any>;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  error_message?: string;
+}
+
+// Configuration
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const API_BASE_URL = Deno.env.get('API_BASE_URL') || 'http://localhost:8000';
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // ms
+
+// Initialize Supabase client
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+/**
+ * Retry logic for API calls
+ */
+async function retryRequest(
+  fn: () => Promise<Response>,
+  retries: number = MAX_RETRIES
+): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const response = await fn();
+      if (response.ok) return response;
+      if (i < retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+      }
+    } catch (error) {
+      if (i === retries - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+    }
+  }
+  throw new Error('Max retries exceeded');
+}
+
+/**
+ * Create simulation job in database
+ */
+async function createSimulationJob(
+  request: HybridSimulationRequest
+): Promise<SimulationJob> {
+  const { data, error } = await supabase
+    .from('hybrid_simulations')
+    .insert([
+      {
+        project_id: request.projectId,
+        user_id: request.userId,
+        job_name: request.jobName,
+        case_path: request.casePath,
+        status: 'pending',
+        config: {
+          n_steps: request.nSteps,
+          time_step: request.timeStep,
+          residual_threshold: request.residualThreshold,
+          fields: request.fields,
+        },
+        created_at: new Date().toISOString(),
+      },
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to create job: ${error.message}`);
+  }
+
+  return data as SimulationJob;
+}
+
+/**
+ * Update job status in database
+ */
+async function updateJobStatus(
+  jobId: string,
+  status: string,
+  updates?: Record<string, any>
+): Promise<void> {
+  const { error } = await supabase
+    .from('hybrid_simulations')
+    .update({
+      status,
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', jobId);
+
+  if (error) {
+    console.error(`Failed to update job ${jobId}:`, error);
+  }
+}
+
+/**
+ * Call FastAPI backend to run hybrid simulation
+ */
+async function runHybridSimulation(
+  jobId: string,
+  request: HybridSimulationRequest
+): Promise<Record<string, any>> {
+  const payload = {
+    job_name: request.jobName,
+    case_path: request.casePath,
+    n_steps: request.nSteps,
+    time_step: request.timeStep,
+    residual_threshold: request.residualThreshold,
+    fields: request.fields,
+  };
+
+  const response = await retryRequest(() =>
+    fetch(`${API_BASE_URL}/hybrid/run-simulation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+  );
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Poll job status from FastAPI backend
+ */
+async function pollJobStatus(
+  jobId: string,
+  maxAttempts: number = 60,
+  interval: number = 5000
+): Promise<Record<string, any>> {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`);
+      if (response.ok) {
+        const data = await response.json();
+        return data;
+      }
+    } catch (error) {
+      console.error(`Error polling job ${jobId}:`, error);
+    }
+
+    if (i < maxAttempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, interval));
+    }
+  }
+
+  throw new Error(`Job ${jobId} polling timeout`);
+}
+
+/**
+ * Main handler function
+ */
+serve(async (req: Request) => {
+  // CORS headers
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    });
+  }
+
+  try {
+    // Parse request
+    const body = await req.json() as HybridSimulationRequest;
+
+    // Validate required fields
+    const required = ['projectId', 'userId', 'jobName', 'casePath'];
+    for (const field of required) {
+      if (!(field in body)) {
+        return new Response(
+          JSON.stringify({
+            status: 'error',
+            message: `Missing required field: ${field}`,
+          }),
+          {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            },
+          }
+        );
+      }
+    }
+
+    // Set defaults
+    const request: HybridSimulationRequest = {
+      nSteps: 100,
+      timeStep: 0.01,
+      residualThreshold: 0.01,
+      fields: ['U', 'p', 'T'],
+      ...body,
+    };
+
+    console.log(`[${new Date().toISOString()}] Starting hybrid simulation:`, request);
+
+    // Create job in database
+    const job = await createSimulationJob(request);
+    console.log(`Created job: ${job.id}`);
+
+    // Update job status to running
+    await updateJobStatus(job.id, 'running', {
+      started_at: new Date().toISOString(),
+    });
+
+    // Call FastAPI backend
+    const apiResponse = await runHybridSimulation(job.id, request);
+    console.log(`API response for job ${job.id}:`, apiResponse);
+
+    // Poll for completion (with timeout)
+    let finalStatus: Record<string, any> | null = null;
+    try {
+      finalStatus = await pollJobStatus(job.id, 120, 2000); // 4 minutes max
+    } catch (error) {
+      console.warn(`Polling timeout for job ${job.id}, continuing with async updates`);
+    }
+
+    // Update job with results if available
+    if (finalStatus) {
+      await updateJobStatus(job.id, finalStatus.status, {
+        results: finalStatus.results,
+        completed_at:
+          finalStatus.status === 'completed' || finalStatus.status === 'failed'
+            ? new Date().toISOString()
+            : undefined,
+        error_message: finalStatus.error_message,
+      });
+    }
+
+    // Return response
+    const response: HybridSimulationResponse = {
+      status: 'success',
+      jobId: job.id,
+      message: `Hybrid simulation job ${job.id} created and started`,
+    };
+
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+    });
+  } catch (error) {
+    console.error('Error in hybrid-simulation-orchestrator:', error);
+
+    const response: HybridSimulationResponse = {
+      status: 'error',
+      message: 'Failed to start hybrid simulation',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+
+    return new Response(JSON.stringify(response), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      },
+    });
+  }
+});
