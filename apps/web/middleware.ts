@@ -62,7 +62,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  runtime: 'nodejs', // ← Force l'utilisation de Node.js au lieu d'Edge
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
