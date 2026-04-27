@@ -9,7 +9,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
+import { Label } from '@/components/ui/label';   // ← IMPORT MANQUANT
 import {
   LineChart,
   Line,
@@ -65,7 +65,6 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
     );
   }
 
-  // Calculate performance metrics
   const cfdPercentage = (results.cfdSteps / results.totalSteps) * 100;
   const mlPercentage = (results.mlSteps / results.totalSteps) * 100;
 
@@ -79,7 +78,6 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
             <p className="text-2xl font-bold">{results.totalTime.toFixed(2)}s</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-gray-600">CFD Steps</p>
@@ -87,7 +85,6 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
             <p className="text-xs text-gray-500">{cfdPercentage.toFixed(1)}%</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-gray-600">ML Steps</p>
@@ -95,7 +92,6 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
             <p className="text-xs text-gray-500">{mlPercentage.toFixed(1)}%</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-gray-600">Acceleration</p>
@@ -108,9 +104,7 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
       <Card>
         <CardHeader>
           <CardTitle>Hybrid Simulation Results</CardTitle>
-          <CardDescription>
-            CFD and ML prediction analysis
-          </CardDescription>
+          <CardDescription>CFD and ML prediction analysis</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={comparisonMode} onValueChange={(v) => setComparisonMode(v as any)}>
@@ -137,28 +131,16 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                   ))}
                 </div>
               </div>
-
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart data={results.residuals}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="step" />
                   <YAxis scale="log" />
-                  <Tooltip
-                    formatter={(value) =>
-                      typeof value === 'number' ? value.toExponential(2) : value
-                    }
-                  />
+                  <Tooltip formatter={(value) => (typeof value === 'number' ? value.toExponential(2) : value)} />
                   <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey={selectedField}
-                    stroke="#ef4444"
-                    dot={false}
-                    name={selectedField}
-                  />
+                  <Line type="monotone" dataKey={selectedField} stroke="#ef4444" dot={false} name={selectedField} />
                 </LineChart>
               </ResponsiveContainer>
-
               <div className="bg-blue-50 p-4 rounded border border-blue-200">
                 <p className="text-sm text-blue-900">
                   <strong>Interpretation:</strong> Lower residuals indicate better convergence.
@@ -184,15 +166,9 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                     {results.fieldComparisons.map((comp) => (
                       <tr key={comp.field} className="border-t hover:bg-gray-50">
                         <td className="px-4 py-2 font-medium">{comp.field}</td>
-                        <td className="px-4 py-2 text-right font-mono">
-                          {comp.cfdValue.toFixed(6)}
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono">
-                          {comp.mlValue.toFixed(6)}
-                        </td>
-                        <td className="px-4 py-2 text-right font-mono">
-                          {comp.difference.toExponential(2)}
-                        </td>
+                        <td className="px-4 py-2 text-right font-mono">{comp.cfdValue.toFixed(6)}</td>
+                        <td className="px-4 py-2 text-right font-mono">{comp.mlValue.toFixed(6)}</td>
+                        <td className="px-4 py-2 text-right font-mono">{comp.difference.toExponential(2)}</td>
                         <td className="px-4 py-2 text-right">
                           <Badge
                             variant={
@@ -211,7 +187,6 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                   </tbody>
                 </table>
               </div>
-
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={results.fieldComparisons}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -228,16 +203,10 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
             {/* Performance Tab */}
             <TabsContent value="performance" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
-                {/* CFD vs ML Time */}
                 <Card>
                   <CardContent className="pt-6">
                     <ResponsiveContainer width="100%" height={250}>
-                      <BarChart
-                        data={[
-                          { name: 'CFD', time: results.cfdTime },
-                          { name: 'ML', time: results.mlTime },
-                        ]}
-                      >
+                      <BarChart data={[{ name: 'CFD', time: results.cfdTime }, { name: 'ML', time: results.mlTime }]}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
@@ -247,17 +216,10 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                     </ResponsiveContainer>
                   </CardContent>
                 </Card>
-
-                {/* Step Distribution */}
                 <Card>
                   <CardContent className="pt-6">
                     <ResponsiveContainer width="100%" height={250}>
-                      <BarChart
-                        data={[
-                          { name: 'CFD', steps: results.cfdSteps },
-                          { name: 'ML', steps: results.mlSteps },
-                        ]}
-                      >
+                      <BarChart data={[{ name: 'CFD', steps: results.cfdSteps }, { name: 'ML', steps: results.mlSteps }]}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
@@ -268,8 +230,6 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                   </CardContent>
                 </Card>
               </div>
-
-              {/* Performance Metrics */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Performance Metrics</CardTitle>
@@ -293,9 +253,7 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Time Saved</span>
-                    <span className="text-green-600 font-semibold">
-                      {((1 - results.accelerationFactor) * 100).toFixed(1)}%
-                    </span>
+                    <span className="text-green-600 font-semibold">{((1 - results.accelerationFactor) * 100).toFixed(1)}%</span>
                   </div>
                 </CardContent>
               </Card>
