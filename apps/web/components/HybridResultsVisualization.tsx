@@ -5,10 +5,11 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import {
   LineChart,
   Line,
@@ -20,8 +21,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ScatterChart,
-  Scatter,
 } from 'recharts';
 
 interface ResidualData {
@@ -69,7 +68,6 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
   // Calculate performance metrics
   const cfdPercentage = (results.cfdSteps / results.totalSteps) * 100;
   const mlPercentage = (results.mlSteps / results.totalSteps) * 100;
-  const timeAcceleration = results.cfdTime / (results.cfdTime + results.mlTime);
 
   return (
     <div className="space-y-6">
@@ -200,4 +198,132 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                             variant={
                               comp.percentError < 1
                                 ? 'secondary'
-                                : comp.percentError < 5\n                                ? 'outline'\n                                : 'destructive'\n                            }\n                          >\n                            {comp.percentError.toFixed(2)}%\n                          </Badge>\n                        </td>\n                      </tr>\n                    ))}\n                  </tbody>\n                </table>\n              </div>\n\n              <ResponsiveContainer width=\"100%\" height={300}>\n                <BarChart data={results.fieldComparisons}>\n                  <CartesianGrid strokeDasharray=\"3 3\" />\n                  <XAxis dataKey=\"field\" />\n                  <YAxis />\n                  <Tooltip />\n                  <Legend />\n                  <Bar dataKey=\"cfdValue\" fill=\"#3b82f6\" name=\"CFD\" />\n                  <Bar dataKey=\"mlValue\" fill=\"#10b981\" name=\"ML\" />\n                </BarChart>\n              </ResponsiveContainer>\n            </TabsContent>\n\n            {/* Performance Tab */}\n            <TabsContent value=\"performance\" className=\"space-y-4 mt-4\">\n              <div className=\"grid grid-cols-2 gap-4\">\n                {/* CFD vs ML Time */}\n                <Card>\n                  <CardContent className=\"pt-6\">\n                    <ResponsiveContainer width=\"100%\" height={250}>\n                      <BarChart\n                        data={[\n                          { name: 'CFD', time: results.cfdTime },\n                          { name: 'ML', time: results.mlTime },\n                        ]}\n                      >\n                        <CartesianGrid strokeDasharray=\"3 3\" />\n                        <XAxis dataKey=\"name\" />\n                        <YAxis />\n                        <Tooltip />\n                        <Bar dataKey=\"time\" fill=\"#8b5cf6\" />\n                      </BarChart>\n                    </ResponsiveContainer>\n                  </CardContent>\n                </Card>\n\n                {/* Step Distribution */}\n                <Card>\n                  <CardContent className=\"pt-6\">\n                    <ResponsiveContainer width=\"100%\" height={250}>\n                      <BarChart\n                        data={[\n                          { name: 'CFD', steps: results.cfdSteps },\n                          { name: 'ML', steps: results.mlSteps },\n                        ]}\n                      >\n                        <CartesianGrid strokeDasharray=\"3 3\" />\n                        <XAxis dataKey=\"name\" />\n                        <YAxis />\n                        <Tooltip />\n                        <Bar dataKey=\"steps\" fill=\"#06b6d4\" />\n                      </BarChart>\n                    </ResponsiveContainer>\n                  </CardContent>\n                </Card>\n              </div>\n\n              {/* Performance Metrics */}\n              <Card>\n                <CardHeader>\n                  <CardTitle className=\"text-base\">Performance Metrics</CardTitle>\n                </CardHeader>\n                <CardContent className=\"space-y-3\">\n                  <div className=\"flex justify-between items-center\">\n                    <span className=\"text-sm\">CFD Execution Time</span>\n                    <span className=\"font-mono font-semibold\">{results.cfdTime.toFixed(2)}s</span>\n                  </div>\n                  <div className=\"flex justify-between items-center\">\n                    <span className=\"text-sm\">ML Execution Time</span>\n                    <span className=\"font-mono font-semibold\">{results.mlTime.toFixed(2)}s</span>\n                  </div>\n                  <div className=\"flex justify-between items-center border-t pt-3\">\n                    <span className=\"text-sm font-semibold\">Total Time</span>\n                    <span className=\"font-mono font-bold text-lg\">{results.totalTime.toFixed(2)}s</span>\n                  </div>\n                  <div className=\"flex justify-between items-center\">\n                    <span className=\"text-sm\">Acceleration Factor</span>\n                    <Badge variant=\"secondary\">{results.accelerationFactor.toFixed(2)}x</Badge>\n                  </div>\n                  <div className=\"flex justify-between items-center\">\n                    <span className=\"text-sm\">Time Saved</span>\n                    <span className=\"text-green-600 font-semibold\">\n                      {((1 - results.accelerationFactor) * 100).toFixed(1)}%\n                    </span>\n                  </div>\n                </CardContent>\n              </Card>\n            </TabsContent>\n          </Tabs>\n        </CardContent>\n      </Card>\n\n      {/* Insights Card */}\n      <Card className=\"bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-l-blue-500\">\n        <CardHeader>\n          <CardTitle className=\"text-base\">Hybrid Simulation Insights</CardTitle>\n        </CardHeader>\n        <CardContent className=\"space-y-2 text-sm\">\n          <p>\n            ✓ <strong>Efficiency:</strong> The hybrid approach achieved {results.accelerationFactor.toFixed(2)}x\n            acceleration by using ML for {mlPercentage.toFixed(1)}% of the simulation steps.\n          </p>\n          <p>\n            ✓ <strong>Accuracy:</strong> ML predictions maintained accuracy within acceptable error bounds,\n            as validated by residual convergence.\n          </p>\n          <p>\n            ✓ <strong>Recommendation:</strong> Consider adjusting the residual threshold for future simulations\n            to optimize the CFD/ML balance based on your accuracy requirements.\n          </p>\n        </CardContent>\n      </Card>\n    </div>\n  );\n}\n\n// Helper component for labels\nfunction Label({ children }: { children: React.ReactNode }) {\n  return <label className=\"text-sm font-medium\">{children}</label>;\n}\n
+                                : comp.percentError < 5
+                                ? 'outline'
+                                : 'destructive'
+                            }
+                          >
+                            {comp.percentError.toFixed(2)}%
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={results.fieldComparisons}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="field" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="cfdValue" fill="#3b82f6" name="CFD" />
+                  <Bar dataKey="mlValue" fill="#10b981" name="ML" />
+                </BarChart>
+              </ResponsiveContainer>
+            </TabsContent>
+
+            {/* Performance Tab */}
+            <TabsContent value="performance" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                {/* CFD vs ML Time */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart
+                        data={[
+                          { name: 'CFD', time: results.cfdTime },
+                          { name: 'ML', time: results.mlTime },
+                        ]}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="time" fill="#8b5cf6" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Step Distribution */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart
+                        data={[
+                          { name: 'CFD', steps: results.cfdSteps },
+                          { name: 'ML', steps: results.mlSteps },
+                        ]}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="steps" fill="#06b6d4" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Performance Metrics */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Performance Metrics</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">CFD Execution Time</span>
+                    <span className="font-mono font-semibold">{results.cfdTime.toFixed(2)}s</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">ML Execution Time</span>
+                    <span className="font-mono font-semibold">{results.mlTime.toFixed(2)}s</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t pt-3">
+                    <span className="text-sm font-semibold">Total Time</span>
+                    <span className="font-mono font-bold text-lg">{results.totalTime.toFixed(2)}s</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Acceleration Factor</span>
+                    <Badge variant="secondary">{results.accelerationFactor.toFixed(2)}x</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Time Saved</span>
+                    <span className="text-green-600 font-semibold">
+                      {((1 - results.accelerationFactor) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Insights Card */}
+      <Card className="bg-gradient-to-r from-blue-50 to-green-50 border-l-4 border-l-blue-500">
+        <CardHeader>
+          <CardTitle className="text-base">Hybrid Simulation Insights</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <p>
+            ✓ <strong>Efficiency:</strong> The hybrid approach achieved {results.accelerationFactor.toFixed(2)}x
+            acceleration by using ML for {mlPercentage.toFixed(1)}% of the simulation steps.
+          </p>
+          <p>
+            ✓ <strong>Accuracy:</strong> ML predictions maintained accuracy within acceptable error bounds,
+            as validated by residual convergence.
+          </p>
+          <p>
+            ✓ <strong>Recommendation:</strong> Consider adjusting the residual threshold for future simulations
+            to optimize the CFD/ML balance based on your accuracy requirements.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
