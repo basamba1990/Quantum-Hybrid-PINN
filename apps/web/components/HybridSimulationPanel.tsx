@@ -43,7 +43,11 @@ interface JobStatus {
   errorMessage?: string;
 }
 
-export function HybridSimulationPanel() {
+interface HybridSimulationPanelProps {
+  onJobSelected?: (job: JobStatus) => void;
+}
+
+export function HybridSimulationPanel({ onJobSelected }: HybridSimulationPanelProps) {
   const [config, setConfig] = useState<HybridSimulationConfig>({
     jobName: 'Hybrid Simulation',
     casePath: '/path/to/case',
@@ -78,6 +82,7 @@ export function HybridSimulationPanel() {
           const updated = data.find((j: JobStatus) => j.jobId === selectedJob.jobId);
           if (updated) {
             setSelectedJob(updated);
+            if (onJobSelected) onJobSelected(updated);
           }
         }
       }
@@ -109,12 +114,14 @@ export function HybridSimulationPanel() {
       }
 
       const data = await response.json();
-      setSelectedJob({
+      const newJob: JobStatus = {
         jobId: data.job_id,
         name: config.jobName,
         status: 'running',
         createdAt: new Date().toISOString(),
-      });
+      };
+      setSelectedJob(newJob);
+      if (onJobSelected) onJobSelected(newJob);
       setIsRunning(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -125,8 +132,6 @@ export function HybridSimulationPanel() {
 
   const handleStopSimulation = async () => {
     if (!selectedJob) return;
-    
-    // Placeholder for stop functionality
     setIsRunning(false);
   };
 
@@ -476,7 +481,10 @@ export function HybridSimulationPanel() {
                       ? 'bg-blue-50 border-blue-300'
                       : 'hover:bg-gray-50'
                   }`}
-                  onClick={() => setSelectedJob(job)}
+                  onClick={() => {
+                    setSelectedJob(job);
+                    if (onJobSelected) onJobSelected(job);
+                  }}
                 >
                   <div className="flex items-center justify-between">
                     <div>
