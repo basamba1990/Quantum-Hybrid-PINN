@@ -192,7 +192,8 @@ async def lifespan(app: FastAPI):
             in_channels=3,
             out_channels=3,
         )
-        fno_uvw_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu')))
+        # CORRECTION : weights_only=False pour PyTorch >=2.6
+        fno_uvw_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
         fno_uvw_model.eval()
         logger.info("✅ FNO turbulence (uvw) model loaded from Supabase")
 
@@ -221,7 +222,8 @@ async def lifespan(app: FastAPI):
             in_channels=1,
             out_channels=1,
         )
-        fno_heat_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu')))
+        # CORRECTION : weights_only=False
+        fno_heat_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
         fno_heat_model.eval()
         logger.info("✅ Heat FNO model loaded (optional)")
 
@@ -300,7 +302,7 @@ async def root():
     }
 
 # ============================================
-# OpenFOAM Simulation Endpoints (unchanged)
+# OpenFOAM Simulation Endpoints
 # ============================================
 
 @app.post("/openfoam/run-simulation", response_model=OpenFOAMSimulationResponse)
@@ -492,7 +494,7 @@ async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTa
         raise HTTPException(status_code=500, detail=f"Heat engine error: {str(e)}")
 
 # ============================================
-# NEW – Turbulence Validation Endpoint (mandatory)
+# Turbulence Validation Endpoint (mandatory)
 # ============================================
 
 @app.post("/v2/validate-3d-velocity", response_model=ValidationResponse)
@@ -569,7 +571,8 @@ async def upload_model(file: UploadFile = File(...)):
             in_channels=3,
             out_channels=3,
         )
-        new_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu')))
+        # CORRECTION : weights_only=False
+        new_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
         new_model.eval()
         fno_uvw_model = new_model
         logger.info("New turbulence model loaded into memory")
