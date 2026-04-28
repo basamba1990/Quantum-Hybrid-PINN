@@ -11,7 +11,12 @@ supabase>=1.0.0
 redis>=5.0.0
 python-dotenv>=1.0.0
 psutil>=5.9.0
-neuraloperator>=2.0.0      # ← AJOUT OBLIGATOIRE pour FNO 3D
-h5py>=3.8.0                # ← si vous lisez des fichiers .h5
-matplotlib>=3.5.0          # optionnel mais utile
-scikit-learn>=1.2.0        # pour train_test_split si nécessaire
+Ofpp
+jax
+jaxlib
+tensorflow
+tensorflow-probability
+neuraloperator>=2.0.0
+h5py>=3.8.0
+matplotlib>=3.5.0
+scikit-learn>=1.2.0
