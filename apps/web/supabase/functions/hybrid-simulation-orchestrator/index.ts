@@ -57,7 +57,6 @@ async function retryRequest(fn: () => Promise<Response>, retries = 3): Promise<R
 // 4. Handler principal
 // ============================================================================
 serve(async (req: Request) => {
-  // Gérer OPTIONS pour CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, {
       headers: {
@@ -68,7 +67,6 @@ serve(async (req: Request) => {
     });
   }
 
-  // Refuser les méthodes non POST (ex: GET)
   if (req.method !== 'POST') {
     return new Response(
       JSON.stringify({ error: 'Method not allowed. Only POST is supported.' }),
@@ -80,7 +78,6 @@ serve(async (req: Request) => {
   }
 
   try {
-    // Lecture et validation du body
     const rawBody = await req.text();
     if (!rawBody) throw new Error("Empty body");
     const body = JSON.parse(rawBody);
@@ -120,8 +117,9 @@ serve(async (req: Request) => {
       .update({ status: "running", started_at: new Date().toISOString() })
       .eq("id", jobId);
 
-    // 3. Appeler le backend FastAPI (asynchrone, ne pas attendre)
+    // 3. Appeler le backend FastAPI avec l'ID du job
     const payload = {
+      job_id: jobId,   // <-- CRUCIAL : transmet l'ID créé dans Supabase
       job_name: request.jobName,
       case_path: request.casePath,
       n_steps: request.nSteps,
@@ -165,7 +163,6 @@ serve(async (req: Request) => {
       }
     })();
 
-    // Réponse immédiate
     return new Response(
       JSON.stringify({
         status: "success",
