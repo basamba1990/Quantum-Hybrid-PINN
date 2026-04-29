@@ -1,7 +1,7 @@
 """
-Quantum-Hybrid PINN V8 + repitframework - Enhanced FastAPI Backend
-Unified API exposing PINN 3D, OpenFOAM orchestration, hybrid simulations, and dataset management
-Optimized for Railway + Supabase + FNO 3D (turbulence + heat) + direct Supabase job updates
+Quantum-Hybrid FNO/PINNs + repitframework - Enhanced FastAPI Backend
+Unified API exposing FNO 3D, OpenFOAM orchestration, hybrid simulations, and dataset management
+Optimized for Render + Supabase + FNO 3D (turbulence + heat) + direct Supabase job updates
 """
 
 import os
@@ -191,7 +191,7 @@ def cleanup_memory():
 async def lifespan(app: FastAPI):
     global fno_heat_model, heat_mean, heat_std
     global fno_uvw_model, uvw_mean, uvw_std
-    logger.info("🚀 Starting Quantum-Hybrid PINN V8 + repitframework Backend (strict turbulence mode)")
+    logger.info("🚀 Starting Quantum-Hybrid FNO/FMVNetwork/PINN + repitframework Backend (strict turbulence mode)")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info(f"Device: {device}")
     logger.info(f"Orchestrator initialized with work_dir: {orchestrator.work_dir}")
@@ -269,7 +269,7 @@ async def lifespan(app: FastAPI):
 # ============================================
 
 app = FastAPI(
-    title="Quantum-Hybrid PINN V8 + repitframework API",
+    title="Quantum-Hybrid FNO/FMVNetwork/PINN + repitframework API",
     description="Physics-Informed Neural Networks + OpenFOAM Hybrid Orchestration + FNO 3D (turbulence)",
     version="2.1.0",
     lifespan=lifespan
@@ -305,7 +305,7 @@ async def health_check():
 @app.get("/")
 async def root():
     return {
-        "message": "Quantum-Hybrid PINN V8 + repitframework API (turbulence model)",
+        "message": "Quantum-Hybrid FNO/FMVNetwork/PINN + repitframework API (turbulence model)",
         "version": "2.1.0",
         "endpoints": {
             "health": "/health",
