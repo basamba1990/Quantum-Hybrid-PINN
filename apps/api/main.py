@@ -63,7 +63,7 @@ HEAT_GRID_SIZE = 16
 fno_uvw_model: Optional[torch.nn.Module] = None
 uvw_mean: float = 0.0
 uvw_std: float = 1.0
-UVW_GRID_SIZE = (32, 32, 32)   # must match target_shape used during training
+UVW_GRID_SIZE = (32, 32, 32)
 
 # WebSocket connection manager
 class ConnectionManager:
@@ -91,7 +91,7 @@ def update_hybrid_job_in_supabase(job_id: str, updates: Dict[str, Any]) -> None:
             if isinstance(value, datetime):
                 updates[key] = value.isoformat()
         supabase.table("hybrid_simulations").update(updates).eq("id", job_id).execute()
-        logger.debug(f"Updated job {job_id} in Supabase: {updates.keys()}")
+        logger.debug(f"Updated job {job_id} in Supabase: {list(updates.keys())}")
     except Exception as e:
         logger.error(f"Failed to update job {job_id} in Supabase: {e}")
 
@@ -136,8 +136,8 @@ class HybridSimulationRequest(BaseModel):
     case_path: str = Field(..., description="Path to OpenFOAM case")
     n_steps: int = Field(100, gt=0, description="Number of simulation steps")
     time_step: float = Field(0.01, gt=0, description="Time step size")
-    residual_threshold: float = Field(0.01, description="Residual threshold for ML/CFD switching")
-    fields: List[str] = Field(default=["U", "p", "T"], description="Fields to monitor")
+    residual_threshold: float = Field(0.01, description="Residual threshold")
+    fields: List[str] = Field(default=["U", "p", "T"])
 
 class HybridSimulationResponse(BaseModel):
     job_id: str
@@ -146,10 +146,10 @@ class HybridSimulationResponse(BaseModel):
     results: Optional[Dict[str, Any]] = None
 
 class ReinjectionRequest(BaseModel):
-    case_path: str = Field(..., description="Path to OpenFOAM case")
-    field_name: str = Field(..., description="Field name (U, p, T, etc.)")
-    data: List[List[float]] = Field(..., description="Field data as 2D array")
-    time_step: float = Field(..., description="Time step")
+    case_path: str
+    field_name: str
+    data: List[List[float]]
+    time_step: float
 
 class ReinjectionResponse(BaseModel):
     status: str
@@ -157,10 +157,10 @@ class ReinjectionResponse(BaseModel):
     output_file: Optional[str] = None
 
 class ValidationRequest(BaseModel):
-    pressure: float = Field(..., gt=0, lt=2000, description="Pressure in bar")
-    temperature: float = Field(..., gt=10, lt=5000, description="Temperature in K")
-    density: float = Field(..., gt=0, description="Density in kg/m³")
-    velocity_magnitude: float = Field(..., ge=0, description="Velocity magnitude in m/s")
+    pressure: float = Field(..., gt=0, lt=2000)
+    temperature: float = Field(..., gt=10, lt=5000)
+    density: float = Field(..., gt=0)
+    velocity_magnitude: float = Field(..., ge=0)
 
     @validator('temperature')
     def validate_temperature(cls, v):
@@ -195,19 +195,19 @@ def cleanup_memory():
     logger.debug("Memory cleanup performed")
 
 # ============================================
-# Lifespan Events – strict model loading
+# Lifespan
 # ============================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global fno_heat_model, heat_mean, heat_std
     global fno_uvw_model, uvw_mean, uvw_std
-    logger.info("🚀 Starting Quantum-Hybrid FNO/FMVNetwork/PINN Backend (strict turbulence mode)")
+    logger.info("🚀 Starting Quantum-Hybrid Backend (strict turbulence mode)")
     device = "cuda" if torch.cuda.is_available() else "cpu"
     logger.info(f"Device: {device}")
-    logger.info(f"Orchestrator initialized with work_dir: {orchestrator.work_dir}")
+    logger.info(f"Orchestrator work_dir: {orchestrator.work_dir}")
 
     if supabase is None:
-        raise RuntimeError("Supabase client not initialized. Cannot load models.")
+        raise RuntimeError("Supabase client not initialized.")
 
     # Turbulence model (mandatory)
     try:
@@ -215,13 +215,7 @@ async def lifespan(app: FastAPI):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pth") as tmp:
             tmp.write(model_data)
             tmp_path = tmp.name
-
-        fno_uvw_model = FNO(
-            n_modes=(8, 8, 8),
-            hidden_channels=32,
-            in_channels=3,
-            out_channels=3,
-        )
+        fno_uvw_model = FNO(n_modes=(8,8,8), hidden_channels=32, in_channels=3, out_channels=3)
         fno_uvw_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
         fno_uvw_model.eval()
         logger.info("✅ FNO turbulence model loaded")
@@ -235,8 +229,8 @@ async def lifespan(app: FastAPI):
         uvw_std = float(stats['std'])
         logger.info(f"UVW stats: mean={uvw_mean:.3f}, std={uvw_std:.3f}")
     except Exception as e:
-        logger.error(f"Failed to load mandatory turbulence model: {e}")
-        raise RuntimeError("Missing fno_turbulence_uvw.pth or turbulence_stats.npz – cannot start API")
+        logger.error(f"Failed to load turbulence model: {e}")
+        raise RuntimeError("Missing fno_turbulence_uvw.pth or turbulence_stats.npz")
 
     # Heat model (optional)
     try:
@@ -244,46 +238,36 @@ async def lifespan(app: FastAPI):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pth") as tmp:
             tmp.write(model_data)
             tmp_path = tmp.name
-
-        fno_heat_model = FNO(
-            n_modes=(6, 6, 6),
-            hidden_channels=24,
-            in_channels=1,
-            out_channels=1,
-        )
+        fno_heat_model = FNO(n_modes=(6,6,6), hidden_channels=24, in_channels=1, out_channels=1)
         fno_heat_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
         fno_heat_model.eval()
         logger.info("✅ Heat FNO model loaded (optional)")
 
-        try:
-            stats_data = supabase.storage.from_("models").download("normalization_stats.npz")
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".npz") as tmp_stats:
-                tmp_stats.write(stats_data)
-                stats_path = tmp_stats.name
-            stats = np.load(stats_path)
-            heat_mean = float(stats['mean'])
-            heat_std = float(stats['std'])
-            logger.info(f"Heat stats: mean={heat_mean:.3f}, std={heat_std:.3f}")
-        except Exception as e:
-            logger.warning("Heat normalization stats missing – heat endpoint will use fallback")
+        stats_data = supabase.storage.from_("models").download("normalization_stats.npz")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".npz") as tmp_stats:
+            tmp_stats.write(stats_data)
+            stats_path = tmp_stats.name
+        stats = np.load(stats_path)
+        heat_mean = float(stats['mean'])
+        heat_std = float(stats['std'])
+        logger.info(f"Heat stats: mean={heat_mean:.3f}, std={heat_std:.3f}")
     except Exception as e:
         logger.warning(f"Heat model not loaded (optional): {e}")
 
     yield
 
-    logger.info("🛑 Shutting down Quantum-Hybrid Backend")
+    logger.info("🛑 Shutting down")
     cleanup_memory()
 
 # ============================================
-# FastAPI Application
+# FastAPI app
 # ============================================
 app = FastAPI(
-    title="Quantum-Hybrid FNO/FMVNetwork/PINN + repitframework API",
-    description="Physics-Informed Neural Networks + OpenFOAM Hybrid Orchestration + FNO 3D (turbulence)",
+    title="Quantum-Hybrid API",
+    description="FNO 3D turbulence + heat, OpenFOAM orchestration, real-time WebSocket",
     version="2.2.0",
     lifespan=lifespan
 )
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("ALLOWED_ORIGINS", "*").split(","),
@@ -293,30 +277,26 @@ app.add_middleware(
 )
 
 # ============================================
-# WebSocket Endpoint for real-time progress
+# WebSocket endpoint
 # ============================================
 @app.websocket("/ws/{job_id}")
 async def websocket_endpoint(websocket: WebSocket, job_id: str):
     await manager.connect(websocket)
     try:
         while True:
-            # Option 1: read from Supabase
             if supabase:
                 result = supabase.table("hybrid_simulations").select("results").eq("id", job_id).execute()
                 if result.data:
-                    progress = result.data[0].get("results", {}).get("current_iteration", 0)
-                    total = result.data[0].get("results", {}).get("total_steps", 100)
-                    data = {"job_id": job_id, "progress": progress, "total": total}
-                    await manager.send_message(data, websocket)
-            # Option 2: send simple heartbeat
-            else:
-                await manager.send_message({"job_id": job_id, "status": "running"}, websocket)
+                    results = result.data[0].get("results", {})
+                    progress = results.get("current_iteration", 0)
+                    total = results.get("total_steps", 100)
+                    await manager.send_message({"job_id": job_id, "progress": progress, "total": total}, websocket)
             await asyncio.sleep(1)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
 # ============================================
-# Health, Root, and other endpoints (unchanged)
+# Health & root
 # ============================================
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -327,16 +307,13 @@ async def health_check():
         version="2.2.0",
         timestamp=datetime.utcnow(),
         gpu_available=torch.cuda.is_available(),
-        memory_usage={
-            "rss": mem_info.rss / (1024 * 1024),
-            "vms": mem_info.vms / (1024 * 1024)
-        }
+        memory_usage={"rss": mem_info.rss / (1024*1024), "vms": mem_info.vms / (1024*1024)}
     )
 
 @app.get("/")
 async def root():
     return {
-        "message": "Quantum-Hybrid API with real-time WebSocket progress",
+        "message": "Quantum-Hybrid API with real-time WebSocket",
         "version": "2.2.0",
         "endpoints": {
             "health": "/health",
@@ -347,14 +324,13 @@ async def root():
             "validation_heat": "/v2/validate-3d",
             "validation_turbulence": "/v2/validate-3d-velocity",
             "training": "/training/upload",
-            "websocket": "/ws/{job_id}"
+            "websocket": "ws://host/ws/{job_id}"
         }
     }
 
 # ============================================
-# OpenFOAM, CFD, Reinjection endpoints (identical to your version)
+# OpenFOAM, CFD, Reinjection endpoints
 # ============================================
-# (I keep them as they were, no changes needed)
 @app.post("/openfoam/run-simulation", response_model=OpenFOAMSimulationResponse)
 async def run_openfoam_simulation(request: OpenFOAMSimulationRequest, background_tasks: BackgroundTasks):
     try:
@@ -408,16 +384,15 @@ async def reinject_openfoam_data(request: ReinjectionRequest, background_tasks: 
         logger.info(f"Reinjecting {request.field_name} to {request.case_path}")
         output_file = str(Path(request.case_path) / f"{request.field_name}_{request.time_step}")
         background_tasks.add_task(cleanup_memory)
-        return ReinjectionResponse(
-            status="success",
-            message=f"Field {request.field_name} reinjected successfully",
-            output_file=output_file
-        )
+        return ReinjectionResponse(status="success", message=f"Field {request.field_name} reinjected", output_file=output_file)
     except Exception as e:
         logger.error(f"Data reinjection error: {e}")
         cleanup_memory()
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================
+# Hybrid simulation run (corrected with job_id)
+# ============================================
 @app.post("/hybrid/create-job", response_model=HybridSimulationResponse)
 async def create_hybrid_job(request: HybridSimulationRequest):
     try:
@@ -432,27 +407,17 @@ async def create_hybrid_job(request: HybridSimulationRequest):
                 "fields": request.fields
             }
         )
-        return HybridSimulationResponse(
-            job_id=job.job_id,
-            status="created",
-            message=f"Job {job.job_id} created successfully"
-        )
+        return HybridSimulationResponse(job_id=job.job_id, status="created", message=f"Job {job.job_id} created")
     except Exception as e:
         logger.error(f"Job creation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# -------------------------------------------------------------
-# MODIFIED HYBRID RUN ENDPOINT with step‑by‑step updates
-# -------------------------------------------------------------
 @app.post("/hybrid/run-simulation", response_model=HybridSimulationResponse)
-async def run_hybrid_simulation(
-    request: HybridSimulationRequest,
-    background_tasks: BackgroundTasks
-):
+async def run_hybrid_simulation(request: HybridSimulationRequest, background_tasks: BackgroundTasks):
     try:
         logger.info(f"Running hybrid simulation: {request.job_name}")
 
-        # Use provided job_id or create new local job
+        # Use provided job_id (from Supabase Edge Function) OR create local fallback
         job_id = request.job_id
         if job_id is None:
             job = orchestrator.create_job(
@@ -466,11 +431,11 @@ async def run_hybrid_simulation(
                 }
             )
             job_id = job.job_id
-            logger.info(f"Created new local job: {job_id}")
+            logger.info(f"Created new local job (no job_id provided): {job_id}")
         else:
-            logger.info(f"Using existing job ID: {job_id}")
+            logger.info(f"Using provided job ID from Edge Function: {job_id}")
 
-        # Initialise Supabase job with 'running' status and initial results
+        # Initialize Supabase job record
         if supabase is not None:
             update_hybrid_job_in_supabase(job_id, {
                 "status": "running",
@@ -484,15 +449,12 @@ async def run_hybrid_simulation(
                 }
             })
 
-        # Background task that performs simulation step by step and updates Supabase + WebSocket
+        # Background task with step‑by‑step updates
         async def run_and_update():
             try:
-                total_steps = request.n_steps
-                # Simulate or actual iterative simulation
-                # Replace this loop with your actual `orchestrator.run_hybrid_simulation_stepwise`
-                for step in range(1, total_steps + 1):
-                    # --- HERE CALL YOUR ACTUAL SIMULATION STEP ---
-                    # For demonstration we just sleep and update fake metrics
+                total = request.n_steps
+                for step in range(1, total + 1):
+                    # Replace with your actual simulation step
                     await asyncio.sleep(0.2)   # simulate work
 
                     # Update progress in Supabase
@@ -500,7 +462,7 @@ async def run_hybrid_simulation(
                         update_hybrid_job_in_supabase(job_id, {
                             "results": {
                                 "current_iteration": step,
-                                "total_steps": total_steps,
+                                "total_steps": total,
                                 "cfdTime": step * 0.1,
                                 "mlTime": 0.0,
                                 "residuals": {
@@ -510,20 +472,13 @@ async def run_hybrid_simulation(
                                 }
                             }
                         })
-                    else:
-                        logger.debug(f"Step {step}/{total_steps} completed (no Supabase)")
-
                 # Final results
                 final_results = {
                     "status": "success",
-                    "iteration": total_steps,
-                    "cfdTime": total_steps * 0.1,
+                    "iteration": total,
+                    "cfdTime": total * 0.1,
                     "mlTime": 0.0,
-                    "residuals": {
-                        "continuity": 0.00001,
-                        "momentum": 0.00002,
-                        "energy": 0.000005
-                    },
+                    "residuals": {"continuity": 0.00001, "momentum": 0.00002, "energy": 0.000005},
                     "log": "Hybrid simulation completed successfully."
                 }
                 if supabase is not None:
@@ -533,21 +488,17 @@ async def run_hybrid_simulation(
                         "completed_at": datetime.utcnow(),
                         "error_message": None
                     })
-                else:
-                    logger.info(f"Simulation completed for job {job_id}")
-
-                # Optionally send final WebSocket message
+                # Notify WebSocket listeners
                 for conn in manager.active_connections:
-                    await manager.send_message({"job_id": job_id, "progress": total_steps, "total": total_steps, "completed": True}, conn)
+                    await manager.send_message({"job_id": job_id, "progress": total, "total": total, "completed": True}, conn)
             except Exception as e:
-                logger.error(f"Simulation failed for job {job_id}: {e}")
+                logger.error(f"Simulation failed: {e}")
                 if supabase is not None:
                     update_hybrid_job_in_supabase(job_id, {
                         "status": "failed",
                         "error_message": str(e),
                         "completed_at": datetime.utcnow()
                     })
-                # Notify WebSocket clients of failure
                 for conn in manager.active_connections:
                     await manager.send_message({"job_id": job_id, "error": str(e)}, conn)
             finally:
@@ -555,17 +506,13 @@ async def run_hybrid_simulation(
 
         background_tasks.add_task(run_and_update)
 
-        return HybridSimulationResponse(
-            job_id=job_id,
-            status="running",
-            message=f"Hybrid simulation started for job {job_id}"
-        )
+        return HybridSimulationResponse(job_id=job_id, status="running", message=f"Hybrid simulation started for job {job_id}")
     except Exception as e:
         logger.error(f"Hybrid simulation endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
-# Job Management Endpoints (unchanged)
+# Job management endpoints (unchanged)
 # ============================================
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(job_id: str):
@@ -574,7 +521,7 @@ async def get_job_status(job_id: str):
         return JobStatusResponse(**job_dict)
     except ValueError:
         if supabase is None:
-            raise HTTPException(status_code=404, detail="Job not found and Supabase not configured")
+            raise HTTPException(status_code=404, detail="Job not found")
         result = supabase.table("hybrid_simulations").select("*").eq("id", job_id).execute()
         if not result.data:
             raise HTTPException(status_code=404, detail="Job not found")
@@ -614,9 +561,7 @@ async def list_jobs(status: Optional[str] = None):
                     "results": job.get("results"),
                     "error_message": job.get("error_message")
                 })
-        jobs_dict = {}
-        for j in local_jobs:
-            jobs_dict[j["job_id"]] = j
+        jobs_dict = {j["job_id"]: j for j in local_jobs}
         for j in supabase_jobs:
             if j["job_id"] not in jobs_dict:
                 jobs_dict[j["job_id"]] = j
@@ -647,22 +592,19 @@ async def list_jobs(status: Optional[str] = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
-# Physics Validation Endpoints (no fake anomalies)
+# Validation endpoints (no fake anomalies)
 # ============================================
 @app.post("/v2/validate-3d", response_model=ValidationResponse)
 async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTasks):
     global fno_heat_model, heat_mean, heat_std
     try:
-        logger.info(f"3D heat validation: P={request.pressure} bar, T={request.temperature} K")
-
+        logger.info(f"Heat validation: T={request.temperature} K")
         if fno_heat_model is None:
-            # Fallback without anomalies list
             credibility_score = 88.2
             residuals = {"continuity": 0.0008, "momentum": 0.0012, "energy": 0.0009}
             anomalies = []
         else:
-            input_field = torch.full((1, 1, HEAT_GRID_SIZE, HEAT_GRID_SIZE, HEAT_GRID_SIZE),
-                                     request.temperature, dtype=torch.float32)
+            input_field = torch.full((1, 1, HEAT_GRID_SIZE, HEAT_GRID_SIZE, HEAT_GRID_SIZE), request.temperature, dtype=torch.float32)
             input_norm = (input_field - heat_mean) / (heat_std + 1e-8)
             with torch.no_grad():
                 output_norm = fno_heat_model(input_norm)
@@ -676,14 +618,8 @@ async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTa
                 "energy": variance * 0.005
             }
             anomalies = []
-
         background_tasks.add_task(cleanup_memory)
-        return ValidationResponse(
-            credibility_score=credibility_score,
-            residuals=residuals,
-            anomalies=anomalies,
-            timestamp=datetime.utcnow()
-        )
+        return ValidationResponse(credibility_score=credibility_score, residuals=residuals, anomalies=anomalies, timestamp=datetime.utcnow())
     except Exception as e:
         logger.error(f"Heat validation error: {e}")
         cleanup_memory()
@@ -694,20 +630,17 @@ async def validate_3d_velocity(request: ValidationRequest, background_tasks: Bac
     global fno_uvw_model, uvw_mean, uvw_std
     if fno_uvw_model is None:
         raise HTTPException(status_code=503, detail="Turbulence model not loaded")
-
     nx, ny, nz = UVW_GRID_SIZE
     val = request.velocity_magnitude / 1.732
     u_field = torch.full((1, nx, ny, nz), val, dtype=torch.float32)
     v_field = u_field.clone()
     w_field = u_field.clone()
     input_tensor = torch.stack([u_field, v_field, w_field], dim=1)
-
     input_norm = (input_tensor - uvw_mean) / (uvw_std + 1e-8)
     with torch.no_grad():
         output_norm = fno_uvw_model(input_norm)
         output = output_norm * uvw_std + uvw_mean
-
-    predicted_u = output[0, 0].mean().item()
+    predicted_u = output[0,0].mean().item()
     credibility = min(100.0, 100.0 * (predicted_u / (val + 1e-8)))
     variance = output.std().item()
     residuals = {
@@ -715,17 +648,11 @@ async def validate_3d_velocity(request: ValidationRequest, background_tasks: Bac
         "momentum": variance * 0.02,
         "energy": variance * 0.005
     }
-    anomalies = []   # always empty
     background_tasks.add_task(cleanup_memory)
-    return ValidationResponse(
-        credibility_score=credibility,
-        residuals=residuals,
-        anomalies=anomalies,
-        timestamp=datetime.utcnow()
-    )
+    return ValidationResponse(credibility_score=credibility, residuals=residuals, anomalies=[], timestamp=datetime.utcnow())
 
 # ============================================
-# Training Endpoint (unchanged)
+# Training upload endpoint
 # ============================================
 @app.post("/training/upload")
 async def upload_model(file: UploadFile = File(...)):
@@ -734,31 +661,18 @@ async def upload_model(file: UploadFile = File(...)):
         raise HTTPException(500, "Supabase not configured")
     if not file.filename.endswith('.pth'):
         raise HTTPException(400, "Only .pth files are accepted")
-
     content = await file.read()
-
     try:
-        supabase.storage.from_("models").upload(
-            file.filename,
-            content,
-            {"content-type": "application/octet-stream"}
-        )
-        logger.info(f"Model {file.filename} uploaded to Supabase")
+        supabase.storage.from_("models").upload(file.filename, content, {"content-type": "application/octet-stream"})
+        logger.info(f"Model {file.filename} uploaded")
     except Exception as e:
-        logger.error(f"Supabase upload failed: {e}")
+        logger.error(f"Upload failed: {e}")
         raise HTTPException(500, f"Upload failed: {str(e)}")
-
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pth") as tmp:
             tmp.write(content)
             tmp_path = tmp.name
-
-        new_model = FNO(
-            n_modes=(8, 8, 8),
-            hidden_channels=32,
-            in_channels=3,
-            out_channels=3,
-        )
+        new_model = FNO(n_modes=(8,8,8), hidden_channels=32, in_channels=3, out_channels=3)
         new_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
         new_model.eval()
         fno_uvw_model = new_model
@@ -766,21 +680,16 @@ async def upload_model(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"Model loading failed: {e}")
         raise HTTPException(500, f"Failed to load model: {str(e)}")
-
-    return {"status": "success", "message": f"Turbulence model {file.filename} uploaded and activated"}
+    return {"status": "success", "message": f"Model {file.filename} uploaded and activated"}
 
 # ============================================
-# Error Handler
+# Error handler
 # ============================================
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     return JSONResponse(
         status_code=exc.status_code,
-        content={
-            "status": "error",
-            "message": exc.detail,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        content={"status": "error", "message": exc.detail, "timestamp": datetime.utcnow().isoformat()}
     )
 
 if __name__ == "__main__":
