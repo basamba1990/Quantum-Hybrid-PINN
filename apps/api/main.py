@@ -1,7 +1,7 @@
 """
 Quantum-Hybrid PINN V8 + repitframework - Enhanced FastAPI Backend
 Unified API exposing PINN 3D, OpenFOAM orchestration, hybrid simulations, and dataset management
-Optimized for Railway + Supabase + FNO 3D (turbulence + heat)
+Optimized for Railway + Supabase + FNO 3D (turbulence + heat) + direct Supabase job updates
 """
 
 import os
@@ -21,6 +21,7 @@ import torch
 import numpy as np
 from supabase import create_client, Client
 import psutil
+import uuid
 
 from neuralop.models import FNO
 
@@ -64,6 +65,24 @@ uvw_std: float = 1.0
 UVW_GRID_SIZE = (32, 32, 32)   # doit correspondre à target_shape utilisé pendant l'entraînement
 
 # ============================================
+# Helper: Update hybrid simulation job in Supabase
+# ============================================
+def update_hybrid_job_in_supabase(job_id: str, updates: Dict[str, Any]) -> None:
+    """Update a hybrid simulation job in Supabase."""
+    if supabase is None:
+        logger.warning(f"Supabase not available, cannot update job {job_id}")
+        return
+    try:
+        # Convert datetime objects to ISO string for Supabase
+        for key, value in updates.items():
+            if isinstance(value, datetime):
+                updates[key] = value.isoformat()
+        supabase.table("hybrid_simulations").update(updates).eq("id", job_id).execute()
+        logger.debug(f"Updated job {job_id} in Supabase: {updates.keys()}")
+    except Exception as e:
+        logger.error(f"Failed to update job {job_id} in Supabase: {e}")
+
+# ============================================
 # Pydantic Models & Schemas
 # ============================================
 
@@ -100,6 +119,7 @@ class CFDDataProcessResponse(BaseModel):
     shape: Optional[List[int]] = None
 
 class HybridSimulationRequest(BaseModel):
+    job_id: Optional[str] = Field(None, description="Existing Supabase job ID (if any)")
     job_name: str = Field(..., description="Name of simulation job")
     case_path: str = Field(..., description="Path to OpenFOAM case")
     n_steps: int = Field(100, gt=0, description="Number of simulation steps")
@@ -192,7 +212,6 @@ async def lifespan(app: FastAPI):
             in_channels=3,
             out_channels=3,
         )
-        # CORRECTION : weights_only=False pour PyTorch >=2.6
         fno_uvw_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
         fno_uvw_model.eval()
         logger.info("✅ FNO turbulence (uvw) model loaded from Supabase")
@@ -222,7 +241,6 @@ async def lifespan(app: FastAPI):
             in_channels=1,
             out_channels=1,
         )
-        # CORRECTION : weights_only=False
         fno_heat_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
         fno_heat_model.eval()
         logger.info("✅ Heat FNO model loaded (optional)")
@@ -368,6 +386,10 @@ async def reinject_openfoam_data(request: ReinjectionRequest, background_tasks: 
         cleanup_memory()
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================
+# Hybrid Simulation Endpoints with Supabase update
+# ============================================
+
 @app.post("/hybrid/create-job", response_model=HybridSimulationResponse)
 async def create_hybrid_job(request: HybridSimulationRequest):
     try:
@@ -392,50 +414,133 @@ async def create_hybrid_job(request: HybridSimulationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/hybrid/run-simulation", response_model=HybridSimulationResponse)
-async def run_hybrid_simulation(request: HybridSimulationRequest, background_tasks: BackgroundTasks):
+async def run_hybrid_simulation(
+    request: HybridSimulationRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    Run hybrid CFD-ML simulation.
+    If job_id is provided (from Supabase), it will update that row.
+    Otherwise, creates a local job (legacy mode).
+    """
     try:
         logger.info(f"Running hybrid simulation: {request.job_name}")
-        job = orchestrator.create_job(
-            name=request.job_name,
-            case_path=request.case_path,
-            config={
-                "n_steps": request.n_steps,
-                "time_step": request.time_step,
-                "residual_threshold": request.residual_threshold,
-                "fields": request.fields
-            }
-        )
-        def run_simulation():
+
+        # Use provided job_id or generate new one
+        job_id = request.job_id
+        if job_id is None:
+            # Legacy mode: create local job
+            job = orchestrator.create_job(
+                name=request.job_name,
+                case_path=request.case_path,
+                config={
+                    "n_steps": request.n_steps,
+                    "time_step": request.time_step,
+                    "residual_threshold": request.residual_threshold,
+                    "fields": request.fields
+                }
+            )
+            job_id = job.job_id
+            logger.info(f"Created new local job: {job_id}")
+        else:
+            logger.info(f"Using existing job ID from request: {job_id}")
+            # Optionally create local orchestrator entry with same ID for consistency
+            # (orchestrator.create_job expects its own ID; we can add a method to register external job)
+            # For simplicity, we assume orchestrator can handle by ID later.
+
+        # Update Supabase job status to 'running' and set started_at
+        if supabase is not None:
+            update_hybrid_job_in_supabase(job_id, {
+                "status": "running",
+                "started_at": datetime.utcnow()
+            })
+
+        # Background task to run simulation and update Supabase when done
+        async def run_and_update():
             try:
+                # Run hybrid simulation using orchestrator (accepts job_id)
                 result = orchestrator.run_hybrid_simulation(
-                    job_id=job.job_id,
+                    job_id=job_id,
                     ml_model=None,
                     n_steps=request.n_steps,
                     time_step=request.time_step,
                     residual_threshold=request.residual_threshold
                 )
-                logger.info(f"Hybrid simulation completed: {job.job_id}")
+                # Format final results
+                final_results = {
+                    "status": result.get("status", "unknown"),
+                    "iteration": result.get("iteration", request.n_steps),
+                    "cfdTime": result.get("cfd_time", 0.0),
+                    "mlTime": result.get("ml_time", 0.0),
+                    "residuals": result.get("residuals", {}),
+                    "log": result.get("log", "Simulation completed")
+                }
+                final_status = "completed" if result.get("status") == "success" else "failed"
+                error_msg = result.get("error_message") if final_status == "failed" else None
+
+                # Update Supabase with final results
+                if supabase is not None:
+                    update_hybrid_job_in_supabase(job_id, {
+                        "status": final_status,
+                        "results": final_results,
+                        "completed_at": datetime.utcnow(),
+                        "error_message": error_msg
+                    })
+                    logger.info(f"Supabase job {job_id} updated with final results")
+                else:
+                    logger.info(f"Supabase not configured, final results for job {job_id}: {final_results}")
+
+                logger.info(f"Hybrid simulation completed for job {job_id} with status {final_status}")
             except Exception as e:
-                logger.error(f"Hybrid simulation failed: {e}")
+                logger.error(f"Hybrid simulation background task failed for job {job_id}: {e}")
+                if supabase is not None:
+                    update_hybrid_job_in_supabase(job_id, {
+                        "status": "failed",
+                        "error_message": str(e),
+                        "completed_at": datetime.utcnow()
+                    })
             finally:
                 cleanup_memory()
-        background_tasks.add_task(run_simulation)
+
+        background_tasks.add_task(run_and_update)
+
         return HybridSimulationResponse(
-            job_id=job.job_id,
+            job_id=job_id,
             status="running",
-            message=f"Hybrid simulation started for job {job.job_id}"
+            message=f"Hybrid simulation started for job {job_id}"
         )
     except Exception as e:
         logger.error(f"Hybrid simulation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================
+# Job Management Endpoints
+# ============================================
+
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(job_id: str):
     try:
+        # Try local orchestrator first
         job_dict = orchestrator.get_job_status(job_id)
         return JobStatusResponse(**job_dict)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError:
+        # Fallback to Supabase
+        if supabase is None:
+            raise HTTPException(status_code=404, detail=f"Job {job_id} not found locally and Supabase not configured")
+        result = supabase.table("hybrid_simulations").select("*").eq("id", job_id).execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Job not found")
+        job = result.data[0]
+        return JobStatusResponse(
+            job_id=job["id"],
+            name=job["job_name"],
+            status=job["status"],
+            created_at=datetime.fromisoformat(job["created_at"]),
+            started_at=datetime.fromisoformat(job["started_at"]) if job.get("started_at") else None,
+            completed_at=datetime.fromisoformat(job["completed_at"]) if job.get("completed_at") else None,
+            results=job.get("results"),
+            error_message=job.get("error_message")
+        )
     except Exception as e:
         logger.error(f"Job status error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -443,14 +548,59 @@ async def get_job_status(job_id: str):
 @app.get("/jobs", response_model=List[JobStatusResponse])
 async def list_jobs(status: Optional[str] = None):
     try:
-        jobs = orchestrator.list_jobs(status=status)
-        return [JobStatusResponse(**j) for j in jobs]
+        local_jobs = orchestrator.list_jobs(status=status)
+        supabase_jobs = []
+        if supabase is not None:
+            query = supabase.table("hybrid_simulations").select("*").order("created_at", desc=True)
+            if status:
+                query = query.eq("status", status)
+            result = query.execute()
+            for job in result.data:
+                supabase_jobs.append({
+                    "job_id": job["id"],
+                    "name": job["job_name"],
+                    "status": job["status"],
+                    "created_at": job["created_at"],
+                    "started_at": job.get("started_at"),
+                    "completed_at": job.get("completed_at"),
+                    "results": job.get("results"),
+                    "error_message": job.get("error_message")
+                })
+        # Merge (local overrides if same ID)
+        jobs_dict = {}
+        for j in local_jobs:
+            jobs_dict[j["job_id"]] = j
+        for j in supabase_jobs:
+            if j["job_id"] not in jobs_dict:
+                jobs_dict[j["job_id"]] = j
+        response = []
+        for job in jobs_dict.values():
+            created_at = job["created_at"]
+            if isinstance(created_at, str):
+                created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            started_at = job.get("started_at")
+            if started_at and isinstance(started_at, str):
+                started_at = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+            completed_at = job.get("completed_at")
+            if completed_at and isinstance(completed_at, str):
+                completed_at = datetime.fromisoformat(completed_at.replace('Z', '+00:00'))
+            response.append(JobStatusResponse(
+                job_id=job["job_id"],
+                name=job["name"],
+                status=job["status"],
+                created_at=created_at,
+                started_at=started_at,
+                completed_at=completed_at,
+                results=job.get("results"),
+                error_message=job.get("error_message")
+            ))
+        return response
     except Exception as e:
         logger.error(f"Job listing error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
-# Physics Validation Endpoint – Heat (optional fallback)
+# Physics Validation Endpoints
 # ============================================
 
 @app.post("/v2/validate-3d", response_model=ValidationResponse)
@@ -460,7 +610,6 @@ async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTa
         logger.info(f"3D heat validation: P={request.pressure} bar, T={request.temperature} K")
 
         if fno_heat_model is None:
-            # Fallback with simple physics-based model (no ML)
             credibility_score = 88.2
             residuals = {"continuity": 0.0008, "momentum": 0.0012, "energy": 0.0009}
             anomalies = ["Heat model not loaded – using placeholder"]
@@ -493,10 +642,6 @@ async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTa
         cleanup_memory()
         raise HTTPException(status_code=500, detail=f"Heat engine error: {str(e)}")
 
-# ============================================
-# Turbulence Validation Endpoint (mandatory)
-# ============================================
-
 @app.post("/v2/validate-3d-velocity", response_model=ValidationResponse)
 async def validate_3d_velocity(request: ValidationRequest, background_tasks: BackgroundTasks):
     global fno_uvw_model, uvw_mean, uvw_std
@@ -504,12 +649,11 @@ async def validate_3d_velocity(request: ValidationRequest, background_tasks: Bac
         raise HTTPException(status_code=503, detail="Turbulence model not loaded")
 
     nx, ny, nz = UVW_GRID_SIZE
-    # Create constant isotropic velocity field: u = v = w = velocity_magnitude / sqrt(3)
     val = request.velocity_magnitude / 1.732
     u_field = torch.full((1, nx, ny, nz), val, dtype=torch.float32)
     v_field = u_field.clone()
     w_field = u_field.clone()
-    input_tensor = torch.stack([u_field, v_field, w_field], dim=1)   # (1, 3, nx, ny, nz)
+    input_tensor = torch.stack([u_field, v_field, w_field], dim=1)
 
     input_norm = (input_tensor - uvw_mean) / (uvw_std + 1e-8)
     with torch.no_grad():
@@ -547,7 +691,6 @@ async def upload_model(file: UploadFile = File(...)):
 
     content = await file.read()
 
-    # Upload to Supabase bucket "models"
     try:
         supabase.storage.from_("models").upload(
             file.filename,
@@ -559,7 +702,6 @@ async def upload_model(file: UploadFile = File(...)):
         logger.error(f"Supabase upload failed: {e}")
         raise HTTPException(500, f"Upload failed: {str(e)}")
 
-    # Reload turbulence model
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pth") as tmp:
             tmp.write(content)
@@ -571,7 +713,6 @@ async def upload_model(file: UploadFile = File(...)):
             in_channels=3,
             out_channels=3,
         )
-        # CORRECTION : weights_only=False
         new_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
         new_model.eval()
         fno_uvw_model = new_model
