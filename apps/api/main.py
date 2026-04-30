@@ -53,13 +53,11 @@ orchestrator = SimulationOrchestrator()
 dataset_manager = DatasetManager()
 
 # ---------- Global models and stats ----------
-# Heat model (optional)
 fno_heat_model: Optional[torch.nn.Module] = None
 heat_mean: float = 0.0
 heat_std: float = 1.0
 HEAT_GRID_SIZE = 16
 
-# Turbulence model (mandatory)
 fno_uvw_model: Optional[torch.nn.Module] = None
 uvw_mean: float = 0.0
 uvw_std: float = 1.0
@@ -96,7 +94,7 @@ def update_hybrid_job_in_supabase(job_id: str, updates: Dict[str, Any]) -> None:
         logger.error(f"Failed to update job {job_id} in Supabase: {e}")
 
 # ============================================
-# Pydantic Models & Schemas (unchanged)
+# Pydantic Models & Schemas
 # ============================================
 class HealthResponse(BaseModel):
     status: str
@@ -106,9 +104,9 @@ class HealthResponse(BaseModel):
     memory_usage: Dict[str, float]
 
 class OpenFOAMSimulationRequest(BaseModel):
-    case_path: str = Field(..., description="Path to OpenFOAM case directory")
-    solver: str = Field("buoyantBoussinesqPimpleFoam", description="OpenFOAM solver")
-    n_processors: int = Field(1, gt=0, description="Number of processors")
+    case_path: str
+    solver: str = "buoyantBoussinesqPimpleFoam"
+    n_processors: int = 1
 
 class OpenFOAMSimulationResponse(BaseModel):
     status: str
@@ -116,12 +114,12 @@ class OpenFOAMSimulationResponse(BaseModel):
     output_path: Optional[str] = None
 
 class CFDDataProcessRequest(BaseModel):
-    case_path: str = Field(..., description="Path to OpenFOAM case")
-    output_path: str = Field(..., description="Path to save processed dataset")
-    fields: List[str] = Field(default=["U", "p", "T"], description="Fields to process")
-    start_time: float = Field(0.0, description="Start time")
-    end_time: float = Field(10.0, description="End time")
-    normalize: bool = Field(True, description="Normalize data")
+    case_path: str
+    output_path: str
+    fields: List[str] = ["U", "p", "T"]
+    start_time: float = 0.0
+    end_time: float = 10.0
+    normalize: bool = True
 
 class CFDDataProcessResponse(BaseModel):
     status: str
@@ -131,13 +129,13 @@ class CFDDataProcessResponse(BaseModel):
     shape: Optional[List[int]] = None
 
 class HybridSimulationRequest(BaseModel):
-    job_id: Optional[str] = Field(None, description="Existing Supabase job ID (if any)")
-    job_name: str = Field(..., description="Name of simulation job")
-    case_path: str = Field(..., description="Path to OpenFOAM case")
-    n_steps: int = Field(100, gt=0, description="Number of simulation steps")
-    time_step: float = Field(0.01, gt=0, description="Time step size")
-    residual_threshold: float = Field(0.01, description="Residual threshold")
-    fields: List[str] = Field(default=["U", "p", "T"])
+    job_id: Optional[str] = None
+    job_name: str
+    case_path: str
+    n_steps: int = 100
+    time_step: float = 0.01
+    residual_threshold: float = 0.01
+    fields: List[str] = ["U", "p", "T"]
 
 class HybridSimulationResponse(BaseModel):
     job_id: str
@@ -171,7 +169,7 @@ class ValidationRequest(BaseModel):
 class ValidationResponse(BaseModel):
     credibility_score: float
     residuals: Dict[str, float]
-    anomalies: List[str]   # always empty in this version
+    anomalies: List[str]
     timestamp: datetime
     result_url: Optional[str] = None
 
@@ -391,7 +389,7 @@ async def reinject_openfoam_data(request: ReinjectionRequest, background_tasks: 
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
-# Hybrid simulation run (corrected with job_id)
+# Hybrid simulation run (CORRECTED with real orchestrator)
 # ============================================
 @app.post("/hybrid/create-job", response_model=HybridSimulationResponse)
 async def create_hybrid_job(request: HybridSimulationRequest):
@@ -414,10 +412,14 @@ async def create_hybrid_job(request: HybridSimulationRequest):
 
 @app.post("/hybrid/run-simulation", response_model=HybridSimulationResponse)
 async def run_hybrid_simulation(request: HybridSimulationRequest, background_tasks: BackgroundTasks):
+    """
+    Lance une véritable simulation hybride CFD+ML en arrière-plan.
+    Utilise l'orchestrateur avec chargement réel de l'état CFD et prédictions ML.
+    """
     try:
         logger.info(f"Running hybrid simulation: {request.job_name}")
 
-        # Use provided job_id (from Supabase Edge Function) OR create local fallback
+        # Créer ou récupérer le job
         job_id = request.job_id
         if job_id is None:
             job = orchestrator.create_job(
@@ -431,11 +433,26 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                 }
             )
             job_id = job.job_id
-            logger.info(f"Created new local job (no job_id provided): {job_id}")
         else:
-            logger.info(f"Using provided job ID from Edge Function: {job_id}")
+            # Vérifier que le job existe dans l'orchestrateur local
+            try:
+                orchestrator.get_job_status(job_id)
+            except ValueError:
+                # Recréer le job dans l'orchestrateur
+                orchestrator.create_job(
+                    name=request.job_name,
+                    case_path=request.case_path,
+                    config={
+                        "n_steps": request.n_steps,
+                        "time_step": request.time_step,
+                        "residual_threshold": request.residual_threshold,
+                        "fields": request.fields
+                    }
+                )
+                # Forcer l'ID
+                orchestrator.jobs[job_id].job_id = job_id
 
-        # Initialize Supabase job record
+        # Initialiser dans Supabase
         if supabase is not None:
             update_hybrid_job_in_supabase(job_id, {
                 "status": "running",
@@ -449,50 +466,37 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                 }
             })
 
-        # Background task with step‑by‑step updates
-        async def run_and_update():
+        # ========== CORRECTION CRITIQUE ==========
+        # Exécution réelle via l'orchestrateur en arrière-plan
+        async def run_real_hybrid():
             try:
-                total = request.n_steps
-                for step in range(1, total + 1):
-                    # Replace with your actual simulation step
-                    await asyncio.sleep(0.2)   # simulate work
-
-                    # Update progress in Supabase
-                    if supabase is not None:
-                        update_hybrid_job_in_supabase(job_id, {
-                            "results": {
-                                "current_iteration": step,
-                                "total_steps": total,
-                                "cfdTime": step * 0.1,
-                                "mlTime": 0.0,
-                                "residuals": {
-                                    "continuity": 0.001 / step,
-                                    "momentum": 0.002 / step,
-                                    "energy": 0.0005 / step
-                                }
-                            }
-                        })
-                # Final results
-                final_results = {
-                    "status": "success",
-                    "iteration": total,
-                    "cfdTime": total * 0.1,
-                    "mlTime": 0.0,
-                    "residuals": {"continuity": 0.00001, "momentum": 0.00002, "energy": 0.000005},
-                    "log": "Hybrid simulation completed successfully."
-                }
+                # Appel à l'orchestrateur qui utilise les vraies données CFD
+                # et le ML predictor (avec CFL, crédibilité, etc.)
+                result = orchestrator.run_hybrid_simulation(
+                    job_id=job_id,
+                    ml_model=None,  # Optionnel: passer un modèle ML chargé
+                    n_steps=request.n_steps,
+                    time_step=request.time_step,
+                    residual_threshold=request.residual_threshold
+                )
+                # Mettre à jour Supabase avec le résultat
                 if supabase is not None:
                     update_hybrid_job_in_supabase(job_id, {
-                        "status": "completed",
-                        "results": final_results,
+                        "status": result["status"],
+                        "results": result,
                         "completed_at": datetime.utcnow(),
-                        "error_message": None
+                        "error_message": result.get("error_message")
                     })
-                # Notify WebSocket listeners
+                # Notifier WebSocket
                 for conn in manager.active_connections:
-                    await manager.send_message({"job_id": job_id, "progress": total, "total": total, "completed": True}, conn)
+                    await manager.send_message({
+                        "job_id": job_id,
+                        "progress": result.get("iteration", 100),
+                        "total": request.n_steps,
+                        "completed": True
+                    }, conn)
             except Exception as e:
-                logger.error(f"Simulation failed: {e}")
+                logger.error(f"Real hybrid simulation failed: {e}")
                 if supabase is not None:
                     update_hybrid_job_in_supabase(job_id, {
                         "status": "failed",
@@ -504,15 +508,19 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
             finally:
                 cleanup_memory()
 
-        background_tasks.add_task(run_and_update)
+        background_tasks.add_task(run_real_hybrid)
 
-        return HybridSimulationResponse(job_id=job_id, status="running", message=f"Hybrid simulation started for job {job_id}")
+        return HybridSimulationResponse(
+            job_id=job_id,
+            status="running",
+            message=f"Hybrid simulation started for job {job_id} (real CFD+ML)"
+        )
     except Exception as e:
         logger.error(f"Hybrid simulation endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
-# Job management endpoints (unchanged)
+# Job management endpoints
 # ============================================
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)
 async def get_job_status(job_id: str):
@@ -592,7 +600,7 @@ async def list_jobs(status: Optional[str] = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
-# Validation endpoints (no fake anomalies)
+# Validation endpoints
 # ============================================
 @app.post("/v2/validate-3d", response_model=ValidationResponse)
 async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTasks):
