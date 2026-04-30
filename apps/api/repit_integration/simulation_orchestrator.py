@@ -2,6 +2,7 @@
 Simulation Orchestrator Module – Version industrielle
 - Chargement réel de l'état CFD (pas de zeros)
 - Gestion des jobs avec état réel
+- Logger configuré
 """
 
 from pathlib import Path
@@ -19,7 +20,7 @@ from .numpy_to_foam import numpyToFoam
 from .hybrid_predictor import HybridSimulationConfig, MLAcceleratedPredictor
 from .dataset_manager import DatasetManager
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)   # <-- Ajouté
 
 
 @dataclass
@@ -81,7 +82,7 @@ class SimulationOrchestrator:
         for field in ["U", "p", "T"]:
             field_file = case_path / str(latest_time) / field
             if field_file.exists():
-                state[field] = dm._load_field(field_file)   # réutilise le parser réel
+                state[field] = dm._load_field(field_file)
         if not state:
             raise RuntimeError(f"Aucun état CFD trouvé dans {case_path}")
         self.logger.info(f"Loaded state at t={latest_time} with fields {list(state.keys())}")
@@ -154,15 +155,14 @@ class SimulationOrchestrator:
             )
             predictor = MLAcceleratedPredictor(config, ml_model=ml_model)
 
-            # ========== PATCH 1 : Charger l'état réel ==========
+            # Chargement de l'état réel
             initial_state = self._load_latest_state(Path(job.case_path))
 
-            # ========== Optionnel : Vérification CFL sera faite dans predictor ==========
             result = predictor.run_hybrid_simulation(
                 initial_state=initial_state,
                 n_steps=n_steps,
                 time_step=time_step,
-                dx=None   # sera déduit du maillage
+                dx=None
             )
 
             job.status = "completed"
