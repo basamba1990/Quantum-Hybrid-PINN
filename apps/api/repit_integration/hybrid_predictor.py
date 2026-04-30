@@ -1,18 +1,18 @@
 """
 Hybrid CFD-ML Predictor Module – Version industrielle
-- Ajout du contrôle CFL
-- Calcul du score de crédibilité
-- Stockage du credibility_score dans le résultat
+- Contrôle CFL
+- Score de crédibilité
+- Logger
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 import logging
 import numpy as np
 from dataclasses import dataclass, field
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)   # <-- Ajouté
 
 
 @dataclass
@@ -37,7 +37,7 @@ class HybridSimulationResult:
     predictions: Dict[str, np.ndarray]
     timestamp: datetime
     log: str
-    credibility_score: float = 0.0   # PATCH 3
+    credibility_score: float = 0.0
     error_message: Optional[str] = None
 
 
@@ -65,10 +65,9 @@ class BaseHybridPredictor:
         max_residual = max(residuals.values()) if residuals else 0.0
         return max_residual < self.config.residual_threshold
 
-    # ========== PATCH 2 : Contrôle CFL ==========
+    # ---------- CFL check ----------
     def check_cfl(self, velocity_field: np.ndarray, dx: float, dt: float) -> float:
         """Vérifie la condition de Courant-Friedrichs-Lewy (CFL)."""
-        # velocity_field peut être de shape (..., 3) ou (..., ) scalaire
         if velocity_field.ndim >= 2 and velocity_field.shape[-1] == 3:
             U_max = np.max(np.linalg.norm(velocity_field, axis=-1))
         else:
@@ -86,8 +85,6 @@ class BaseHybridPredictor:
             points_file = mesh_path / "constant" / "polyMesh" / "points"
             if points_file.exists():
                 pts = Ofpp.parse_points(str(points_file))
-                # Estimation simple : moyenne des distances entre points voisins
-                # (simplifié, en production utiliser mesh quality metrics)
                 from scipy.spatial import KDTree
                 tree = KDTree(pts)
                 distances, _ = tree.query(pts, k=2)
@@ -95,7 +92,7 @@ class BaseHybridPredictor:
                 return dx
         except Exception as e:
             self.logger.warning(f"Could not estimate dx from mesh, using default 0.005: {e}")
-        return 0.005  # fallback
+        return 0.005
 
     def run_hybrid_simulation(self, initial_state: Dict[str, np.ndarray], n_steps: int,
                               time_step: float = 0.01, dx: Optional[float] = None) -> HybridSimulationResult:
@@ -106,10 +103,10 @@ class BaseHybridPredictor:
         predictions_history = []
         logs = []
 
-        # Charger ou estimer dx
         if dx is None:
             dx = self.estimate_dx(self.case_path)
-        # Vérifier CFL sur l'état initial (PATCH 2)
+
+        # Vérification CFL initiale
         if "U" in current_state:
             self.check_cfl(current_state["U"], dx, time_step)
 
@@ -120,7 +117,6 @@ class BaseHybridPredictor:
 
                 use_ml = self.should_use_ml(residuals)
 
-                # Avant chaque pas CFD, re‑vérifier CFL (optionnel)
                 if not use_ml and "U" in current_state:
                     self.check_cfl(current_state["U"], dx, time_step)
 
@@ -136,16 +132,16 @@ class BaseHybridPredictor:
                 current_state = next_state
                 predictions_history.append(current_state.copy())
 
-            # Calcul des résidus moyens
+            # Moyenne des résidus
             avg_residuals = {}
             for field in self.config.fields_to_monitor:
                 values = [r.get(field, 0.0) for r in all_residuals]
                 avg_residuals[field] = float(np.mean(values)) if values else 0.0
 
-            # ========== PATCH 3 : Score de crédibilité ==========
+            # Score de crédibilité
             mean_residual = np.mean(list(avg_residuals.values()))
-            credibility_score = float(np.exp(-mean_residual / 0.01))   # score entre 0 et 1
-            credibility_score = min(1.0, credibility_score) * 100.0    # en pourcentage
+            credibility_score = float(np.exp(-mean_residual / 0.01))
+            credibility_score = min(1.0, credibility_score) * 100.0
 
             return HybridSimulationResult(
                 status="success",
@@ -191,7 +187,7 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
         return next_state, comp_time
 
     def _ml_predict(self, current_state: Dict[str, np.ndarray], time_step: float) -> Dict[str, np.ndarray]:
-        # Implémentation réelle – ici placeholder
+        # Remplacez par votre vraie logique ML
         next_state = current_state.copy()
         for field in self.config.fields_to_monitor:
             if field in next_state:
