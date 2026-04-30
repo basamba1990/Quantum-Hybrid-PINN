@@ -1,7 +1,8 @@
 """
 Dataset Manager – Version industrielle
 - Parsing réel OpenFOAM (vector, scalar, uniform)
-- Gestion des champs uniformes (PATCH 4)
+- Gestion des champs uniformes avec exception
+- Logger
 """
 
 import re
@@ -12,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)   # <-- Ajouté
 
 
 @dataclass
@@ -34,6 +35,7 @@ class DatasetManager:
         self.cache_dir = Path(cache_dir) if cache_dir else Path.home() / ".cache" / "quantum_hybrid"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.datasets: Dict[str, DatasetMetadata] = {}
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     def load_cfd_dataset(self, case_path: Union[str, Path], fields: List[str],
                          time_range: Tuple[float, float], normalize: bool = True):
@@ -79,11 +81,11 @@ class DatasetManager:
         return data, metadata
 
     def _load_field(self, field_file: Path) -> np.ndarray:
-        """Parse OpenFOAM – gère aussi les champs uniformes (PATCH 4)"""
+        """Parse OpenFOAM – gère aussi les champs uniformes (avec exception explicite)."""
         with open(field_file, 'r') as f:
             content = f.read()
 
-        # Détection vector field
+        # Vecteur
         if 'vector' in content.lower():
             match = re.search(r'internalField\s+nonuniform\s+List<vector>\s+(\d+)\s+\(([\s\S]*?)\);', content, re.DOTALL)
             if match:
@@ -97,7 +99,7 @@ class DatasetManager:
                 arr = np.array(values).reshape(-1, 3)
                 return arr
         else:
-            # Scalar field – d'abord tenter nonuniform
+            # Scalar nonuniform
             match = re.search(r'internalField\s+nonuniform\s+List<scalar>\s+(\d+)\s+\(([\d\s\.,eE+-]+)\);', content, re.DOTALL)
             if match:
                 n = int(match.group(1))
@@ -105,16 +107,15 @@ class DatasetManager:
                 if len(values) == n:
                     return values.reshape(-1, 1)
 
-            # ========== PATCH 4 : Gestion des champs uniformes ==========
+            # Uniform scalar – exception explicite
             if 'uniform' in content and 'internalField' in content:
                 match_uniform = re.search(r'internalField\s+uniform\s+([\d.eE+-]+);', content)
                 if match_uniform:
                     val = float(match_uniform.group(1))
-                    # Lève une exception explicite pour guider l'utilisateur
                     raise NotImplementedError(
                         f"Champ uniforme détecté dans {field_file.name}. "
                         "Les champs uniformes ne sont pas supportés pour l'entraînement. "
-                        "Fournissez un champ nonuniform ou convertissez le cas en utilisant 'foamToVTK' puis 'vtkToNumpy'."
+                        "Fournissez un champ nonuniform ou convertissez le cas."
                     )
         raise ValueError(f"Format non supporté ou champ absent : {field_file}")
 
