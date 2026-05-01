@@ -63,12 +63,17 @@ export async function middleware(request: NextRequest) {
     if (!user && isDashboard) {
       const url = request.nextUrl.clone()
       url.pathname = '/auth/login'
+      // Ajouter l'URL de redirection pour revenir au dashboard après login
+      url.searchParams.set('next', pathname)
       return NextResponse.redirect(url)
     }
 
     if (user && isLoginPage) {
       const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
+      // Rediriger vers la page demandée initialement ou le dashboard
+      const next = request.nextUrl.searchParams.get('next') || '/dashboard'
+      url.pathname = next
+      url.searchParams.delete('next')
       return NextResponse.redirect(url)
     }
   } catch (e) {
