@@ -59,18 +59,18 @@ class SimulationOrchestrator:
         self.dataset_manager = DatasetManager()
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    def create_job(self, name: str, case_path: str, config: Optional[Dict[str, Any]] = None) -> SimulationJob:
-        job_id = str(uuid.uuid4())
+    def create_job(self, name: str, case_path: str, config: Optional[Dict[str, Any]] = None, job_id: Optional[str] = None) -> SimulationJob:
+        actual_job_id = job_id or str(uuid.uuid4())
         job = SimulationJob(
-            job_id=job_id,
+            job_id=actual_job_id,
             name=name,
             case_path=case_path,
             status="pending",
             created_at=datetime.utcnow(),
             config=config or {}
         )
-        self.jobs[job_id] = job
-        self.logger.info(f"Created job {job_id}: {name}")
+        self.jobs[actual_job_id] = job
+        self.logger.info(f"Created job {actual_job_id}: {name}")
         return job
 
     def _load_latest_state(self, case_path: Path) -> Dict[str, np.ndarray]:

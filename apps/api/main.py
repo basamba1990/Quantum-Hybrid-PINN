@@ -421,36 +421,32 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
 
         # Créer ou récupérer le job
         job_id = request.job_id
+        config = {
+            "n_steps": request.n_steps,
+            "time_step": request.time_step,
+            "residual_threshold": request.residual_threshold,
+            "fields": request.fields
+        }
+
         if job_id is None:
             job = orchestrator.create_job(
                 name=request.job_name,
                 case_path=request.case_path,
-                config={
-                    "n_steps": request.n_steps,
-                    "time_step": request.time_step,
-                    "residual_threshold": request.residual_threshold,
-                    "fields": request.fields
-                }
+                config=config
             )
             job_id = job.job_id
         else:
-            # Vérifier que le job existe dans l'orchestrateur local
+            # Vérifier si le job existe déjà dans l\'orchestrateur local
             try:
                 orchestrator.get_job_status(job_id)
             except ValueError:
-                # Recréer le job dans l'orchestrateur
+                # Créer le job avec l\'ID fourni par l\'Edge Function
                 orchestrator.create_job(
                     name=request.job_name,
                     case_path=request.case_path,
-                    config={
-                        "n_steps": request.n_steps,
-                        "time_step": request.time_step,
-                        "residual_threshold": request.residual_threshold,
-                        "fields": request.fields
-                    }
+                    config=config,
+                    job_id=job_id
                 )
-                # Forcer l'ID
-                orchestrator.jobs[job_id].job_id = job_id
 
         # Initialiser dans Supabase
         if supabase is not None:
