@@ -7,12 +7,19 @@ export const createClient = async () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Éviter l'exception si les variables d'environnement sont manquantes
+  // Validation stricte des variables d'environnement requises
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Supabase environment variables are missing. SSR client might not work correctly.')
+    console.warn(
+      '[Supabase SSR] Missing environment variables:\n' +
+      `  - NEXT_PUBLIC_SUPABASE_URL: ${supabaseUrl ? '✓' : '✗'}\n` +
+      `  - NEXT_PUBLIC_SUPABASE_ANON_KEY: ${supabaseAnonKey ? '✓' : '✗'}\n` +
+      'Configure these in your .env.local or Vercel project settings.'
+    )
+    
+    // Retourner un client stub pour éviter les crashes, mais qui ne fonctionnera pas
     return createServerClient(
-      supabaseUrl || 'https://placeholder.supabase.co',
-      supabaseAnonKey || 'placeholder',
+      supabaseUrl || 'https://placeholder-project.supabase.co',
+      supabaseAnonKey || 'placeholder-anon-key',
       {
         cookies: {
           getAll() { return [] },
@@ -35,10 +42,10 @@ export const createClient = async () => {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {
+          } catch (error) {
             // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            // This can be ignored if you have middleware refreshing user sessions.
+            console.debug('[Supabase SSR] Cookie setting failed (expected in Server Components):', error)
           }
         },
       },
