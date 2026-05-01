@@ -115,7 +115,20 @@ class PINN3DNavierStokes(nn.Module):
         Cp = self.config['Cp']
         k_therm = self.config['k']
         dissipation = mu * (2 * (u_x**2 + v_y**2 + w_z**2) + (u_y + v_x)**2 + (u_z + w_x)**2 + (v_z + w_y)**2)
-        energy_res = rho * Cp * (T_t + u * T_x + v * T_y + w * T_z) - k_therm * (T_xx + T_yy + T_zz) - dissipation
+        
+        # Chemical Source Term (Temkin-Pyzhev for NH3)
+        source_term = 0.0
+        if self.config.get('kinetics') == 'temkin_pyzhev':
+            # Simplified Temkin-Pyzhev: r = k1 * (P_N2 * (P_H2^3 / P_NH3^2)^alpha - (P_NH3^2 / P_H2^3)^(1-alpha) / K_eq)
+            # For PINN, we use a simplified Arrhenius-based source term to represent the reaction heat
+            Ea = self.config['Ea']
+            delta_H = self.config['delta_H']
+            R_gas = 8.314
+            # Rate proportional to Arrhenius and pressure (p)
+            rate = torch.exp(-Ea / (R_gas * T)) * (p / 1e6)**1.5 
+            source_term = -delta_H * rate * rho # Heat release (delta_H is negative)
+
+        energy_res = rho * Cp * (T_t + u * T_x + v * T_y + w * T_z) - k_therm * (T_xx + T_yy + T_zz) - dissipation - source_term
 
         return mass_res, momentum_x_res, momentum_y_res, momentum_z_res, energy_res
 

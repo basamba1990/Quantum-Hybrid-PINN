@@ -30,7 +30,11 @@ FLUID_CONFIGS = {
         'eos_type': 'peng_robinson',
         'params': {
             'a': 0.422, 'b': 3.7e-5, 'Tc': 405.5, 'Pc': 11.3e6, 'omega': 0.25
-        }
+        },
+        'kinetics': 'temkin_pyzhev',
+        'delta_H': -46110.0, # J/mol
+        'Ea': 160000.0,      # J/mol
+        'alpha': 0.5
     },
     'CH4': {
         'name': 'Methane',
