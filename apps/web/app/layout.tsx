@@ -3,7 +3,6 @@ import './globals.css'
 import { Sidebar } from '@/components/Sidebar'
 import { Providers } from './providers'
 import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 
 export const metadata: Metadata = {
   title: 'Q-Hybrid Science Verify',
@@ -15,14 +14,17 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Vérifier la session utilisateur côté serveur
-  const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-
-  // Déterminer si on est sur une page publique ou protégée
-  const isPublicRoute = (pathname: string) => {
-    const publicRoutes = ['/', '/auth/login', '/auth/callback']
-    return publicRoutes.includes(pathname)
+  let user = null
+  
+  try {
+    // Vérifier la session utilisateur côté serveur avec gestion d'erreur
+    const supabase = await createClient()
+    const { data, error } = await supabase.auth.getUser()
+    if (!error && data) {
+      user = data.user
+    }
+  } catch (e) {
+    console.error('Failed to fetch user in RootLayout:', e)
   }
 
   return (

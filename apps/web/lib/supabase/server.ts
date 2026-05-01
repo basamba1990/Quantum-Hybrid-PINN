@@ -3,9 +3,28 @@ import { cookies } from 'next/headers'
 
 export const createClient = async () => {
   const cookieStore = await cookies()
+  
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // Éviter l'exception si les variables d'environnement sont manquantes
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase environment variables are missing. SSR client might not work correctly.')
+    return createServerClient(
+      supabaseUrl || 'https://placeholder.supabase.co',
+      supabaseAnonKey || 'placeholder',
+      {
+        cookies: {
+          getAll() { return [] },
+          setAll() {}
+        }
+      }
+    )
+  }
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
