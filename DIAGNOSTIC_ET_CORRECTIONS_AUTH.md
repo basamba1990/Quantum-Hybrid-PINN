@@ -25,11 +25,16 @@ Le fichier `apps/web/middleware.ts` a été mis à jour pour :
 - Éviter les boucles de redirection infinies.
 - Être plus résilient si les variables d'environnement sont manquantes (affiche un avertissement au lieu de bloquer).
 
-### Interface de Connexion et Inscription
-Le fichier `apps/web/app/auth/login/page.tsx` a été amélioré :
-- Ajout de messages d'erreur clairs.
-- Gestion du paramètre de redirection après connexion.
-- Alerte explicite demandant de vérifier les emails après inscription.
+### Interface de Connexion et Inscription (Refonte UX)
+Le fichier `apps/web/app/auth/login/page.tsx` a été totalement refondu :
+- **Onglets distincts** : Séparation claire entre "Connexion" et "Inscription" pour éviter toute confusion.
+- **Validation en temps réel** : Vérification du format de l'email et de la longueur du mot de passe avant l'envoi.
+- **Gestion du Nom Complet** : Ajout d'un champ pour le nom lors de l'inscription.
+- **Feedback visuel** : Ajout d'indicateurs de chargement et de messages de succès/erreur stylisés.
+
+### Résolution persistante de l'Erreur 403
+- **Vercel Config** : Ajout d'un fichier `vercel.json` pour stabiliser le déploiement.
+- **Middleware robuste** : Le middleware ne bloque plus l'accès même si les variables d'environnement sont temporairement absentes, permettant d'accéder au moins à la page de diagnostic.
 
 ### Callback d'Authentification
 Le fichier `apps/web/app/auth/callback/route.ts` gère désormais mieux les erreurs d'échange de code et redirige vers la destination finale prévue.

@@ -24,8 +24,9 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  // Si pas de config, on laisse passer pour éviter le 403/500
+  // Si pas de config, on laisse passer mais on ajoute un header de diagnostic
   if (!supabaseUrl || !supabaseAnonKey) {
+    response.headers.set('x-auth-status', 'missing-env-vars')
     return response
   }
 
