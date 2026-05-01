@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('hybrid_simulations')
       .select('*')
@@ -31,6 +28,7 @@ export async function GET(
 
     return NextResponse.json(job);
   } catch (error: any) {
+    console.error(`Failed to fetch job ${params.id}:`, error);
     return NextResponse.json(
       { error: error.message || 'Job not found' },
       { status: 404 }
