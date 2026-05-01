@@ -4,6 +4,9 @@ import { Sidebar } from '@/components/Sidebar'
 import { Providers } from './providers'
 import { createClient } from '@/lib/supabase/server'
 
+// Force dynamic rendering to avoid static generation conflicts with cookies
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'Q-Hybrid Science Verify',
   description: 'Gestion de projets, analyses et rapports scientifiques',
