@@ -26,28 +26,40 @@ export default function LoginPage() {
       setErrorMsg(error.message)
       setLoading(false)
     } else {
-      // Small delay to ensure session is properly persisted before redirect
+      // Récupérer le paramètre 'next' de l'URL pour la redirection
+      const params = new URLSearchParams(window.location.search)
+      const next = params.get('next') || '/dashboard'
+      
       setTimeout(() => {
-        router.push('/dashboard')
+        router.push(next)
         router.refresh()
       }, 500)
     }
   }
 
   const handleSignUp = async () => {
+    if (!email || !password) {
+      setErrorMsg("Veuillez remplir tous les champs")
+      return
+    }
+    
     setLoading(true)
     setErrorMsg(null)
-    const { error } = await supabase.auth.signUp({
+    const { error, data } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
       },
     })
+    
     if (error) {
       setErrorMsg(error.message)
+    } else if (data.user && data.session) {
+      // Si l'utilisateur est connecté immédiatement (config Supabase)
+      router.push('/dashboard')
     } else {
-      alert('Vérifiez votre email pour confirmer l\'inscription !')
+      alert('Vérifiez votre email pour confirmer l\'inscription ! Un email de confirmation a été envoyé.')
     }
     setLoading(false)
   }
