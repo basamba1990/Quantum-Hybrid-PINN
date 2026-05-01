@@ -458,11 +458,12 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                 "status": "running",
                 "started_at": datetime.utcnow(),
                 "results": {
-                    "current_iteration": 0,
+                    "iteration": 0, # Frontend expects 'iteration'
                     "total_steps": request.n_steps,
-                    "cfdTime": 0.0,
+                    "cfdTime": 0.0, # Frontend expects camelCase
                     "mlTime": 0.0,
-                    "residuals": {}
+                    "residuals": {},
+                    "log": "Initialisation de la simulation hybride..."
                 }
             })
 
@@ -470,31 +471,60 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
         # Exécution réelle via l'orchestrateur en arrière-plan
         async def run_real_hybrid():
             try:
-                # Appel à l'orchestrateur qui utilise les vraies données CFD
-                # et le ML predictor (avec CFL, crédibilité, etc.)
-                result = orchestrator.run_hybrid_simulation(
-                    job_id=job_id,
-                    ml_model=None,  # Optionnel: passer un modèle ML chargé
-                    n_steps=request.n_steps,
-                    time_step=request.time_step,
-                    residual_threshold=request.residual_threshold
-                )
-                # Mettre à jour Supabase avec le résultat
-                if supabase is not None:
+                # Simulation par étapes pour permettre la mise à jour de la progression
+                total_steps = request.n_steps
+                chunk_size = max(1, total_steps // 10) # Mettre à jour tous les 10%
+                
+                current_iteration = 0
+                accumulated_result = None
+
+                while current_iteration < total_steps:
+                    steps_to_run = min(chunk_size, total_steps - current_iteration)
+                    
+                    # Appel à l'orchestrateur pour un chunk de steps
+                    result = orchestrator.run_hybrid_simulation(
+                        job_id=job_id,
+                        ml_model=None,
+                        n_steps=steps_to_run,
+                        time_step=request.time_step,
+                        residual_threshold=request.residual_threshold
+                    )
+                    
+                    current_iteration += steps_to_run
+                    accumulated_result = result
+                    
+                    # Normalisation pour le frontend (camelCase)
+                    frontend_results = {
+                        "iteration": current_iteration,
+                        "cfdTime": result.get("cfd_time", 0.0),
+                        "mlTime": result.get("ml_time", 0.0),
+                        "residuals": result.get("residuals", {}),
+                        "log": result.get("log", ""),
+                        "credibilityScore": result.get("credibility_score", 0.0)
+                    }
+
+                    # Mettre à jour Supabase en temps réel
+                    if supabase is not None:
+                        update_hybrid_job_in_supabase(job_id, {
+                            "results": frontend_results
+                        })
+                    
+                    # Notifier WebSocket
+                    for conn in manager.active_connections:
+                        await manager.send_message({
+                            "job_id": job_id,
+                            "progress": current_iteration,
+                            "total": total_steps,
+                            "completed": current_iteration >= total_steps
+                        }, conn)
+
+                # Finalisation
+                if supabase is not None and accumulated_result:
                     update_hybrid_job_in_supabase(job_id, {
-                        "status": result["status"],
-                        "results": result,
-                        "completed_at": datetime.utcnow(),
-                        "error_message": result.get("error_message")
+                        "status": accumulated_result["status"],
+                        "completed_at": datetime.utcnow()
                     })
-                # Notifier WebSocket
-                for conn in manager.active_connections:
-                    await manager.send_message({
-                        "job_id": job_id,
-                        "progress": result.get("iteration", 100),
-                        "total": request.n_steps,
-                        "completed": True
-                    }, conn)
+
             except Exception as e:
                 logger.error(f"Real hybrid simulation failed: {e}")
                 if supabase is not None:
