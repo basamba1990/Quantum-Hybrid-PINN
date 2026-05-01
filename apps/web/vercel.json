@@ -1,0 +1,6 @@
+{
+  "cleanUrls": true,
+  "framework": "nextjs",
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm run build"
+}
