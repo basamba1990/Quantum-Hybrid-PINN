@@ -9,7 +9,7 @@ import { z } from "https://esm.sh/zod@3.22.4"
 
 const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
-  H2_INFERENCE_URL: z.string().url().default("https://api.h2-inference.com"),
+  H2_INFERENCE_API_URL: z.string().url().default("https://api.h2-inference.com"),
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   LOG_LEVEL: z.enum(["debug","info","warn","error"]).default("info"),
@@ -202,7 +202,7 @@ async function fetch3DPrediction(point: { time: number; x: number; y: number; z:
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 8000)
       try {
-        const response = await fetch(`${env.H2_INFERENCE_URL}/v2/validate-3d`, {
+        const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/validate-3d`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(point),
@@ -225,7 +225,7 @@ async function fetch3DPrediction(point: { time: number; x: number; y: number; z:
 async function performAssimilation(currentState: number[], observation: number[]) {
   return await withRetry(async () => {
     return await h2Circuit.call(async () => {
-      const response = await fetch(`${env.H2_INFERENCE_URL}/v2/assimilate`, {
+      const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/assimilate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ current_state: currentState, observation }),
