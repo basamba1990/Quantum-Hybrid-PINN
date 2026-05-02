@@ -84,38 +84,24 @@ export default function SimulationsPage() {
 
   // Callback lorsqu'un job hybride est sélectionné/mis à jour
   const handleHybridJobSelected = (job: any) => {
-    if (job.results && job.results.iteration) {
-      // Transformer les résultats du job en format attendu par HybridResultsVisualization
+    if (job.results && job.results.metrics) {
+      // Utiliser les métriques réelles renvoyées par l'API de simulation hybride
       const transformed: HybridResultsData = {
-        jobId: job.jobId,
-        totalTime: (job.results.cfdTime || 0) + (job.results.mlTime || 0),
-        cfdTime: job.results.cfdTime || 0,
-        mlTime: job.results.mlTime || 0,
-        totalSteps: job.results.iteration || 100,
-        cfdSteps: job.results.cfdSteps || Math.round((job.results.iteration || 100) * 0.6),
-        mlSteps: job.results.mlSteps || Math.round((job.results.iteration || 100) * 0.4),
-        residuals: generateResidualsFromLog(job.results.log, job.results.iteration),
-        fieldComparisons: [
-          { field: 'Pressure (Pa)', cfdValue: 101325, mlValue: 102000, difference: 675, percentError: 0.67 },
-          { field: 'Temperature (K)', cfdValue: 300, mlValue: 301.2, difference: 1.2, percentError: 0.4 },
-          { field: 'Velocity U (m/s)', cfdValue: 5.2, mlValue: 5.35, difference: 0.15, percentError: 2.88 },
-        ],
-        accelerationFactor: (job.results.cfdTime + job.results.mlTime) / (job.results.cfdTime || 1),
+        jobId: job.jobId || job.id,
+        totalTime: job.results.metrics.total_execution_time || 0,
+        cfdTime: job.results.metrics.cfd_execution_time || 0,
+        mlTime: job.results.metrics.ml_execution_time || 0,
+        totalSteps: job.results.metrics.total_steps || 0,
+        cfdSteps: job.results.metrics.cfd_steps || 0,
+        mlSteps: job.results.metrics.ml_steps || 0,
+        residuals: job.results.metrics.residual_history || [],
+        fieldComparisons: job.results.metrics.field_comparisons || [],
+        accelerationFactor: job.results.metrics.acceleration_factor || 1,
       }
       setHybridResults(transformed)
     } else {
       setHybridResults(null)
     }
-  }
-
-  // Génère des résiduels mock à partir du log (à adapter avec vos vraies données)
-  const generateResidualsFromLog = (log: string, steps: number) => {
-    return Array.from({ length: Math.min(steps, 50) }, (_, i) => ({
-      step: i + 1,
-      continuity: Math.exp(-i * 0.1) * 0.01 + 1e-6,
-      momentum: Math.exp(-i * 0.08) * 0.02 + 1e-6,
-      energy: Math.exp(-i * 0.12) * 0.005 + 1e-7,
-    }))
   }
 
   // Données pour les graphiques Plotly (analyses existantes)

@@ -187,16 +187,59 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
         return next_state, comp_time
 
     def _ml_predict(self, current_state: Dict[str, np.ndarray], time_step: float) -> Dict[str, np.ndarray]:
-        # Remplacez par votre vraie logique ML
+        """Utilise le modèle FNO pour prédire l'état suivant."""
+        if self.ml_model is None:
+            return current_state
+        
+        import torch
         next_state = current_state.copy()
-        for field in self.config.fields_to_monitor:
-            if field in next_state:
-                next_state[field] = next_state[field] * (1.0 + 0.001 * time_step)
+        try:
+            # Préparation des données pour FNO 3D
+            # Note: Cette partie doit être adaptée à la forme exacte attendue par votre modèle FNO
+            # Exemple générique de passage en tenseur
+            for field in self.config.fields_to_monitor:
+                if field in next_state:
+                    data_tensor = torch.from_numpy(next_state[field]).float()
+                    # Ajout des dimensions batch et channel si nécessaire
+                    if data_tensor.ndim == 3:
+                        data_tensor = data_tensor.unsqueeze(0).unsqueeze(0)
+                    
+                    with torch.no_grad():
+                        prediction = self.ml_model(data_tensor)
+                    
+                    next_state[field] = prediction.squeeze().cpu().numpy()
+            
+            self.logger.info("FNO prediction successful")
+        except Exception as e:
+            self.logger.error(f"ML prediction error: {e}")
+            # Fallback sur l'état actuel en cas d'erreur
         return next_state
 
     def _cfd_predict(self, current_state: Dict[str, np.ndarray], time_step: float) -> Dict[str, np.ndarray]:
-        # Ici, appel à OpenFOAM via OpenFOAMUtils
+        """Appelle le solveur OpenFOAM pour une itération réelle."""
+        from .openfoam_utils import OpenFOAMUtils
         next_state = current_state.copy()
-        for field in next_state:
-            next_state[field] = next_state[field] * (1.0 + 0.002 * time_step)
+        try:
+            foam_utils = OpenFOAMUtils(self.case_path)
+            # 1. Injecter l'état actuel dans les fichiers OpenFOAM
+            from .numpy_to_foam import numpyToFoam
+            for field, data in current_state.items():
+                target_file = self.case_path / "0" / field
+                numpyToFoam(data, target_file)
+            
+            # 2. Exécuter le solveur pour un pas de temps
+            foam_utils.run_solver(self.config.cfd_solver, self.config.n_processors)
+            
+            # 3. Lire le nouvel état
+            from .dataset_manager import DatasetManager
+            dm = DatasetManager()
+            latest_time = foam_utils.max_time_directory(self.case_path)
+            for field in self.config.fields_to_monitor:
+                field_file = self.case_path / str(latest_time) / field
+                if field_file.exists():
+                    next_state[field] = dm._load_field(field_file)
+            
+            self.logger.info(f"CFD step successful at t={latest_time}")
+        except Exception as e:
+            self.logger.error(f"CFD prediction error: {e}")
         return next_state
