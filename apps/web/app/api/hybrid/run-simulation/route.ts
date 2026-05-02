@@ -56,8 +56,16 @@ export async function POST(req: NextRequest) {
     // Retourner le job_id comme attendu par le composant
     return NextResponse.json({
       job_id: data.jobId,
-      status: 'created',
+      status: 'running', // Forcer le statut running pour l'UI
       message: data.message,
+      results: {
+        iteration: 0,
+        cfdTime: 0,
+        mlTime: 0,
+        residuals: {},
+        log: "Initialisation de la simulation hybride...",
+        credibilityScore: 0
+      }
     });
   } catch (error: any) {
     console.error('API route error:', error);

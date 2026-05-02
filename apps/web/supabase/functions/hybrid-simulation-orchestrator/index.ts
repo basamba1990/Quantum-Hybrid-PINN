@@ -85,7 +85,7 @@ serve(async (req: Request) => {
 
     log("info", "Starting hybrid simulation", { jobName: request.jobName, projectId: request.projectId });
 
-    // 1. Créer l'entrée en base
+    // 1. Créer l'entrée en base avec des résultats initiaux pour éviter le blocage UI
     const { data: job, error: insertError } = await supabase
       .from("hybrid_simulations")
       .insert({
@@ -93,13 +93,22 @@ serve(async (req: Request) => {
         user_id: request.userId,
         job_name: request.jobName,
         case_path: request.casePath,
-        status: "pending",
+        status: "running",
+        started_at: new Date().toISOString(),
         config: {
           n_steps: request.nSteps,
           time_step: request.timeStep,
           residual_threshold: request.residualThreshold,
           fields: request.fields,
         },
+        results: {
+          iteration: 0,
+          cfdTime: 0,
+          mlTime: 0,
+          residuals: {},
+          log: "Initialisation de l'orchestrateur...",
+          credibilityScore: 0
+        }
       })
       .select()
       .single();
@@ -111,11 +120,7 @@ serve(async (req: Request) => {
     const jobId = job.id;
     log("info", "Job created", { jobId });
 
-    // 2. Mettre à jour status → running
-    await supabase
-      .from("hybrid_simulations")
-      .update({ status: "running", started_at: new Date().toISOString() })
-      .eq("id", jobId);
+    // 2. Le statut est déjà mis à jour à la création pour plus de réactivité
 
     // 3. Appeler le backend FastAPI avec l'ID du job
     const payload = {
