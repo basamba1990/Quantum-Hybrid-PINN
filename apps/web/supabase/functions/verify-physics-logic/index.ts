@@ -262,7 +262,12 @@ function silveraGoldmanPressure(rho: number, T: number): number {
 // Équation de Peng-Robinson pour NH3 et CH4
 function pengRobinsonPressure(rho: number, T: number, params: { a: number, b: number, Tc: number, omega: number }, fluidType: string): number {
   const R_specific = (fluidType === "NH3") ? 488.2 : 518.3
-  return rho * R_specific * T * (1 + 0.1 * (rho / 500)) // approximation
+  const Tr = T / params.Tc
+  const kappa = 0.37464 + 1.54226 * params.omega - 0.26992 * params.omega ** 2
+  const alpha = (1 + kappa * (1 - Math.sqrt(Tr))) ** 2
+  const aT = params.a * alpha
+  const v = 1 / rho
+  return (R_specific * T / (v - params.b)) - (aT / (v * (v + params.b) + params.b * (v - params.b)))
 }
 
 // Équation simplifiée pour sCO2
@@ -336,10 +341,6 @@ function simulateIndustrialDynamics(
   let rho = P / (p.R * T)             // loi des gaz parfaits initiale
   let mass = rho * V
 
-  // Variables supplémentaires pour les phénomènes spécifiques
-  let leakFactor = 0.0                // pour fuite de CH4
-  let reactionRate = 0.0              // pour réaction chimique (NH3)
-
   for (let i = 0; i < timeSteps; i++) {
     const t = i * dt
 
@@ -350,7 +351,7 @@ function simulateIndustrialDynamics(
       m_dot_out = 0.0005 * mass * Math.max(0, (T - 33) / 100)
     }
     if (fluid === "CH4" && params.mass_flow_rate) {
-      leakFactor = 0.01 * (params.mass_flow_rate / 0.1)
+      const leakFactor = 0.01 * (params.mass_flow_rate / 0.1)
       m_dot_out = leakFactor * m_dot
     }
     const dm = (m_dot - m_dot_out) * dt
@@ -362,17 +363,15 @@ function simulateIndustrialDynamics(
     P = Math.max(1e4, P)
 
     // ===== Conservation de l'énergie (température) =====
-    // Échange thermique avec l'extérieur (Newton)
     const T_ext = 293.0
-    const heatTransferCoeff = 10.0   // W/(m²·K) simplifié, surface supposée proportionnelle à V^(2/3)
+    const heatTransferCoeff = 10.0   
     const area = Math.pow(V, 2/3)
     const Q_conv = -heatTransferCoeff * area * (T - T_ext) / (mass * p.Cp)
-    // Terme source pour les réactions exothermiques (ammoniac)
     let Q_rxn = 0
     if (fluid === "NH3") {
       const conversion = 0.8 * (1 - Math.exp(-t / 5))
-      reactionRate = 0.01 * conversion * m_dot
-      Q_rxn = 5000 * reactionRate / (mass * p.Cp)   // énergie de réaction [J/kg]
+      const reactionRate = 0.01 * conversion * m_dot
+      Q_rxn = 5000 * reactionRate / (mass * p.Cp)   
     }
     const dT = (Q_conv + Q_rxn) * dt
     T += dT
@@ -380,37 +379,26 @@ function simulateIndustrialDynamics(
 
     // ===== Conservation du momentum (vitesse) =====
     const scenario = params.scenario ?? "storage"
-    const L = 10.0   // m
-    
+    const L = 10.0   
     let dP_dx, friction, maxU
-    
     if (scenario === "storage") {
-      // Réservoir statique : gradient faible, frottement fort, vitesse < 2 m/s
       dP_dx = -(P - p.P_ref) / (L * 1000)
       friction = -0.5 * u
       maxU = 2.0
     } else {
-      // Transport / Pipeline : gradient fort, frottement faible, vitesse jusqu'à 100 m/s
       dP_dx = -(P - p.P_ref) / L
       friction = -0.02 * u * u / (2 * L)
       maxU = 100.0
     }
-    
     const du = (dP_dx / rho + friction) * dt
     u += du
     u = Math.max(0, Math.min(maxU, u))
 
-    // Générer les composantes transverses de la vitesse (pour la visualisation 3D)
-    const velocity_u = u
-    const velocity_v = 0.05 * Math.sin(t * 2) * u
-    const velocity_w = 0.03 * Math.cos(t * 1.5) * u
-
-    // Stocker la prédiction
     predictions.push({
       pressure: P,
-      velocity_u,
-      velocity_v,
-      velocity_w,
+      velocity_u: u,
+      velocity_v: 0.05 * Math.sin(t * 2) * u,
+      velocity_w: 0.03 * Math.cos(t * 1.5) * u,
       temperature: T,
       density: rho,
       time: t,
@@ -420,85 +408,29 @@ function simulateIndustrialDynamics(
       timestamp: new Date(Date.now() + t * 1000).toISOString(),
     })
   }
-
   return predictions
 }
 
 // ============================================================================
-// 7. Calcul du score de crédibilité (renforcé)
+// 7. Calcul du score de crédibilité (Logique métier corrigée)
 // ============================================================================
 
 function calculateCredibilityScore(
   extractedParams: z.infer<typeof PhysicalParametersSchema>,
   predictions3d: z.infer<typeof PredictionResponseSchema>[],
-  assimilationResult?: { assimilated_state: number[] }
-): { score: number; anomalies: string[] } {
+  assimilationResult: any
+) {
   let score = 100
   const anomalies: string[] = []
-  const fluidType = extractedParams.fluid_type || "H2"
-  const R = 8.314
 
-  if (extractedParams.pressure) {
-    const p = extractedParams.pressure
-    const scenario = extractedParams.scenario ?? "storage"
-    
-    const limits: Record<string, [number, number]> = {
-      H2_storage: [1e5, 10e5],   // LH2 cryogénique
-      H2_transport: [1e5, 800e5], // Hydrogène gazeux haute pression
-      NH3: [1e5, 200e5], 
-      CH4: [1e5, 300e5], 
-      sCO2: [73.8e5, 250e5]
-    }
-    
-    const key = (fluidType === "H2") ? `H2_${scenario}` : fluidType
-    const [minP, maxP] = limits[key] || limits[fluidType] || [1e4, 1e8]
-    
-    if (p < minP || p > maxP) {
-      const pBar = (p/1e5).toFixed(1)
-      const minBar = (minP/1e5).toFixed(1)
-      const maxBar = (maxP/1e5).toFixed(1)
-      anomalies.push(`Pression de ${pBar} bar hors limites physiques pour ${fluidType} (${scenario}) [${minBar}-${maxBar} bar]`)
-      score -= 25
-    }
-  }
-
-  // ✅ CORRECTION MAJEURE : Plages de température étendues pour NH3, CH4, sCO2
-  if (extractedParams.temperature) {
+  if (extractedParams.pressure && extractedParams.temperature) {
     const T = extractedParams.temperature
-    const limits: Record<string, [number, number]> = {
-      H2: [20, 800],
-      NH3: [195, 800],   // étendu pour réacteur de synthèse (typ. 673 K)
-      CH4: [90, 800],    // étendu pour hautes températures
-      sCO2: [304, 800]   // étendu pour cycles supercritiques
-    }
-    const [minT, maxT] = limits[fluidType] || [14, 1000]
-    if (T < minT || T > maxT) {
-      anomalies.push(`Température ${T.toFixed(1)} K hors plage ${fluidType} [${minT}-${maxT}]`)
-      score -= 20
-    }
-  }
-
-  if (predictions3d.length > 0 && extractedParams.pressure) {
-    const pinnP = predictions3d[0].pressure
-    if (pinnP > 0) {
-      const devP = Math.abs(extractedParams.pressure - pinnP) / pinnP
-      if (devP > 0.3) {
-        anomalies.push(`High pressure deviation (${(devP*100).toFixed(1)}%) from PINN model`)
-        score -= 15
-      } else if (devP > 0.15) {
-        anomalies.push(`Moderate pressure deviation (${(devP*100).toFixed(1)}%)`)
-        score -= 8
-      }
-    }
-  }
-
-  if (fluidType === "H2" && extractedParams.enthalpy_delta_h && extractedParams.temperature && extractedParams.equilibrium_pressure) {
-    const deltaH = extractedParams.enthalpy_delta_h * 1000
-    const deltaS = extractedParams.entropy_delta_s ?? 130.7
-    const T = extractedParams.temperature
-    const P_eq_extracted = extractedParams.equilibrium_pressure
-    const P_eq_calc = Math.exp(-deltaH / (R * T) + deltaS / R)
-    if (P_eq_calc > 0) {
+    if (extractedParams.equilibrium_pressure && extractedParams.enthalpy_delta_h) {
+      const R = 8.314
+      const P_eq_extracted = extractedParams.equilibrium_pressure
+      const dH = extractedParams.enthalpy_delta_h * 1000
+      const dS = (extractedParams.entropy_delta_s ?? 130.7)
+      const P_eq_calc = Math.exp(dS/R - dH/(R*T)) * 1e5
       const dev = Math.abs(P_eq_extracted - P_eq_calc) / P_eq_calc
       if (dev > 0.4) {
         anomalies.push(`Thermodynamic inconsistency (Van't Hoff dev ${(dev*100).toFixed(1)}%)`)
@@ -512,22 +444,18 @@ function calculateCredibilityScore(
 
   if (assimilationResult?.assimilated_state) {
     const init = predictions3d[0] ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u] : [0,0,0]
-    // --- CORRECTION PHYSIQUE LH2 ---
     const [p_assimilated, t_assimilated, v_assimilated] = assimilationResult.assimilated_state;
     
-    // 1. Ajustement de la pression (Cible: 1-10 bars)
     let correctedPressure = p_assimilated;
     if (p_assimilated > 100) {
-      correctedPressure = p_assimilated / 100000; // Correction d'unité si en Pascals
+      correctedPressure = p_assimilated / 100000; 
     }
     correctedPressure = Math.max(1, Math.min(10, correctedPressure));
     
-    // 2. Bridage de la vitesse (Cible: < 2.0 m/s avec friction)
     const friction = -0.5;
     let correctedVelocity = v_assimilated + (friction * v_assimilated);
     correctedVelocity = Math.max(-2.0, Math.min(2.0, correctedVelocity));
 
-    // Mettre à jour l'état assimilé avec les valeurs corrigées
     assimilationResult.assimilated_state[0] = correctedPressure;
     assimilationResult.assimilated_state[2] = correctedVelocity;
 
@@ -538,17 +466,21 @@ function calculateCredibilityScore(
     if (!isRealistic) {
       anomalies.push("Physique hors limites après correction")
       score = Math.min(score, 45.0);
-    } else if (correction > 50) {
-      anomalies.push("High Kalman Filter correction required")
-      score -= 10
-    } else if (correction > 20) {
-      anomalies.push("Moderate Kalman Filter correction")
-      score -= 5
+    } else {
+      const pressureQuality = 1.0 - Math.abs(correctedPressure - 5.5) / 4.5;
+      const velocityQuality = 1.0 - Math.abs(correctedVelocity) / 2.0;
+      const physicalScore = (pressureQuality + velocityQuality) / 2.0 * 100.0;
+      score = Math.min(score, physicalScore);
+
+      if (correction > 50) {
+        anomalies.push("High Kalman Filter correction required")
+        score -= 10
+      } else if (correction > 20) {
+        anomalies.push("Moderate Kalman Filter correction")
+        score -= 5
+      }
     }
-    
-    if (isRealistic && score < 92.5) {
-      score = 92.5; // Score de crédibilité cible
-    }
+    // --- SUPPRESSION DU SCORE FORCÉ À 92.5% ---
   }
 
   if (extractedParams.velocity && extractedParams.velocity > 500) {
@@ -560,7 +492,7 @@ function calculateCredibilityScore(
 }
 
 // ============================================================================
-// 8. Authentification (sans RBAC) – tout utilisateur connecté est autorisé
+// 8. Authentification
 // ============================================================================
 
 async function verifyAuth(req: Request): Promise<{ userId: string }> {
@@ -617,15 +549,7 @@ serve(async (req: Request) => {
 
   try {
     const { userId } = await verifyAuth(req)
-
-    let payload
-    try {
-      const raw = await req.text()
-      if (!raw) throw new Error("Empty body")
-      payload = JSON.parse(raw)
-    } catch {
-      throw new Error("Invalid JSON body")
-    }
+    const payload = await req.json()
     const { projectId, analysisId, transcription, context } = VerificationRequestSchema.parse(payload)
 
     log("info", "Processing verification", { requestId, projectId, analysisId, userId })
@@ -698,20 +622,15 @@ serve(async (req: Request) => {
       anomalies,
       context,
       created_by: userId,
-    }).then(({ error }) => {
-      if (error) log("error", "DB insert failed", { requestId, error: error.message })
-      else log("debug", "DB insert success", { requestId })
-    }).catch(err => log("error", "DB async error", { requestId, error: err.message }))
+    })
 
     const updatePromise = supabase.from("analyses").update({
       status: "completed",
       results: { predictions3d, anomalies, extractedParams },
       credibility_score: score,
-    }).eq("id", analysisId).then(({ error }) => {
-      if (error) log("error", "Update analyses failed", { requestId, error: error.message })
-    })
+    }).eq("id", analysisId)
 
-    Promise.all([insertPromise, updatePromise]).catch(e => log("error", "DB operation failed", { requestId, error: e.message }))
+    await Promise.all([insertPromise, updatePromise])
 
     const durationMs = Date.now() - startTime
     log("info", "Verification completed", { requestId, score, anomaliesCount: anomalies.length, durationMs })
@@ -735,11 +654,10 @@ serve(async (req: Request) => {
     )
   } catch (error) {
     errorCounter++
-    log("error", "Unhandled error", { requestId: crypto.randomUUID(), error: error.message, stack: error.stack })
+    log("error", "Unhandled error", { requestId: crypto.randomUUID(), error: error.message })
     let status = 500
     if (error instanceof z.ZodError) status = 400
     else if (error.message.includes("Authorization") || error.message.includes("token")) status = 401
-    else if (error.message.includes("permissions")) status = 403
 
     return new Response(
       JSON.stringify({ status: "error", error: error.message }),
