@@ -2,10 +2,13 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 /**
  * Supabase Edge Function: verify-physics-logic
- * Correction immédiate pour Quantum-Hybrid-PINN
+ * VERSION CORRIGÉE : Suppression du score forcé à 92.5%
  * 
  * Cette fonction corrige les anomalies "High Kalman Filter correction"
  * et stabilise les valeurs de pression/vitesse pour le stockage d'hydrogène.
+ * 
+ * CORRECTION MAJEURE : Le score de crédibilité n'est PLUS forcé à 92.5%.
+ * Il reflète maintenant la qualité réelle de la simulation.
  */
 
 serve(async (req) => {
@@ -42,11 +45,24 @@ serve(async (req) => {
     correctedVelocity = Math.max(-2.0, Math.min(2.0, correctedVelocity));
 
     // 3. Calcul du score de crédibilité basé sur les limites physiques
+    // CORRECTION : Le score reflète maintenant la qualité réelle de la correction
     const isWithinLimits = (correctedPressure >= 1 && correctedPressure <= 10) && 
                            (Math.abs(correctedVelocity) <= 2.0);
     
-    // Score de 92.5% si réaliste, sinon 45% (nécessite une ré-assimilation)
-    const credibilityScore = isWithinLimits ? 92.5 : 45.0;
+    // Score basé sur la proximité aux limites physiques
+    let credibilityScore = 0.0;
+    if (isWithinLimits) {
+      // Calcul d'un score proportionnel à la qualité de la correction
+      const pressureQuality = 1.0 - Math.abs(correctedPressure - 5.5) / 4.5; // 5.5 est le centre optimal
+      const velocityQuality = 1.0 - Math.abs(correctedVelocity) / 2.0; // Plus proche de 0 est mieux
+      credibilityScore = (pressureQuality + velocityQuality) / 2.0 * 100.0; // Score entre 0 et 100
+    } else {
+      // Score faible si hors limites
+      credibilityScore = 25.0;
+    }
+
+    // Clamp final pour s'assurer que le score est valide
+    credibilityScore = Math.max(0, Math.min(100, credibilityScore));
 
     const responseData = {
       status: "success",
@@ -56,7 +72,12 @@ serve(async (req) => {
         temperature: temperature
       },
       credibility_score: credibilityScore,
-      anomalies: isWithinLimits ? [] : ["Physique hors limites après correction automatique"]
+      anomalies: isWithinLimits ? [] : ["Physique hors limites après correction automatique"],
+      diagnostics: {
+        pressure_quality: 1.0 - Math.abs(correctedPressure - 5.5) / 4.5,
+        velocity_quality: 1.0 - Math.abs(correctedVelocity) / 2.0,
+        within_limits: isWithinLimits
+      }
     };
 
     return new Response(
