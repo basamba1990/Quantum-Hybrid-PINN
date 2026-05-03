@@ -157,7 +157,7 @@ serve(async (req: Request) => {
         await adminSupabase
           .from("hybrid_simulations")
           .update({
-            status: apiResult.status === "success" ? "completed" : "failed",
+            status: apiResult.status === "running" ? "running" : (apiResult.status === "success" ? "completed" : "failed"),
             results: apiResult,
             completed_at: new Date().toISOString(),
             error_message: apiResult.error_message || null,
