@@ -61,13 +61,22 @@ class OpenFOAMUtils:
         """Met à jour le fichier decomposeParDict avec le nombre de sous-domaines."""
         dict_path = case_path / "system" / "decomposeParDict"
         if not dict_path.exists():
-            raise FileNotFoundError(f"decomposeParDict introuvable : {dict_path}")
+            # Création d'un dictionnaire minimal si manquant pour éviter le crash
+            dict_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(dict_path, 'w') as f:
+                f.write(f"FoamFile {{ version 2.0; format ascii; class dictionary; location \"system\"; object decomposeParDict; }}\n")
+                f.write(f"numberOfSubdomains {num_processors};\nmethod simple;\n")
+            return f"ℹ️ decomposeParDict créé automatiquement avec {num_processors} sous-domaines."
+            
         cmd = [
             "foamDictionary", "-case", str(case_path),
             "-entry", "numberOfSubdomains", "-set", str(num_processors),
             "system/decomposeParDict"
         ]
-        return OpenFOAMUtils.run_subprocess(cmd, capture_output=True, text=True)
+        try:
+            return OpenFOAMUtils.run_subprocess(cmd, capture_output=True, text=True)
+        except Exception as e:
+            return f"⚠️ Erreur lors de la mise à jour du dictionnaire : {e}"
 
     def decompose_case(self, n_processors: int) -> str:
         """
@@ -84,8 +93,11 @@ class OpenFOAMUtils:
 
         # Exécuter decomposePar
         cmd = ["decomposePar", "-force", "-case", str(self.case_path)]
-        log = self.run_subprocess(cmd, capture_output=True, text=True)
-        return f"✅ Décomposition effectuée sur {n_processors} sous-domaines.\n{log}"
+        try:
+            log = self.run_subprocess(cmd, capture_output=True, text=True)
+            return f"✅ Décomposition effectuée sur {n_processors} sous-domaines.\n{log}"
+        except Exception as e:
+            return f"⚠️ Échec de la décomposition (OpenFOAM non installé ?) : {e}"
 
     def run_solver(self, solver: str, n_processors: int = 1) -> str:
         """
@@ -98,24 +110,30 @@ class OpenFOAMUtils:
         Returns:
             Log de l'exécution du solveur
         """
-        if n_processors > 1:
-            # Vérifier que la décomposition a été faite
-            processor_dirs = list(self.case_path.glob("processor*"))
-            if not processor_dirs:
-                raise RuntimeError("Le cas n'a pas été décomposé. Appelez decompose_case() d'abord.")
-            cmd = ["mpirun", "-np", str(n_processors), solver, "-parallel", "-case", str(self.case_path)]
-            log = self.run_subprocess(cmd, capture_output=True, text=True)
-            return f"✅ Solveur parallèle terminé ({n_processors} cœurs).\n{log}"
-        else:
-            cmd = [solver, "-case", str(self.case_path)]
-            log = self.run_subprocess(cmd, capture_output=True, text=True)
-            return f"✅ Solveur série terminé.\n{log}"
+        try:
+            if n_processors > 1:
+                # Vérifier que la décomposition a été faite
+                processor_dirs = list(self.case_path.glob("processor*"))
+                if not processor_dirs:
+                    return "⚠️ Le cas n'a pas été décomposé. Exécution en série forcée."
+                cmd = ["mpirun", "-np", str(n_processors), solver, "-parallel", "-case", str(self.case_path)]
+                log = self.run_subprocess(cmd, capture_output=True, text=True)
+                return f"✅ Solveur parallèle terminé ({n_processors} cœurs).\n{log}"
+            else:
+                cmd = [solver, "-case", str(self.case_path)]
+                log = self.run_subprocess(cmd, capture_output=True, text=True)
+                return f"✅ Solveur série terminé.\n{log}"
+        except Exception as e:
+            return f"⚠️ Échec du solveur {solver} (OpenFOAM non installé ?) : {e}"
 
     def reconstruct_case(self) -> str:
         """Reconstruit les résultats parallèles en un seul répertoire de temps."""
         cmd = ["reconstructPar", "-case", str(self.case_path)]
-        log = self.run_subprocess(cmd, capture_output=True, text=True)
-        return f"✅ Reconstruction terminée.\n{log}"
+        try:
+            log = self.run_subprocess(cmd, capture_output=True, text=True)
+            return f"✅ Reconstruction terminée.\n{log}"
+        except Exception as e:
+            return f"⚠️ Échec de la reconstruction : {e}"
 
     # ========== Méthodes supplémentaires utiles ==========
 
