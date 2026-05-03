@@ -333,6 +333,17 @@ async def root():
 async def run_openfoam_simulation(request: OpenFOAMSimulationRequest, background_tasks: BackgroundTasks):
     try:
         logger.info(f"Running OpenFOAM: {request.case_path} with {request.solver}")
+        
+        # Validation du chemin
+        case_path = Path(request.case_path)
+        if not case_path.exists():
+            # Essayer de résoudre par rapport à /app si c'est un chemin relatif
+            alt_path = Path("/app") / request.case_path.lstrip("/")
+            if alt_path.exists():
+                request.case_path = str(alt_path)
+            else:
+                raise HTTPException(status_code=404, detail=f"Case path not found: {request.case_path}")
+
         foam_utils = OpenFOAMUtils(request.case_path)
         log_decompose = ""
         if request.n_processors > 1:
@@ -354,6 +365,16 @@ async def run_openfoam_simulation(request: OpenFOAMSimulationRequest, background
 async def process_cfd_dataset(request: CFDDataProcessRequest, background_tasks: BackgroundTasks):
     try:
         logger.info(f"Processing CFD dataset from {request.case_path}")
+        
+        # Validation du chemin
+        case_path = Path(request.case_path)
+        if not case_path.exists():
+            alt_path = Path("/app") / request.case_path.lstrip("/")
+            if alt_path.exists():
+                request.case_path = str(alt_path)
+            else:
+                raise HTTPException(status_code=404, detail=f"Case path not found: {request.case_path}")
+
         data, metadata = dataset_manager.load_cfd_dataset(
             case_path=request.case_path,
             fields=request.fields,
@@ -418,6 +439,15 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
     """
     try:
         logger.info(f"Running hybrid simulation: {request.job_name}")
+
+        # Validation du chemin
+        case_path = Path(request.case_path)
+        if not case_path.exists():
+            alt_path = Path("/app") / request.case_path.lstrip("/")
+            if alt_path.exists():
+                request.case_path = str(alt_path)
+            else:
+                raise HTTPException(status_code=404, detail=f"Case path not found: {request.case_path}")
 
         # Créer ou récupérer le job
         job_id = request.job_id
@@ -562,13 +592,28 @@ async def get_job_status(job_id: str):
         if not result.data:
             raise HTTPException(status_code=404, detail="Job not found")
         job = result.data[0]
+        def parse_iso_date(date_str):
+            if not date_str or not isinstance(date_str, str):
+                return None
+            try:
+                clean_str = date_str.replace('Z', '+00:00')
+                if '.' in clean_str and '+' in clean_str:
+                    base, offset = clean_str.split('+')
+                    if '.' in base:
+                        date_part, micro_part = base.split('.')
+                        clean_str = f"{date_part}.{micro_part[:6]}+{offset}"
+                return datetime.fromisoformat(clean_str)
+            except Exception as e:
+                logger.warning(f"Failed to parse date {date_str}: {e}")
+                return None
+
         return JobStatusResponse(
             job_id=job["id"],
             name=job["job_name"],
             status=job["status"],
-            created_at=datetime.fromisoformat(job["created_at"]),
-            started_at=datetime.fromisoformat(job["started_at"]) if job.get("started_at") else None,
-            completed_at=datetime.fromisoformat(job["completed_at"]) if job.get("completed_at") else None,
+            created_at=parse_iso_date(job.get("created_at")) or datetime.utcnow(),
+            started_at=parse_iso_date(job.get("started_at")),
+            completed_at=parse_iso_date(job.get("completed_at")),
             results=job.get("results"),
             error_message=job.get("error_message")
         )
@@ -604,14 +649,27 @@ async def list_jobs(status: Optional[str] = None):
         response = []
         for job in jobs_dict.values():
             created_at = job["created_at"]
-            if isinstance(created_at, str):
-                created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-            started_at = job.get("started_at")
-            if started_at and isinstance(started_at, str):
-                started_at = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
-            completed_at = job.get("completed_at")
-            if completed_at and isinstance(completed_at, str):
-                completed_at = datetime.fromisoformat(completed_at.replace('Z', '+00:00'))
+            def parse_iso_date(date_str):
+                if not date_str or not isinstance(date_str, str):
+                    return None
+                try:
+                    # Handle Z suffix and microsecond precision issues
+                    clean_str = date_str.replace('Z', '+00:00')
+                    # If there's a +00:00 but it's too long for fromisoformat in some Python versions
+                    # or has more than 6 digits in microseconds
+                    if '.' in clean_str and '+' in clean_str:
+                        base, offset = clean_str.split('+')
+                        if '.' in base:
+                            date_part, micro_part = base.split('.')
+                            clean_str = f"{date_part}.{micro_part[:6]}+{offset}"
+                    return datetime.fromisoformat(clean_str)
+                except Exception as e:
+                    logger.warning(f"Failed to parse date {date_str}: {e}")
+                    return None
+
+            created_at = parse_iso_date(job.get("created_at")) or datetime.utcnow()
+            started_at = parse_iso_date(job.get("started_at"))
+            completed_at = parse_iso_date(job.get("completed_at"))
             response.append(JobStatusResponse(
                 job_id=job["job_id"],
                 name=job["name"],
