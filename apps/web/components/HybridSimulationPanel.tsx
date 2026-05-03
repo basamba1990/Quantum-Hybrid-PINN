@@ -63,6 +63,24 @@ export function HybridSimulationPanel({ onJobSelected }: HybridSimulationPanelPr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper to extract and validate UUID from URL
+  const getProjectIdFromUrl = () => {
+    if (typeof window === 'undefined') return null;
+    
+    // Pattern for UUID v4
+    const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+    const pathParts = window.location.pathname.split('/');
+    
+    // Look for a UUID in the path parts
+    for (const part of pathParts) {
+      if (uuidPattern.test(part)) {
+        return part;
+      }
+    }
+    
+    return null;
+  };
+
   // Fetch jobs on mount
   useEffect(() => {
     fetchJobs();
@@ -95,12 +113,20 @@ export function HybridSimulationPanel({ onJobSelected }: HybridSimulationPanelPr
     setLoading(true);
     setError(null);
 
+    const projectId = getProjectIdFromUrl();
+    
+    if (!projectId) {
+      setError("Impossible de détecter un ID de projet valide dans l'URL. Veuillez vous assurer d'être sur la page d'un projet.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/hybrid/run-simulation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          project_id: (window as any).location.pathname.split('/').pop(), // Extract project ID from URL
+          project_id: projectId,
           job_name: config.jobName,
           case_path: config.casePath,
           n_steps: config.nSteps,
