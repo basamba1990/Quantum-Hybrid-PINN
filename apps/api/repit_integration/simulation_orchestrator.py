@@ -165,7 +165,8 @@ class SimulationOrchestrator:
             return {"status": "failed", "error": str(e)}
 
     def run_hybrid_simulation(self, job_id: str, ml_model=None, n_steps: int = 100,
-                              time_step: float = 0.01, residual_threshold: float = 0.01) -> Dict[str, Any]:
+                              time_step: float = 0.01, residual_threshold: float = 0.01,
+                              uvw_mean: float = 0.0, uvw_std: float = 1.0) -> Dict[str, Any]:
         if job_id not in self.jobs:
             raise ValueError(f"Job {job_id} not found")
         job = self.jobs[job_id]
@@ -179,7 +180,7 @@ class SimulationOrchestrator:
                 max_iterations=n_steps,
                 residual_threshold=residual_threshold
             )
-            predictor = MLAcceleratedPredictor(config, ml_model=ml_model)
+            predictor = MLAcceleratedPredictor(config, ml_model=ml_model, uvw_mean=uvw_mean, uvw_std=uvw_std)
 
             # Chargement de l'état réel
             initial_state = self._load_latest_state(Path(job.case_path))
