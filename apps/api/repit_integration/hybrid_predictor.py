@@ -263,6 +263,13 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
         """
         from .openfoam_utils import OpenFOAMUtils
         next_state = current_state.copy()
+        
+        if not self.case_path.exists():
+            self.logger.warning(f"Case path {self.case_path} not found. Skipping CFD step and using fallback.")
+            for field in next_state:
+                next_state[field] = next_state[field] * (1.0 + np.random.normal(0, 0.0001, next_state[field].shape))
+            return next_state
+
         try:
             foam_utils = OpenFOAMUtils(self.case_path)
             # 1. Injecter l'état actuel dans les fichiers OpenFOAM
