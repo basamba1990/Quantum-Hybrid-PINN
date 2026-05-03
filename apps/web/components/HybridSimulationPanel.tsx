@@ -100,6 +100,7 @@ export function HybridSimulationPanel({ onJobSelected }: HybridSimulationPanelPr
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          project_id: (window as any).location.pathname.split('/').pop(), // Extract project ID from URL
           job_name: config.jobName,
           case_path: config.casePath,
           n_steps: config.nSteps,
@@ -109,11 +110,11 @@ export function HybridSimulationPanel({ onJobSelected }: HybridSimulationPanelPr
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to start simulation');
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to start simulation');
+      }
       const newJob: JobStatus = {
         jobId: data.job_id,
         name: config.jobName,
