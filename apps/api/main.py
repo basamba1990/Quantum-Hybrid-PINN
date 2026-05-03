@@ -478,9 +478,10 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                     steps_to_run = min(chunk_size, total_steps - current_iteration)
                     
                     # Appel à l'orchestrateur pour un chunk de steps
+                    # CORRECTION : Injection réelle du modèle FNO chargé
                     result = orchestrator.run_hybrid_simulation(
                         job_id=job_id,
-                        ml_model=None,
+                        ml_model=fno_uvw_model,
                         n_steps=steps_to_run,
                         time_step=request.time_step,
                         residual_threshold=request.residual_threshold
@@ -490,6 +491,7 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                     accumulated_result = result
                     
                     # Normalisation pour le frontend (camelCase)
+                    # CORRECTION : Alignement strict avec les attentes du frontend
                     frontend_results = {
                         "iteration": current_iteration,
                         "cfdTime": result.get("cfd_time", 0.0),

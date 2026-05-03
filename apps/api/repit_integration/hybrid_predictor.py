@@ -266,10 +266,15 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
         try:
             foam_utils = OpenFOAMUtils(self.case_path)
             # 1. Injecter l'état actuel dans les fichiers OpenFOAM
-            from .numpy_to_foam import numpyToFoam
+            from .numpy_to_foam import numpyToFoamDirect
+            from .config import TrainingConfig
+            
+            # Créer une config minimale pour numpyToFoamDirect
+            t_config = TrainingConfig(solver_dir=str(self.case_path))
+            
             for field, data in current_state.items():
-                target_file = self.case_path / "0" / field
-                numpyToFoam(data, target_file)
+                # Utilisation de numpyToFoamDirect qui accepte les données brutes
+                numpyToFoamDirect(t_config, "0", {field: data}, solver_dir=str(self.case_path))
             
             # 2. Exécuter le solveur pour un pas de temps
             self.logger.info(f"Running CFD solver: {self.config.cfd_solver}")
