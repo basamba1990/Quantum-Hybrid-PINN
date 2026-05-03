@@ -157,10 +157,10 @@ serve(async (req: Request) => {
         await adminSupabase
           .from("hybrid_simulations")
           .update({
-            status: apiResult.status === "running" ? "running" : (apiResult.status === "success" ? "completed" : "failed"),
+            status: apiResult.status === "success" ? "completed" : (apiResult.status === "running" ? "running" : "failed"),
             results: apiResult,
-            completed_at: new Date().toISOString(),
-            error_message: apiResult.error_message || null,
+            completed_at: (apiResult.status === "success" || apiResult.status === "failed") ? new Date().toISOString() : null,
+            error_message: apiResult.error_message || (apiResult.status === "failed" ? "Backend reported failure" : null),
           })
           .eq("id", jobId);
       } catch (err) {
