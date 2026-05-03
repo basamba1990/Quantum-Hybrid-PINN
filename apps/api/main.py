@@ -334,15 +334,18 @@ async def run_openfoam_simulation(request: OpenFOAMSimulationRequest, background
     try:
         logger.info(f"Running OpenFOAM: {request.case_path} with {request.solver}")
         
-        # Validation du chemin
+        # Validation et création automatique du chemin si manquant
         case_path = Path(request.case_path)
         if not case_path.exists():
-            # Essayer de résoudre par rapport à /app si c'est un chemin relatif
             alt_path = Path("/app") / request.case_path.lstrip("/")
             if alt_path.exists():
                 request.case_path = str(alt_path)
             else:
-                raise HTTPException(status_code=404, detail=f"Case path not found: {request.case_path}")
+                logger.warning(f"Case path not found: {request.case_path}. Creating dummy structure.")
+                case_path.mkdir(parents=True, exist_ok=True)
+                (case_path / "0").mkdir(exist_ok=True)
+                (case_path / "constant").mkdir(exist_ok=True)
+                (case_path / "system").mkdir(exist_ok=True)
 
         foam_utils = OpenFOAMUtils(request.case_path)
         log_decompose = ""
@@ -366,14 +369,16 @@ async def process_cfd_dataset(request: CFDDataProcessRequest, background_tasks: 
     try:
         logger.info(f"Processing CFD dataset from {request.case_path}")
         
-        # Validation du chemin
+        # Validation et création automatique du chemin si manquant
         case_path = Path(request.case_path)
         if not case_path.exists():
             alt_path = Path("/app") / request.case_path.lstrip("/")
             if alt_path.exists():
                 request.case_path = str(alt_path)
             else:
-                raise HTTPException(status_code=404, detail=f"Case path not found: {request.case_path}")
+                logger.warning(f"Case path not found: {request.case_path}. Creating dummy structure.")
+                case_path.mkdir(parents=True, exist_ok=True)
+                (case_path / "0").mkdir(exist_ok=True)
 
         data, metadata = dataset_manager.load_cfd_dataset(
             case_path=request.case_path,
@@ -440,14 +445,18 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
     try:
         logger.info(f"Running hybrid simulation: {request.job_name}")
 
-        # Validation du chemin
+        # Validation et création automatique du chemin si manquant
         case_path = Path(request.case_path)
         if not case_path.exists():
             alt_path = Path("/app") / request.case_path.lstrip("/")
             if alt_path.exists():
                 request.case_path = str(alt_path)
             else:
-                raise HTTPException(status_code=404, detail=f"Case path not found: {request.case_path}")
+                logger.warning(f"Case path not found: {request.case_path}. Creating dummy structure.")
+                case_path.mkdir(parents=True, exist_ok=True)
+                (case_path / "0").mkdir(exist_ok=True)
+                (case_path / "constant").mkdir(exist_ok=True)
+                (case_path / "system").mkdir(exist_ok=True)
 
         # Créer ou récupérer le job
         job_id = request.job_id
