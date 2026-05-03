@@ -219,7 +219,10 @@ export default function SimulationsPage() {
 
         {/* Onglet Simulation hybride (CFD+ML) */}
         <TabsContent value="hybrid" className="space-y-8">
-          <HybridSimulationPanel onJobSelected={handleHybridJobSelected} />
+          <HybridSimulationPanel 
+            projectId={selectedProject?.id} 
+            onJobSelected={handleHybridJobSelected} 
+          />
           {hybridResults && (
             <div className="mt-8">
               <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><Sparkles className="text-yellow-400" /> Résultats de la simulation hybride</h2>

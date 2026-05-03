@@ -44,10 +44,11 @@ interface JobStatus {
 }
 
 interface HybridSimulationPanelProps {
+  projectId?: string; // Optional projectId prop
   onJobSelected?: (job: JobStatus) => void;
 }
 
-export function HybridSimulationPanel({ onJobSelected }: HybridSimulationPanelProps) {
+export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected }: HybridSimulationPanelProps) {
   const [config, setConfig] = useState<HybridSimulationConfig>({
     jobName: 'Hybrid Simulation',
     casePath: '/path/to/case',
@@ -81,6 +82,9 @@ export function HybridSimulationPanel({ onJobSelected }: HybridSimulationPanelPr
     return null;
   };
 
+  // Final projectId: prop takes precedence, then URL
+  const projectId = propProjectId || getProjectIdFromUrl();
+
   // Fetch jobs on mount
   useEffect(() => {
     fetchJobs();
@@ -112,11 +116,9 @@ export function HybridSimulationPanel({ onJobSelected }: HybridSimulationPanelPr
   const handleRunSimulation = async () => {
     setLoading(true);
     setError(null);
-
-    const projectId = getProjectIdFromUrl();
     
     if (!projectId) {
-      setError("Impossible de détecter un ID de projet valide dans l'URL. Veuillez vous assurer d'être sur la page d'un projet.");
+      setError("Impossible de détecter un ID de projet valide. Veuillez vous assurer d'être sur la page d'un projet ou d'en avoir sélectionné un.");
       setLoading(false);
       return;
     }
