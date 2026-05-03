@@ -523,7 +523,9 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                         ml_model=fno_uvw_model,
                         n_steps=steps_to_run,
                         time_step=request.time_step,
-                        residual_threshold=request.residual_threshold
+                        residual_threshold=request.residual_threshold,
+                        uvw_mean=uvw_mean,
+                        uvw_std=uvw_std
                     )
                     
                     current_iteration += steps_to_run
@@ -558,7 +560,7 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                 # Finalisation
                 if supabase is not None and accumulated_result:
                     update_hybrid_job_in_supabase(job_id, {
-                        "status": accumulated_result["status"],
+                        "status": "completed" if accumulated_result["status"] == "success" else accumulated_result["status"],
                         "completed_at": datetime.utcnow()
                     })
 
