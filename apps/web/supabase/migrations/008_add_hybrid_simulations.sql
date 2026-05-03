@@ -1,85 +1,262 @@
--- Migration 008: Add hybrid_simulations table and RLS policies
--- Clean version (UUID-safe + Supabase best practices)
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { z } from "https://esm.sh/zod@3.22.4";
 
--- Table
-CREATE TABLE IF NOT EXISTS hybrid_simulations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+// ============================================================================
+// 1. ENV
+// ============================================================================
+const envSchema = z.object({
+  SUPABASE_URL: z.string().url(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  API_BASE_URL: z.string().url(),
+  LOG_LEVEL: z.enum(["debug","info","warn","error"]).default("info"),
+});
+const env = envSchema.parse(Deno.env.toObject());
 
-    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+// ============================================================================
+// 2. LOG
+// ============================================================================
+const log = (level: string, msg: string, meta?: Record<string, unknown>) => {
+  const levels = { debug:0, info:1, warn:2, error:3 };
+  if (levels[level] >= levels[env.LOG_LEVEL]) {
+    console[level](JSON.stringify({
+      level,
+      msg,
+      timestamp: new Date().toISOString(),
+      ...meta
+    }));
+  }
+};
 
-    -- IMPORTANT: on référence directement auth.users
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+// ============================================================================
+// 3. VALIDATION
+// ============================================================================
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    job_name TEXT NOT NULL,
-    case_path TEXT NOT NULL,
+const HybridSimulationRequestSchema = z.object({
+  projectId: z.string().optional(), // peut être null
+  jobName: z.string(),
+  casePath: z.string(),
+  nSteps: z.number().int().positive().default(100),
+  timeStep: z.number().positive().default(0.01),
+  residualThreshold: z.number().positive().default(0.01),
+  fields: z.array(z.string()).default(["U","p","T"]),
+});
+type HybridSimulationRequest = z.infer<typeof HybridSimulationRequestSchema>;
 
-    status TEXT NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'running', 'completed', 'failed')),
-
-    config JSONB DEFAULT '{}'::jsonb,
-
-    results JSONB DEFAULT '{
-        "iteration": 0,
-        "cfdTime": 0,
-        "mlTime": 0,
-        "residuals": {},
-        "log": "Initialisation...",
-        "credibilityScore": 0
-    }'::jsonb,
-
-    error_message TEXT,
-
-    started_at TIMESTAMPTZ,
-    completed_at TIMESTAMPTZ,
-
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+// ============================================================================
+// 4. CLIENTS
+// ============================================================================
+const supabaseAdmin = createClient(
+  env.SUPABASE_URL,
+  env.SUPABASE_SERVICE_ROLE_KEY
 );
 
--- Enable RLS
-ALTER TABLE hybrid_simulations ENABLE ROW LEVEL SECURITY;
+// ============================================================================
+// 5. RETRY
+// ============================================================================
+async function retryRequest(fn: () => Promise<Response>, retries = 3): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fn();
+      if (res.ok) return res;
+      if (i < retries - 1) await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    } catch (e) {
+      if (i === retries - 1) throw e;
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
 
--- =========================
--- RLS POLICIES (FIXED)
--- =========================
+// ============================================================================
+// 6. HANDLER
+// ============================================================================
+serve(async (req: Request) => {
 
--- SELECT
-DROP POLICY IF EXISTS "Users can view their own hybrid simulations" ON hybrid_simulations;
-CREATE POLICY "Users can view their own hybrid simulations"
-ON hybrid_simulations
-FOR SELECT
-USING (auth.uid() = user_id);
+  // CORS
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+    });
+  }
 
--- INSERT
-DROP POLICY IF EXISTS "Users can insert their own hybrid simulations" ON hybrid_simulations;
-CREATE POLICY "Users can insert their own hybrid simulations"
-ON hybrid_simulations
-FOR INSERT
-WITH CHECK (auth.uid() = user_id);
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Only POST allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    });
+  }
 
--- UPDATE
-DROP POLICY IF EXISTS "Users can update their own hybrid simulations" ON hybrid_simulations;
-CREATE POLICY "Users can update their own hybrid simulations"
-ON hybrid_simulations
-FOR UPDATE
-USING (auth.uid() = user_id);
+  try {
+    // ========================================================================
+    // 🔐 AUTH (CRITICAL FIX)
+    // ========================================================================
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("Missing Authorization header");
+    }
 
--- DELETE (optionnel mais recommandé)
-DROP POLICY IF EXISTS "Users can delete their own hybrid simulations" ON hybrid_simulations;
-CREATE POLICY "Users can delete their own hybrid simulations"
-ON hybrid_simulations
-FOR DELETE
-USING (auth.uid() = user_id);
+    const supabaseUser = createClient(
+      env.SUPABASE_URL,
+      env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        global: {
+          headers: { Authorization: authHeader }
+        }
+      }
+    );
 
--- =========================
--- INDEXES (PERFORMANCE)
--- =========================
+    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
 
-CREATE INDEX IF NOT EXISTS idx_hybrid_simulations_user_id
-ON hybrid_simulations(user_id);
+    if (userError || !user) {
+      throw new Error("User not authenticated");
+    }
 
-CREATE INDEX IF NOT EXISTS idx_hybrid_simulations_project_id
-ON hybrid_simulations(project_id);
+    const userId = user.id;
 
-CREATE INDEX IF NOT EXISTS idx_hybrid_simulations_status
-ON hybrid_simulations(status);
+    if (!uuidRegex.test(userId)) {
+      throw new Error("Invalid user UUID");
+    }
+
+    // ========================================================================
+    // BODY
+    // ========================================================================
+    const rawBody = await req.text();
+    if (!rawBody) throw new Error("Empty body");
+
+    const body = JSON.parse(rawBody);
+    const request = HybridSimulationRequestSchema.parse(body);
+
+    log("info", "Simulation start", {
+      userId,
+      jobName: request.jobName
+    });
+
+    // ========================================================================
+    // PROJECT VALIDATION
+    // ========================================================================
+    let projectId: string | null = null;
+
+    if (request.projectId && uuidRegex.test(request.projectId)) {
+      projectId = request.projectId;
+    }
+
+    // ========================================================================
+    // INSERT JOB
+    // ========================================================================
+    const { data: job, error: insertError } = await supabaseAdmin
+      .from("hybrid_simulations")
+      .insert({
+        project_id: projectId,
+        user_id: userId,
+        job_name: request.jobName,
+        case_path: request.casePath,
+        status: "running",
+        started_at: new Date().toISOString(),
+        config: {
+          n_steps: request.nSteps,
+          time_step: request.timeStep,
+          residual_threshold: request.residualThreshold,
+          fields: request.fields,
+        },
+        results: {
+          iteration: 0,
+          cfdTime: 0,
+          mlTime: 0,
+          residuals: {},
+          log: "Initialisation...",
+          credibilityScore: 0
+        }
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      log("error", "Insert failed", { error: insertError.message });
+      throw new Error(insertError.message);
+    }
+
+    const jobId = job.id;
+
+    log("info", "Job created", { jobId });
+
+    // ========================================================================
+    // BACKEND CALL (ASYNC)
+    // ========================================================================
+    (async () => {
+      try {
+        const response = await retryRequest(() =>
+          fetch(`${env.API_BASE_URL}/hybrid/run-simulation`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              job_id: jobId,
+              job_name: request.jobName,
+              case_path: request.casePath,
+              n_steps: request.nSteps,
+              time_step: request.timeStep,
+              residual_threshold: request.residualThreshold,
+              fields: request.fields,
+            }),
+          })
+        );
+
+        const apiResult = await response.json();
+
+        await supabaseAdmin
+          .from("hybrid_simulations")
+          .update({
+            status: apiResult.status === "success" ? "completed" : "failed",
+            results: apiResult,
+            completed_at: new Date().toISOString(),
+            error_message: apiResult.error_message || null,
+          })
+          .eq("id", jobId);
+
+      } catch (err) {
+        log("error", "Backend failed", { error: err.message });
+
+        await supabaseAdmin
+          .from("hybrid_simulations")
+          .update({
+            status: "failed",
+            error_message: err.message,
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", jobId);
+      }
+    })();
+
+    return new Response(JSON.stringify({
+      status: "success",
+      jobId
+    }), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+
+  } catch (error) {
+    log("error", "Handler error", {
+      error: error.message,
+      stack: error.stack
+    });
+
+    return new Response(JSON.stringify({
+      status: "error",
+      message: error.message
+    }), {
+      status: error instanceof z.ZodError ? 400 : 500,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+    });
+  }
+});
