@@ -95,7 +95,7 @@ serve(async (req: Request) => {
     const adminSupabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
     // 1. Créer l'entrée en base avec le client utilisateur
-    const { data: job, error: insertError } = await userSupabase
+    const { data: job, error: insertError } = await adminSupabase
       .from("hybrid_simulations")
       .insert({
         project_id: request.projectId,
