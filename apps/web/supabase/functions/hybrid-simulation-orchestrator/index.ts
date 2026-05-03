@@ -24,8 +24,8 @@ const log = (level: string, msg: string, meta?: Record<string, unknown>) => {
 // 2. Types et schémas
 // ============================================================================
 const HybridSimulationRequestSchema = z.object({
-  projectId: z.string(),
-  userId: z.string(),
+  projectId: z.string().uuid(),
+  userId: z.string().uuid(),
   jobName: z.string(),
   casePath: z.string(),
   nSteps: z.number().int().positive().default(100),
@@ -38,8 +38,6 @@ type HybridSimulationRequest = z.infer<typeof HybridSimulationRequestSchema>;
 // ============================================================================
 // 3. Clients et helpers
 // ============================================================================
-const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-
 async function retryRequest(fn: () => Promise<Response>, retries = 3): Promise<Response> {
   for (let i = 0; i < retries; i++) {
     try {
@@ -78,6 +76,11 @@ serve(async (req: Request) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error("Missing Authorization header");
+    }
+
     const rawBody = await req.text();
     if (!rawBody) throw new Error("Empty body");
     const body = JSON.parse(rawBody);
@@ -85,8 +88,14 @@ serve(async (req: Request) => {
 
     log("info", "Starting hybrid simulation", { jobName: request.jobName, projectId: request.projectId });
 
-    // 1. Créer l'entrée en base avec des résultats initiaux pour éviter le blocage UI
-    const { data: job, error: insertError } = await supabase
+    // Utiliser le token de l'utilisateur pour respecter les politiques RLS
+    const userSupabase = createClient(env.SUPABASE_URL, authHeader.replace('Bearer ', ''));
+    
+    // Client admin pour les mises à jour en arrière-plan si nécessaire
+    const adminSupabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+
+    // 1. Créer l'entrée en base avec le client utilisateur
+    const { data: job, error: insertError } = await userSupabase
       .from("hybrid_simulations")
       .insert({
         project_id: request.projectId,
@@ -120,11 +129,9 @@ serve(async (req: Request) => {
     const jobId = job.id;
     log("info", "Job created", { jobId });
 
-    // 2. Le statut est déjà mis à jour à la création pour plus de réactivité
-
-    // 3. Appeler le backend FastAPI avec l'ID du job
+    // 2. Appeler le backend FastAPI avec l'ID du job
     const payload = {
-      job_id: jobId,   // <-- CRUCIAL : transmet l'ID créé dans Supabase
+      job_id: jobId,
       job_name: request.jobName,
       case_path: request.casePath,
       n_steps: request.nSteps,
@@ -146,7 +153,8 @@ serve(async (req: Request) => {
         const apiResult = await response.json();
         log("info", "Backend response received", { jobId, apiResult });
 
-        await supabase
+        // Utiliser le client admin pour mettre à jour le statut final (plus robuste en arrière-plan)
+        await adminSupabase
           .from("hybrid_simulations")
           .update({
             status: apiResult.status === "success" ? "completed" : "failed",
@@ -157,7 +165,7 @@ serve(async (req: Request) => {
           .eq("id", jobId);
       } catch (err) {
         log("error", "Backend call failed", { jobId, error: err.message });
-        await supabase
+        await adminSupabase
           .from("hybrid_simulations")
           .update({
             status: "failed",

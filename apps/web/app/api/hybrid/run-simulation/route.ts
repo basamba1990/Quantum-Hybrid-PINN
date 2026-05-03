@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabase = await createClient();
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!supabaseUrl || !supabaseAnonKey) {
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Unauthorized: No active session' },
+        { status: 401 }
+      );
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) {
       return NextResponse.json(
         { error: 'Supabase configuration is missing' },
         { status: 500 }
@@ -13,27 +22,26 @@ export async function POST(req: NextRequest) {
     }
 
     const SUPABASE_FUNCTIONS_URL = `${supabaseUrl}/functions/v1/hybrid-simulation-orchestrator`;
-
     const body = await req.json();
 
     // Validation basique
-    if (!body.job_name || !body.case_path) {
+    if (!body.job_name || !body.case_path || !body.project_id) {
       return NextResponse.json(
-        { error: 'Missing required fields: job_name, case_path' },
+        { error: 'Missing required fields: job_name, case_path, project_id' },
         { status: 400 }
       );
     }
 
-    // Appel à l'Edge Function Supabase
+    // Appel à l'Edge Function Supabase avec le token de l'utilisateur
     const response = await fetch(SUPABASE_FUNCTIONS_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${supabaseAnonKey}`,
+        'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
-        projectId: body.project_id || 'legacy',
-        userId: body.user_id || 'anonymous',
+        projectId: body.project_id,
+        userId: session.user.id,
         jobName: body.job_name,
         casePath: body.case_path,
         nSteps: body.n_steps || 100,
@@ -48,7 +56,7 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       console.error('Edge function error:', data);
       return NextResponse.json(
-        { error: data.error || 'Edge function failed' },
+        { error: data.message || 'Edge function failed' },
         { status: response.status }
       );
     }
@@ -56,7 +64,7 @@ export async function POST(req: NextRequest) {
     // Retourner le job_id comme attendu par le composant
     return NextResponse.json({
       job_id: data.jobId,
-      status: 'running', // Forcer le statut running pour l'UI
+      status: 'running',
       message: data.message,
       results: {
         iteration: 0,
