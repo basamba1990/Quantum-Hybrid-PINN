@@ -20,6 +20,8 @@ export interface CredibilityScore {
   velocityScore: number
   residualScore: number
   assimilationScore: number
+  pvtCoherenceScore: number
+  cfdStabilityScore: number
   anomalies: string[]
   label: 'Excellent' | 'Acceptable' | 'Critique'
 }
@@ -30,48 +32,59 @@ export interface CredibilityScore {
  */
 export function calculateCredibilityScore(
   metrics: CredibilityMetrics,
-  fluidType: string = 'H2'
+  fluidType: string = 'H2',
+  enhancedMetrics?: { pvtCoherence?: number; cfdStability?: number }
 ): CredibilityScore {
   let overallScore = 100
   const anomalies: string[] = []
 
-  // 1. Pressure deviation scoring (weight: 30%)
+  // 1. Pressure deviation scoring (weight: 20%)
   const pressureScore = calculatePressureScore(
     metrics.pressureDeviation,
     fluidType,
     anomalies
   )
-  overallScore -= (100 - pressureScore) * 0.30
+  overallScore -= (100 - pressureScore) * 0.20
 
-  // 2. Temperature deviation scoring (weight: 20%)
+  // 2. Temperature deviation scoring (weight: 15%)
   const temperatureScore = calculateTemperatureScore(
     metrics.temperatureDeviation,
     fluidType,
     anomalies
   )
-  overallScore -= (100 - temperatureScore) * 0.20
+  overallScore -= (100 - temperatureScore) * 0.15
 
-  // 3. Velocity deviation scoring (weight: 15%)
+  // 3. Velocity deviation scoring (weight: 10%)
   const velocityScore = calculateVelocityScore(
     metrics.velocityDeviation,
     fluidType,
     anomalies
   )
-  overallScore -= (100 - velocityScore) * 0.15
+  overallScore -= (100 - velocityScore) * 0.10
 
-  // 4. Residual norm scoring (weight: 20%)
+  // 4. Residual norm scoring (weight: 15%)
   const residualScore = calculateResidualScore(
     metrics.residualNorm,
     anomalies
   )
-  overallScore -= (100 - residualScore) * 0.20
+  overallScore -= (100 - residualScore) * 0.15
 
-  // 5. Kalman Filter correction scoring (weight: 15%)
+  // 5. Kalman Filter correction scoring (weight: 10%)
   const assimilationScore = calculateAssimilationScore(
     metrics.kalmanCorrection,
     anomalies
   )
-  overallScore -= (100 - assimilationScore) * 0.15
+  overallScore -= (100 - assimilationScore) * 0.10
+
+  // 6. PVT Coherence (New - weight: 15%)
+  const pvtCoherenceScore = enhancedMetrics?.pvtCoherence !== undefined ? enhancedMetrics.pvtCoherence * 100 : 85
+  overallScore -= (100 - pvtCoherenceScore) * 0.15
+  if (pvtCoherenceScore < 70) anomalies.push("Low PVT coherence detected")
+
+  // 7. CFD Stability (New - weight: 15%)
+  const cfdStabilityScore = enhancedMetrics?.cfdStability !== undefined ? enhancedMetrics.cfdStability * 100 : 80
+  overallScore -= (100 - cfdStabilityScore) * 0.15
+  if (cfdStabilityScore < 60) anomalies.push("High deviation from CFD KTH reference")
 
   // Normalize final score
   overallScore = Math.max(0, Math.min(100, overallScore))
@@ -93,6 +106,8 @@ export function calculateCredibilityScore(
     velocityScore: Math.round(velocityScore),
     residualScore: Math.round(residualScore),
     assimilationScore: Math.round(assimilationScore),
+    pvtCoherenceScore: Math.round(pvtCoherenceScore),
+    cfdStabilityScore: Math.round(cfdStabilityScore),
     anomalies,
     label,
   }
