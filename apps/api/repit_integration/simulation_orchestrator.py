@@ -79,14 +79,8 @@ class SimulationOrchestrator:
         dm = DatasetManager()
         
         if not case_path.exists():
-            self.logger.warning(f"Case path {case_path} does not exist. Using zero state.")
-            # Return a default zero state if path is missing to avoid immediate crash
-            # In a real scenario, we'd want the actual data, but for robustness:
-            return {
-                "U": np.zeros((1000, 3)),
-                "p": np.zeros((1000, 1)),
-                "T": np.zeros((1000, 1))
-            }
+            self.logger.error(f"❌ Case path {case_path} does not exist. Initial state cannot be loaded.")
+            raise FileNotFoundError(f"Case path not found: {case_path}")
 
         try:
             latest_time = OpenFOAMUtils.max_time_directory(case_path)
@@ -97,12 +91,8 @@ class SimulationOrchestrator:
                     state[field] = dm._load_field(field_file)
             
             if not state:
-                self.logger.warning(f"No CFD fields found in {case_path}. Using zero state.")
-                return {
-                    "U": np.zeros((1000, 3)),
-                    "p": np.zeros((1000, 1)),
-                    "T": np.zeros((1000, 1))
-                }
+                self.logger.error(f"❌ No CFD fields found in {case_path}. Initial state cannot be loaded.")
+                raise ValueError(f"No CFD fields found in {case_path}")
                 
             self.logger.info(f"Loaded state at t={latest_time} with fields {list(state.keys())}")
             return state
