@@ -16,7 +16,7 @@ from .utils import OpenfoamUtils
 logger = logging.getLogger(__name__)
 # ===================================
 
-torch.set_default_dtype(torch.float64)
+# torch.set_default_dtype(torch.float64)  # Désactivé pour éviter les conflits de type avec le modèle FNO (float32)
 
 # Default Values:
 MOL_WT = 0.02896  # kg/mol
