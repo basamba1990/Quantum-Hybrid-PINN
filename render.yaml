@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: quantum-hybrid-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    rootDir: apps/api
+    envVars:
+      - key: SUPABASE_URL
+        sync: false # À configurer manuellement dans l'interface Render
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false # À configurer manuellement dans l'interface Render
+      - key: LOG_LEVEL
+        value: INFO
+      - key: ALLOWED_ORIGINS
+        value: "*" # Important : À restreindre à votre domaine Vercel après le déploiement de l'application web
+      - key: BACKEND_SERVICE_URL # Nouvelle variable pour la communication interne
+        value: https://quantum-hybrid-backend.onrender.com # Remplacer par l'URL réelle du service backend sur Render
+
+  - type: web
+    name: quantum-hybrid-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    rootDir: apps/backend
+    envVars:
+      - key: LOG_LEVEL
+        value: INFO
+      # Ajoutez ici d'autres variables d'environnement spécifiques au backend si nécessaire
