@@ -98,10 +98,13 @@ class SimulationOrchestrator:
             return state
         except Exception as e:
             self.logger.error(f"Error loading state from {case_path}: {e}. Falling back to zero state.")
+            # Tentative de récupération de la taille réelle du maillage via un autre champ ou par défaut
+            # Si on ne peut pas charger, on utilise une taille générique 32x32x32 (32768 pts) pour le FNO
+            default_n = 32768 
             return {
-                "U": np.zeros((1000, 3)),
-                "p": np.zeros((1000, 1)),
-                "T": np.zeros((1000, 1))
+                "U": np.zeros((default_n, 3)),
+                "p": np.zeros((default_n, 1)),
+                "T": np.zeros((default_n, 1))
             }
 
     def prepare_cfd_dataset(self, job_id: str, fields: List[str], time_range: tuple, normalize: bool = True):

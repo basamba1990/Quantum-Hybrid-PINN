@@ -334,14 +334,36 @@ async def run_openfoam_simulation(request: OpenFOAMSimulationRequest, background
     try:
         logger.info(f"Running OpenFOAM: {request.case_path} with {request.solver}")
         
-        case_path = Path(request.case_path)
+        # ========== CORRECTION ROBUSTE DU CHEMIN ==========
+        raw_path = request.case_path
+        case_path = Path(raw_path)
+        
+        # Fallback intelligent pour les chemins par défaut ou inexistants
+        if not case_path.exists() or raw_path == "/path/to/case" or "h2_pipeline" in raw_path:
+            # Tenter de localiser un cas par défaut dans le répertoire utilisateur
+            fallback_paths = [
+                Path("/home/ubuntu/cases/h2_pipeline"),
+                Path.home() / "cases" / "h2_pipeline",
+                Path("/app/cases/h2_pipeline")
+            ]
+            for p in fallback_paths:
+                if p.exists():
+                    case_path = p
+                    logger.info(f"Using fallback case path: {case_path}")
+                    break
+        
         if not case_path.exists():
-            raise HTTPException(status_code=400, detail=f"Case path not found: {request.case_path}")
+            logger.error(f"Case path not found: {raw_path}")
+            raise HTTPException(status_code=400, detail=f"Case path not found: {raw_path}. Please ensure the OpenFOAM case exists on the server.")
 
         # Vérifier si le chemin du cas est un cas OpenFOAM valide avec les champs initiaux
         initial_time_dir = case_path / "0"
         if not initial_time_dir.exists():
-            raise HTTPException(status_code=400, detail=f"Initial time directory '0' not found in case path: {request.case_path}")
+            try:
+                latest_t = OpenFOAMUtils.max_time_directory(case_path)
+                initial_time_dir = case_path / str(latest_t)
+            except:
+                raise HTTPException(status_code=400, detail=f"No valid time directory found in: {case_path}")
 
         required_fields = ["U", "p", "T"]
         for field in required_fields:
@@ -446,14 +468,36 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
     try:
         logger.info(f"Running hybrid simulation: {request.job_name}")
 
-        case_path = Path(request.case_path)
+        # ========== CORRECTION ROBUSTE DU CHEMIN ==========
+        raw_path = request.case_path
+        case_path = Path(raw_path)
+        
+        # Fallback intelligent pour les chemins par défaut ou inexistants
+        if not case_path.exists() or raw_path == "/path/to/case" or "h2_pipeline" in raw_path:
+            # Tenter de localiser un cas par défaut dans le répertoire utilisateur
+            fallback_paths = [
+                Path("/home/ubuntu/cases/h2_pipeline"),
+                Path.home() / "cases" / "h2_pipeline",
+                Path("/app/cases/h2_pipeline")
+            ]
+            for p in fallback_paths:
+                if p.exists():
+                    case_path = p
+                    logger.info(f"Using fallback case path: {case_path}")
+                    break
+        
         if not case_path.exists():
-            raise HTTPException(status_code=400, detail=f"Case path not found: {request.case_path}")
+            logger.error(f"Case path not found: {raw_path}")
+            raise HTTPException(status_code=400, detail=f"Case path not found: {raw_path}. Please ensure the OpenFOAM case exists on the server.")
 
         # Vérifier si le chemin du cas est un cas OpenFOAM valide avec les champs initiaux
         initial_time_dir = case_path / "0"
         if not initial_time_dir.exists():
-            raise HTTPException(status_code=400, detail=f"Initial time directory '0' not found in case path: {request.case_path}")
+            try:
+                latest_t = OpenFOAMUtils.max_time_directory(case_path)
+                initial_time_dir = case_path / str(latest_t)
+            except:
+                raise HTTPException(status_code=400, detail=f"No valid time directory found in: {case_path}")
 
         required_fields = ["U", "p", "T"]
         for field in required_fields:

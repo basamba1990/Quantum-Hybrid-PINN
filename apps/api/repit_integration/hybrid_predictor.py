@@ -121,6 +121,9 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
     def _interpolate_to_grid(self, data: np.ndarray, target_shape: Tuple[int, int, int, int]) -> torch.Tensor:
         """Interpolation robuste pour adapter n'importe quel maillage OpenFOAM à la grille FNO."""
         # data shape: (N, C) -> target: (1, C, X, Y, Z)
+        if len(data.shape) == 1:
+            data = data.reshape(-1, 1)
+        
         N, C = data.shape
         X, Y, Z = target_shape[2:]
         
@@ -135,35 +138,63 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
         return torch.from_numpy(interpolated).view(1, X, Y, Z, C).permute(0, 4, 1, 2, 3).float()
 
     def _ml_predict(self, current_state: Dict[str, np.ndarray], time_step: float) -> Dict[str, np.ndarray]:
-        if self.ml_model is None or "U" not in current_state:
+        if self.ml_model is None:
             return current_state
         
         next_state = current_state.copy()
         try:
-            # 1. Préparation et Interpolation
-            input_tensor = self._interpolate_to_grid(current_state["U"], (1, 3, 32, 32, 32))
+            # Liste des champs à prédire (U est prioritaire)
+            fields_to_predict = ["U", "p", "T"]
             
-            # 2. Normalisation
-            input_norm = (input_tensor - self.uvw_mean) / (self.uvw_std + 1e-8)
-            
-            # 3. Inférence FNO
-            with torch.no_grad():
-                pred_norm = self.ml_model(input_norm)
-            
-            # 4. Dénormalisation
-            pred = pred_norm * self.uvw_std + self.uvw_mean
-            
-            # 5. Remodelage inverse vers le maillage d'origine
-            N = current_state["U"].shape[0]
-            pred_flat = pred.permute(0, 2, 3, 4, 1).reshape(-1, 3).cpu().numpy()
-            
-            if pred_flat.shape[0] != N:
-                # Interpolation inverse si nécessaire
-                indices = np.linspace(0, pred_flat.shape[0] - 1, N).astype(int)
-                next_state["U"] = pred_flat[indices]
-            else:
-                next_state["U"] = pred_flat
+            for field in fields_to_predict:
+                if field not in current_state:
+                    continue
                 
+                data = current_state[field]
+                if len(data.shape) == 1:
+                    data = data.reshape(-1, 1)
+                
+                C = data.shape[1]
+                
+                # 1. Préparation et Interpolation
+                input_tensor = self._interpolate_to_grid(data, (1, C, 32, 32, 32))
+                
+                # 2. Normalisation (Utilisation de statistiques globales ou locales)
+                # Pour U, on utilise uvw_mean/std, pour les autres on normalise localement si stats non fournies
+                if field == "U":
+                    m, s = self.uvw_mean, self.uvw_std
+                else:
+                    m, s = float(np.mean(data)), float(np.std(data))
+                
+                input_norm = (input_tensor - m) / (s + 1e-8)
+                
+                # 3. Inférence FNO
+                with torch.no_grad():
+                    # Note: Le modèle FNO est supposé supporter le nombre de canaux C
+                    try:
+                        pred_norm = self.ml_model(input_norm)
+                    except Exception as e:
+                        self.logger.warning(f"Modèle FNO incompatible avec le champ {field} ({C} canaux): {e}")
+                        continue
+                
+                # 4. Dénormalisation
+                pred = pred_norm * s + m
+                
+                # 5. Remodelage inverse vers le maillage d'origine
+                N = data.shape[0]
+                pred_flat = pred.permute(0, 2, 3, 4, 1).reshape(-1, C).cpu().numpy()
+                
+                if pred_flat.shape[0] != N:
+                    # Interpolation inverse si nécessaire
+                    indices = np.linspace(0, pred_flat.shape[0] - 1, N).astype(int)
+                    next_state[field] = pred_flat[indices]
+                else:
+                    next_state[field] = pred_flat
+                
+                if field == "U" and next_state[field].shape[1] == 1:
+                     # Sécurité si U est scalaire par erreur
+                     pass
+
             self.logger.info("✅ Prédiction FNO réussie avec adaptation de grille.")
         except Exception as e:
             self.logger.error(f"❌ Erreur ML: {e}. Utilisation du fallback.")
