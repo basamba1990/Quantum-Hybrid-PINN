@@ -23,5 +23,5 @@ RUN mkdir -p /home/ubuntu/cases
 # Exposer le port de l'API
 EXPOSE 8080
 
-# Commande de lancement
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", 8080]
+# Commande de lancement - Le port doit être une chaîne de caractères en syntaxe JSON
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080"]
