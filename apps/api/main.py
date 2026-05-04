@@ -132,6 +132,7 @@ class CFDDataProcessResponse(BaseModel):
     shape: Optional[List[int]] = None
 
 class HybridSimulationRequest(BaseModel):
+    project_id: str
     job_id: Optional[str] = None
     job_name: str
     case_path: str
@@ -358,6 +359,7 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
                 # Update Supabase to track this job
                 if supabase is not None:
                     supabase.table("hybrid_simulations").insert({
+                        "project_id": request.project_id,
                         "id": job_id,
                         "job_name": request.job_name,
                         "status": "running",
@@ -379,12 +381,13 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
 
         # --- Local Execution Fallback ---
         # Validate local case path
+        # If case_path is not absolute, assume it's relative to orchestrator's work_dir
         case_dir = Path(request.case_path)
-        if not case_dir.exists():
-            # Try relative to orchestrator work_dir
+        if not case_dir.is_absolute():
             case_dir = Path(orchestrator.work_dir) / request.case_path
-            if not case_dir.exists():
-                raise HTTPException(status_code=404, detail=f"Case directory not found: {request.case_path}")
+        
+        if not case_dir.exists():
+            raise HTTPException(status_code=404, detail=f"Case directory not found: {case_dir}")
 
         initial_time_dir = case_dir / "0"
         if not initial_time_dir.exists():
