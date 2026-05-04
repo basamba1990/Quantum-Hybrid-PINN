@@ -20,8 +20,8 @@ COPY . .
 # Créer les répertoires nécessaires
 RUN mkdir -p /home/ubuntu/cases
 
-# Exposer le port de l'API
-EXPOSE 8080
+# Exposer le port de l'API (Changé de 8080 à 8081 pour éviter les conflits)
+EXPOSE 8081
 
-# Commande de lancement - Le port doit être une chaîne de caractères en syntaxe JSON
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Commande de lancement - Utilisation du port 8081
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8081"]
