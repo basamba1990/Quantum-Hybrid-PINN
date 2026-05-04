@@ -9,6 +9,7 @@ import logging
 import gc
 import tempfile
 import asyncio
+import requests
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -41,6 +42,8 @@ logger = logging.getLogger(__name__)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+BACKEND_SERVICE_URL = os.getenv("BACKEND_SERVICE_URL", "https://quantum-hybrid-backend.onrender.com")
+
 supabase: Optional[Client] = None
 
 if SUPABASE_URL and SUPABASE_KEY:
@@ -288,216 +291,97 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
                     results = result.data[0].get("results", {})
                     progress = results.get("current_iteration", 0)
                     total = results.get("total_steps", 100)
-                    await manager.send_message({"job_id": job_id, "progress": progress, "total": total}, websocket)
-            await asyncio.sleep(1)
+                    await manager.send_message({"job_id": job_id, "progress": progress, "total": total, "completed": progress >= total}, websocket)
+            await asyncio.sleep(2)
     except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
         manager.disconnect(websocket)
 
 # ============================================
-# Health & root
+# Health Check
 # ============================================
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
-    process = psutil.Process(os.getpid())
-    mem_info = process.memory_info()
     return HealthResponse(
         status="healthy",
         version="2.2.0",
         timestamp=datetime.utcnow(),
         gpu_available=torch.cuda.is_available(),
-        memory_usage={"rss": mem_info.rss / (1024*1024), "vms": mem_info.vms / (1024*1024)}
+        memory_usage={
+            "cpu_percent": psutil.cpu_percent(),
+            "ram_gb": psutil.virtual_memory().used / (1024**3)
+        }
     )
 
-@app.get("/")
-async def root():
-    return {
-        "message": "Quantum-Hybrid API with real-time WebSocket",
-        "version": "2.2.0",
-        "endpoints": {
-            "health": "/health",
-            "openfoam": "/openfoam/*",
-            "cfd": "/cfd/*",
-            "hybrid": "/hybrid/*",
-            "jobs": "/jobs/*",
-            "validation_heat": "/v2/validate-3d",
-            "validation_turbulence": "/v2/validate-3d-velocity",
-            "training": "/training/upload",
-            "websocket": "ws://host/ws/{job_id}"
-        }
-    }
-
 # ============================================
-# OpenFOAM, CFD, Reinjection endpoints
+# Hybrid Simulation endpoints
 # ============================================
-@app.post("/openfoam/run-simulation", response_model=OpenFOAMSimulationResponse)
-async def run_openfoam_simulation(request: OpenFOAMSimulationRequest, background_tasks: BackgroundTasks):
-    try:
-        logger.info(f"Running OpenFOAM: {request.case_path} with {request.solver}")
-        
-        # ========== CORRECTION ROBUSTE DU CHEMIN ==========
-        raw_path = request.case_path
-        case_path = Path(raw_path)
-        
-        # Fallback intelligent pour les chemins par défaut ou inexistants
-        if not case_path.exists() or raw_path == "/path/to/case" or "h2_pipeline" in raw_path:
-            # Tenter de localiser un cas par défaut dans le répertoire utilisateur
-            fallback_paths = [
-                Path("/home/ubuntu/cases/h2_pipeline"),
-                Path.home() / "cases" / "h2_pipeline",
-                Path("/app/cases/h2_pipeline")
-            ]
-            for p in fallback_paths:
-                if p.exists():
-                    case_path = p
-                    logger.info(f"Using fallback case path: {case_path}")
-                    break
-        
-        if not case_path.exists():
-            logger.error(f"Case path not found: {raw_path}")
-            raise HTTPException(status_code=400, detail=f"Case path not found: {raw_path}. Please ensure the OpenFOAM case exists on the server.")
-
-        # Vérifier si le chemin du cas est un cas OpenFOAM valide avec les champs initiaux
-        initial_time_dir = case_path / "0"
-        if not initial_time_dir.exists():
-            try:
-                latest_t = OpenFOAMUtils.max_time_directory(case_path)
-                initial_time_dir = case_path / str(latest_t)
-            except:
-                raise HTTPException(status_code=400, detail=f"No valid time directory found in: {case_path}")
-
-        required_fields = ["U", "p", "T"]
-        for field in required_fields:
-            if not (initial_time_dir / field).exists():
-                raise HTTPException(status_code=400, detail=f"Required CFD field '{field}' not found in {initial_time_dir}")
-
-        foam_utils = OpenFOAMUtils(request.case_path)
-        log_decompose = ""
-        if request.n_processors > 1:
-            log_decompose = foam_utils.decompose_case(request.n_processors)
-        log_solver = foam_utils.run_solver(request.solver, request.n_processors)
-        log_reconstruct = ""
-        if request.n_processors > 1:
-            log_reconstruct = foam_utils.reconstruct_case()
-        full_log = f"Decompose:\n{log_decompose}\n\nSolver:\n{log_solver}\n\nReconstruct:\n{log_reconstruct}"
-        output_path = str(Path(request.case_path) / "reconstructed_results")
-        background_tasks.add_task(cleanup_memory)
-        return OpenFOAMSimulationResponse(status="success", log=full_log, output_path=output_path)
-    except Exception as e:
-        logger.error(f"OpenFOAM simulation error: {e}")
-        cleanup_memory()
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/cfd/process-dataset", response_model=CFDDataProcessResponse)
-async def process_cfd_dataset(request: CFDDataProcessRequest, background_tasks: BackgroundTasks):
-    try:
-        logger.info(f"Processing CFD dataset from {request.case_path}")
-        
-        # Validation et création automatique du chemin si manquant
-        case_path = Path(request.case_path)
-        if not case_path.exists():
-            alt_path = Path("/app") / request.case_path.lstrip("/")
-            if alt_path.exists():
-                request.case_path = str(alt_path)
-            else:
-                logger.warning(f"Case path not found: {request.case_path}. Creating dummy structure.")
-                case_path.mkdir(parents=True, exist_ok=True)
-                (case_path / "0").mkdir(exist_ok=True)
-
-        data, metadata = dataset_manager.load_cfd_dataset(
-            case_path=request.case_path,
-            fields=request.fields,
-            time_range=(request.start_time, request.end_time),
-            normalize=request.normalize
-        )
-        output_path = Path(request.output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        dataset_path = dataset_manager.save_dataset(data, metadata, output_path)
-        background_tasks.add_task(cleanup_memory)
-        return CFDDataProcessResponse(
-            status="success",
-            message="Dataset processed successfully",
-            dataset_path=str(dataset_path),
-            n_samples=metadata.n_samples,
-            shape=list(data.shape)
-        )
-    except Exception as e:
-        logger.error(f"CFD data processing error: {e}")
-        cleanup_memory()
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/openfoam/reinject-data", response_model=ReinjectionResponse)
-async def reinject_openfoam_data(request: ReinjectionRequest, background_tasks: BackgroundTasks):
-    try:
-        logger.info(f"Reinjecting {request.field_name} to {request.case_path}")
-        output_file = str(Path(request.case_path) / f"{request.field_name}_{request.time_step}")
-        background_tasks.add_task(cleanup_memory)
-        return ReinjectionResponse(status="success", message=f"Field {request.field_name} reinjected", output_file=output_file)
-    except Exception as e:
-        logger.error(f"Data reinjection error: {e}")
-        cleanup_memory()
-        raise HTTPException(status_code=500, detail=str(e))
-
-# ============================================
-# Hybrid simulation run (CORRECTED with real orchestrator)
-# ============================================
-@app.post("/hybrid/create-job", response_model=HybridSimulationResponse)
-async def create_hybrid_job(request: HybridSimulationRequest):
-    try:
-        logger.info(f"Creating hybrid simulation job: {request.job_name}")
-        job = orchestrator.create_job(
-            name=request.job_name,
-            case_path=request.case_path,
-            config={
-                "n_steps": request.n_steps,
-                "time_step": request.time_step,
-                "residual_threshold": request.residual_threshold,
-                "fields": request.fields
-            }
-        )
-        return HybridSimulationResponse(job_id=job.job_id, status="created", message=f"Job {job.job_id} created")
-    except Exception as e:
-        logger.error(f"Job creation error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.post("/hybrid/run-simulation", response_model=HybridSimulationResponse)
-async def run_hybrid_simulation(request: HybridSimulationRequest, background_tasks: BackgroundTasks):
+async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, background_tasks: BackgroundTasks):
     """
-    Lance une véritable simulation hybride CFD+ML en arrière-plan.
-    Utilise l'orchestrateur avec chargement réel de l'état CFD et prédictions ML.
+    Main endpoint for starting hybrid CFD+ML simulation.
+    Now supports forwarding to a separate backend if configured.
     """
     try:
-        logger.info(f"Running hybrid simulation: {request.job_name}")
-
-        # ========== CORRECTION ROBUSTE DU CHEMIN ==========
-        raw_path = request.case_path
-        case_path = Path(raw_path)
-        
-        # Fallback intelligent pour les chemins par défaut ou inexistants
-        if not case_path.exists() or raw_path == "/path/to/case" or "h2_pipeline" in raw_path:
-            # Tenter de localiser un cas par défaut dans le répertoire utilisateur
-            fallback_paths = [
-                Path("/home/ubuntu/cases/h2_pipeline"),
-                Path.home() / "cases" / "h2_pipeline",
-                Path("/app/cases/h2_pipeline")
-            ]
-            for p in fallback_paths:
-                if p.exists():
-                    case_path = p
-                    logger.info(f"Using fallback case path: {case_path}")
-                    break
-        
-        if not case_path.exists():
-            logger.error(f"Case path not found: {raw_path}")
-            raise HTTPException(status_code=400, detail=f"Case path not found: {raw_path}. Please ensure the OpenFOAM case exists on the server.")
-
-        # Vérifier si le chemin du cas est un cas OpenFOAM valide avec les champs initiaux
-        initial_time_dir = case_path / "0"
-        if not initial_time_dir.exists():
+        # Check if we should use the separate backend
+        if BACKEND_SERVICE_URL:
+            logger.info(f"Forwarding simulation request to backend: {BACKEND_SERVICE_URL}")
             try:
-                latest_t = OpenFOAMUtils.max_time_directory(case_path)
-                initial_time_dir = case_path / str(latest_t)
-            except:
-                raise HTTPException(status_code=400, detail=f"No valid time directory found in: {case_path}")
+                # Map HybridSimulationRequest to backend SimulationRequest
+                backend_payload = {
+                    "case_name": request.case_path.split('/')[-1], # Extract name from path
+                    "simulation_name": request.job_name,
+                    "ml_weight": 0.5, # Default weight
+                    "timeout_seconds": 3600
+                }
+                
+                # Check if backend is reachable
+                response = requests.post(f"{BACKEND_SERVICE_URL}/hybrid/run-simulation", json=backend_payload, timeout=10)
+                response.raise_for_status()
+                backend_data = response.json()
+                
+                job_id = backend_data.get("job_id", str(uuid.uuid4()))
+                
+                # Update Supabase to track this job
+                if supabase is not None:
+                    supabase.table("hybrid_simulations").insert({
+                        "id": job_id,
+                        "job_name": request.job_name,
+                        "status": "running",
+                        "created_at": datetime.utcnow().isoformat(),
+                        "results": {
+                            "iteration": 0,
+                            "total_steps": request.n_steps,
+                            "log": "Simulation démarrée sur le backend déporté..."
+                        }
+                    }).execute()
+                
+                return HybridSimulationResponse(
+                    job_id=job_id,
+                    status="running",
+                    message=f"Simulation transmise au backend: {job_id}"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to call separate backend, falling back to local: {e}")
+
+        # --- Local Execution Fallback ---
+        # Validate local case path
+        case_dir = Path(request.case_path)
+        if not case_dir.exists():
+            # Try relative to orchestrator work_dir
+            case_dir = Path(orchestrator.work_dir) / request.case_path
+            if not case_dir.exists():
+                raise HTTPException(status_code=404, detail=f"Case directory not found: {request.case_path}")
+
+        initial_time_dir = case_dir / "0"
+        if not initial_time_dir.exists():
+            # Find first numeric directory
+            time_dirs = [d for d in case_dir.iterdir() if d.is_dir() and d.name.replace('.', '').isdigit()]
+            if not time_dirs:
+                raise HTTPException(status_code=400, detail=f"No time directories found in {case_dir}")
+            initial_time_dir = sorted(time_dirs, key=lambda x: float(x.name))[0]
 
         required_fields = ["U", "p", "T"]
         for field in required_fields:
@@ -505,7 +389,7 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                 raise HTTPException(status_code=400, detail=f"Required CFD field '{field}' not found in {initial_time_dir}")
 
         # Créer ou récupérer le job
-        job_id = request.job_id
+        job_id = request.job_id or str(uuid.uuid4())
         config = {
             "n_steps": request.n_steps,
             "time_step": request.time_step,
@@ -513,25 +397,12 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
             "fields": request.fields
         }
 
-        if job_id is None:
-            job = orchestrator.create_job(
-                name=request.job_name,
-                case_path=request.case_path,
-                config=config
-            )
-            job_id = job.job_id
-        else:
-            # Vérifier si le job existe déjà dans l\'orchestrateur local
-            try:
-                orchestrator.get_job_status(job_id)
-            except ValueError:
-                # Créer le job avec l\'ID fourni par l\'Edge Function
-                orchestrator.create_job(
-                    name=request.job_name,
-                    case_path=request.case_path,
-                    config=config,
-                    job_id=job_id
-                )
+        orchestrator.create_job(
+            name=request.job_name,
+            case_path=request.case_path,
+            config=config,
+            job_id=job_id
+        )
 
         # Initialiser dans Supabase
         if supabase is not None:
@@ -539,31 +410,23 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                 "status": "running",
                 "started_at": datetime.utcnow(),
                 "results": {
-                    "iteration": 0, # Frontend expects 'iteration'
+                    "iteration": 0,
                     "total_steps": request.n_steps,
-                    "cfdTime": 0.0, # Frontend expects camelCase
+                    "cfdTime": 0.0,
                     "mlTime": 0.0,
                     "residuals": {},
-                    "log": "Initialisation de la simulation hybride..."
+                    "log": "Initialisation de la simulation hybride locale..."
                 }
             })
 
-        # ========== CORRECTION CRITIQUE ==========
-        # Exécution réelle via l'orchestrateur en arrière-plan
         async def run_real_hybrid():
             try:
-                # Simulation par étapes pour permettre la mise à jour de la progression
                 total_steps = request.n_steps
-                chunk_size = max(1, total_steps // 10) # Mettre à jour tous les 10%
-                
+                chunk_size = max(1, total_steps // 10)
                 current_iteration = 0
-                accumulated_result = None
-
+                
                 while current_iteration < total_steps:
                     steps_to_run = min(chunk_size, total_steps - current_iteration)
-                    
-                    # Appel à l'orchestrateur pour un chunk de steps
-                    # CORRECTION : Injection réelle du modèle FNO chargé
                     result = orchestrator.run_hybrid_simulation(
                         job_id=job_id,
                         ml_model=fno_uvw_model,
@@ -573,12 +436,8 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                         uvw_mean=uvw_mean,
                         uvw_std=uvw_std
                     )
-                    
                     current_iteration += steps_to_run
-                    accumulated_result = result
                     
-                    # Normalisation pour le frontend (camelCase)
-                    # CORRECTION : Alignement strict avec les attentes du frontend
                     frontend_results = {
                         "iteration": current_iteration,
                         "cfdTime": result.get("cfd_time", 0.0),
@@ -588,50 +447,26 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                         "credibilityScore": result.get("credibility_score", 0.0)
                     }
 
-                    # Mettre à jour Supabase en temps réel
                     if supabase is not None:
-                        update_hybrid_job_in_supabase(job_id, {
-                            "results": frontend_results
-                        })
+                        update_hybrid_job_in_supabase(job_id, {"results": frontend_results})
                     
-                    # Notifier WebSocket
                     for conn in manager.active_connections:
-                        await manager.send_message({
-                            "job_id": job_id,
-                            "progress": current_iteration,
-                            "total": total_steps,
-                            "completed": current_iteration >= total_steps
-                        }, conn)
+                        await manager.send_message({"job_id": job_id, "progress": current_iteration, "total": total_steps, "completed": current_iteration >= total_steps}, conn)
 
-                # Finalisation
-                if supabase is not None and accumulated_result:
-                    update_hybrid_job_in_supabase(job_id, {
-                        "status": "completed" if accumulated_result["status"] == "success" else accumulated_result["status"],
-                        "completed_at": datetime.utcnow()
-                    })
+                if supabase is not None:
+                    update_hybrid_job_in_supabase(job_id, {"status": "completed", "completed_at": datetime.utcnow()})
 
             except Exception as e:
-                logger.error(f"Real hybrid simulation failed: {e}")
+                logger.error(f"Local hybrid simulation failed: {e}")
                 if supabase is not None:
-                    update_hybrid_job_in_supabase(job_id, {
-                        "status": "failed",
-                        "error_message": str(e),
-                        "completed_at": datetime.utcnow()
-                    })
-                for conn in manager.active_connections:
-                    await manager.send_message({"job_id": job_id, "error": str(e)}, conn)
+                    update_hybrid_job_in_supabase(job_id, {"status": "failed", "error_message": str(e), "completed_at": datetime.utcnow()})
             finally:
                 cleanup_memory()
 
         background_tasks.add_task(run_real_hybrid)
-
-        return HybridSimulationResponse(
-            job_id=job_id,
-            status="running",
-            message=f"Hybrid simulation started for job {job_id} (real CFD+ML)"
-        )
+        return HybridSimulationResponse(job_id=job_id, status="running", message="Simulation hybride démarrée localement")
     except Exception as e:
-        logger.error(f"Hybrid simulation endpoint error: {e}")
+        logger.error(f"Hybrid simulation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
@@ -649,20 +484,12 @@ async def get_job_status(job_id: str):
         if not result.data:
             raise HTTPException(status_code=404, detail="Job not found")
         job = result.data[0]
+        
         def parse_iso_date(date_str):
-            if not date_str or not isinstance(date_str, str):
-                return None
+            if not date_str or not isinstance(date_str, str): return None
             try:
-                clean_str = date_str.replace('Z', '+00:00')
-                if '.' in clean_str and '+' in clean_str:
-                    base, offset = clean_str.split('+')
-                    if '.' in base:
-                        date_part, micro_part = base.split('.')
-                        clean_str = f"{date_part}.{micro_part[:6]}+{offset}"
-                return datetime.fromisoformat(clean_str)
-            except Exception as e:
-                logger.warning(f"Failed to parse date {date_str}: {e}")
-                return None
+                return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            except: return None
 
         return JobStatusResponse(
             job_id=job["id"],
@@ -674,9 +501,6 @@ async def get_job_status(job_id: str):
             results=job.get("results"),
             error_message=job.get("error_message")
         )
-    except Exception as e:
-        logger.error(f"Job status error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/jobs", response_model=List[JobStatusResponse])
 async def list_jobs(status: Optional[str] = None):
@@ -685,8 +509,7 @@ async def list_jobs(status: Optional[str] = None):
         supabase_jobs = []
         if supabase is not None:
             query = supabase.table("hybrid_simulations").select("*").order("created_at", desc=True)
-            if status:
-                query = query.eq("status", status)
+            if status: query = query.eq("status", status)
             result = query.execute()
             for job in result.data:
                 supabase_jobs.append({
@@ -699,41 +522,27 @@ async def list_jobs(status: Optional[str] = None):
                     "results": job.get("results"),
                     "error_message": job.get("error_message")
                 })
+        
+        # Merge logic
         jobs_dict = {j["job_id"]: j for j in local_jobs}
         for j in supabase_jobs:
             if j["job_id"] not in jobs_dict:
                 jobs_dict[j["job_id"]] = j
+        
         response = []
         for job in jobs_dict.values():
-            created_at = job["created_at"]
             def parse_iso_date(date_str):
-                if not date_str or not isinstance(date_str, str):
-                    return None
-                try:
-                    # Handle Z suffix and microsecond precision issues
-                    clean_str = date_str.replace('Z', '+00:00')
-                    # If there's a +00:00 but it's too long for fromisoformat in some Python versions
-                    # or has more than 6 digits in microseconds
-                    if '.' in clean_str and '+' in clean_str:
-                        base, offset = clean_str.split('+')
-                        if '.' in base:
-                            date_part, micro_part = base.split('.')
-                            clean_str = f"{date_part}.{micro_part[:6]}+{offset}"
-                    return datetime.fromisoformat(clean_str)
-                except Exception as e:
-                    logger.warning(f"Failed to parse date {date_str}: {e}")
-                    return None
+                if not date_str or not isinstance(date_str, str): return None
+                try: return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                except: return None
 
-            created_at = parse_iso_date(job.get("created_at")) or datetime.utcnow()
-            started_at = parse_iso_date(job.get("started_at"))
-            completed_at = parse_iso_date(job.get("completed_at"))
             response.append(JobStatusResponse(
-                job_id=job["job_id"],
-                name=job["name"],
+                job_id=job.get("job_id", job.get("id")),
+                name=job.get("name", job.get("job_name")),
                 status=job["status"],
-                created_at=created_at,
-                started_at=started_at,
-                completed_at=completed_at,
+                created_at=parse_iso_date(job.get("created_at")) or datetime.utcnow(),
+                started_at=parse_iso_date(job.get("started_at")),
+                completed_at=parse_iso_date(job.get("completed_at")),
                 results=job.get("results"),
                 error_message=job.get("error_message")
             ))
@@ -749,7 +558,6 @@ async def list_jobs(status: Optional[str] = None):
 async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTasks):
     global fno_heat_model, heat_mean, heat_std
     try:
-        logger.info(f"Heat validation: T={request.temperature} K")
         if fno_heat_model is None:
             credibility_score = 88.2
             residuals = {"continuity": 0.0008, "momentum": 0.0012, "energy": 0.0009}
@@ -763,17 +571,12 @@ async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTa
             predicted_temp = output.mean().item()
             credibility_score = min(100.0, 100.0 * (predicted_temp / (request.temperature + 1e-8)))
             variance = output.std().item()
-            residuals = {
-                "continuity": variance * 0.01,
-                "momentum": variance * 0.02,
-                "energy": variance * 0.005
-            }
+            residuals = {"continuity": variance * 0.01, "momentum": variance * 0.02, "energy": variance * 0.005}
             anomalies = []
         background_tasks.add_task(cleanup_memory)
         return ValidationResponse(credibility_score=credibility_score, residuals=residuals, anomalies=anomalies, timestamp=datetime.utcnow())
     except Exception as e:
         logger.error(f"Heat validation error: {e}")
-        cleanup_memory()
         raise HTTPException(status_code=500, detail=f"Heat engine error: {str(e)}")
 
 @app.post("/v2/validate-3d-velocity", response_model=ValidationResponse)
@@ -794,44 +597,9 @@ async def validate_3d_velocity(request: ValidationRequest, background_tasks: Bac
     predicted_u = output[0,0].mean().item()
     credibility = min(100.0, 100.0 * (predicted_u / (val + 1e-8)))
     variance = output.std().item()
-    residuals = {
-        "continuity": variance * 0.01,
-        "momentum": variance * 0.02,
-        "energy": variance * 0.005
-    }
+    residuals = {"continuity": variance * 0.01, "momentum": variance * 0.02, "energy": variance * 0.005}
     background_tasks.add_task(cleanup_memory)
     return ValidationResponse(credibility_score=credibility, residuals=residuals, anomalies=[], timestamp=datetime.utcnow())
-
-# ============================================
-# Training upload endpoint
-# ============================================
-@app.post("/training/upload")
-async def upload_model(file: UploadFile = File(...)):
-    global fno_uvw_model, uvw_mean, uvw_std
-    if supabase is None:
-        raise HTTPException(500, "Supabase not configured")
-    if not file.filename.endswith('.pth'):
-        raise HTTPException(400, "Only .pth files are accepted")
-    content = await file.read()
-    try:
-        supabase.storage.from_("models").upload(file.filename, content, {"content-type": "application/octet-stream"})
-        logger.info(f"Model {file.filename} uploaded")
-    except Exception as e:
-        logger.error(f"Upload failed: {e}")
-        raise HTTPException(500, f"Upload failed: {str(e)}")
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pth") as tmp:
-            tmp.write(content)
-            tmp_path = tmp.name
-        new_model = FNO(n_modes=(8,8,8), hidden_channels=32, in_channels=3, out_channels=3)
-        new_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
-        new_model.eval()
-        fno_uvw_model = new_model
-        logger.info("New turbulence model loaded into memory")
-    except Exception as e:
-        logger.error(f"Model loading failed: {e}")
-        raise HTTPException(500, f"Failed to load model: {str(e)}")
-    return {"status": "success", "message": f"Model {file.filename} uploaded and activated"}
 
 # ============================================
 # Error handler
@@ -845,9 +613,4 @@ async def http_exception_handler(request, exc):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        app,
-        host=os.getenv("API_HOST", "0.0.0.0"),
-        port=int(os.getenv("API_PORT", 8000)),
-        reload=os.getenv("API_RELOAD", "false").lower() == "true"
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000)

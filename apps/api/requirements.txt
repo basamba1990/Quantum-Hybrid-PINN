@@ -20,3 +20,4 @@ neuraloperator>=2.0.0
 h5py>=3.8.0
 matplotlib>=3.5.0
 scikit-learn>=1.2.0
+requests
