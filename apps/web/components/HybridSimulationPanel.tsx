@@ -50,9 +50,9 @@ interface HybridSimulationPanelProps {
 
 export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected }: HybridSimulationPanelProps) {
   const [config, setConfig] = useState<HybridSimulationConfig>({
-    jobName: 'Hybrid Simulation',
-    casePath: '/path/to/case',
-    nSteps: 100,
+    jobName: 'H2_Pipeline_Prediction',
+    casePath: '/home/ubuntu/cases/h2_pipeline',
+    nSteps: 50,
     timeStep: 0.01,
     residualThreshold: 0.01,
     fields: ['U', 'p', 'T'],
@@ -166,9 +166,9 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
 
   const handleResetConfig = () => {
     setConfig({
-      jobName: 'Hybrid Simulation',
-      casePath: '/path/to/case',
-      nSteps: 100,
+      jobName: 'H2_Pipeline_Prediction',
+      casePath: '/home/ubuntu/cases/h2_pipeline',
+      nSteps: 50,
       timeStep: 0.01,
       residualThreshold: 0.01,
       fields: ['U', 'p', 'T'],
