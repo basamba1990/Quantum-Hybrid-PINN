@@ -334,18 +334,19 @@ async def run_openfoam_simulation(request: OpenFOAMSimulationRequest, background
     try:
         logger.info(f"Running OpenFOAM: {request.case_path} with {request.solver}")
         
-        # Validation et création automatique du chemin si manquant
         case_path = Path(request.case_path)
         if not case_path.exists():
-            alt_path = Path("/app") / request.case_path.lstrip("/")
-            if alt_path.exists():
-                request.case_path = str(alt_path)
-            else:
-                logger.warning(f"Case path not found: {request.case_path}. Creating dummy structure.")
-                case_path.mkdir(parents=True, exist_ok=True)
-                (case_path / "0").mkdir(exist_ok=True)
-                (case_path / "constant").mkdir(exist_ok=True)
-                (case_path / "system").mkdir(exist_ok=True)
+            raise HTTPException(status_code=400, detail=f"Case path not found: {request.case_path}")
+
+        # Vérifier si le chemin du cas est un cas OpenFOAM valide avec les champs initiaux
+        initial_time_dir = case_path / "0"
+        if not initial_time_dir.exists():
+            raise HTTPException(status_code=400, detail=f"Initial time directory '0' not found in case path: {request.case_path}")
+
+        required_fields = ["U", "p", "T"]
+        for field in required_fields:
+            if not (initial_time_dir / field).exists():
+                raise HTTPException(status_code=400, detail=f"Required CFD field '{field}' not found in {initial_time_dir}")
 
         foam_utils = OpenFOAMUtils(request.case_path)
         log_decompose = ""
@@ -445,18 +446,19 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
     try:
         logger.info(f"Running hybrid simulation: {request.job_name}")
 
-        # Validation et création automatique du chemin si manquant
         case_path = Path(request.case_path)
         if not case_path.exists():
-            alt_path = Path("/app") / request.case_path.lstrip("/")
-            if alt_path.exists():
-                request.case_path = str(alt_path)
-            else:
-                logger.warning(f"Case path not found: {request.case_path}. Creating dummy structure.")
-                case_path.mkdir(parents=True, exist_ok=True)
-                (case_path / "0").mkdir(exist_ok=True)
-                (case_path / "constant").mkdir(exist_ok=True)
-                (case_path / "system").mkdir(exist_ok=True)
+            raise HTTPException(status_code=400, detail=f"Case path not found: {request.case_path}")
+
+        # Vérifier si le chemin du cas est un cas OpenFOAM valide avec les champs initiaux
+        initial_time_dir = case_path / "0"
+        if not initial_time_dir.exists():
+            raise HTTPException(status_code=400, detail=f"Initial time directory '0' not found in case path: {request.case_path}")
+
+        required_fields = ["U", "p", "T"]
+        for field in required_fields:
+            if not (initial_time_dir / field).exists():
+                raise HTTPException(status_code=400, detail=f"Required CFD field '{field}' not found in {initial_time_dir}")
 
         # Créer ou récupérer le job
         job_id = request.job_id

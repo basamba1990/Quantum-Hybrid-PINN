@@ -166,7 +166,7 @@ def manage_time_uniform(solver_dir: Path, latestML_time: Union[int, float]) -> s
     Files like U, p, T, uniform/time, etc.
     """
     files_list = []
-    ml_dir_name = str(int(latestML_time)) if latestML_time.is_integer() else str(latestML_time)
+    ml_dir_name = str(int(latestML_time)) if isinstance(latestML_time, (int, float)) and latestML_time == int(latestML_time) else str(latestML_time)
     time_dir = solver_dir / ml_dir_name
     if not time_dir.exists():
         return f"Time directory {time_dir} does not exist."
@@ -211,7 +211,7 @@ def manage_time_uniform(solver_dir: Path, latestML_time: Union[int, float]) -> s
         f"{ml_dir_name}/uniform/time",
     ]
 
-    if isinstance(latestML_time, float) and latestML_time.is_integer():
+    if isinstance(latestML_time, (int, float)) and latestML_time == int(latestML_time):
         index_val = int(latestML_time * 100)
     else:
         index_val = int(str(latestML_time).replace(".", "")) if "." in str(latestML_time) else int(latestML_time) * 100
@@ -296,8 +296,8 @@ def numpyToFoam(
     else:
         latestCFD_time = float(latestCFD_time)
 
-    latestCFD_time_dir = solver_dir / (str(int(latestCFD_time)) if latestCFD_time.is_integer() else str(latestCFD_time))
-    ml_dir_time_name = str(int(latestML_time)) if latestML_time.is_integer() else str(latestML_time)
+    latestCFD_time_dir = solver_dir / (str(int(latestCFD_time)) if isinstance(latestCFD_time, (int, float)) and latestCFD_time == int(latestCFD_time) else str(latestCFD_time))
+    ml_dir_time_name = str(int(latestML_time)) if isinstance(latestML_time, (int, float)) and latestML_time == int(latestML_time) else str(latestML_time)
     latestML_time_dir = solver_dir / ml_dir_time_name
 
     # copy the contents of latest CFD simulation time to the latest ML simulation time.
@@ -355,8 +355,8 @@ def numpyToFoamDirect(
     else:
         latestCFD_time = float(latestCFD_time)
 
-    latestCFD_time_dir = solver_dir / (str(int(latestCFD_time)) if latestCFD_time.is_integer() else str(latestCFD_time))
-    ml_dir_time_name = str(int(latestML_time)) if latestML_time.is_integer() else str(latestML_time)
+    latestCFD_time_dir = solver_dir / (str(int(latestCFD_time)) if isinstance(latestCFD_time, (int, float)) and latestCFD_time == int(latestCFD_time) else str(latestCFD_time))
+    ml_dir_time_name = str(int(latestML_time)) if isinstance(latestML_time, (int, float)) and latestML_time == int(latestML_time) else str(latestML_time)
     latestML_time_dir = solver_dir / ml_dir_time_name
 
     # copy the contents of latest CFD simulation time to the latest ML simulation time.
