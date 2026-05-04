@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      LOG_LEVEL: ${LOG_LEVEL}
+    volumes:
+      - ./apps/api:/app
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080" # Mappe le port interne 8080 du conteneur au port externe 8081
+    volumes:
+      - ./apps/backend:/app
+      - ./cases:/home/ubuntu/cases # Volume pour le path_validator
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      # Ces variables sont pour l'application Next.js pour communiquer avec les backends
+      NEXT_PUBLIC_API_URL: http://api:8080 # URL interne pour le service 'api'
+      H2_INFERENCE_API_URL: http://backend:8081 # URL interne pour le service 'backend'
+    volumes:
+      - ./apps/web:/app
+    restart: unless-stopped
+
+volumes:
+  cases:
+    driver: local
