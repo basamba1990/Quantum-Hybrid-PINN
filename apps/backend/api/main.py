@@ -32,7 +32,11 @@ app = FastAPI(
 )
 
 # Initialiser le validateur de chemins
-path_validator = PathValidator(base_path="/home/ubuntu/cases")
+import os
+CASES_BASE_PATH = os.getenv("CASES_BASE_PATH", "/app/cases")
+# S'assurer que le répertoire existe
+os.makedirs(CASES_BASE_PATH, exist_ok=True)
+path_validator = PathValidator(base_path=CASES_BASE_PATH)
 
 # Stockage en mémoire des jobs (à remplacer par une base de données en production)
 jobs_store: Dict[str, Dict[str, Any]] = {}
@@ -82,6 +86,16 @@ class SimulationResponse(BaseModel):
 # ============================================================================
 # Endpoints de Validation
 # ============================================================================
+
+@app.get("/", tags=["Root"])
+async def root() -> Dict[str, Any]:
+    """Route racine pour éviter les 404 et fournir des infos sur l'API."""
+    return {
+        "message": "Quantum-Hybrid-PINN API is running",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health"
+    }
 
 @app.get("/health", tags=["Health"])
 async def health_check() -> Dict[str, str]:
