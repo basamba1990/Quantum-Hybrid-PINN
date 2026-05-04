@@ -378,13 +378,21 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
                 logger.warning(f"Failed to call separate backend, falling back to local: {e}")
 
         # --- Local Execution Fallback ---
-        # Validate local case path
-        case_dir = Path(request.case_path)
-        if not case_dir.exists():
-            # Try relative to orchestrator work_dir
-            case_dir = Path(orchestrator.work_dir) / request.case_path
-            if not case_dir.exists():
-                raise HTTPException(status_code=404, detail=f"Case directory not found: {request.case_path}")
+        # Stratégie de résolution de chemin robuste
+        possible_paths = [
+            Path(request.case_path),
+            Path("/home/ubuntu/cases") / request.case_path,
+            Path(orchestrator.work_dir) / request.case_path
+        ]
+        
+        case_dir = None
+        for p in possible_paths:
+            if p.exists() and p.is_dir():
+                case_dir = p
+                break
+        
+        if not case_dir:
+            raise HTTPException(status_code=404, detail=f"Case directory not found: {request.case_path}")
 
         initial_time_dir = case_dir / "0"
         if not initial_time_dir.exists():

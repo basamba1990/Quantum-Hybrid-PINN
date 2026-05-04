@@ -24,6 +24,7 @@ services:
     volumes:
       - ./apps/backend:/app
       - ./cases:/home/ubuntu/cases # Volume pour le path_validator
+      - cases_data:/home/ubuntu/cases
     restart: unless-stopped
 
   web:
@@ -41,5 +42,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  cases:
+  cases_data:
     driver: local
