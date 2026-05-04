@@ -44,7 +44,7 @@ export function calculateCredibilityScore(
     fluidType,
     anomalies
   )
-  overallScore -= (100 - pressureScore) * 0.20
+  overallScore -= (100 - pressureScore) * 0.0857
 
   // 2. Temperature deviation scoring (weight: 15%)
   const temperatureScore = calculateTemperatureScore(
@@ -52,7 +52,7 @@ export function calculateCredibilityScore(
     fluidType,
     anomalies
   )
-  overallScore -= (100 - temperatureScore) * 0.15
+  overallScore -= (100 - temperatureScore) * 0.0643
 
   // 3. Velocity deviation scoring (weight: 10%)
   const velocityScore = calculateVelocityScore(
@@ -60,30 +60,30 @@ export function calculateCredibilityScore(
     fluidType,
     anomalies
   )
-  overallScore -= (100 - velocityScore) * 0.10
+  overallScore -= (100 - velocityScore) * 0.0429
 
   // 4. Residual norm scoring (weight: 15%)
   const residualScore = calculateResidualScore(
     metrics.residualNorm,
     anomalies
   )
-  overallScore -= (100 - residualScore) * 0.15
+  overallScore -= (100 - residualScore) * 0.0643
 
   // 5. Kalman Filter correction scoring (weight: 10%)
   const assimilationScore = calculateAssimilationScore(
     metrics.kalmanCorrection,
     anomalies
   )
-  overallScore -= (100 - assimilationScore) * 0.10
+  overallScore -= (100 - assimilationScore) * 0.0429
 
   // 6. PVT Coherence (New - weight: 15%)
   const pvtCoherenceScore = enhancedMetrics?.pvtCoherence !== undefined ? enhancedMetrics.pvtCoherence * 100 : 85
-  overallScore -= (100 - pvtCoherenceScore) * 0.15
+  overallScore -= (100 - pvtCoherenceScore) * 0.30
   if (pvtCoherenceScore < 70) anomalies.push("Low PVT coherence detected")
 
   // 7. CFD Stability (New - weight: 15%)
   const cfdStabilityScore = enhancedMetrics?.cfdStability !== undefined ? enhancedMetrics.cfdStability * 100 : 80
-  overallScore -= (100 - cfdStabilityScore) * 0.15
+  overallScore -= (100 - cfdStabilityScore) * 0.40
   if (cfdStabilityScore < 60) anomalies.push("High deviation from CFD KTH reference")
 
   // Normalize final score
