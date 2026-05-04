@@ -33,7 +33,7 @@ app = FastAPI(
 
 # Initialiser le validateur de chemins
 import os
-CASES_BASE_PATH = os.getenv("CASES_BASE_PATH", "/app/cases")
+CASES_BASE_PATH = os.getenv("CASES_BASE_PATH", "/home/ubuntu/cases")
 # S'assurer que le répertoire existe
 os.makedirs(CASES_BASE_PATH, exist_ok=True)
 path_validator = PathValidator(base_path=CASES_BASE_PATH)

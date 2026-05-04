@@ -20,11 +20,14 @@ COPY . .
 # Créer les répertoires nécessaires
 RUN mkdir -p /home/ubuntu/cases
 
+# Définir la variable d'environnement pour le chemin des cas
+ENV CASES_BASE_PATH=/home/ubuntu/cases
+
 # Exposer le port de l'API (Retour à 8080 pour la détection automatique de Render)
 EXPOSE 8080
 
 # Définir le PYTHONPATH pour inclure le dossier api
 ENV PYTHONPATH=/app/api
 
-# Commande de lancement - Utilisation du port 8080
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Commande de lancement - Initialisation des cas puis démarrage de l'API
+CMD python scripts/init_cases.py && uvicorn api.main:app --host 0.0.0.0 --port 8080
