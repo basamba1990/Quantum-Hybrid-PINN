@@ -12,7 +12,10 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from path_validator import PathValidator, PathValidationResult
+try:
+    from path_validator import PathValidator, PathValidationResult
+except ImportError:
+    from api.path_validator import PathValidator, PathValidationResult
 
 # Configuration du logging
 logging.basicConfig(
