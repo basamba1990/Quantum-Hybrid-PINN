@@ -26,4 +26,5 @@ services:
     envVars:
       - key: LOG_LEVEL
         value: INFO
-      # Ajoutez ici d'autres variables d'environnement spécifiques au backend si nécessaire
+      - key: CASES_BASE_PATH
+        value: /app/cases

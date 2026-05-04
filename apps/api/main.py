@@ -302,6 +302,15 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
 # ============================================
 # Health Check
 # ============================================
+@app.get("/")
+async def root():
+    return {
+        "message": "Quantum-Hybrid API is running",
+        "version": "2.2.0",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     return HealthResponse(
@@ -330,8 +339,10 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
             logger.info(f"Forwarding simulation request to backend: {BACKEND_SERVICE_URL}")
             try:
                 # Map HybridSimulationRequest to backend SimulationRequest
+                # Use case_path as case_name if it doesn't look like a path, or extract the last part
+                case_name = request.case_path.strip('/').split('/')[-1]
                 backend_payload = {
-                    "case_name": request.case_path.split('/')[-1], # Extract name from path
+                    "case_name": case_name,
                     "simulation_name": request.job_name,
                     "ml_weight": 0.5, # Default weight
                     "timeout_seconds": 3600
