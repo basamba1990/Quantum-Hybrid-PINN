@@ -133,6 +133,7 @@ class CFDDataProcessResponse(BaseModel):
 
 class HybridSimulationRequest(BaseModel):
     project_id: str
+    user_id: Optional[str] = None
     job_id: Optional[str] = None
     job_name: str
     case_path: str
@@ -340,12 +341,17 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
             logger.info(f"Forwarding simulation request to backend: {BACKEND_SERVICE_URL}")
             try:
                 # Map HybridSimulationRequest to backend SimulationRequest
-                # Use case_path as case_name if it doesn't look like a path, or extract the last part
-                case_name = request.case_path.strip('/').split('/')[-1]
                 backend_payload = {
-                    "case_name": case_name,
-                    "simulation_name": request.job_name,
-                    "ml_weight": 0.5, # Default weight
+                    "project_id": request.project_id,
+                    "user_id": getattr(request, "user_id", None), # Secure ID propagation
+                    "job_id": request.job_id,
+                    "job_name": request.job_name,
+                    "case_path": request.case_path,
+                    "n_steps": request.n_steps,
+                    "time_step": request.time_step,
+                    "residual_threshold": request.residual_threshold,
+                    "fields": request.fields,
+                    "ml_weight": 0.5,
                     "timeout_seconds": 3600
                 }
                 
@@ -360,6 +366,7 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
                 if supabase is not None:
                     supabase.table("hybrid_simulations").insert({
                         "project_id": request.project_id,
+                        "user_id": request.user_id,
                         "id": job_id,
                         "job_name": request.job_name,
                         "status": "running",
@@ -421,6 +428,8 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
         # Initialiser dans Supabase
         if supabase is not None:
             update_hybrid_job_in_supabase(job_id, {
+                "project_id": request.project_id,
+                "user_id": request.user_id,
                 "status": "running",
                 "started_at": datetime.utcnow(),
                 "results": {
