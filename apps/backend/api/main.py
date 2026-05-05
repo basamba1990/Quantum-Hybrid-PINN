@@ -14,6 +14,13 @@ from pathlib import Path
 import os
 import sys
 
+# Configuration du logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 # Ajouter le chemin vers les moteurs
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../api")))
 
@@ -29,13 +36,6 @@ try:
 except ImportError:
     logger.warning("Moteurs PVT/FNO non trouvés dans le chemin, utilisation de stubs.")
     HAS_ENGINES = False
-
-# Configuration du logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 # Initialiser l'application FastAPI
 app = FastAPI(
