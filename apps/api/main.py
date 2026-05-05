@@ -132,7 +132,7 @@ class CFDDataProcessResponse(BaseModel):
     shape: Optional[List[int]] = None
 
 class HybridSimulationRequest(BaseModel):
-    project_id: str
+    project_id: Optional[str] = None
     user_id: Optional[str] = None
     job_id: Optional[str] = None
     job_name: str

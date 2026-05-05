@@ -132,6 +132,8 @@ serve(async (req: Request) => {
     // 2. Appeler le backend FastAPI avec l'ID du job
     const payload = {
       job_id: jobId,
+      project_id: request.projectId,
+      user_id: request.userId,
       job_name: request.jobName,
       case_path: request.casePath,
       n_steps: request.nSteps,
