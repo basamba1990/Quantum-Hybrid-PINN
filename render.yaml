@@ -7,15 +7,17 @@ services:
     rootDir: apps/backend
     envVars:
       - key: SUPABASE_URL
-        sync: false # À configurer manuellement dans l'interface Render
+        sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false # À configurer manuellement dans l'interface Render
+        sync: false
       - key: LOG_LEVEL
         value: INFO
       - key: ALLOWED_ORIGINS
-        value: "*" # Important : À restreindre à votre domaine Vercel après le déploiement de l'application web
-      - key: BACKEND_SERVICE_URL # Nouvelle variable pour la communication interne
-        value: https://quantum-hybrid-backend.onrender.com # Remplacer par l'URL réelle du service backend sur Render
+        value: "*"
+      - key: BACKEND_SERVICE_URL
+        value: https://quantum-hybrid-backend.onrender.com
+      - key: IS_API_GATEWAY
+        value: "true"
 
   - type: web
     name: quantum-hybrid-backend
@@ -28,3 +30,5 @@ services:
         value: INFO
       - key: CASES_BASE_PATH
         value: /home/ubuntu/cases
+      - key: IS_BACKEND_WORKER
+        value: "true"
