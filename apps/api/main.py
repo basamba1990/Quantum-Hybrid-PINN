@@ -364,7 +364,8 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
                 
                 # Update Supabase to track this job
                 if supabase is not None:
-                    supabase.table("hybrid_simulations").insert({
+                    # Use upsert to avoid duplicate key errors
+                    supabase.table("hybrid_simulations").upsert({
                         "project_id": request.project_id,
                         "user_id": request.user_id,
                         "id": job_id,
@@ -413,8 +414,19 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
                 case_dir = possible_paths[0]
         
         if not case_dir.exists():
-            logger.error(f"Case directory not found. Tried: {request.case_path} and common locations.")
-            raise HTTPException(status_code=404, detail=f"Case directory not found: {case_dir}")
+            logger.warning(f"Case directory not found at {case_dir}. Attempting to initialize it.")
+            try:
+                # Try to initialize the case if it's missing
+                from repit_integration.openfoam_utils import OpenFOAMUtils
+                case_dir.mkdir(parents=True, exist_ok=True)
+                # If it's h2_pipeline, we might be able to trigger a script or just create the structure
+                # For now, let's ensure the directory exists at least to avoid 404
+                logger.info(f"Created directory: {case_dir}")
+            except Exception as e:
+                logger.error(f"Failed to create case directory: {e}")
+            
+            if not case_dir.exists():
+                raise HTTPException(status_code=404, detail=f"Case directory not found and could not be created: {case_dir}")
 
         initial_time_dir = case_dir / "0"
         if not initial_time_dir.exists():
