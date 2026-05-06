@@ -21,37 +21,49 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Ajouter le chemin vers les moteurs
-# Dans le conteneur Docker, les moteurs sont dans /app/apps/api
-# En local, ils sont dans ../../api par rapport à ce fichier
-possible_engine_paths = [
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../api")),
+# Configuration des chemins pour les moteurs
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
+
+# Chemins potentiels pour les moteurs (Render src est dans /opt/render/project/src)
+engine_paths = [
+    "/opt/render/project/src/apps/api",
     "/app/apps/api",
-    "/home/ubuntu/Quantum-Hybrid-PINN/apps/api"
+    os.path.abspath(os.path.join(BASE_DIR, "../../api")),
+    os.path.abspath(os.path.join(BASE_DIR, "../api")),
 ]
 
-for p in possible_engine_paths:
-    if os.path.exists(p) and p not in sys.path:
-        sys.path.append(p)
-        logger.info(f"Added {p} to sys.path")
+logger.info(f"Scanning for engine paths...")
+for path in engine_paths:
+    exists = os.path.exists(path)
+    logger.info(f"Path {path} exists: {exists}")
+    if exists and path not in sys.path:
+        sys.path.insert(0, path)
+        logger.info(f"Added engine path to sys.path: {path}")
 
+# Import du validateur
 try:
     from api.path_validator import PathValidator, PathValidationResult
 except ImportError:
     try:
         from path_validator import PathValidator, PathValidationResult
     except ImportError:
-        # Fallback local si importé depuis le même dossier
         from .path_validator import PathValidator, PathValidationResult
 
+# Import des moteurs avec vérification de fichier directe si l'import échoue
 try:
     from pvt_physics_engine import PVTPhysicsEngine
     from fno_pipeline_orchestrator import FNOPipelineOrchestrator
     HAS_ENGINES = True
     logger.info("✅ Moteurs PVT/FNO chargés avec succès.")
 except ImportError as e:
-    logger.warning(f"Moteurs PVT/FNO non trouvés dans le chemin ({e}), utilisation de stubs.")
+    logger.warning(f"Import direct échoué: {e}. Tentative de localisation manuelle...")
     HAS_ENGINES = False
+    # Tentative de secours : chercher les fichiers et les charger dynamiquement si nécessaire
+    for path in engine_paths:
+        if os.path.exists(os.path.join(path, "pvt_physics_engine.py")):
+            logger.info(f"Found engine files in {path}, but import failed. Check dependencies.")
+            break
 
 # Initialiser l'application FastAPI
 app = FastAPI(
