@@ -369,6 +369,7 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
                         "user_id": request.user_id,
                         "id": job_id,
                         "job_name": request.job_name,
+                        "case_path": request.case_path,
                         "status": "running",
                         "created_at": datetime.utcnow().isoformat(),
                         "results": {
@@ -391,9 +392,28 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
         # If case_path is not absolute, assume it's relative to orchestrator's work_dir
         case_dir = Path(request.case_path)
         if not case_dir.is_absolute():
-            case_dir = Path(orchestrator.work_dir) / request.case_path
+            # Try multiple common locations for cases
+            possible_paths = [
+                Path(orchestrator.work_dir) / request.case_path,
+                Path("/app/cases") / request.case_path,
+                Path("/home/ubuntu/cases") / request.case_path,
+                Path(os.getcwd()) / "cases" / request.case_path
+            ]
+            
+            found = False
+            for p in possible_paths:
+                if p.exists():
+                    case_dir = p
+                    found = True
+                    logger.info(f"Found case directory at: {case_dir}")
+                    break
+            
+            if not found:
+                # Fallback to the first one but it will fail the exists check below
+                case_dir = possible_paths[0]
         
         if not case_dir.exists():
+            logger.error(f"Case directory not found. Tried: {request.case_path} and common locations.")
             raise HTTPException(status_code=404, detail=f"Case directory not found: {case_dir}")
 
         initial_time_dir = case_dir / "0"

@@ -228,7 +228,14 @@ async def run_hybrid_simulation(
     logger.info(f"Received simulation request: {request.job_name} for case {case_name}")
 
     # PHASE 1: Validation du chemin du cas AVANT l'exécution
+    # Essayer d'abord avec le nom du cas
     validation_result = path_validator.validate_case_path(case_name)
+    
+    # Si non trouvé, essayer avec le chemin complet si fourni
+    if not validation_result.is_valid and request.case_path != case_name:
+        # Extraire le nom du cas du chemin complet si c'est un chemin absolu
+        potential_case_name = request.case_path.strip('/').split('/')[-1]
+        validation_result = path_validator.validate_case_path(potential_case_name)
 
     if not validation_result.is_valid:
         logger.error(f"Simulation rejected: Case path validation failed for {case_name}")

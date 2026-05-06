@@ -27,4 +27,4 @@ services:
       - key: LOG_LEVEL
         value: INFO
       - key: CASES_BASE_PATH
-        value: /app/cases
+        value: /home/ubuntu/cases
