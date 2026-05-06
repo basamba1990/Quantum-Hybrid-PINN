@@ -238,6 +238,16 @@ async def run_hybrid_simulation(
         validation_result = path_validator.validate_case_path(potential_case_name)
 
     if not validation_result.is_valid:
+        logger.warning(f"Case path validation failed for {case_name}. Attempting auto-initialization.")
+        try:
+            from scripts.init_cases import init as init_cases
+            init_cases()
+            # Re-validate after initialization
+            validation_result = path_validator.validate_case_path(case_name)
+        except Exception as e:
+            logger.error(f"Auto-initialization failed: {e}")
+
+    if not validation_result.is_valid:
         logger.error(f"Simulation rejected: Case path validation failed for {case_name}")
         raise HTTPException(
             status_code=400,
