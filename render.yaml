@@ -3,8 +3,8 @@ services:
     name: quantum-hybrid-api
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
-    rootDir: apps/api
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    rootDir: apps/backend
     envVars:
       - key: SUPABASE_URL
         sync: false # À configurer manuellement dans l'interface Render

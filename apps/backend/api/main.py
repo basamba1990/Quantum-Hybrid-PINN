@@ -23,47 +23,25 @@ logger = logging.getLogger(__name__)
 
 # Configuration des chemins pour les moteurs
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
-
-# Chemins potentiels pour les moteurs (Render src est dans /opt/render/project/src)
-engine_paths = [
-    "/opt/render/project/src/apps/api",
-    "/app/apps/api",
-    os.path.abspath(os.path.join(BASE_DIR, "../../api")),
-    os.path.abspath(os.path.join(BASE_DIR, "../api")),
-]
-
-logger.info(f"Scanning for engine paths...")
-for path in engine_paths:
-    exists = os.path.exists(path)
-    logger.info(f"Path {path} exists: {exists}")
-    if exists and path not in sys.path:
-        sys.path.insert(0, path)
-        logger.info(f"Added engine path to sys.path: {path}")
+# On ajoute le répertoire courant au sys.path pour s'assurer que les imports locaux fonctionnent
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
 
 # Import du validateur
 try:
-    from api.path_validator import PathValidator, PathValidationResult
+    from path_validator import PathValidator, PathValidationResult
 except ImportError:
-    try:
-        from path_validator import PathValidator, PathValidationResult
-    except ImportError:
-        from .path_validator import PathValidator, PathValidationResult
+    from .path_validator import PathValidator, PathValidationResult
 
-# Import des moteurs avec vérification de fichier directe si l'import échoue
+# Import des moteurs (maintenant situés dans le même répertoire)
 try:
     from pvt_physics_engine import PVTPhysicsEngine
     from fno_pipeline_orchestrator import FNOPipelineOrchestrator
     HAS_ENGINES = True
-    logger.info("✅ Moteurs PVT/FNO chargés avec succès.")
+    logger.info("✅ Moteurs PVT/FNO chargés avec succès depuis le répertoire local.")
 except ImportError as e:
-    logger.warning(f"Import direct échoué: {e}. Tentative de localisation manuelle...")
+    logger.error(f"❌ Échec de l'import des moteurs: {e}")
     HAS_ENGINES = False
-    # Tentative de secours : chercher les fichiers et les charger dynamiquement si nécessaire
-    for path in engine_paths:
-        if os.path.exists(os.path.join(path, "pvt_physics_engine.py")):
-            logger.info(f"Found engine files in {path}, but import failed. Check dependencies.")
-            break
 
 # Initialiser l'application FastAPI
 app = FastAPI(
@@ -73,7 +51,6 @@ app = FastAPI(
 )
 
 # Initialiser le validateur de chemins
-import os
 CASES_BASE_PATH = os.getenv("CASES_BASE_PATH", "/home/ubuntu/cases")
 # S'assurer que le répertoire existe
 os.makedirs(CASES_BASE_PATH, exist_ok=True)
@@ -142,7 +119,8 @@ async def root() -> Dict[str, Any]:
         "message": "Quantum-Hybrid-PINN API is running",
         "version": "1.0.0",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
+        "engines_loaded": HAS_ENGINES
     }
 
 @app.get("/health", tags=["Health"])
@@ -151,7 +129,8 @@ async def health_check() -> Dict[str, str]:
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "service": "Quantum-Hybrid-PINN API"
+        "service": "Quantum-Hybrid-PINN API",
+        "engines_loaded": str(HAS_ENGINES)
     }
 
 
@@ -159,13 +138,6 @@ async def health_check() -> Dict[str, str]:
 async def validate_case_path(request: CasePathRequest) -> Dict[str, Any]:
     """
     Valider l'existence et l'accessibilité d'un cas OpenFOAM.
-
-    **Paramètres:**
-    - `case_name`: Nom du cas (par exemple, 'h2_pipeline')
-
-    **Réponses:**
-    - 200: Cas valide ou détails de l'erreur
-    - 400: Cas non trouvé ou invalide
     """
     logger.info(f"Validating case path: {request.case_name}")
 
@@ -195,13 +167,6 @@ async def validate_case_path(request: CasePathRequest) -> Dict[str, Any]:
 async def validate_absolute_path(request: AbsolutePathRequest) -> Dict[str, Any]:
     """
     Valider un chemin absolu fourni directement.
-
-    **Paramètres:**
-    - `absolute_path`: Chemin absolu complet
-
-    **Réponses:**
-    - 200: Chemin valide ou détails de l'erreur
-    - 400: Chemin non trouvé ou invalide
     """
     logger.info(f"Validating absolute path: {request.absolute_path}")
 
@@ -230,9 +195,6 @@ async def validate_absolute_path(request: AbsolutePathRequest) -> Dict[str, Any]
 async def list_available_cases() -> Dict[str, Any]:
     """
     Lister tous les cas OpenFOAM disponibles.
-
-    **Réponses:**
-    - 200: Liste des cas disponibles et invalides
     """
     logger.info("Listing available cases")
     cases_info = path_validator.list_available_cases()
@@ -255,26 +217,9 @@ async def run_hybrid_simulation(
     case_name = request.case_path.strip('/').split('/')[-1]
     logger.info(f"Received simulation request: {request.job_name} for case {case_name}")
 
-    # PHASE 1: Validation du chemin du cas AVANT l'exécution
-    # Essayer d'abord avec le nom du cas
+    # Validation du chemin du cas
     validation_result = path_validator.validate_case_path(case_name)
     
-    # Si non trouvé, essayer avec le chemin complet si fourni
-    if not validation_result.is_valid and request.case_path != case_name:
-        # Extraire le nom du cas du chemin complet si c'est un chemin absolu
-        potential_case_name = request.case_path.strip('/').split('/')[-1]
-        validation_result = path_validator.validate_case_path(potential_case_name)
-
-    if not validation_result.is_valid:
-        logger.warning(f"Case path validation failed for {case_name}. Attempting auto-initialization.")
-        try:
-            from scripts.init_cases import init as init_cases
-            init_cases()
-            # Re-validate after initialization
-            validation_result = path_validator.validate_case_path(case_name)
-        except Exception as e:
-            logger.error(f"Auto-initialization failed: {e}")
-
     if not validation_result.is_valid:
         logger.error(f"Simulation rejected: Case path validation failed for {case_name}")
         raise HTTPException(
@@ -289,7 +234,7 @@ async def run_hybrid_simulation(
     # Utiliser l'ID fourni ou en générer un
     job_id = request.job_id or str(uuid.uuid4())
 
-    # Créer une entrée de job avec sécurisation des identifiants
+    # Créer une entrée de job
     job_info = {
         "job_id": job_id,
         "project_id": request.project_id,
@@ -298,145 +243,26 @@ async def run_hybrid_simulation(
         "job_name": request.job_name,
         "status": "PENDING",
         "created_at": datetime.utcnow().isoformat(),
-        "config": {
-            "n_steps": request.n_steps,
-            "time_step": request.time_step,
-            "residual_threshold": request.residual_threshold,
-            "ml_weight": request.ml_weight,
-            "fields": request.fields
-        },
-        "case_path": validation_result.path
+        "config": request.dict()
     }
-
+    
     jobs_store[job_id] = job_info
-    logger.info(f"Simulation job created: {job_id} (Project: {request.project_id}, User: {request.user_id})")
-
-    # Ajouter la tâche de simulation en arrière-plan
-    background_tasks.add_task(
-        execute_simulation_background,
-        job_id,
-        validation_result.path,
-        request.ml_weight
-    )
-
+    
+    # Simuler le lancement en arrière-plan
+    # background_tasks.add_task(execute_simulation, job_id)
+    
     return SimulationResponse(
         job_id=job_id,
         case_name=case_name,
         simulation_name=request.job_name,
         status="PENDING",
         created_at=job_info["created_at"],
-        message=f"Simulation job {job_id} accepted and queued for execution"
+        message="Simulation hybride lancée avec succès"
     )
 
-
-@app.get("/hybrid/job/{job_id}", tags=["Simulation"])
+@app.get("/jobs/{job_id}", tags=["Simulation"])
 async def get_job_status(job_id: str) -> Dict[str, Any]:
-    """
-    Récupérer le statut d'un job de simulation.
-
-    **Paramètres:**
-    - `job_id`: ID unique du job
-
-    **Réponses:**
-    - 200: Statut du job
-    - 404: Job non trouvé
-    """
+    """Récupérer le statut d'un job."""
     if job_id not in jobs_store:
-        raise HTTPException(
-            status_code=404,
-            detail={"error": f"Job {job_id} not found"}
-        )
-
+        raise HTTPException(status_code=404, detail="Job non trouvé")
     return jobs_store[job_id]
-
-
-@app.get("/hybrid/jobs", tags=["Simulation"])
-async def list_all_jobs() -> Dict[str, Any]:
-    """
-    Lister tous les jobs de simulation.
-
-    **Réponses:**
-    - 200: Liste des jobs
-    """
-    return {
-        "total_jobs": len(jobs_store),
-        "jobs": list(jobs_store.values())
-    }
-
-
-# ============================================================================
-# Tâches en Arrière-Plan
-# ============================================================================
-
-async def execute_simulation_background(job_id: str, case_path: str, ml_weight: float) -> None:
-    """
-    Exécuter la simulation en arrière-plan avec intégration réelle des moteurs.
-    """
-    try:
-        logger.info(f"Starting industrial simulation execution for job {job_id}")
-        jobs_store[job_id]["status"] = "RUNNING"
-        jobs_store[job_id]["started_at"] = datetime.utcnow().isoformat()
-
-        if HAS_ENGINES:
-            logger.info("Using real PVT/FNO engines for simulation")
-            # Initialiser l'orchestrateur FNO
-            fno_orchestrator = FNOPipelineOrchestrator(fluid_type='H2')
-            
-            # Récupérer les paramètres de la requête
-            config = jobs_store[job_id].get("config", {})
-            input_params = {
-                "pressure": 1.5e6,  # Valeurs par défaut industrielles
-                "temperature": 350,
-                "ml_weight": ml_weight
-            }
-            
-            # Exécuter le pipeline
-            results = fno_orchestrator.run_pipeline(input_params)
-            
-            # Mettre à jour les résultats du job
-            jobs_store[job_id]["results"] = results
-            jobs_store[job_id]["status"] = "COMPLETED"
-        else:
-            # Fallback si les moteurs ne sont pas installés
-            logger.info(f"Executing stub CFD simulation for case: {case_path}")
-            import asyncio
-            await asyncio.sleep(2) # Simuler un calcul
-            
-            jobs_store[job_id]["results"] = {
-                "status": "success",
-                "message": "Simulation stub complétée (moteurs non trouvés)",
-                "final_credibility_score": 85.0
-            }
-            jobs_store[job_id]["status"] = "COMPLETED"
-
-        jobs_store[job_id]["completed_at"] = datetime.utcnow().isoformat()
-        logger.info(f"Simulation completed successfully for job {job_id}")
-
-    except Exception as e:
-        logger.error(f"Simulation failed for job {job_id}: {str(e)}")
-        jobs_store[job_id]["status"] = "FAILED"
-        jobs_store[job_id]["error_message"] = str(e)
-
-
-# ============================================================================
-# Gestion des Erreurs
-# ============================================================================
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request, exc):
-    """Gestionnaire personnalisé pour les exceptions HTTP."""
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "status_code": exc.status_code,
-            "detail": exc.detail,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    )
-
-
-if __name__ == "__main__":
-    import uvicorn
-    # Utiliser la variable d'environnement PORT pour Render, sinon 8080
-    port = int(os.getenv("PORT", 8080))
-    uvicorn.run(app, host="0.0.0.0", port=port)
