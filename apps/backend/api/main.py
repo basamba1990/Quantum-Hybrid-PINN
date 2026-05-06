@@ -22,19 +22,35 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Ajouter le chemin vers les moteurs
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../api")))
+# Dans le conteneur Docker, les moteurs sont dans /app/apps/api
+# En local, ils sont dans ../../api par rapport à ce fichier
+possible_engine_paths = [
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../api")),
+    "/app/apps/api",
+    "/home/ubuntu/Quantum-Hybrid-PINN/apps/api"
+]
+
+for p in possible_engine_paths:
+    if os.path.exists(p) and p not in sys.path:
+        sys.path.append(p)
+        logger.info(f"Added {p} to sys.path")
 
 try:
-    from path_validator import PathValidator, PathValidationResult
-except ImportError:
     from api.path_validator import PathValidator, PathValidationResult
+except ImportError:
+    try:
+        from path_validator import PathValidator, PathValidationResult
+    except ImportError:
+        # Fallback local si importé depuis le même dossier
+        from .path_validator import PathValidator, PathValidationResult
 
 try:
     from pvt_physics_engine import PVTPhysicsEngine
     from fno_pipeline_orchestrator import FNOPipelineOrchestrator
     HAS_ENGINES = True
-except ImportError:
-    logger.warning("Moteurs PVT/FNO non trouvés dans le chemin, utilisation de stubs.")
+    logger.info("✅ Moteurs PVT/FNO chargés avec succès.")
+except ImportError as e:
+    logger.warning(f"Moteurs PVT/FNO non trouvés dans le chemin ({e}), utilisation de stubs.")
     HAS_ENGINES = False
 
 # Initialiser l'application FastAPI
@@ -409,4 +425,6 @@ async def http_exception_handler(request, exc):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    # Utiliser la variable d'environnement PORT pour Render, sinon 8080
+    port = int(os.getenv("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)

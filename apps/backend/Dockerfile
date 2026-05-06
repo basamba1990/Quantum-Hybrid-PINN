@@ -30,4 +30,4 @@ EXPOSE 8080
 ENV PYTHONPATH=/app/api
 
 # Commande de lancement - Initialisation des cas puis démarrage de l'API
-CMD python scripts/init_cases.py && uvicorn api.main:app --host 0.0.0.0 --port 8080
+CMD python scripts/init_cases.py && uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080}
