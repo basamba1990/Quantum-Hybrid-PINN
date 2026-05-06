@@ -37,11 +37,21 @@ except ImportError:
 try:
     from pvt_physics_engine import PVTPhysicsEngine
     from fno_pipeline_orchestrator import FNOPipelineOrchestrator
+    from hydrogen_pinn_v8 import HydrogenPINNV8
     HAS_ENGINES = True
-    logger.info("✅ Moteurs PVT/FNO chargés avec succès depuis le répertoire local.")
+    logger.info("✅ Moteurs PVT/FNO/V8 chargés avec succès.")
 except ImportError as e:
     logger.error(f"❌ Échec de l'import des moteurs: {e}")
     HAS_ENGINES = False
+
+# Modèles globaux pour V2
+current_model_v8 = None
+if HAS_ENGINES:
+    try:
+        current_model_v8 = HydrogenPINNV8()
+        logger.info("✅ Modèle V8 initialisé par défaut.")
+    except Exception as e:
+        logger.error(f"❌ Erreur initialisation V8: {e}")
 
 # Initialiser l'application FastAPI
 app = FastAPI(
@@ -106,6 +116,33 @@ class SimulationResponse(BaseModel):
     status: str
     created_at: str
     message: str
+
+class PredictionRequestV8(BaseModel):
+    time: float
+    x: float
+    y: float
+    z: float
+
+class PredictionResponseV8(BaseModel):
+    pressure: float
+    velocity_u: float
+    velocity_v: float
+    velocity_w: float
+    temperature: float
+    density: float
+    time: float
+    x: float
+    y: float
+    z: float
+    timestamp: str
+
+class AssimilationRequestV8(BaseModel):
+    current_state: List[float]
+    observation: List[float]
+
+class AssimilationResponseV8(BaseModel):
+    assimilated_state: List[float]
+    timestamp: str
 
 
 # ============================================================================
@@ -266,3 +303,47 @@ async def get_job_status(job_id: str) -> Dict[str, Any]:
     if job_id not in jobs_store:
         raise HTTPException(status_code=404, detail="Job non trouvé")
     return jobs_store[job_id]
+
+# ============================================================================
+# Endpoints V2 (Hybrid PINN V8)
+# ============================================================================
+
+@app.post("/v2/validate-3d", response_model=PredictionResponseV8, tags=["V2"])
+async def validate_3d(request: PredictionRequestV8):
+    global current_model_v8
+    try:
+        if current_model_v8 is None:
+            if HAS_ENGINES:
+                from hydrogen_pinn_v8 import HydrogenPINNV8
+                current_model_v8 = HydrogenPINNV8()
+            else:
+                raise ValueError("Moteurs non disponibles")
+        
+        result = current_model_v8.predict_state(request.time, request.x, request.y, request.z)
+        return PredictionResponseV8(
+            **result,
+            timestamp=datetime.utcnow().isoformat(),
+        )
+    except Exception as e:
+        logger.error(f"3D Validation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/v2/assimilate", response_model=AssimilationResponseV8, tags=["V2"])
+async def assimilate_data(request: AssimilationRequestV8):
+    global current_model_v8
+    try:
+        if current_model_v8 is None:
+            if HAS_ENGINES:
+                from hydrogen_pinn_v8 import HydrogenPINNV8
+                current_model_v8 = HydrogenPINNV8()
+            else:
+                raise ValueError("Moteurs non disponibles")
+        
+        assimilated_state = current_model_v8.assimilate_data(request.current_state, request.observation)
+        return AssimilationResponseV8(
+            assimilated_state=assimilated_state,
+            timestamp=datetime.utcnow().isoformat(),
+        )
+    except Exception as e:
+        logger.error(f"Data assimilation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
