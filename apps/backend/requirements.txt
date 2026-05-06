@@ -7,3 +7,4 @@ torch==2.1.1
 torchvision==0.16.1
 requests==2.31.0
 python-multipart==0.0.6
+neuraloperator>=2.0.0
