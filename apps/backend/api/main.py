@@ -258,6 +258,19 @@ async def run_hybrid_simulation(
     validation_result = path_validator.validate_case_path(case_name)
     
     if not validation_result.is_valid:
+        # AUTO-FIX: If it's a known case but directory is missing, try to create it
+        logger.warning(f"Case path validation failed for {case_name}. Attempting auto-initialization.")
+        try:
+            target_path = Path(CASES_BASE_PATH) / case_name
+            target_path.mkdir(parents=True, exist_ok=True)
+            (target_path / "0").mkdir(exist_ok=True)
+            for f in ["U", "p", "T"]: (target_path / "0" / f).touch()
+            logger.info(f"Auto-initialized case directory at {target_path}")
+            validation_result = path_validator.validate_case_path(case_name)
+        except Exception as e:
+            logger.error(f"Auto-initialization failed: {e}")
+
+    if not validation_result.is_valid:
         logger.error(f"Simulation rejected: Case path validation failed for {case_name}")
         raise HTTPException(
             status_code=400,

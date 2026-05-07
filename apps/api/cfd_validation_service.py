@@ -9,7 +9,8 @@ class CFDValidationService:
     avec les données de référence CFD (KTH/Vinuesa).
     """
     def __init__(self, dataset_path=None):
-        self.dataset_path = dataset_path or "XAI_turbulentchannel_3d_simplified/physique"
+        # Ensure absolute path or correct relative path
+        self.dataset_path = dataset_path or os.path.join(os.getcwd(), "XAI_turbulentchannel_3d_simplified/physique")
         self.reference_data = None
 
     def load_reference(self, filename="reference_dns.h5"):
