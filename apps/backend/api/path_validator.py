@@ -89,12 +89,23 @@ class PathValidator:
             # Créer les sous-répertoires obligatoires
             for d in self.REQUIRED_DIRECTORIES:
                 (case_path / d).mkdir(parents=True, exist_ok=True)
-            # Créer des fichiers stub pour passer la validation si nécessaire
+            # Créer des fichiers stub robustes pour passer la validation et permettre le démarrage de la simulation
+            field_stubs = {
+                "0/U": "FoamFile { version 2.0; format ascii; class volVectorField; location \"0\"; object U; }\ndimensions [0 1 -1 0 0 0 0];\ninternalField uniform (0 0 0);\nboundaryField { defaultFaces { type empty; } }\n",
+                "0/p": "FoamFile { version 2.0; format ascii; class volScalarField; location \"0\"; object p; }\ndimensions [0 2 -2 0 0 0 0];\ninternalField uniform 0;\nboundaryField { defaultFaces { type empty; } }\n",
+                "0/T": "FoamFile { version 2.0; format ascii; class volScalarField; location \"0\"; object T; }\ndimensions [0 0 0 1 0 0 0];\ninternalField uniform 300;\nboundaryField { defaultFaces { type empty; } }\n",
+                "0/k": "FoamFile { version 2.0; format ascii; class volScalarField; location \"0\"; object k; }\ndimensions [0 2 -2 0 0 0 0];\ninternalField uniform 0.01;\nboundaryField { defaultFaces { type empty; } }\n",
+                "0/epsilon": "FoamFile { version 2.0; format ascii; class volScalarField; location \"0\"; object epsilon; }\ndimensions [0 2 -3 0 0 0 0];\ninternalField uniform 0.01;\nboundaryField { defaultFaces { type empty; } }\n"
+            }
+            
             for f in self.REQUIRED_OPENFOAM_FILES:
                 f_path = case_path / f
                 if not f_path.exists():
                     f_path.parent.mkdir(parents=True, exist_ok=True)
-                    f_path.touch()
+                    if f in field_stubs:
+                        f_path.write_text(field_stubs[f])
+                    else:
+                        f_path.touch()
 
         # Vérifier que c'est un répertoire
         if not case_path.is_dir():

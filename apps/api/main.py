@@ -434,10 +434,21 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
             time_dirs = [d for d in case_dir.iterdir() if d.is_dir() and d.name.replace('.', '').isdigit()]
             if not time_dirs:
                 # AUTO-INITIALIZATION: Create "0" directory and basic fields if missing
-                logger.info(f"Initializing empty case structure in {case_dir}")
+                logger.info(f"Initializing robust case structure in {case_dir}")
                 initial_time_dir.mkdir(parents=True, exist_ok=True)
-                for field in ["U", "p", "T"]:
-                    (initial_time_dir / field).touch()
+                
+                # Create valid OpenFOAM field stubs to ensure simulation can start
+                u_content = "FoamFile { version 2.0; format ascii; class volVectorField; location \"0\"; object U; }\ndimensions [0 1 -1 0 0 0 0];\ninternalField uniform (0 0 0);\nboundaryField { defaultFaces { type empty; } }\n"
+                p_content = "FoamFile { version 2.0; format ascii; class volScalarField; location \"0\"; object p; }\ndimensions [0 2 -2 0 0 0 0];\ninternalField uniform 0;\nboundaryField { defaultFaces { type empty; } }\n"
+                t_content = "FoamFile { version 2.0; format ascii; class volScalarField; location \"0\"; object T; }\ndimensions [0 0 0 1 0 0 0];\ninternalField uniform 300;\nboundaryField { defaultFaces { type empty; } }\n"
+                k_content = "FoamFile { version 2.0; format ascii; class volScalarField; location \"0\"; object k; }\ndimensions [0 2 -2 0 0 0 0];\ninternalField uniform 0.01;\nboundaryField { defaultFaces { type empty; } }\n"
+                e_content = "FoamFile { version 2.0; format ascii; class volScalarField; location \"0\"; object epsilon; }\ndimensions [0 2 -3 0 0 0 0];\ninternalField uniform 0.01;\nboundaryField { defaultFaces { type empty; } }\n"
+                
+                (initial_time_dir / "U").write_text(u_content)
+                (initial_time_dir / "p").write_text(p_content)
+                (initial_time_dir / "T").write_text(t_content)
+                (initial_time_dir / "k").write_text(k_content)
+                (initial_time_dir / "epsilon").write_text(e_content)
             else:
                 initial_time_dir = sorted(time_dirs, key=lambda x: float(x.name))[0]
 
