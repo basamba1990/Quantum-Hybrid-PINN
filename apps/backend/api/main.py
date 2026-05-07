@@ -285,8 +285,8 @@ async def run_hybrid_simulation(
     
     jobs_store[job_id] = job_info
     
-    # Simuler le lancement en arrière-plan
-    # background_tasks.add_task(execute_simulation, job_id)
+    # Lancement effectif de la simulation en arrière-plan
+    background_tasks.add_task(execute_simulation_task, job_id)
     
     return SimulationResponse(
         job_id=job_id,
@@ -296,13 +296,70 @@ async def run_hybrid_simulation(
         created_at=job_info["created_at"],
         message="Simulation hybride lancée avec succès"
     )
-
 @app.get("/jobs/{job_id}", tags=["Simulation"])
 async def get_job_status(job_id: str) -> Dict[str, Any]:
     """Récupérer le statut d'un job."""
     if job_id not in jobs_store:
         raise HTTPException(status_code=404, detail="Job non trouvé")
     return jobs_store[job_id]
+
+async def execute_simulation_task(job_id: str):
+    """
+    Tâche d'arrière-plan pour exécuter la simulation hybride.
+    """
+    if job_id not in jobs_store:
+        return
+    
+    job_info = jobs_store[job_id]
+    config = job_info["config"]
+    
+    try:
+        job_info["status"] = "RUNNING"
+        job_info["started_at"] = datetime.utcnow().isoformat()
+        
+        # Initialiser l'orchestrateur FNO
+        fluid_type = "H2" # Par défaut
+        if "nh3" in job_info["case_name"].lower():
+            fluid_type = "NH3"
+            
+        orchestrator = FNOPipelineOrchestrator(fluid_type=fluid_type)
+        
+        # Simuler les étapes pour mettre à jour la progression
+        n_steps = config.get("n_steps", 100)
+        for i in range(1, n_steps + 1):
+            # Exécution d'une étape du pipeline
+            # Note: Dans une version réelle, on passerait les paramètres dynamiques
+            results = orchestrator.run_pipeline({
+                "pressure": 1.0e5, 
+                "temperature": 300,
+                "velocity": 1.0
+            })
+            
+            # Mise à jour de la progression
+            job_info["results"] = {
+                "iteration": i,
+                "status": "RUNNING",
+                "metrics": results["metrics"],
+                "pinn_output": results["pinn_output"],
+                "credibilityScore": results["final_credibility_score"],
+                "log": f"Étape {i}/{n_steps} complétée avec succès."
+            }
+            
+            # Petite pause pour simuler le calcul si n_steps est petit
+            if n_steps < 50:
+                import asyncio
+                await asyncio.sleep(0.1)
+                
+        job_info["status"] = "COMPLETED"
+        job_info["completed_at"] = datetime.utcnow().isoformat()
+        job_info["results"]["status"] = "COMPLETED"
+        job_info["results"]["log"] = "Simulation hybride terminée avec succès."
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de l'exécution du job {job_id}: {e}")
+        job_info["status"] = "FAILED"
+        job_info["error_message"] = str(e)
+        job_info["completed_at"] = datetime.utcnow().isoformat()
 
 # ============================================================================
 # Endpoints V2 (Hybrid PINN V8)
