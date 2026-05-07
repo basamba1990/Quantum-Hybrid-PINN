@@ -433,8 +433,13 @@ async def run_hybrid_simulation_endpoint(request: HybridSimulationRequest, backg
             # Find first numeric directory
             time_dirs = [d for d in case_dir.iterdir() if d.is_dir() and d.name.replace('.', '').isdigit()]
             if not time_dirs:
-                raise HTTPException(status_code=400, detail=f"No time directories found in {case_dir}")
-            initial_time_dir = sorted(time_dirs, key=lambda x: float(x.name))[0]
+                # AUTO-INITIALIZATION: Create "0" directory and basic fields if missing
+                logger.info(f"Initializing empty case structure in {case_dir}")
+                initial_time_dir.mkdir(parents=True, exist_ok=True)
+                for field in ["U", "p", "T"]:
+                    (initial_time_dir / field).touch()
+            else:
+                initial_time_dir = sorted(time_dirs, key=lambda x: float(x.name))[0]
 
         required_fields = ["U", "p", "T"]
         for field in required_fields:
