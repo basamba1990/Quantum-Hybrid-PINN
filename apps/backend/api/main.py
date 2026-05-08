@@ -103,26 +103,34 @@ def load_user_models():
     # FNO 3D Stokes
     try:
         logger.info("⏳ Loading User Trained FNO 3D Stokes model...")
-        model_data_stokes = supabase.storage.from_("models").download("fno3d_stokes.pth")
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pth") as tmp_stokes:
-            tmp_stokes.write(model_data_stokes)
-            tmp_path_stokes = tmp_stokes.name
+        # On vérifie si le fichier existe avant de tenter le téléchargement pour éviter les logs d'erreur HTTP 400/404
+        res = supabase.storage.from_("models").list()
+        file_names = [f['name'] for f in res]
         
-        fno_3d_stokes_model = PINO3DNavierStokes(modes1=8, modes2=8, modes3=8, width=32, fluid_type='H2')
-        fno_3d_stokes_model.load_state_dict(torch.load(tmp_path_stokes, map_location=torch.device('cpu'), weights_only=False))
-        fno_3d_stokes_model.eval()
-        logger.info("✅ User FNO 3D Stokes model loaded")
-        os.unlink(tmp_path_stokes)
+        if "fno3d_stokes.pth" in file_names:
+            model_data_stokes = supabase.storage.from_("models").download("fno3d_stokes.pth")
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pth") as tmp_stokes:
+                tmp_stokes.write(model_data_stokes)
+                tmp_path_stokes = tmp_stokes.name
+            
+            fno_3d_stokes_model = PINO3DNavierStokes(modes1=8, modes2=8, modes3=8, width=32, fluid_type='H2')
+            fno_3d_stokes_model.load_state_dict(torch.load(tmp_path_stokes, map_location=torch.device('cpu'), weights_only=False))
+            fno_3d_stokes_model.eval()
+            logger.info("✅ User FNO 3D Stokes model loaded")
+            os.unlink(tmp_path_stokes)
 
-        stats_data_stokes = supabase.storage.from_("models").download("normalization_stats_stokes.npz")
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".npz") as tmp_stats_stokes:
-            tmp_stats_stokes.write(stats_data_stokes)
-            stats_path_stokes = tmp_stats_stokes.name
-        stats_stokes = np.load(stats_path_stokes)
-        fno_3d_stokes_mean = float(stats_stokes['mean'])
-        fno_3d_stokes_std = float(stats_stokes['std'])
-        logger.info(f"Stokes stats: mean={fno_3d_stokes_mean:.3f}, std={fno_3d_stokes_std:.3f}")
-        os.unlink(stats_path_stokes)
+            if "normalization_stats_stokes.npz" in file_names:
+                stats_data_stokes = supabase.storage.from_("models").download("normalization_stats_stokes.npz")
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".npz") as tmp_stats_stokes:
+                    tmp_stats_stokes.write(stats_data_stokes)
+                    stats_path_stokes = tmp_stats_stokes.name
+                stats_stokes = np.load(stats_path_stokes)
+                fno_3d_stokes_mean = float(stats_stokes['mean'])
+                fno_3d_stokes_std = float(stats_stokes['std'])
+                logger.info(f"Stokes stats: mean={fno_3d_stokes_mean:.3f}, std={fno_3d_stokes_std:.3f}")
+                os.unlink(stats_path_stokes)
+        else:
+            logger.warning("User FNO 3D Stokes model file not found in Supabase storage.")
     except Exception as e:
         logger.warning(f"Failed to load User FNO 3D Stokes model: {e}")
 
