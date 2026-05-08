@@ -3,8 +3,8 @@ services:
     name: quantum-hybrid-api
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
-    rootDir: apps/backend
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    rootDir: apps/api
     envVars:
       - key: SUPABASE_URL
         sync: false
@@ -18,6 +18,13 @@ services:
         value: https://quantum-hybrid-backend.onrender.com
       - key: IS_API_GATEWAY
         value: "true"
+    disk:
+      name: model-cache
+      mountPath: /app/models_cache
+      sizeGB: 1 # Ajustez la taille si nécessaire
+    healthCheckPath: /health
+    # Augmenter la limite de mémoire si nécessaire, mais le lazy loading devrait aider
+    # memory: 1024MB # Exemple: augmenter à 1GB si 512MB est insuffisant même avec lazy loading
 
   - type: web
     name: quantum-hybrid-backend
@@ -32,3 +39,4 @@ services:
         value: /home/ubuntu/cases
       - key: IS_BACKEND_WORKER
         value: "true"
+    healthCheckPath: /health
