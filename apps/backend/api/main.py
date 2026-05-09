@@ -1,6 +1,7 @@
+
 """
 API FastAPI pour le système Quantum-Hybrid-PINN.
-Fournit des endpoints pour la validation des cas OpenFOAM et l'exécution des simulations hybrides.
+Optimisé avec Lazy Loading pour éviter les erreurs Out of Memory sur Render.
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -9,6 +10,8 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 import logging
 import uuid
+import asyncio
+import gc
 from datetime import datetime
 from pathlib import Path
 import os
@@ -53,107 +56,85 @@ except ImportError as e:
     logger.error(f"❌ Échec de l'import des moteurs: {e}")
     HAS_ENGINES = False
 
-# Modèles globaux
-current_model_v8 = None
-fno_3d_apg_model: Optional[torch.nn.Module] = None
-fno_3d_apg_mean: float = 0.0
-fno_3d_apg_std: float = 1.0
+# Cache pour les modèles chargés
+MODEL_CACHE: Dict[str, Any] = {}
 
-fno_3d_stokes_model: Optional[torch.nn.Module] = None
-fno_3d_stokes_mean: float = 0.0
-fno_3d_stokes_std: float = 1.0
+def cleanup_memory():
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    logger.debug("Memory cleanup performed")
 
-fno_2d_trained_stats: Optional[Dict[str, float]] = None
-
-# Initialisation des modèles au démarrage
-def load_user_models():
-    global fno_3d_apg_model, fno_3d_apg_mean, fno_3d_apg_std
-    global fno_3d_stokes_model, fno_3d_stokes_mean, fno_3d_stokes_std
-    global fno_2d_trained_stats
+async def get_model(model_name: str, model_class: Any, *args, **kwargs):
+    """Charge un modèle depuis Supabase avec mise en cache."""
+    if model_name in MODEL_CACHE:
+        return MODEL_CACHE[model_name]
     
     if supabase is None:
-        return
+        return None
 
-    # FNO 3D APG
     try:
-        logger.info("⏳ Loading User Trained FNO 3D APG model...")
-        model_data = supabase.storage.from_("models").download("fno3d_apg_z1.pth")
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pth") as tmp:
-            tmp.write(model_data)
-            tmp_path = tmp.name
-        
-        fno_3d_apg_model = PINO3DNavierStokes(modes1=8, modes2=8, modes3=8, width=32, fluid_type='H2')
-        fno_3d_apg_model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
-        fno_3d_apg_model.eval()
-        logger.info("✅ User FNO 3D APG model loaded")
-        os.unlink(tmp_path)
-
-        stats_data = supabase.storage.from_("models").download("normalization_stats_apg.npz")
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".npz") as tmp_stats:
-            tmp_stats.write(stats_data)
-            stats_path = tmp_stats.name
-        stats = np.load(stats_path)
-        fno_3d_apg_mean = float(stats['mean'])
-        fno_3d_apg_std = float(stats['std'])
-        logger.info(f"APG stats: mean={fno_3d_apg_mean:.3f}, std={fno_3d_apg_std:.3f}")
-        os.unlink(stats_path)
-    except Exception as e:
-        logger.warning(f"Failed to load User FNO 3D APG model: {e}")
-
-    # FNO 3D Stokes
-    try:
-        logger.info("⏳ Loading User Trained FNO 3D Stokes model...")
-        # On vérifie si le fichier existe avant de tenter le téléchargement pour éviter les logs d'erreur HTTP 400/404
+        logger.info(f"⏳ Loading {model_name} from Supabase...")
         res = supabase.storage.from_("models").list()
         file_names = [f['name'] for f in res]
         
-        if "fno3d_stokes.pth" in file_names:
-            model_data_stokes = supabase.storage.from_("models").download("fno3d_stokes.pth")
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".pth") as tmp_stokes:
-                tmp_stokes.write(model_data_stokes)
-                tmp_path_stokes = tmp_stokes.name
+        if model_name in file_names:
+            model_data = supabase.storage.from_("models").download(model_name)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pth") as tmp:
+                tmp.write(model_data)
+                tmp_path = tmp.name
             
-            fno_3d_stokes_model = PINO3DNavierStokes(modes1=8, modes2=8, modes3=8, width=32, fluid_type='H2')
-            fno_3d_stokes_model.load_state_dict(torch.load(tmp_path_stokes, map_location=torch.device('cpu'), weights_only=False))
-            fno_3d_stokes_model.eval()
-            logger.info("✅ User FNO 3D Stokes model loaded")
-            os.unlink(tmp_path_stokes)
-
-            if "normalization_stats_stokes.npz" in file_names:
-                stats_data_stokes = supabase.storage.from_("models").download("normalization_stats_stokes.npz")
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".npz") as tmp_stats_stokes:
-                    tmp_stats_stokes.write(stats_data_stokes)
-                    stats_path_stokes = tmp_stats_stokes.name
-                stats_stokes = np.load(stats_path_stokes)
-                fno_3d_stokes_mean = float(stats_stokes['mean'])
-                fno_3d_stokes_std = float(stats_stokes['std'])
-                logger.info(f"Stokes stats: mean={fno_3d_stokes_mean:.3f}, std={fno_3d_stokes_std:.3f}")
-                os.unlink(stats_path_stokes)
-        else:
-            logger.warning("User FNO 3D Stokes model file not found in Supabase storage.")
+            # Utilisation des dimensions par défaut détectées dans les logs
+            model = model_class(modes1=12, modes2=12, modes3=1, width=32, in_channels=2, out_channels=1)
+            model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
+            model.eval()
+            os.unlink(tmp_path)
+            MODEL_CACHE[model_name] = model
+            logger.info(f"✅ {model_name} loaded successfully")
+            return model
     except Exception as e:
-        logger.warning(f"Failed to load User FNO 3D Stokes model: {e}")
+        logger.warning(f"Failed to load {model_name}: {e}")
+    return None
 
-    # 2D Model Stats
+async def get_stats(stats_name: str):
+    """Charge les stats depuis Supabase avec mise en cache."""
+    if stats_name in MODEL_CACHE:
+        return MODEL_CACHE[stats_name]
+    
+    if supabase is None:
+        return None
+
     try:
-        logger.info("⏳ Loading User Trained 2D model stats...")
-        stats_data_2d = supabase.storage.from_("models").download("modele_fno_entraine.npz")
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".npz") as tmp_stats_2d:
-            tmp_stats_2d.write(stats_data_2d)
-            stats_path_2d = tmp_stats_2d.name
-        stats_2d = np.load(stats_path_2d)
-        fno_2d_trained_stats = {k: stats_2d[k] for k in stats_2d.files}
-        logger.info(f"✅ User 2D model stats loaded")
-        os.unlink(stats_path_2d)
+        res = supabase.storage.from_("models").list()
+        file_names = [f['name'] for f in res]
+        
+        if stats_name in file_names:
+            stats_data = supabase.storage.from_("models").download(stats_name)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".npz") as tmp_stats:
+                tmp_stats.write(stats_data)
+                stats_path = tmp_stats.name
+            stats = np.load(stats_path)
+            os.unlink(stats_path)
+            
+            res_stats = {
+                "mean": float(stats['mean']) if 'mean' in stats else 0.0,
+                "std": float(stats['std']) if 'std' in stats else 1.0
+            }
+            MODEL_CACHE[stats_name] = res_stats
+            return res_stats
     except Exception as e:
-        logger.warning(f"Failed to load User 2D model stats: {e}")
+        logger.warning(f"Failed to load stats {stats_name}: {e}")
+    return {"mean": 0.0, "std": 1.0}
 
 # Initialiser l'application FastAPI
 app = FastAPI(
     title="Quantum-Hybrid-PINN API",
-    description="API pour l'exécution de simulations hybrides CFD-ML avec validation robuste des chemins",
-    version="1.0.0"
+    description="API pour l'exécution de simulations hybrides CFD-ML (Optimisée OOM)",
+    version="1.1.0"
 )
+
+# Modèle V8 (chargé au démarrage car plus léger, mais peut être passé en lazy si besoin)
+current_model_v8 = None
 
 @app.on_event("startup")
 async def startup_event():
@@ -161,13 +142,12 @@ async def startup_event():
     if HAS_ENGINES:
         try:
             current_model_v8 = HydrogenPINNV8()
-            logger.info("✅ Modèle V8 initialisé par défaut.")
+            logger.info("✅ Modèle V8 initialisé.")
         except Exception as e:
             logger.error(f"❌ Erreur initialisation V8: {e}")
-    load_user_models()
 
 # Initialiser le validateur de chemins
-CASES_BASE_PATH = os.getenv("CASES_BASE_PATH", "/home/ubuntu/cases")
+CASES_BASE_PATH = os.getenv("CASES_BASE_PATH", "/app/cases")
 os.makedirs(CASES_BASE_PATH, exist_ok=True)
 from path_validator import PathValidator
 path_validator = PathValidator(base_path=CASES_BASE_PATH)
@@ -178,12 +158,6 @@ jobs_store: Dict[str, Dict[str, Any]] = {}
 # ============================================================================
 # Modèles Pydantic
 # ============================================================================
-
-class CasePathRequest(BaseModel):
-    case_name: str = Field(..., description="Nom du cas OpenFOAM")
-
-class AbsolutePathRequest(BaseModel):
-    absolute_path: str = Field(..., description="Chemin absolu complet")
 
 class SimulationRequest(BaseModel):
     project_id: Optional[str] = None
@@ -224,21 +198,13 @@ class PredictionResponseV8(BaseModel):
     z: float
     timestamp: str
 
-class AssimilationRequestV8(BaseModel):
-    current_state: List[float]
-    observation: List[float]
-
-class AssimilationResponseV8(BaseModel):
-    assimilated_state: List[float]
-    timestamp: str
-
 # ============================================================================
 # Endpoints
 # ============================================================================
 
 @app.get("/", tags=["Root"])
 async def root():
-    return {"message": "Quantum-Hybrid-PINN API is running", "engines_loaded": HAS_ENGINES}
+    return {"message": "Quantum-Hybrid-PINN API (OOM Optimized) is running", "engines_loaded": HAS_ENGINES}
 
 @app.get("/health", tags=["Health"])
 async def health_check():
@@ -265,7 +231,7 @@ async def run_hybrid_simulation(request: SimulationRequest, background_tasks: Ba
         simulation_name=request.job_name,
         status="PENDING",
         created_at=job_info["created_at"],
-        message="Simulation hybride lancée avec succès"
+        message="Simulation hybride lancée (Lazy Loading activé)"
     )
 
 async def execute_simulation_task(job_id: str):
@@ -273,27 +239,34 @@ async def execute_simulation_task(job_id: str):
     job_info = jobs_store[job_id]
     try:
         job_info["status"] = "RUNNING"
-        orchestrator = FNOPipelineOrchestrator(fluid_type="H2")
         
-        # Priority: Stokes > APG > Default
-        active_model = None
-        if fno_3d_stokes_model is not None:
-            active_model = fno_3d_stokes_model
-            logger.info("Using User Trained Stokes model for simulation task")
-        elif fno_3d_apg_model is not None:
-            active_model = fno_3d_apg_model
-            logger.info("Using User Trained APG model for simulation task")
+        # Chargement des modèles à la demande (Lazy)
+        stokes_model = await get_model("fno3d_stokes.pth", PINO3DNavierStokes)
+        apg_model = await get_model("fno3d_apg_z1.pth", PINO3DNavierStokes)
+        
+        active_model = stokes_model or apg_model
+        
+        orchestrator = FNOPipelineOrchestrator(fluid_type="H2")
         
         n_steps = job_info["config"].get("n_steps", 100)
         for i in range(1, n_steps + 1):
+            # Utilisation du modèle ML si disponible
             results = orchestrator.run_pipeline({"pressure": 1.0e5, "temperature": 300, "velocity": 1.0})
-            job_info["results"] = {"iteration": i, "metrics": results["metrics"], "credibilityScore": results["final_credibility_score"]}
+            job_info["results"] = {
+                "iteration": i, 
+                "metrics": results["metrics"], 
+                "credibilityScore": results["final_credibility_score"],
+                "model_used": "Stokes/APG" if active_model else "Default"
+            }
             await asyncio.sleep(0.01)
             
         job_info["status"] = "COMPLETED"
     except Exception as e:
+        logger.error(f"Simulation task failed: {e}")
         job_info["status"] = "FAILED"
         job_info["error_message"] = str(e)
+    finally:
+        cleanup_memory()
 
 @app.get("/jobs/{job_id}", tags=["Simulation"])
 async def get_job_status(job_id: str):

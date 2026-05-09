@@ -348,12 +348,12 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
             uvw_mean = uvw_stats["mean"] if uvw_stats else 0.0
             uvw_std = uvw_stats["std"] if uvw_stats else 1.0
 
-            fno_3d_apg_model = await load_model_from_supabase("fno3d_apg_z1.pth", PINO3DNavierStokes, modes1=8, modes2=8, modes3=8, width=32, fluid_type=\'H2\')
+            fno_3d_apg_model = await load_model_from_supabase("fno3d_apg_z1.pth", PINO3DNavierStokes, modes1=8, modes2=8, modes3=8, width=32, fluid_type='H2')
             apg_stats = await load_stats_from_supabase("normalization_stats_apg.npz")
             fno_3d_apg_mean = apg_stats["mean"] if apg_stats else 0.0
             fno_3d_apg_std = apg_stats["std"] if apg_stats else 1.0
 
-            fno_3d_stokes_model = await load_model_from_supabase("fno3d_stokes.pth", PINO3DNavierStokes, modes1=8, modes2=8, modes3=8, width=32, fluid_type=\'H2\')
+            fno_3d_stokes_model = await load_model_from_supabase("fno3d_stokes.pth", PINO3DNavierStokes, modes1=8, modes2=8, modes3=8, width=32, fluid_type='H2')
             stokes_stats = await load_stats_from_supabase("normalization_stats_stokes.npz")
             fno_3d_stokes_mean = stokes_stats["mean"] if stokes_stats else 0.0
             fno_3d_stokes_std = stokes_stats["std"] if stokes_stats else 1.0
@@ -436,7 +436,7 @@ async def get_job_status(job_id: str):
         def parse_iso_date(date_str):
             if not date_str or not isinstance(date_str, str): return None
             try:
-                return datetime.fromisoformat(date_str.replace(\'Z\', \'+00:00\'))
+                return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
             except: return None
 
         return JobStatusResponse(
@@ -481,7 +481,7 @@ async def list_jobs(status: Optional[str] = None):
         for job in jobs_dict.values():
             def parse_iso_date(date_str):
                 if not date_str or not isinstance(date_str, str): return None
-                try: return datetime.fromisoformat(date_str.replace(\'Z\', \'+00:00\'))
+                try: return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
                 except: return None
 
             response.append(JobStatusResponse(
