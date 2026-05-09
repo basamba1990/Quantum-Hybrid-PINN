@@ -1,6 +1,6 @@
 /**
- * Hybrid Results Visualization Component
- * Side-by-side visualization of CFD and ML predictions
+ * Hybrid Results Visualization Component - Enhanced Version
+ * Side-by-side visualization of CFD and ML predictions with Advanced Physics Analysis
  */
 
 'use client';
@@ -8,7 +8,9 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';import { Label } from '@/components/ui/label'; // ← IMPORT MANQUANT
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { AdvancedPhysicsVisualization } from './AdvancedPhysicsVisualization';
 import {
   LineChart,
   Line,
@@ -50,9 +52,9 @@ interface HybridResults {
   accelerationFactor: number;
 }
 
-export function HybridResultsVisualization({ results }: { results?: HybridResults }) {
+export function HybridResultsVisualizationEnhanced({ results }: { results?: HybridResults }) {
   const [selectedField, setSelectedField] = useState<string>('continuity');
-  const [comparisonMode, setComparisonMode] = useState<'residuals' | 'fields' | 'performance'>('residuals');
+  const [comparisonMode, setComparisonMode] = useState<'residuals' | 'fields' | 'performance' | 'advanced'>('residuals');
 
   if (!results) {
     return (
@@ -102,15 +104,16 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
       {/* Main Visualization Tabs */}
       <Card>
         <CardHeader>
-          <CardTitle>Hybrid Simulation Results</CardTitle>
-          <CardDescription>CFD and ML prediction analysis</CardDescription>
+          <CardTitle>Hybrid Simulation Results - Complete Analysis</CardTitle>
+          <CardDescription>CFD, ML prediction analysis, and advanced physics insights</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={comparisonMode} onValueChange={(v) => setComparisonMode(v as any)}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="residuals">Residuals</TabsTrigger>
               <TabsTrigger value="fields">Field Comparison</TabsTrigger>
               <TabsTrigger value="performance">Performance</TabsTrigger>
+              <TabsTrigger value="advanced">Advanced Physics</TabsTrigger>
             </TabsList>
 
             {/* Residuals Tab */}
@@ -199,6 +202,14 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
               </ResponsiveContainer>
             </TabsContent>
 
+            {/* Advanced Physics Tab */}
+            <TabsContent value="advanced" className="space-y-4 mt-4">
+              <AdvancedPhysicsVisualization 
+                simulationId={results.jobId} 
+                time={results.totalTime}
+              />
+            </TabsContent>
+
             {/* Performance Tab */}
             <TabsContent value="performance" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
@@ -274,6 +285,10 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
           <p>
             ✓ <strong>Accuracy:</strong> ML predictions maintained accuracy within acceptable error bounds,
             as validated by residual convergence.
+          </p>
+          <p>
+            ✓ <strong>Advanced Physics:</strong> Multi-scale turbulence analysis, boundary layer validation, and
+            PINN/FNO residual mapping provide deep insights into simulation quality.
           </p>
           <p>
             ✓ <strong>Recommendation:</strong> Consider adjusting the residual threshold for future simulations
