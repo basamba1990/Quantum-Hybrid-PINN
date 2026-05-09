@@ -36,6 +36,14 @@ from repit_integration.dataset_manager import DatasetManager
 from repit_integration.simulation_orchestrator import SimulationOrchestrator
 from fno_3d_navier_stokes import PINO3DNavierStokes
 
+try:
+    from hydrogen_pinn_v8 import HydrogenPINNV8
+    HAS_ENGINES = True
+except ImportError:
+    HAS_ENGINES = False
+
+current_model_v8 = None
+
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -105,7 +113,7 @@ async def load_model_from_supabase(model_name: str, model_class: Any, *args, **k
         else:
             model = model_class(*args, **kwargs)
             
-        model.load_state_dict(torch.load(tmp_path, map_location=torch.device("cpu"), weights_only=False))
+        model.load_state_dict(torch.load(tmp_path, map_location=torch.device("cpu"), weights_only=False), strict=False)
         model.eval()
         os.unlink(tmp_path)
         logger.info(f"✅ Modèle {model_name} chargé avec succès.")
@@ -293,6 +301,14 @@ async def lifespan(app: FastAPI):
     if supabase is None:
         raise RuntimeError("Supabase client not initialized.")
 
+    global current_model_v8
+    if HAS_ENGINES:
+        try:
+            current_model_v8 = HydrogenPINNV8()
+            logger.info("✅ Modèle V8 initialisé pour l'assimilation.")
+        except Exception as e:
+            logger.error(f"❌ Erreur initialisation V8: {e}")
+
     yield
 
     logger.info("🛑 Shutting down")
@@ -359,8 +375,8 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
 
             fno_3d_apg_model = await load_model_from_supabase("fno3d_apg_z1.pth", PINO3DNavierStokes)
             apg_stats = await load_stats_from_supabase("normalization_stats_apg.npz")
-            fno_3d_apg_mean = apg_stats["mean"] if apg_stats else 0.0
-            fno_3d_apg_std = apg_stats["std"] if apg_stats else 1.0
+            fno_3d_apg_mean = apg_stats.get("mean", apg_stats.get("X_mean", 0.0)) if apg_stats else 0.0
+            fno_3d_apg_std = apg_stats.get("std", apg_stats.get("X_std", 1.0)) if apg_stats else 1.0
 
             fno_3d_stokes_model = await load_model_from_supabase("fno3d_stokes.pth", PINO3DNavierStokes)
             stokes_stats = await load_stats_from_supabase("normalization_stats_stokes.npz")
@@ -511,6 +527,30 @@ async def list_jobs(status: Optional[str] = None):
 # ============================================
 # Validation endpoints
 # ============================================
+class AssimilationRequestV8(BaseModel):
+    current_state: List[float]
+    observation: List[float]
+
+class AssimilationResponseV8(BaseModel):
+    assimilated_state: List[float]
+    innovation: List[float]
+    timestamp: str
+
+@app.post("/v2/assimilate", response_model=AssimilationResponseV8)
+async def assimilate_v2(request: AssimilationRequestV8):
+    if not HAS_ENGINES or current_model_v8 is None:
+        # Fallback si le moteur n'est pas chargé
+        return AssimilationResponseV8(
+            assimilated_state=request.current_state,
+            innovation=[0.0] * len(request.observation),
+            timestamp=datetime.utcnow().isoformat()
+        )
+    try:
+        result = current_model_v8.assimilate_data(request.current_state, request.observation)
+        return AssimilationResponseV8(**result, timestamp=datetime.utcnow().isoformat())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Assimilation failed: {e}")
+
 @app.post("/v2/validate-3d", response_model=ValidationResponse)
 async def validate_3d(request: ValidationRequest, background_tasks: BackgroundTasks):
     # Charger le modèle de chaleur à la demande

@@ -86,7 +86,7 @@ async def get_model(model_name: str, model_class: Any, *args, **kwargs):
             
             # Utilisation des dimensions par défaut détectées dans les logs
             model = model_class(modes1=12, modes2=12, modes3=1, width=32, in_channels=2, out_channels=1)
-            model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False))
+            model.load_state_dict(torch.load(tmp_path, map_location=torch.device('cpu'), weights_only=False), strict=False)
             model.eval()
             os.unlink(tmp_path)
             MODEL_CACHE[model_name] = model
@@ -117,8 +117,8 @@ async def get_stats(stats_name: str):
             os.unlink(stats_path)
             
             res_stats = {
-                "mean": float(stats['mean']) if 'mean' in stats else 0.0,
-                "std": float(stats['std']) if 'std' in stats else 1.0
+                "mean": float(stats['mean']) if 'mean' in stats else float(stats.get('X_mean', 0.0)),
+                "std": float(stats['std']) if 'std' in stats else float(stats.get('X_std', 1.0))
             }
             MODEL_CACHE[stats_name] = res_stats
             return res_stats
