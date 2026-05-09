@@ -58,8 +58,6 @@ orchestrator = SimulationOrchestrator()
 dataset_manager = DatasetManager()
 
 # ---------- Global models and stats (now managed by lazy loading) ----------
-# Ces variables globales seront utilisées pour stocker les modèles chargés à la demande.
-# Elles sont initialisées à None et seront remplies par la fonction load_model_from_supabase.
 _fno_heat_model: Optional[torch.nn.Module] = None
 _heat_mean: float = 0.0
 _heat_std: float = 1.0
@@ -99,7 +97,14 @@ async def load_model_from_supabase(model_name: str, model_class: Any, *args, **k
             tmp.write(model_data)
             tmp_path = tmp.name
         
-        model = model_class(*args, **kwargs)
+        # Instanciation dynamique basée sur le nom du modèle pour éviter les erreurs de dimension
+        if "apg" in model_name.lower():
+            model = model_class(modes1=12, modes2=12, modes3=1, width=32, in_channels=2, out_channels=1)
+        elif "stokes" in model_name.lower():
+            model = model_class(modes1=12, modes2=12, modes3=1, width=32, in_channels=3, out_channels=1)
+        else:
+            model = model_class(*args, **kwargs)
+            
         model.load_state_dict(torch.load(tmp_path, map_location=torch.device("cpu"), weights_only=False))
         model.eval()
         os.unlink(tmp_path)
@@ -128,7 +133,15 @@ async def load_stats_from_supabase(stats_name: str) -> Optional[Dict[str, float]
         stats = np.load(stats_path)
         os.unlink(stats_path)
         
-        result_stats = {k: float(stats[k]) for k in stats.files}
+        # Correction pour gérer les tableaux NumPy (extraction de la valeur scalaire)
+        result_stats = {}
+        for k in stats.files:
+            val = stats[k]
+            if isinstance(val, np.ndarray):
+                result_stats[k] = float(val.flatten()[0])
+            else:
+                result_stats[k] = float(val)
+                
         logger.info(f"✅ Stats {stats_name} chargées avec succès: {result_stats}")
         MODEL_CACHE[stats_name] = result_stats
         return result_stats
@@ -280,13 +293,9 @@ async def lifespan(app: FastAPI):
     if supabase is None:
         raise RuntimeError("Supabase client not initialized.")
 
-    # Aucun modèle n'est chargé globalement au démarrage ici.
-    # Ils seront chargés à la demande via les fonctions load_model_from_supabase et load_stats_from_supabase.
-
     yield
 
     logger.info("🛑 Shutting down")
-    # Nettoyer le cache des modèles et la mémoire
     MODEL_CACHE.clear()
     cleanup_memory()
 
@@ -348,18 +357,18 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
             uvw_mean = uvw_stats["mean"] if uvw_stats else 0.0
             uvw_std = uvw_stats["std"] if uvw_stats else 1.0
 
-            fno_3d_apg_model = await load_model_from_supabase("fno3d_apg_z1.pth", PINO3DNavierStokes, modes1=8, modes2=8, modes3=8, width=32, fluid_type='H2')
+            fno_3d_apg_model = await load_model_from_supabase("fno3d_apg_z1.pth", PINO3DNavierStokes)
             apg_stats = await load_stats_from_supabase("normalization_stats_apg.npz")
             fno_3d_apg_mean = apg_stats["mean"] if apg_stats else 0.0
             fno_3d_apg_std = apg_stats["std"] if apg_stats else 1.0
 
-            fno_3d_stokes_model = await load_model_from_supabase("fno3d_stokes.pth", PINO3DNavierStokes, modes1=8, modes2=8, modes3=8, width=32, fluid_type='H2')
+            fno_3d_stokes_model = await load_model_from_supabase("fno3d_stokes.pth", PINO3DNavierStokes)
             stokes_stats = await load_stats_from_supabase("normalization_stats_stokes.npz")
             fno_3d_stokes_mean = stokes_stats["mean"] if stokes_stats else 0.0
             fno_3d_stokes_std = stokes_stats["std"] if stokes_stats else 1.0
 
             if fno_uvw_model is None or fno_3d_apg_model is None or fno_3d_stokes_model is None:
-                raise RuntimeError("Un ou plusieurs modèles FNO n\'ont pas pu être chargés.")
+                raise RuntimeError("Un ou plusieurs modèles FNO n'ont pas pu être chargés.")
 
             while current_iteration < total_steps:
                 steps_to_run = min(10, total_steps - current_iteration)
