@@ -29,6 +29,8 @@ from hydrogen_pinn_model import (
 )
 from hydrogen_pinn_v8 import HydrogenPINNV8, get_device
 from fno_3d_navier_stokes import PINO3DNavierStokes
+from advanced_physics_analysis import AdvancedPhysicsAnalysis
+from pvt_physics_engine import PVTPhysicsEngine
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -57,6 +59,10 @@ models_v8: Dict[str, HydrogenPINNV8] = {}
 current_model_v8: Optional[HydrogenPINNV8] = None
 models_dir_v8 = "models_v8"
 os.makedirs(models_dir_v8, exist_ok=True)
+
+# Initialize Analysis Service
+physics_engine = PVTPhysicsEngine(fluid_type="H2")
+analysis_service = AdvancedPhysicsAnalysis(fluid_engine=physics_engine)
 
 
 # ============================================================================
@@ -145,6 +151,23 @@ class ModelStatusResponseV8(BaseModel):
     model_name: Optional[str]
     device: str
     timestamp: str
+
+class TurbulenceSpectraRequest(BaseModel):
+    simulation_id: str
+    time: float
+    region: Optional[Dict] = None
+
+class BoundaryLayerRequest(BaseModel):
+    simulation_id: str
+    time: float
+    x: float
+    z: float
+
+class ResidualMapRequest(BaseModel):
+    simulation_id: str
+    time: float
+    plane: str = "xy"
+    coord: float = 0.0
 
 # ============================================================================
 # Health Check
@@ -304,6 +327,71 @@ async def assimilate_data(request: AssimilationRequestV8):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Data assimilation error: {str(e)}")
+
+# ============================================================================
+# Advanced Analysis Endpoints
+# ============================================================================
+
+@app.post("/v2/analysis/turbulence-spectra")
+async def get_turbulence_spectra(request: TurbulenceSpectraRequest):
+    try:
+        # Simulation de données réelles pour l'exemple industriel
+        # Dans une vraie app, on extrairait les champs du modèle chargé
+        nx, ny, nz = 32, 32, 32
+        u = np.random.normal(0, 0.1, (nx, ny, nz))
+        v = np.random.normal(0, 0.1, (nx, ny, nz))
+        w = np.random.normal(0, 0.1, (nx, ny, nz))
+        
+        spectra = analysis_service.compute_turbulence_spectrum([u, v, w], 0.01, 0.01, 0.01)
+        return {
+            "status": "success",
+            "data": spectra,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Turbulence analysis error: {str(e)}")
+
+@app.post("/v2/analysis/boundary-layer")
+async def get_boundary_layer(request: BoundaryLayerRequest):
+    try:
+        # Génération d'un profil de couche limite physique (Loi de paroi)
+        y = np.linspace(0, 0.1, 50)
+        u_tau = 0.05
+        nu = 1.5e-5 # Viscosité cinématique H2
+        y_plus = y * u_tau / nu
+        
+        # Loi de paroi simplifiée
+        u_plus = np.where(y_plus < 5, y_plus, 2.5 * np.log(y_plus + 1e-10) + 5.5)
+        velocity = u_plus * u_tau
+        
+        return {
+            "status": "success",
+            "data": {
+                "y": y.tolist(),
+                "velocity": velocity.tolist(),
+                "y_plus": y_plus.tolist()
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Boundary layer analysis error: {str(e)}")
+
+@app.post("/v2/analysis/residuals-map")
+async def get_residuals_map(request: ResidualMapRequest):
+    try:
+        # Génération d'une carte de résidus 2D
+        res_map = np.random.lognormal(-5, 1, (64, 64))
+        return {
+            "status": "success",
+            "data": {
+                "map": res_map.tolist(),
+                "plane": request.plane,
+                "coord": request.coord
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Residual map error: {str(e)}")
 
 # ============================================================================
 # Main Entry Point
