@@ -424,7 +424,7 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                     active_mean = uvw_mean
                     active_std = uvw_std
                 
-                result = orchestrator.run_hybrid_step(
+                result = orchestrator.run_hybrid_simulation(
                     job_id=job_id,
                     ml_model=active_model,
                     n_steps=steps_to_run,
@@ -435,6 +435,7 @@ async def run_hybrid_simulation(request: HybridSimulationRequest, background_tas
                 )
                 current_iteration += steps_to_run
                 
+                # SimulationOrchestrator returns snake_case, frontend expects camelCase
                 frontend_results = {
                     "iteration": current_iteration,
                     "cfdTime": result.get("cfd_time", 0.0),
