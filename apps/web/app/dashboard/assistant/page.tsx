@@ -263,11 +263,11 @@ export default function AssistantPage() {
       response += `Aucune anomalie majeure détectée. Le système est stable.\n`
     }
 
-    if (extractedData.pressure) {
+    if (extractedData && extractedData.pressure) {
       response += `\n**Paramètres extraits:**\n`
       response += `- Pression: ${(extractedData.pressure / 1e5).toFixed(1)} bar\n`
     }
-    if (extractedData.temperature) {
+    if (extractedData && extractedData.temperature) {
       response += `- Température: ${extractedData.temperature.toFixed(1)} K\n`
     }
 
