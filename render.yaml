@@ -15,7 +15,7 @@ services:
       - key: ALLOWED_ORIGINS
         value: "*"
       - key: BACKEND_SERVICE_URL
-        value: https://quantum-hybrid-backend.onrender.com
+        value: https://quantum-hybrid-backend-liev.onrender.com
       - key: IS_API_GATEWAY
         value: "true"
     disk:
