@@ -53,6 +53,10 @@ interface HybridResults {
 }
 
 export function HybridResultsVisualizationEnhanced({ results }: { results?: HybridResults }) {
+  return <HybridResultsVisualization results={results} />;
+}
+
+export function HybridResultsVisualization({ results }: { results?: HybridResults }) {
   const [selectedField, setSelectedField] = useState<string>('continuity');
   const [comparisonMode, setComparisonMode] = useState<'residuals' | 'fields' | 'performance' | 'advanced'>('residuals');
 
