@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-BACKEND_SERVICE_URL = os.getenv("BACKEND_SERVICE_URL", "https://quantum-hybrid-backend.onrender.com")
+BACKEND_SERVICE_URL = os.getenv("BACKEND_SERVICE_URL", "https://quantum-hybrid-backend-liev.onrender.com")
 
 supabase: Optional[Client] = None
 
