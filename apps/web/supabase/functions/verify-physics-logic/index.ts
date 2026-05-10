@@ -314,102 +314,7 @@ interface SimulationParams {
  * Respecte les lois de conservation de la masse, de l'énergie et du momentum.
  * Utilise un schéma d'Euler explicite.
  */
-function simulateIndustrialDynamics(
-  params: SimulationParams,
-  timeSteps: number,
-  duration: number
-): z.infer<typeof PredictionResponseSchema>[] {
-  const predictions: z.infer<typeof PredictionResponseSchema>[] = []
-  const fluid = params.fluid_type ?? "H2"
-  const dt = duration / (timeSteps - 1)
-
-  // Propriétés thermophysiques par fluide
-  const props: Record<string, { R: number; Cp: number; mu: number; k: number; T_ref: number; P_ref: number }> = {
-    H2:   { R: 4124, Cp: 14300, mu: 8.8e-6, k: 0.18, T_ref: 20.3, P_ref: 1e5 },
-    NH3:  { R: 488.2, Cp: 2100, mu: 1e-5, k: 0.02, T_ref: 298, P_ref: 1e5 },
-    CH4:  { R: 518.3, Cp: 2200, mu: 1.1e-5, k: 0.03, T_ref: 298, P_ref: 1e5 },
-    sCO2: { R: 188.9, Cp: 850, mu: 3e-5, k: 0.05, T_ref: 304.1, P_ref: 73.8e5 },
-  }
-  const p = props[fluid] ?? props.H2
-
-  // État initial
-  let P = params.pressure ?? p.P_ref
-  let T = params.temperature ?? p.T_ref
-  let u = params.velocity ?? 0.5
-  let m_dot = params.mass_flow_rate ?? 0.1
-  let V = params.volume ?? 100.0      // m³
-  let rho = P / (p.R * T)             // loi des gaz parfaits initiale
-  let mass = rho * V
-
-  for (let i = 0; i < timeSteps; i++) {
-    const t = i * dt
-
-    // ===== Conservation de la masse =====
-    let m_dot_out = 0.0
-    if (fluid === "H2" && T > 33) {
-      // Boil-off pour l'hydrogène (évaporation)
-      m_dot_out = 0.0005 * mass * Math.max(0, (T - 33) / 100)
-    }
-    if (fluid === "CH4" && params.mass_flow_rate) {
-      const leakFactor = 0.01 * (params.mass_flow_rate / 0.1)
-      m_dot_out = leakFactor * m_dot
-    }
-    const dm = (m_dot - m_dot_out) * dt
-    mass += dm
-    rho = Math.max(0.01, mass / V)
-
-    // ===== Équation d'état pour mise à jour de la pression =====
-    P = computePressure(fluid, rho, T)
-    P = Math.max(1e4, P)
-
-    // ===== Conservation de l'énergie (température) =====
-    const T_ext = 293.0
-    const heatTransferCoeff = 10.0   
-    const area = Math.pow(V, 2/3)
-    const Q_conv = -heatTransferCoeff * area * (T - T_ext) / (mass * p.Cp)
-    let Q_rxn = 0
-    if (fluid === "NH3") {
-      const conversion = 0.8 * (1 - Math.exp(-t / 5))
-      const reactionRate = 0.01 * conversion * m_dot
-      Q_rxn = 5000 * reactionRate / (mass * p.Cp)   
-    }
-    const dT = (Q_conv + Q_rxn) * dt
-    T += dT
-    T = Math.max(20, Math.min(800, T))
-
-    // ===== Conservation du momentum (vitesse) =====
-    const scenario = params.scenario ?? "storage"
-    const L = 10.0   
-    let dP_dx, friction, maxU
-    if (scenario === "storage") {
-      dP_dx = -(P - p.P_ref) / (L * 1000)
-      friction = -0.5 * u
-      maxU = 2.0
-    } else {
-      dP_dx = -(P - p.P_ref) / L
-      friction = -0.02 * u * u / (2 * L)
-      maxU = 100.0
-    }
-    const du = (dP_dx / rho + friction) * dt
-    u += du
-    u = Math.max(0, Math.min(maxU, u))
-
-    predictions.push({
-      pressure: P,
-      velocity_u: u,
-      velocity_v: 0.05 * Math.sin(t * 2) * u,
-      velocity_w: 0.03 * Math.cos(t * 1.5) * u,
-      temperature: T,
-      density: rho,
-      time: t,
-      x: params.x ?? 0.5,
-      y: params.y ?? 0.5,
-      z: params.z ?? 0.5,
-      timestamp: new Date(Date.now() + t * 1000).toISOString(),
-    })
-  }
-  return predictions
-}
+// La fonction simulateIndustrialDynamics a été supprimée pour garantir l'utilisation exclusive de données physiques réelles.
 
 // ============================================================================
 // 7. Calcul du score de crédibilité (Logique métier corrigée)
@@ -566,34 +471,38 @@ serve(async (req: Request) => {
     const extractedParams = await extractPhysicalParameters(transcription)
     log("debug", "Extracted parameters", { requestId, params: extractedParams })
 
-    let predictions3d = simulateIndustrialDynamics(
-      {
-        pressure: extractedParams.pressure ?? undefined,
-        temperature: extractedParams.temperature ?? undefined,
-        velocity: extractedParams.velocity ?? undefined,
-        fluid_type: extractedParams.fluid_type ?? undefined,
-        scenario: extractedParams.scenario ?? undefined,
-        x: extractedParams.x,
-        y: extractedParams.y,
-        z: extractedParams.z,
-        mass_flow_rate: extractedParams.mass_flow_rate ?? undefined,
-        volume: extractedParams.volume ?? undefined,
-      },
-      env.SIMULATION_TIMESTEPS,
-      env.SIMULATION_DURATION
-    )
+    let predictions3d: any[] = []
+    let physicalMetrics: any = null
 
     try {
-      const pinnPred = await fetch3DPrediction({
-        time: 0,
-        x: extractedParams.x ?? 0.5,
-        y: extractedParams.y ?? 0.5,
-        z: extractedParams.z ?? 0.5,
+      // Appel au moteur physique réel pour obtenir la série temporelle complète et les résidus
+      const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/validate-3d`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pressure: extractedParams.pressure ?? 101325,
+          temperature: extractedParams.temperature ?? 293.15,
+          density: 1.0,
+          velocity_magnitude: extractedParams.velocity ?? 0.5,
+          x: extractedParams.x ?? 0.5,
+          y: extractedParams.y ?? 0.5,
+          z: extractedParams.z ?? 0.5,
+        }),
       })
-      predictions3d[0] = pinnPred
-      log("info", "PINN prediction integrated", { requestId })
+      
+      if (response.ok) {
+        const data = await response.json()
+        predictions3d = data.predictions3d || []
+        physicalMetrics = data.physical_metrics
+        log("info", "Real industrial data integrated from PINN V8", { requestId })
+      }
     } catch (err) {
-      log("warn", "External PINN unavailable, using internal simulation", { requestId, error: err.message })
+      log("error", "Failed to fetch real industrial data", { requestId, error: err.message })
+    }
+
+    // Si le moteur physique échoue, on ne renvoie pas de données factices
+    if (predictions3d.length === 0) {
+      log("warn", "No physical data available - Analysis will be limited", { requestId })
     }
 
     let assimilationResult
@@ -652,6 +561,7 @@ serve(async (req: Request) => {
         extractedData: extractedParams,
         predictions3d,
         assimilation: assimilationResult,
+        physicalMetrics,
       }),
       {
         status: 200,
