@@ -270,7 +270,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 OPENAI_API_KEY=sk-...
 
 # PINN Backend
-H2_INFERENCE_API_URL=http://localhost:8000
+H2_INFERENCE_API_URL=https://quantum-pinn-api-qef2.onrender.com
 
 # Redis (optionnel, pour queue)
 REDIS_URL=redis://localhost:6379
