@@ -380,6 +380,20 @@ async def websocket_endpoint(websocket: WebSocket, job_id: str):
 async def run_hybrid_simulation(request: HybridSimulationRequest, background_tasks: BackgroundTasks):
     job_id = request.job_id or str(uuid.uuid4())
     
+    # Correction : Créer le job dans l'orchestrateur avant de lancer la simulation
+    # Cela évite l'erreur "Job not found" car l'orchestrateur doit connaître le job_id
+    orchestrator.create_job(
+        name=request.job_name,
+        case_path=request.case_path,
+        job_id=job_id,
+        config={
+            "n_steps": request.n_steps,
+            "time_step": request.time_step,
+            "residual_threshold": request.residual_threshold,
+            "fields": request.fields
+        }
+    )
+
     async def run_real_hybrid():
         try:
             if supabase is not None:
