@@ -507,7 +507,10 @@ serve(async (req: Request) => {
 
     let assimilationResult
     try {
-      const initialState = [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u]
+      const initialState = predictions3d[0] 
+        ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u] 
+        : [extractedParams.pressure ?? 101325, extractedParams.temperature ?? 293.15, extractedParams.velocity ?? 0]
+      
       const observation = [
         extractedParams.pressure ?? initialState[0],
         extractedParams.temperature ?? initialState[1],
@@ -516,7 +519,10 @@ serve(async (req: Request) => {
       assimilationResult = await performAssimilation(initialState, observation)
     } catch (err) {
       log("warn", "Assimilation API failed, using simple Kalman fallback", { requestId, error: err.message })
-      const initialState = [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u]
+      const initialState = predictions3d[0] 
+        ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u] 
+        : [extractedParams.pressure ?? 101325, extractedParams.temperature ?? 293.15, extractedParams.velocity ?? 0]
+        
       const observation = [
         extractedParams.pressure ?? initialState[0],
         extractedParams.temperature ?? initialState[1],
