@@ -106,18 +106,20 @@ export default function SimulationsPage() {
       setHybridResults(transformed)
     } 
     // Cas 2: Structure plate (format par défaut de l'orchestrateur et de la migration)
-    else if (job.results.iteration !== undefined) {
+    else if (job.results.iteration !== undefined || job.results.residuals !== undefined) {
       const transformed: HybridResultsData = {
         jobId: job.jobId || job.id,
         totalTime: (job.results.cfdTime || 0) + (job.results.mlTime || 0),
         cfdTime: job.results.cfdTime || 0,
         mlTime: job.results.mlTime || 0,
-        totalSteps: job.results.iteration || 0,
-        cfdSteps: Math.floor((job.results.iteration || 0) * 0.4), // Estimation si non fourni
-        mlSteps: Math.ceil((job.results.iteration || 0) * 0.6),   // Estimation si non fourni
-        residuals: job.results.residuals ? [job.results.residuals] : [],
-        fieldComparisons: [],
-        accelerationFactor: job.results.credibilityScore ? (job.results.credibilityScore / 100) + 1 : 1,
+        totalSteps: job.results.iteration || 1,
+        cfdSteps: job.results.cfdSteps || Math.floor((job.results.iteration || 0) * 0.4),
+        mlSteps: job.results.mlSteps || Math.ceil((job.results.iteration || 0) * 0.6),
+        residuals: Array.isArray(job.results.residuals) 
+          ? job.results.residuals 
+          : (job.results.residuals ? [{ step: job.results.iteration || 0, ...job.results.residuals }] : []),
+        fieldComparisons: job.results.fieldComparisons || [],
+        accelerationFactor: job.results.accelerationFactor || (job.results.credibilityScore ? (job.results.credibilityScore / 100) + 1 : 1.5),
       }
       setHybridResults(transformed)
     }
@@ -128,19 +130,37 @@ export default function SimulationsPage() {
 
   // Données pour les graphiques Plotly (analyses existantes)
   const getChartData = () => {
-    const predictions = selectedAnalysis?.results?.predictions3d || []
-    const physicalMetrics = (selectedAnalysis?.results as any)?.physicalMetrics || null
+    // On essaie de récupérer les prédictions depuis plusieurs endroits possibles
+    const results = selectedAnalysis?.results as any;
+    const predictions = results?.predictions3d || results?.pinn_predictions || [];
+    const physicalMetrics = results?.physicalMetrics || results?.physical_metrics || null;
     
-    if (predictions.length === 0) return { x: [], pressure: [], velocity: [], residuals: null, isEmpty: true }
+    // Si on n'a pas de prédictions 3D mais qu'on a des paramètres extraits, on peut simuler un point unique
+    const extracted = results?.extractedData || results?.extractedParams;
     
-    const x = predictions.map(p => p.time)
-    const pressure = predictions.map(p => p.pressure / 1e5)
-    const velocity = predictions.map(p => Math.sqrt(p.velocity_u**2 + p.velocity_v**2 + p.velocity_w**2))
+    if (predictions.length === 0 && !extracted) {
+      return { x: [], pressure: [], velocity: [], residuals: null, isEmpty: true };
+    }
+    
+    let x: number[] = [];
+    let pressure: number[] = [];
+    let velocity: number[] = [];
+
+    if (predictions.length > 0) {
+      x = predictions.map((p: any) => p.time);
+      pressure = predictions.map((p: any) => (p.pressure || 0) / 1e5);
+      velocity = predictions.map((p: any) => Math.sqrt((p.velocity_u || 0)**2 + (p.velocity_v || 0)**2 + (p.velocity_w || 0)**2));
+    } else if (extracted) {
+      // Fallback : afficher le point unique extrait par l'IA
+      x = [0];
+      pressure = [(extracted.pressure || 0) / 1e5];
+      velocity = [extracted.velocity || 0];
+    }
     
     // Extraction des résidus réels pour le graphique industriel
-    const residuals = physicalMetrics?.residual_history || null
+    const residuals = physicalMetrics?.residual_history || physicalMetrics?.residuals || null;
     
-    return { x, pressure, velocity, residuals, isEmpty: false }
+    return { x, pressure, velocity, residuals, isEmpty: false };
   }
   const { x, pressure, velocity, residuals, isEmpty } = getChartData()
 
@@ -234,10 +254,12 @@ export default function SimulationsPage() {
                       {residuals ? (
                         <Plot 
                           data={[
-                            { x, y: residuals.continuity, type: 'scatter', mode: 'lines', name: 'Masse', line: { color: '#ef4444' } },
-                            { x, y: residuals.momentum, type: 'scatter', mode: 'lines', name: 'Momentum', line: { color: '#3b82f6' } },
-                            { x, y: residuals.energy, type: 'scatter', mode: 'lines', name: 'Énergie', line: { color: '#10b981' } }
-                          ]} 
+                            { x, y: residuals.continuity || residuals.continuity_residual, type: 'scatter', mode: 'lines', name: 'Masse', line: { color: '#ef4444' } },
+                            { x, y: residuals.momentum || residuals.momentum_x || residuals.momentum_residual, type: 'scatter', mode: 'lines', name: 'Momentum', line: { color: '#3b82f6' } },
+                            { x, y: residuals.energy || residuals.energy_residual, type: 'scatter', mode: 'lines', name: 'Énergie', line: { color: '#10b981' } },
+                            { x, y: residuals.k, type: 'scatter', mode: 'lines', name: 'k', line: { color: '#f59e0b' } },
+                            { x, y: residuals.epsilon, type: 'scatter', mode: 'lines', name: 'epsilon', line: { color: '#ec4899' } }
+                          ].filter(d => d.y !== undefined)} 
                           layout={{ 
                             autosize: true, 
                             paper_bgcolor: 'rgba(0,0,0,0)', 
