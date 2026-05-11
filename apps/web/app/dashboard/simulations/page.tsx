@@ -189,7 +189,7 @@ export default function SimulationsPage() {
       {/* Onglets : Analyses existantes / Nouvelle simulation hybride */}
       <Tabs defaultValue="classic" className="space-y-6">
         <TabsList className="bg-white/5 border border-white/10 p-1 w-full max-w-md">
-          <TabsTrigger value="classic">Analyses classiques</TabsTrigger>
+          <TabsTrigger value="classic">Analyses Avancées PINN V8</TabsTrigger>
           <TabsTrigger value="hybrid">Simulation hybride (CFD+ML)</TabsTrigger>
         </TabsList>
 
