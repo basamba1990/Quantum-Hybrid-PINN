@@ -32,6 +32,12 @@ const HybridSimulationRequestSchema = z.object({
   timeStep: z.number().positive().default(0.01),
   residualThreshold: z.number().positive().default(0.01),
   fields: z.array(z.string()).default(["U","p","T"]),
+  fluid: z.string().optional(),
+  pressure: z.number().optional(),
+  temperature: z.number().optional(),
+  flow_rate: z.number().optional(),
+  length: z.number().optional(),
+  diameter: z.number().optional(),
 });
 type HybridSimulationRequest = z.infer<typeof HybridSimulationRequestSchema>;
 
@@ -140,6 +146,12 @@ serve(async (req: Request) => {
       time_step: request.timeStep,
       residual_threshold: request.residualThreshold,
       fields: request.fields,
+      fluid: request.fluid,
+      pressure: request.pressure,
+      temperature: request.temperature,
+      flow_rate: request.flow_rate,
+      length: request.length,
+      diameter: request.diameter,
     };
 
     // Lancer l'appel en arrière-plan
