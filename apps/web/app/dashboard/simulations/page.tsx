@@ -254,12 +254,12 @@ export default function SimulationsPage() {
                       {residuals ? (
                         <Plot 
                           data={[
-                            { x, y: residuals.continuity || residuals.continuity_residual, type: 'scatter', mode: 'lines', name: 'Masse', line: { color: '#ef4444' } },
-                            { x, y: residuals.momentum || residuals.momentum_x || residuals.momentum_residual, type: 'scatter', mode: 'lines', name: 'Momentum', line: { color: '#3b82f6' } },
-                            { x, y: residuals.energy || residuals.energy_residual, type: 'scatter', mode: 'lines', name: 'Énergie', line: { color: '#10b981' } },
-                            { x, y: residuals.k, type: 'scatter', mode: 'lines', name: 'k', line: { color: '#f59e0b' } },
-                            { x, y: residuals.epsilon, type: 'scatter', mode: 'lines', name: 'epsilon', line: { color: '#ec4899' } }
-                          ].filter(d => d.y !== undefined)} 
+                            { x, y: residuals.continuity || residuals.continuity_residual, type: 'scatter' as const, mode: 'lines', name: 'Masse', line: { color: '#ef4444' } },
+                            { x, y: residuals.momentum || residuals.momentum_x || residuals.momentum_residual, type: 'scatter' as const, mode: 'lines', name: 'Momentum', line: { color: '#3b82f6' } },
+                            { x, y: residuals.energy || residuals.energy_residual, type: 'scatter' as const, mode: 'lines', name: 'Énergie', line: { color: '#10b981' } },
+                            { x, y: residuals.k, type: 'scatter' as const, mode: 'lines', name: 'k', line: { color: '#f59e0b' } },
+                            { x, y: residuals.epsilon, type: 'scatter' as const, mode: 'lines', name: 'epsilon', line: { color: '#ec4899' } }
+                          ].filter(d => d.y !== undefined) as any} 
                           layout={{ 
                             autosize: true, 
                             paper_bgcolor: 'rgba(0,0,0,0)', 
