@@ -189,9 +189,11 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
   const calculateProgress = (job: JobStatus) => {
     if (!job.results || !job.results.iteration) return null;
     return (job.results.iteration / config.nSteps) * 100;
-  }  return (
+  };
+
+  return (
     <div className="space-y-8">
-      {/* SECTION: Analyses Avancées PINN V8 - Pas "classiques" */}6 p-6">
+      {/* SECTION: Analyses Avancées PINN V8 - Pas "classiques" */}
       {/* Configuration Panel */}
       <Card className="border-l-4 border-l-blue-500">
         <CardHeader>
