@@ -23,6 +23,13 @@ interface HybridSimulationConfig {
   timeStep: number;
   residualThreshold: number;
   fields: string[];
+  // Paramètres H2-PIPELINE-TRANS-100KM-V8
+  fluid: string;
+  pressure: number;
+  temperature: number;
+  flowRate: number;
+  length: number;
+  diameter: number;
 }
 
 interface JobStatus {
@@ -50,12 +57,18 @@ interface HybridSimulationPanelProps {
 
 export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected }: HybridSimulationPanelProps) {
   const [config, setConfig] = useState<HybridSimulationConfig>({
-    jobName: 'H2_Pipeline_Prediction',
-    casePath: 'h2_pipeline',
-    nSteps: 50,
+    jobName: 'H2-PIPELINE-TRANS-100KM-V8',
+    casePath: 'h2_pipeline_v8',
+    nSteps: 100,
     timeStep: 0.01,
     residualThreshold: 0.01,
-    fields: ['U', 'p', 'T'],
+    fields: ['U', 'p', 'T', 'rho'],
+    fluid: 'Hydrogène (H2)',
+    pressure: 80,
+    temperature: 300,
+    flowRate: 2.0,
+    length: 100,
+    diameter: 0.5,
   });
 
   const [jobs, setJobs] = useState<JobStatus[]>([]);
@@ -135,6 +148,12 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
           time_step: config.timeStep,
           residual_threshold: config.residualThreshold,
           fields: config.fields,
+          fluid: config.fluid,
+          pressure: config.pressure,
+          temperature: config.temperature,
+          flow_rate: config.flowRate,
+          length: config.length,
+          diameter: config.diameter,
         }),
       });
 
@@ -166,12 +185,18 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
 
   const handleResetConfig = () => {
     setConfig({
-      jobName: 'H2_Pipeline_Prediction',
-      casePath: 'h2_pipeline',
-      nSteps: 50,
+      jobName: 'H2-PIPELINE-TRANS-100KM-V8',
+      casePath: 'h2_pipeline_v8',
+      nSteps: 100,
       timeStep: 0.01,
       residualThreshold: 0.01,
-      fields: ['U', 'p', 'T'],
+      fields: ['U', 'p', 'T', 'rho'],
+      fluid: 'Hydrogène (H2)',
+      pressure: 80,
+      temperature: 300,
+      flowRate: 2.0,
+      length: 100,
+      diameter: 0.5,
     });
   };
 
