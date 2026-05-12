@@ -17,7 +17,8 @@ export function useSubscription() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user?.email) {
+    const userEmail = user?.email;
+    if (!userEmail) {
       setLoading(false);
       return;
     }
@@ -26,7 +27,7 @@ export function useSubscription() {
       try {
         setLoading(true);
         const response = await fetch(
-          `/api/subscriptions/check?email=${encodeURIComponent(user.email)}`
+          `/api/subscriptions/check?email=${encodeURIComponent(userEmail)}`
         );
 
         if (!response.ok) {
