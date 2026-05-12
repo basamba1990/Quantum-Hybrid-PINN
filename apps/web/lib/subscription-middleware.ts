@@ -56,14 +56,8 @@ export async function verifySubscriptionAccess(
     return requiredPlan === 'free';
   }
 
-  const planHierarchy = {
-    free: 0,
-    starter: 1,
-    pro: 2,
-    enterprise: 3,
-  };
-
-  return planHierarchy[subscription.plan] >= planHierarchy[requiredPlan];
+    // Since we only have the Starter plan now, any active subscription grants access
+    return subscription.plan === 'starter';
 }
 
 export async function incrementSimulationCount(
@@ -86,12 +80,10 @@ export async function getSimulationQuota(
 
     const quotas = {
       free: { used: 0, limit: 0 },
-      starter: { used: 0, limit: 10 },
-      pro: { used: 0, limit: -1 }, // -1 means unlimited
-      enterprise: { used: 0, limit: -1 },
+      starter: { used: 0, limit: -1 }, // Unlimited for Starter plan
     };
 
-    return quotas[subscription.plan];
+    return quotas[subscription.plan as 'free' | 'starter'] || quotas.free;
   } catch (error) {
     console.error('Error getting simulation quota:', error);
     return { used: 0, limit: 0 };
