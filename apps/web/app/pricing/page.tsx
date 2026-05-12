@@ -19,8 +19,8 @@ interface PricingPlan {
 const plans: PricingPlan[] = [
   {
     name: 'Starter',
-    price: '17,000',
-    currency: 'CFA',
+    price: '28',
+    currency: '$',
     billing_period: '/mois',
     description: 'Accès complet à la plateforme de simulation Quantum-Hybrid-PINN',
     features: [
@@ -83,11 +83,11 @@ export default function PricingPage() {
                 <div className="mb-6">
                   <div className="flex items-baseline">
                     <span className="text-4xl font-bold text-white">
-                      {plan.price} {plan.currency}
+                      {plan.currency}{plan.price}
                     </span>
                     <span className="text-slate-400 ml-2">{plan.billing_period}</span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">Environ 26€ / 28$ par mois</p>
+                  <p className="text-xs text-slate-400 mt-1">Environ 17 000 CFA par mois</p>
                 </div>
 
                 {/* Features */}
