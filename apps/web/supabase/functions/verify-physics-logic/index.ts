@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { z } from "https://esm.sh/zod@3.22.4"
+import { generateAnalysisReport } from "./pdf-generator.ts"
 
 // ============================================================================
 // 1. Configuration & validation d'environnement
@@ -555,6 +556,40 @@ serve(async (req: Request) => {
     }).eq("id", analysisId)
 
     await Promise.all([insertPromise, updatePromise])
+
+    // --- NOUVEAU : Génération et Stockage du Rapport PDF ---
+    try {
+      const pdfBuffer = await generateAnalysisReport({
+        analysisId,
+        extractedData: extractedParams,
+        credibilityScore: score,
+        anomalies,
+        predictions3d
+      });
+
+      const fileName = `report_${analysisId}_${Date.now()}.pdf`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("reports")
+        .upload(fileName, pdfBuffer, {
+          contentType: "application/pdf",
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from("reports").getPublicUrl(fileName);
+      
+      await supabase.from("reports").insert({
+        project_id: projectId,
+        name: `Rapport d'Analyse - ${extractedParams.fluid_type || 'H2'} - ${new Date().toLocaleDateString()}`,
+        file_url: urlData.publicUrl
+      });
+      
+      log("info", "Report PDF generated and stored", { requestId, fileName });
+    } catch (reportErr) {
+      log("error", "Failed to generate/store report", { requestId, error: reportErr.message });
+    }
+    // -------------------------------------------------------
 
     const durationMs = Date.now() - startTime
     log("info", "Verification completed", { requestId, score, anomaliesCount: anomalies.length, durationMs })
