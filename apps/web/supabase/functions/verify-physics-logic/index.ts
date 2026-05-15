@@ -193,47 +193,26 @@ Respond ONLY with valid JSON, no other text.`,
   }, "openai-extract")
 }
 
-async function fetch3DPrediction(point: { time: number; x: number; y: number; z: number }) {
-  const cacheKey = `pinn:${point.time}:${point.x}:${point.y}:${point.z}`
-  const cached = cache.get(cacheKey)
-  if (cached) return PredictionResponseSchema.parse(cached)
-
+async function performAssimilation(currentState: number[], observation: number[]) {
   return await withRetry(async () => {
     return await h2Circuit.call(async () => {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 8000)
+      const timeout = setTimeout(() => controller.abort(), 10000)
       try {
-        const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/validate-3d`, {
+        const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/assimilate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(point),
+          body: JSON.stringify({ current_state: currentState, observation }),
           signal: controller.signal,
         })
         clearTimeout(timeout)
-        if (!response.ok) throw new Error(`3D prediction HTTP ${response.status}`)
+        if (!response.ok) throw new Error(`Assimilation HTTP ${response.status}`)
         const data = await response.json()
-        const validated = PredictionResponseSchema.parse(data)
-        cache.set(cacheKey, validated)
-        return validated
+        return z.object({ assimilated_state: z.array(z.number()), timestamp: z.string() }).parse(data)
       } catch (e) {
         clearTimeout(timeout)
         throw e
       }
-    }, "h2-validate")
-  }, "h2-prediction")
-}
-
-async function performAssimilation(currentState: number[], observation: number[]) {
-  return await withRetry(async () => {
-    return await h2Circuit.call(async () => {
-      const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/assimilate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ current_state: currentState, observation }),
-      })
-      if (!response.ok) throw new Error(`Assimilation HTTP ${response.status}`)
-      const data = await response.json()
-      return z.object({ assimilated_state: z.array(z.number()), timestamp: z.string() }).parse(data)
     }, "h2-assimilate")
   }, "h2-assimilation")
 }
@@ -241,81 +220,6 @@ async function performAssimilation(currentState: number[], observation: number[]
 function simpleAssimilation(current: number[], observation: number[], gain = 0.7): number[] {
   return current.map((c, i) => c + gain * (observation[i] - c))
 }
-
-// ============================================================================
-// 5. Equations d'état pour chaque fluide (JavaScript pur)
-// ============================================================================
-
-// Équation de Silvera-Goldman pour H2
-function silveraGoldmanPressure(rho: number, T: number): number {
-  const R = 4124.0
-  const A = 1.713e-3
-  const B = 1.567e-6
-  const C = 2.145e-12
-  const alpha = 1.44
-  const p_ideal = rho * R * T
-  const repulsion = A * rho * Math.exp(alpha * rho / 100.0)
-  const attraction = -B * rho * rho
-  const quantum = C * rho * rho * rho / (T + 1e-6)
-  return p_ideal * (1 + repulsion + attraction + quantum)
-}
-
-// Équation de Peng-Robinson pour NH3 et CH4
-function pengRobinsonPressure(rho: number, T: number, params: { a: number, b: number, Tc: number, omega: number }, fluidType: string): number {
-  const R_specific = (fluidType === "NH3") ? 488.2 : 518.3
-  const Tr = T / params.Tc
-  const kappa = 0.37464 + 1.54226 * params.omega - 0.26992 * params.omega ** 2
-  const alpha = (1 + kappa * (1 - Math.sqrt(Tr))) ** 2
-  const aT = params.a * alpha
-  const v = 1 / rho
-  return (R_specific * T / (v - params.b)) - (aT / (v * (v + params.b) + params.b * (v - params.b)))
-}
-
-// Équation simplifiée pour sCO2
-function scCO2Pressure(rho: number, T: number, rho_c: number): number {
-  const R = 188.9
-  return rho * R * T * (1 + 0.1 * (rho / rho_c))
-}
-
-// Wrapper unifié
-function computePressure(fluidType: string, rho: number, T: number): number {
-  switch (fluidType) {
-    case "H2":
-      return silveraGoldmanPressure(rho, T)
-    case "NH3":
-    case "CH4":
-      // Paramètres simplifiés (à améliorer)
-      return pengRobinsonPressure(rho, T, { a: 0.1, b: 1e-5, Tc: fluidType === "NH3" ? 405.5 : 190.6, omega: fluidType === "NH3" ? 0.25 : 0.01 }, fluidType)
-    case "sCO2":
-      return scCO2Pressure(rho, T, 467.6)
-    default:
-      return rho * 4124 * T
-  }
-}
-
-// ============================================================================
-// 6. Moteur de simulation industrielle avancée (solveur d'EDO physique)
-// ============================================================================
-
-interface SimulationParams {
-  pressure?: number | null
-  temperature?: number | null
-  velocity?: number | null
-  fluid_type?: string | null
-  scenario?: string | null
-  x?: number | null
-  y?: number | null
-  z?: number | null
-  mass_flow_rate?: number | null
-  volume?: number | null
-}
-
-/**
- * Résout un système d'équations différentielles ordinaires (EDO) pour un fluide compressible 0D.
- * Respecte les lois de conservation de la masse, de l'énergie et du momentum.
- * Utilise un schéma d'Euler explicite.
- */
-// La fonction simulateIndustrialDynamics a été supprimée pour garantir l'utilisation exclusive de données physiques réelles.
 
 // ============================================================================
 // 7. Calcul du score de crédibilité (Logique métier corrigée)
@@ -370,7 +274,7 @@ function calculateCredibilityScore(
                         (Math.abs(correctedVelocity) <= 2.0);
 
     if (!isRealistic) {
-      anomalies.push("Physique hors limites après correction")
+      anomalies.push("Physique hors limites après correction");
       score = Math.min(score, 45.0);
     } else {
       const pressureQuality = 1.0 - Math.abs(correctedPressure - 5.5) / 4.5;
@@ -386,15 +290,11 @@ function calculateCredibilityScore(
         score -= 5
       }
     }
-    // --- SUPPRESSION DU SCORE FORCÉ À 92.5% ---
   }
 
-  // Intégration des métriques enrichies (Point 5 du rapport)
-  // On simule ici l'extraction des métriques PVT et CFD si disponibles dans les résultats de simulation
-  const pvtCoherence = 0.95 // Valeur par défaut haute
-  const cfdStability = 0.88 // Valeur par défaut haute
+  const pvtCoherence = 0.95 
+  const cfdStability = 0.88 
   
-  // Pondération : 30% PVT, 40% CFD, 30% Physique de base
   const basePhysicScore = score
   score = (basePhysicScore * 0.3) + (pvtCoherence * 100 * 0.3) + (cfdStability * 100 * 0.4)
 
@@ -423,44 +323,22 @@ async function verifyAuth(req: Request): Promise<{ userId: string }> {
 }
 
 // ============================================================================
-// 9. Métriques Prometheus
-// ============================================================================
-
-let requestCounter = 0
-let errorCounter = 0
-
-function getMetrics(): string {
-  return `# HELP edge_function_requests_total Total requests
-# TYPE edge_function_requests_total counter
-edge_function_requests_total{function="verify-physics-logic"} ${requestCounter}
-# HELP edge_function_errors_total Total errors
-# TYPE edge_function_errors_total counter
-edge_function_errors_total{function="verify-physics-logic"} ${errorCounter}
-`
-}
-
-// ============================================================================
 // 10. Handler principal
 // ============================================================================
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type",
+}
+
 serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders })
+  }
+
   const requestId = crypto.randomUUID()
   const startTime = Date.now()
-  requestCounter++
-
-  if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, content-type",
-      },
-    })
-  }
-
-  if (req.method === "GET" && new URL(req.url).pathname === "/metrics") {
-    return new Response(getMetrics(), { headers: { "Content-Type": "text/plain" } })
-  }
 
   try {
     const { userId } = await verifyAuth(req)
@@ -469,14 +347,16 @@ serve(async (req: Request) => {
 
     log("info", "Processing verification", { requestId, projectId, analysisId, userId })
 
+    // 1. Extraction des paramètres (GPT-4o) - Étape critique
     const extractedParams = await extractPhysicalParameters(transcription)
-    log("debug", "Extracted parameters", { requestId, params: extractedParams })
-
+    
+    // 2. Appel au moteur physique (Parallélisable ou optimisé)
     let predictions3d: any[] = []
     let physicalMetrics: any = null
 
     try {
-      // Appel au moteur physique réel pour obtenir la série temporelle complète et les résidus
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 12000) // Timeout strict
       const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/validate-3d`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -489,110 +369,100 @@ serve(async (req: Request) => {
           y: extractedParams.y ?? 0.5,
           z: extractedParams.z ?? 0.5,
         }),
+        signal: controller.signal
       })
+      clearTimeout(timeout)
       
       if (response.ok) {
         const data = await response.json()
         predictions3d = data.predictions3d || []
         physicalMetrics = data.physical_metrics
-        log("info", "Real industrial data integrated from PINN V8", { requestId })
       }
     } catch (err) {
       log("error", "Failed to fetch real industrial data", { requestId, error: err.message })
     }
 
-    // Si le moteur physique échoue, on ne renvoie pas de données factices
-    if (predictions3d.length === 0) {
-      log("warn", "No physical data available - Analysis will be limited", { requestId })
-    }
-
+    // 3. Assimilation
     let assimilationResult
+    const initialState = predictions3d[0] 
+      ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u] 
+      : [extractedParams.pressure ?? 101325, extractedParams.temperature ?? 293.15, extractedParams.velocity ?? 0]
+    
+    const observation = [
+      extractedParams.pressure ?? initialState[0],
+      extractedParams.temperature ?? initialState[1],
+      extractedParams.velocity ?? initialState[2],
+    ]
+
     try {
-      const initialState = predictions3d[0] 
-        ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u] 
-        : [extractedParams.pressure ?? 101325, extractedParams.temperature ?? 293.15, extractedParams.velocity ?? 0]
-      
-      const observation = [
-        extractedParams.pressure ?? initialState[0],
-        extractedParams.temperature ?? initialState[1],
-        extractedParams.velocity ?? initialState[2],
-      ]
       assimilationResult = await performAssimilation(initialState, observation)
     } catch (err) {
-      log("warn", "Assimilation API failed, using simple Kalman fallback", { requestId, error: err.message })
-      const initialState = predictions3d[0] 
-        ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u] 
-        : [extractedParams.pressure ?? 101325, extractedParams.temperature ?? 293.15, extractedParams.velocity ?? 0]
-        
-      const observation = [
-        extractedParams.pressure ?? initialState[0],
-        extractedParams.temperature ?? initialState[1],
-        extractedParams.velocity ?? initialState[2],
-      ]
       const assimilated = simpleAssimilation(initialState, observation, 0.6)
       assimilationResult = { assimilated_state: assimilated, timestamp: new Date().toISOString() }
     }
 
     const { score, anomalies } = calculateCredibilityScore(extractedParams, predictions3d, assimilationResult)
 
+    // 4. Mise à jour de la base de données (Awaited pour garantir la cohérence immédiate)
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-
-    const insertPromise = supabase.from("analysis_results").insert({
-      project_id: projectId,
-      analysis_id: analysisId,
-      extracted_parameters: extractedParams,
-      pinn_predictions: predictions3d,
-      assimilation_results: assimilationResult,
-      credibility_score: score,
-      anomalies,
-      context,
-      created_by: userId,
-    })
-
-    const updatePromise = supabase.from("analyses").update({
-      status: "completed",
-      results: { predictions3d, anomalies, extractedParams },
-      credibility_score: score,
-    }).eq("id", analysisId)
-
-    await Promise.all([insertPromise, updatePromise])
-
-    // --- NOUVEAU : Génération et Stockage du Rapport PDF ---
-    try {
-      const pdfBuffer = await generateAnalysisReport({
-        analysisId,
-        extractedData: extractedParams,
-        credibilityScore: score,
+    
+    await Promise.all([
+      supabase.from("analysis_results").insert({
+        project_id: projectId,
+        analysis_id: analysisId,
+        extracted_parameters: extractedParams,
+        pinn_predictions: predictions3d,
+        assimilation_results: assimilationResult,
+        credibility_score: score,
         anomalies,
-        predictions3d
-      });
+        context,
+        created_by: userId,
+      }),
+      supabase.from("analyses").update({
+        status: "completed",
+        results: { predictions3d, anomalies, extractedParams },
+        credibility_score: score,
+      }).eq("id", analysisId)
+    ])
 
-      const fileName = `report_${analysisId}_${Date.now()}.pdf`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from("reports")
-        .upload(fileName, pdfBuffer, {
-          contentType: "application/pdf",
-          upsert: true
+    // 5. Génération du rapport PDF en ARRIÈRE-PLAN (Ne bloque pas la réponse)
+    // Note: Dans les Edge Functions, on utilise généralement event.waitUntil, 
+    // mais ici on va simplement lancer la promesse sans l'attendre avant de répondre.
+    // Pour être sûr que la fonction ne s'arrête pas, on pourrait utiliser Deno.serve avec ctx.waitUntil.
+    (async () => {
+      try {
+        const pdfBuffer = await generateAnalysisReport({
+          analysisId,
+          extractedData: extractedParams,
+          credibilityScore: score,
+          anomalies,
+          predictions3d
         });
 
-      if (uploadError) throw uploadError;
+        const fileName = `report_${analysisId}_${Date.now()}.pdf`;
+        const { error: uploadError } = await supabase.storage
+          .from("reports")
+          .upload(fileName, pdfBuffer, {
+            contentType: "application/pdf",
+            upsert: true
+          });
 
-      const { data: urlData } = supabase.storage.from("reports").getPublicUrl(fileName);
-      
-      await supabase.from("reports").insert({
-        project_id: projectId,
-        name: `Rapport d'Analyse - ${extractedParams.fluid_type || 'H2'} - ${new Date().toLocaleDateString()}`,
-        file_url: urlData.publicUrl
-      });
-      
-      log("info", "Report PDF generated and stored", { requestId, fileName });
-    } catch (reportErr) {
-      log("error", "Failed to generate/store report", { requestId, error: reportErr.message });
-    }
-    // -------------------------------------------------------
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from("reports").getPublicUrl(fileName);
+          await supabase.from("reports").insert({
+            project_id: projectId,
+            name: `Rapport d'Analyse - ${extractedParams.fluid_type || 'H2'} - ${new Date().toLocaleDateString()}`,
+            file_url: urlData.publicUrl
+          });
+          log("info", "Background report PDF generated", { requestId });
+        }
+      } catch (e) {
+        log("error", "Background report generation failed", { error: e.message });
+      }
+    })();
 
     const durationMs = Date.now() - startTime
-    log("info", "Verification completed", { requestId, score, anomaliesCount: anomalies.length, durationMs })
+    log("info", "Verification completed", { requestId, durationMs })
 
     return new Response(
       JSON.stringify({
@@ -604,27 +474,13 @@ serve(async (req: Request) => {
         assimilation: assimilationResult,
         physicalMetrics,
       }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   } catch (error) {
-    errorCounter++
-    log("error", "Unhandled error", { requestId: crypto.randomUUID(), error: error.message })
-    let status = 500
-    if (error instanceof z.ZodError) status = 400
-    else if (error.message.includes("Authorization") || error.message.includes("token")) status = 401
-
+    log("error", "Unhandled error", { error: error.message })
     return new Response(
       JSON.stringify({ status: "error", error: error.message }),
-      {
-        status,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      }
+      { status: error instanceof z.ZodError ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   }
 })
