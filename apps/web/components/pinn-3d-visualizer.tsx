@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Prediction3D } from '@/types'
@@ -26,10 +26,29 @@ export default function PINN3DVisualizer({
 }: PINN3DVisualizerProps) {
   const [isMounted, setIsMounted] = useState(false)
   const [activeTab, setActiveTab] = useState('pressure')
+  const [forceUpdate, setForceUpdate] = useState(0)
+  const plotRefs = useRef<Record<string, any>>({})
+  const resizeObserverRef = useRef<ResizeObserver | null>(null)
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  // Forcer la mise à jour du graphique lors du changement d'onglet
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab)
+    // Forcer un redimensionnement après le changement d'onglet
+    setTimeout(() => {
+      setForceUpdate(prev => prev + 1)
+      if (plotRefs.current[newTab]) {
+        try {
+          window.Plotly?.Plots?.resize(plotRefs.current[newTab])
+        } catch (e) {
+          console.warn('Plotly resize failed:', e)
+        }
+      }
+    }, 100)
+  }
 
   if (!isMounted || !predictions || predictions.length === 0) {
     return (
@@ -68,7 +87,7 @@ export default function PINN3DVisualizer({
     }
   }, [predictions])
 
-  // Memoized base layout configuration
+  // Memoized base layout configuration avec hauteur explicite
   const baseLayout = useMemo(
     () => ({
       autosize: true,
@@ -118,7 +137,7 @@ export default function PINN3DVisualizer({
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
         <h3 className="text-lg font-semibold text-slate-800 mb-6">{title}</h3>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="pressure">Pression</TabsTrigger>
             <TabsTrigger value="velocity">Vitesse</TabsTrigger>
@@ -126,109 +145,121 @@ export default function PINN3DVisualizer({
           </TabsList>
 
           {/* Pressure Distribution Plot */}
-          <TabsContent value="pressure" className="h-[500px]">
-            <Plot
-              data={[
-                {
-                  type: 'scatter3d',
-                  mode: 'markers',
-                  x: chartData.x,
-                  y: chartData.y,
-                  z: chartData.z,
-                  marker: {
-                    size: 6,
-                    color: chartData.pressure,
-                    colorscale: 'Viridis',
-                    colorbar: {
-                      title: { text: 'Pression (Pa)', font: { size: 12 } },
-                      thickness: 15,
-                      len: 0.7,
+          <TabsContent value="pressure" className="h-[500px] w-full">
+            <div className="w-full h-full" ref={(el) => { if (el) plotRefs.current['pressure'] = el }}>
+              <Plot
+                key={`pressure-${forceUpdate}`}
+                data={[
+                  {
+                    type: 'scatter3d',
+                    mode: 'markers',
+                    x: chartData.x,
+                    y: chartData.y,
+                    z: chartData.z,
+                    marker: {
+                      size: 6,
+                      color: chartData.pressure,
+                      colorscale: 'Viridis',
+                      colorbar: {
+                        title: { text: 'Pression (Pa)', font: { size: 12 } },
+                        thickness: 15,
+                        len: 0.7,
+                      },
+                      opacity: 0.85,
+                      line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
                     },
-                    opacity: 0.85,
-                    line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
+                    text: hoverText,
+                    hoverinfo: 'text',
+                    hovertemplate: '%{text}<extra></extra>',
                   },
-                  text: hoverText,
-                  hoverinfo: 'text',
-                  hovertemplate: '%{text}<extra></extra>',
-                },
-              ]}
-              layout={{
-                ...baseLayout,
-                title: { ...baseLayout.title, text: `${title} – Pression` },
-              }}
-              config={{ responsive: true, displayModeBar: true }}
-              style={{ width: '100%', height: '100%' }}
-            />
+                ]}
+                layout={{
+                  ...baseLayout,
+                  title: { ...baseLayout.title, text: `${title} – Pression` },
+                }}
+                config={{ responsive: true, displayModeBar: true }}
+                style={{ width: '100%', height: '100%' }}
+                useResizeHandler={true}
+              />
+            </div>
           </TabsContent>
 
           {/* Velocity Cone Plot */}
-          <TabsContent value="velocity" className="h-[500px]">
-            <Plot
-              data={[
-                {
-                  type: 'cone',
-                  x: chartData.x,
-                  y: chartData.y,
-                  z: chartData.z,
-                  u: chartData.u,
-                  v: chartData.v,
-                  w: chartData.w,
-                  colorscale: 'Portland',
-                  sizemode: 'scaled',
-                  sizeref: 2,
-                  colorbar: {
-                    title: { text: 'Vitesse (m/s)', font: { size: 12 } },
-                    thickness: 15,
-                    len: 0.7,
-                  },
-                  text: velocityHoverText,
-                  hoverinfo: 'text',
-                  hovertemplate: '%{text}<extra></extra>',
-                } as any,
-              ]}
-              layout={{
-                ...baseLayout,
-                title: { ...baseLayout.title, text: `${title} – Vecteurs de Vitesse` },
-              }}
-              config={{ responsive: true, displayModeBar: true }}
-              style={{ width: '100%', height: '100%' }}
-            />
-          </TabsContent>
-
-          {/* Temperature Distribution Plot */}
-          <TabsContent value="temperature" className="h-[500px]">
-            <Plot
-              data={[
-                {
-                  type: 'scatter3d',
-                  mode: 'markers',
-                  x: chartData.x,
-                  y: chartData.y,
-                  z: chartData.z,
-                  marker: {
-                    size: 6,
-                    color: chartData.temperature,
-                    colorscale: 'Hot',
+          <TabsContent value="velocity" className="h-[500px] w-full">
+            <div className="w-full h-full" ref={(el) => { if (el) plotRefs.current['velocity'] = el }}>
+              <Plot
+                key={`velocity-${forceUpdate}`}
+                data={[
+                  {
+                    type: 'cone',
+                    x: chartData.x,
+                    y: chartData.y,
+                    z: chartData.z,
+                    u: chartData.u,
+                    v: chartData.v,
+                    w: chartData.w,
+                    colorscale: 'Portland',
+                    sizemode: 'scaled',
+                    sizeref: 2,
                     colorbar: {
-                      title: { text: 'Température (K)', font: { size: 12 } },
+                      title: { text: 'Vitesse (m/s)', font: { size: 12 } },
                       thickness: 15,
                       len: 0.7,
                     },
-                    opacity: 0.85,
-                    line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
+                    text: velocityHoverText,
+                    hoverinfo: 'text',
+                    hovertemplate: '%{text}<extra></extra>',
+                  } as any,
+                ]}
+                layout={{
+                  ...baseLayout,
+                  title: { ...baseLayout.title, text: `${title} – Vecteurs de Vitesse` },
+                }}
+                config={{ responsive: true, displayModeBar: true }}
+                style={{ width: '100%', height: '100%' }}
+                useResizeHandler={true}
+              />
+            </div>
+          </TabsContent>
+
+          {/* Temperature Distribution Plot */}
+          <TabsContent value="temperature" className="h-[500px] w-full">
+            <div className="w-full h-full" ref={(el) => { if (el) plotRefs.current['temperature'] = el }}>
+              <Plot
+                key={`temperature-${forceUpdate}`}
+                data={[
+                  {
+                    type: 'scatter3d',
+                    mode: 'markers',
+                    x: chartData.x,
+                    y: chartData.y,
+                    z: chartData.z,
+                    marker: {
+                      size: 6,
+                      color: chartData.temperature,
+                      colorscale: 'Hot',
+                      colorbar: {
+                        title: { text: 'Température (K)', font: { size: 12 } },
+                        thickness: 15,
+                        len: 0.7,
+                      },
+                      opacity: 0.85,
+                      line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
+                    },
+                    text: temperatureHoverText,
+                    hoverinfo: 'text',
+                    hovertemplate: '%{text}<extra></extra>',
                   },
-                  text: temperatureHoverText,
-                  hoverinfo: 'text',
-                  hovertemplate: '%{text}<extra></extra>',
-                },
-              ]}
-              layout={{
-                ...baseLayout,
-                title: { ...baseLayout.title, text: `${title} – Température` },
-              }}
-              config={{ responsive: true, displayModeBar: true }}
-              style={{ width: '100%', height: '100%' }}
-            />
+                ]}
+                layout={{
+                  ...baseLayout,
+                  title: { ...baseLayout.title, text: `${title} – Température` },
+                }}
+                config={{ responsive: true, displayModeBar: true }}
+                style={{ width: '100%', height: '100%' }}
+                useResizeHandler={true}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
