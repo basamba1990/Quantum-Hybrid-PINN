@@ -258,15 +258,26 @@ async def startup_event():
             logger.info("✅ Modèle PINN V8 global initialisé au démarrage.")
         except Exception as e:
             logger.error(f"❌ Erreur démarrage V8: {e}")
+    
+    # Lancer le keep-alive en tâche de fond si configuré
+    urls = os.getenv("KEEP_ALIVE_URLS")
+    if urls:
+        from .keep_alive import keep_alive_loop
+        asyncio.create_task(keep_alive_loop())
+        logger.info("🚀 Keep-alive task started in background")
 
 @app.get("/", tags=["Root"])
 async def root():
     return {
         "message": "Quantum-Hybrid-PINN API H2-100KM-V8 (INDUSTRIAL)",
-        "version": "3.2.0",
+        "version": "3.2.1",
         "engines_loaded": HAS_ENGINES,
         "device": str(torch.cuda.get_device_name(0)) if torch.cuda.is_available() else "CPU"
     }
+
+@app.get("/health", tags=["Health"])
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 @app.post("/hybrid/run-simulation", tags=["Simulation"])
 async def run_hybrid_simulation(request: SimulationRequest, background_tasks: BackgroundTasks):
