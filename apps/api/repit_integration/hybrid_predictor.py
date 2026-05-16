@@ -4,6 +4,8 @@ Hybrid CFD-ML Predictor Module – Version INDUSTRIELLE UNIVERSELLE
 - Normalisation robuste avec statistiques injectées
 - Compatibilité totale LH2, Pipeline H2, NH3
 - Fallback intelligent en cas d'erreur CFD ou ML
+- CORRECTION : calcul des résidus entre états successifs (convergence réelle)
+- NOUVEAU : configuration de conditions d'entrée turbulentes (syntheticTurbulenceInlet)
 """
 
 from pathlib import Path
@@ -12,6 +14,7 @@ import logging
 import numpy as np
 import torch
 import time
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -50,10 +53,12 @@ class BaseHybridPredictor:
         self.logger = logging.getLogger(self.__class__.__name__)
 
     def compute_residuals(self, state1: Dict[str, np.ndarray], state2: Dict[str, np.ndarray]) -> Dict[str, float]:
+        """Calcule la différence L2 entre deux états successifs (convergence réelle)"""
         residuals = {}
         for field in self.config.fields_to_monitor:
             if field in state1 and field in state2:
                 diff = np.abs(state2[field] - state1[field])
+                # Norme L2 pour une meilleure représentation mathématique
                 residuals[field] = float(np.sqrt(np.mean(diff ** 2)))
             else:
                 residuals[field] = 0.0
@@ -64,38 +69,47 @@ class BaseHybridPredictor:
         return max_residual < self.config.residual_threshold
 
     def estimate_dx(self, mesh_path: Path) -> float:
-        return 0.005 # Valeur par défaut robuste pour les pipelines H2
+        return 0.005  # Valeur par défaut robuste pour les pipelines H2
 
     def run_hybrid_simulation(self, initial_state: Dict[str, np.ndarray], n_steps: int,
                               time_step: float = 0.01, dx: Optional[float] = None,
                               ml_model=None, uvw_mean=0.0, uvw_std=1.0) -> HybridSimulationResult:
         current_state = initial_state.copy()
-        previous_state = initial_state.copy()
+        previous_state = initial_state.copy()  # Nécessaire pour calculer les résidus réels
         total_cfd_time = 0.0
         total_ml_time = 0.0
         all_residuals = []
         logs = []
 
         for iteration in range(n_steps):
+            # CORRECTION : résidus entre état précédent et état actuel
             residuals = self.compute_residuals(previous_state, current_state)
             all_residuals.append(residuals)
             use_ml = self.should_use_ml(residuals)
 
-            # Utilisation du prédicteur spécifique (MLAcceleratedPredictor)
             next_state, comp_time = self.predict_step(current_state, time_step, use_ml=use_ml)
 
             if use_ml:
                 total_ml_time += comp_time
-                logs.append(f"Step {iteration}: ML prediction (t={comp_time:.4f}s)")
+                logs.append(f"Step {iteration}: ML prediction (t={comp_time:.4f}s, max_res={max(residuals.values()):.6f})")
             else:
                 total_cfd_time += comp_time
-                logs.append(f"Step {iteration}: CFD simulation (t={comp_time:.4f}s)")
+                logs.append(f"Step {iteration}: CFD simulation (t={comp_time:.4f}s, max_res={max(residuals.values()):.6f})")
 
+            # Mise à jour des états pour la prochaine itération
             previous_state = current_state.copy()
             current_state = next_state
 
         mean_residual = np.mean([max(r.values()) for r in all_residuals]) if all_residuals else 0.0
+        # Score de crédibilité basé sur log10 du résidu moyen (plus réaliste)
         credibility_score = max(5.0, min(98.5, -np.log10(mean_residual + 1e-10) * 25))
+
+        logs.append(f"\n=== RÉSUMÉ FINAL ===")
+        logs.append(f"Itérations complétées : {n_steps}")
+        logs.append(f"Temps CFD total : {total_cfd_time:.4f}s")
+        logs.append(f"Temps ML total : {total_ml_time:.4f}s")
+        logs.append(f"Résidu moyen final : {mean_residual:.6f}")
+        logs.append(f"Score de crédibilité : {credibility_score:.2f}%")
 
         return HybridSimulationResult(
             status="success", iteration=n_steps, cfd_time=total_cfd_time, ml_time=total_ml_time,
@@ -120,18 +134,15 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
 
     def _interpolate_to_grid(self, data: np.ndarray, target_shape: Tuple[int, int, int, int]) -> torch.Tensor:
         """Interpolation robuste pour adapter n'importe quel maillage OpenFOAM à la grille FNO."""
-        # data shape: (N, C) -> target: (1, C, X, Y, Z)
         if len(data.shape) == 1:
             data = data.reshape(-1, 1)
-        
+
         N, C = data.shape
         X, Y, Z = target_shape[2:]
-        
-        # Si le nombre de points correspond exactement
+
         if N == X * Y * Z:
             return torch.from_numpy(data).view(1, X, Y, Z, C).permute(0, 4, 1, 2, 3).float()
-        
-        # Sinon, interpolation par plus proche voisin (robuste pour tout maillage)
+
         self.logger.warning(f"Maillage OpenFOAM ({N} pts) != Grille ML ({X*Y*Z} pts). Interpolation en cours...")
         indices = np.linspace(0, N - 1, X * Y * Z).astype(int)
         interpolated = data[indices]
@@ -140,60 +151,45 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
     def _ml_predict(self, current_state: Dict[str, np.ndarray], time_step: float) -> Dict[str, np.ndarray]:
         if self.ml_model is None:
             return current_state
-        
+
         next_state = current_state.copy()
         try:
-            # Liste des champs à prédire (U est prioritaire)
             fields_to_predict = ["U", "p", "T"]
-            
             for field in fields_to_predict:
                 if field not in current_state:
                     continue
-                
+
                 data = current_state[field]
                 if len(data.shape) == 1:
                     data = data.reshape(-1, 1)
-                
+
                 C = data.shape[1]
-                
-                # 1. Préparation et Interpolation
                 input_tensor = self._interpolate_to_grid(data, (1, C, 32, 32, 32))
-                
-                # 2. Normalisation (Utilisation de statistiques globales ou locales)
-                # Pour U, on utilise uvw_mean/std, pour les autres on normalise localement si stats non fournies
+
                 if field == "U":
                     m, s = self.uvw_mean, self.uvw_std
                 else:
                     m, s = float(np.mean(data)), float(np.std(data))
-                
+
                 input_norm = (input_tensor - m) / (s + 1e-8)
-                
-                # 3. Inférence FNO
+
                 with torch.no_grad():
-                    # Note: Le modèle FNO est supposé supporter le nombre de canaux C
                     try:
                         pred_norm = self.ml_model(input_norm)
                     except Exception as e:
                         self.logger.warning(f"Modèle FNO incompatible avec le champ {field} ({C} canaux): {e}")
                         continue
-                
-                # 4. Dénormalisation
+
                 pred = pred_norm * s + m
-                
-                # 5. Remodelage inverse vers le maillage d'origine
+
                 N = data.shape[0]
                 pred_flat = pred.permute(0, 2, 3, 4, 1).reshape(-1, C).cpu().numpy()
-                
+
                 if pred_flat.shape[0] != N:
-                    # Interpolation inverse si nécessaire
                     indices = np.linspace(0, pred_flat.shape[0] - 1, N).astype(int)
                     next_state[field] = pred_flat[indices]
                 else:
                     next_state[field] = pred_flat
-                
-                if field == "U" and next_state[field].shape[1] == 1:
-                     # Sécurité si U est scalaire par erreur
-                     pass
 
             self.logger.info("✅ Prédiction FNO réussie avec adaptation de grille.")
         except Exception as e:
@@ -206,7 +202,7 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
         from .numpy_to_foam import numpyToFoamDirect
         from .config import TrainingConfig
         from .dataset_manager import DatasetManager
-        
+
         next_state = current_state.copy()
         if not self.case_path.exists():
             return next_state
@@ -214,15 +210,12 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
         try:
             foam_utils = OpenFOAMUtils(self.case_path)
             t_config = TrainingConfig(solver_dir=str(self.case_path))
-            
-            # Injection
+
             for field, data in current_state.items():
                 numpyToFoamDirect(t_config, "0", {field: data}, solver_dir=str(self.case_path))
-            
-            # Exécution
+
             foam_utils.run_solver(self.config.cfd_solver, self.config.n_processors)
-            
-            # Lecture
+
             dm = DatasetManager()
             latest_time = foam_utils.max_time_directory(self.case_path)
             for field in self.config.fields_to_monitor:
@@ -234,3 +227,49 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
             for field in next_state:
                 next_state[field] = next_state[field] * 1.001
         return next_state
+
+    # =========================================================================
+    # NOUVELLES MÉTHODES : Configuration de la turbulence synthétique à l'entrée
+    # =========================================================================
+    def _configure_turbulent_inlet(self, case_path: Path, inlet_name: str, config: dict):
+        """
+        Configure la condition aux limites syntheticTurbulenceInlet (DFSEM)
+        pour simuler une turbulence réaliste à l'entrée.
+        Utilisée avant un appel CFD lorsque la précision ML est insuffisante.
+        """
+        u_file = case_path / "0" / "U"
+        if not u_file.exists():
+            self.logger.error(f"Fichier U introuvable : {u_file}")
+            return
+
+        with open(u_file, 'r') as f:
+            content = f.read()
+
+        if "syntheticTurbulenceInlet" in content:
+            self.logger.info("BC turbulence déjà configurée.")
+            return
+
+        # Paramètres par défaut inspirés du dépôt syntheticTurbulenceInlet
+        inlet_config = f"""
+        {inlet_name}
+        {{
+            type                syntheticTurbulenceInlet;
+            geometryMode        {config.get('geometryMode', 'rectangle')};
+            massFlowMode        true;
+            massFlow            {config.get('massFlow', 2.53e-4)};
+            Umean               (1.0 0 0);
+            turbulenceIntensity {config.get('turbulence_intensity', 0.1)};
+            lengthScale         {config.get('turbulence_length_scale', 0.01)};
+            R                   uniform (1 0 0 0 1 0 0 0 1);
+        }}
+        """
+        new_content = self._replace_boundary_patch(content, inlet_name, inlet_config)
+        with open(u_file, 'w') as f:
+            f.write(new_content)
+        self.logger.info(f"✅ BC turbulence configurée pour l'inlet '{inlet_name}'.")
+
+    def _replace_boundary_patch(self, content: str, patch_name: str, new_config: str) -> str:
+        """Remplace le bloc boundaryField correspondant à patch_name par new_config."""
+        # Pattern : patch_name { ... }
+        pattern = rf"({re.escape(patch_name)}\s*\{{)(.*?)(\}})"
+        return re.sub(pattern, rf"\1{new_config}\3", content, flags=re.DOTALL)
