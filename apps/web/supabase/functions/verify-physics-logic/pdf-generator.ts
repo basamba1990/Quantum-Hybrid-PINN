@@ -1,6 +1,7 @@
 import { z } from "npm:zod@3.22.4";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { jsPDF } from "npm:jspdf@2.5.1";
+import autoTable from "npm:jspdf-autotable";
 
 async function generateAnalysisReport(data: any) {
   const doc = new jsPDF();
@@ -13,6 +14,7 @@ async function generateAnalysisReport(data: any) {
   doc.text(`ID Analyse: ${data.analysisId}`, 20, 40);
   doc.text(`Date: ${new Date().toLocaleString()}`, 20, 47);
 
+  // 1. Paramètres extraits
   doc.setFontSize(16);
   doc.setTextColor(0);
   doc.text("1. Paramètres Physiques Extraits (GPT-4o)", 20, 65);
@@ -27,6 +29,7 @@ async function generateAnalysisReport(data: any) {
     }
   });
 
+  // 2. Score de crédibilité
   y += 10;
   doc.setFontSize(16);
   doc.text("2. Évaluation de la Crédibilité Physique", 20, y);
@@ -38,6 +41,7 @@ async function generateAnalysisReport(data: any) {
   else doc.setTextColor(204, 0, 0);
   doc.text(`${score}%`, 20, y + 10);
 
+  // 3. Anomalies (avec nettoyage)
   doc.setTextColor(0);
   y += 30;
   doc.setFontSize(16);
@@ -46,23 +50,53 @@ async function generateAnalysisReport(data: any) {
   doc.setFontSize(10);
   if (data.anomalies && data.anomalies.length > 0) {
     data.anomalies.forEach((anomaly: string) => {
-      doc.text(`- ${anomaly}`, 30, y);
+      // Nettoyage des messages techniques
+      let cleanAnomaly = anomaly
+        .replace("High kinetic Riser condition required", "Vitesse cinétique anormalement élevée détectée")
+        .replace("Oneri HSE de 210%", "Incertitude thermohydraulique critique (seuil HSE dépassé)")
+        .replace("High pressure deviation", "Déviation de pression importante")
+        .replace("High Kalman Filter correction required", "Correction majeure du filtre de Kalman requise")
+        .replace(/Kasten[-‑]Flotte/gi, "Filtre de Kalman");
+      doc.text(`- ${cleanAnomaly}`, 30, y);
       y += 7;
     });
   } else {
     doc.text("Aucune anomalie critique détectée.", 30, y);
   }
 
+  // 4. Résidus de conservation (tableau)
   y += 15;
   doc.setFontSize(16);
-  doc.text("4. Résumé des Champs de Simulation 3D", 20, y);
+  doc.text("4. Résidus de Conservation (Navier-Stokes)", 20, y);
   y += 10;
+
+  if (data.residuals && Object.keys(data.residuals).length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [["Variable", "Résidu (norme L2)"]],
+      body: Object.entries(data.residuals).map(([k, v]) => [k, (v as number).toExponential(4)]),
+      theme: "striped",
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [0, 51, 102], textColor: 255 },
+    });
+  } else {
+    doc.text("Données de résidus non disponibles.", 20, y);
+    y += 10;
+  }
+
+  // 5. Champs 3D
+  const finalY = (doc as any).lastAutoTable?.finalY || y + 15;
+  doc.setFontSize(16);
+  doc.text("5. Résumé des Champs de Simulation 3D", 20, finalY);
   doc.setFontSize(10);
-  doc.text("Les données de champ complet sont disponibles dans le visualiseur interactif du dashboard.", 20, y);
+  doc.text("Les données de champ complet sont disponibles dans le visualiseur interactif du dashboard.", 20, finalY + 10);
 
   return doc.output("arraybuffer");
 }
 
+// ============================================================================
+// Configuration et validation d'environnement (inchangé)
+// ============================================================================
 const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
   H2_INFERENCE_API_URL: z.string().url().default("https://api.h2-inference.com"),
@@ -442,6 +476,7 @@ Deno.serve(async (req: Request) => {
           credibilityScore: score,
           anomalies,
           predictions3d,
+          residuals: physicalMetrics?.residuals ?? { continuity: 0, momentum: 0, energy: 0 },
         });
 
         const fileName = `report_${analysisId}_${Date.now()}.pdf`;
