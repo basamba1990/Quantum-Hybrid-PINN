@@ -254,10 +254,16 @@ function calculateCredibilityScore(
   }
 
   // Correction du score basé sur la qualité réelle de l'assimilation
-  if (assimilationResult?.assimilated_state) {
-    const init = predictions3d[0] ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u] : [0,0,0]
+  if (assimilationResult?.assimilated_state && predictions3d.length > 0) {
+    const init = [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u];
     const [p_assimilated, t_assimilated, v_assimilated] = assimilationResult.assimilated_state;
 
+    // Normaliser les valeurs initiales pour comparaison cohérente
+    const init_pressure_normalized = init[0] > 100 ? init[0] / 100000 : init[0];
+    const init_velocity_normalized = init[2];
+    const init_normalized = [init_pressure_normalized, init[1], init_velocity_normalized];
+
+    // Normaliser les valeurs assimilées de manière cohérente
     let correctedPressure = p_assimilated;
     if (p_assimilated > 100) {
       correctedPressure = p_assimilated / 100000;
@@ -268,10 +274,17 @@ function calculateCredibilityScore(
     let correctedVelocity = v_assimilated + (friction * v_assimilated);
     correctedVelocity = Math.max(-2.0, Math.min(2.0, correctedVelocity));
 
+    // Calculer la correction AVANT le bornage pour une métrique plus précise
+    const pressureCorrectionPercent = init_pressure_normalized > 0 ? Math.abs(correctedPressure - init_pressure_normalized) / init_pressure_normalized * 100 : 0;
+    const temperatureCorrectionPercent = init[1] > 0 ? Math.abs(t_assimilated - init[1]) / init[1] * 100 : 0;
+    const velocityCorrectionPercent = init_velocity_normalized !== 0 ? Math.abs(correctedVelocity - init_velocity_normalized) / Math.abs(init_velocity_normalized) * 100 : 0;
+    
+    // Correction moyenne en pourcentage (métrique plus robuste)
+    const avgCorrectionPercent = (pressureCorrectionPercent + temperatureCorrectionPercent + velocityCorrectionPercent) / 3;
+
     assimilationResult.assimilated_state[0] = correctedPressure;
     assimilationResult.assimilated_state[2] = correctedVelocity;
 
-    const correction = assimilationResult.assimilated_state.reduce((sum, val, i) => sum + Math.abs(val - init[i]), 0)
     const isRealistic = (correctedPressure >= 1 && correctedPressure <= 10) && (Math.abs(correctedVelocity) <= 2.0);
 
     if (!isRealistic) {
@@ -283,22 +296,39 @@ function calculateCredibilityScore(
       const physicalScore = (pressureQuality + velocityQuality) / 2.0 * 100.0;
       score = Math.min(score, physicalScore);
 
-      if (correction > 50) {
-        anomalies.push("High Kalman Filter correction required")
+      // Utiliser la correction en pourcentage pour des seuils plus robustes
+      if (avgCorrectionPercent > 30) {
+        anomalies.push(`High Kalman Filter correction required (${avgCorrectionPercent.toFixed(1)}% avg correction)`)
         score -= 10
-      } else if (correction > 20) {
-        anomalies.push("Moderate Kalman Filter correction")
+      } else if (avgCorrectionPercent > 10) {
+        anomalies.push(`Moderate Kalman Filter correction (${avgCorrectionPercent.toFixed(1)}% avg correction)`)
         score -= 5
       }
     }
   }
 
-  // Intégration des métriques PVT et CFD
-  const pvtCoherence = 0.95
-  const cfdStability = 0.88
+  // Intégration des métriques PVT et CFD (dynamiques, basées sur les données réelles)
+  let pvtCoherence = 0.85; // Valeur par défaut
+  let cfdStability = 0.80; // Valeur par défaut
+  
+  // Calculer pvtCoherence basé sur la cohérence thermodynamique
+  if (extractedParams.pressure && extractedParams.temperature && extractedParams.equilibrium_pressure) {
+    const pressureDeviation = Math.abs(extractedParams.pressure - extractedParams.equilibrium_pressure) / extractedParams.equilibrium_pressure;
+    pvtCoherence = Math.max(0.5, 1.0 - pressureDeviation);
+  }
+  
+  // Calculer cfdStability basé sur la qualité des prédictions 3D
+  if (predictions3d.length > 0) {
+    const velocityMagnitudes = predictions3d.map(p => Math.sqrt(p.velocity_u**2 + p.velocity_v**2 + p.velocity_w**2));
+    const avgVelocity = velocityMagnitudes.reduce((a, b) => a + b, 0) / velocityMagnitudes.length;
+    const velocityVariance = velocityMagnitudes.reduce((sum, v) => sum + Math.pow(v - avgVelocity, 2), 0) / velocityMagnitudes.length;
+    const velocityStdDev = Math.sqrt(velocityVariance);
+    // Une faible variance indique une simulation stable
+    cfdStability = Math.max(0.5, 1.0 - (velocityStdDev / (avgVelocity + 0.1)));
+  }
 
   const basePhysicScore = score
-  score = (basePhysicScore * 0.3) + (pvtCoherence * 100 * 0.3) + (cfdStability * 100 * 0.4)
+  score = (basePhysicScore * 0.4) + (pvtCoherence * 100 * 0.3) + (cfdStability * 100 * 0.3)
 
   // Limites de vélocité réalistes
   if (extractedParams.velocity && extractedParams.velocity > 500) {
