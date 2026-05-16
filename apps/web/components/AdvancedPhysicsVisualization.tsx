@@ -159,7 +159,7 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
         <CardHeader className="border-b border-white/5 bg-white/[0.02]">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-2xl font-black text-white tracking-tight">Analyse Multi-Physique Industrielle</CardTitle>
+              <CardTitle className="text-2xl font-black text-white tracking-tight">Turbulent Flux Analysis</CardTitle>
               <CardDescription className="text-gray-400">
                 Validation réelle H2 : Turbulence Kolmogorov, Couche Limite & Résidus PINN
               </CardDescription>
@@ -210,14 +210,14 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
                           dataKey="k" 
                           stroke="#64748b" 
                           fontSize={10}
-                          label={{ value: 'Nombre d\'onde (k)', position: 'insideBottomRight', offset: -5, fill: '#64748b', fontSize: 10 }} 
+                          label={{ value: 'Temps / Position', position: 'insideBottomRight', offset: -5, fill: '#64748b', fontSize: 10 }} 
                         />
                         <YAxis 
                           scale="log" 
                           domain={['auto', 'auto']}
                           stroke="#64748b" 
                           fontSize={10}
-                          label={{ value: 'E(k)', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 10 }} 
+                          label={{ value: 'Amplitude / Pression', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 10 }} 
                         />
                         <Tooltip 
                           contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px' }}
