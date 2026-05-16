@@ -90,6 +90,12 @@ class PredictionRequest(BaseModel):
 class BatchPredictionRequest(BaseModel):
     batch: List[PredictionRequest]
 
+class BatchPredictionRequestV8(BaseModel):
+    time: List[float]
+    x: List[float]
+    y: List[float]
+    z: List[float]
+
 class PredictionResponse(BaseModel):
     pressure: float
     velocity: float
@@ -313,6 +319,28 @@ async def validate_3d(request: PredictionRequestV8):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"3D Validation error: {str(e)}")
+
+@app.post("/v2/predict-batch")
+async def predict_batch_v8(request: BatchPredictionRequestV8):
+    global current_model_v8
+    try:
+        if current_model_v8 is None:
+            raise ValueError("No V8 model loaded. Initialize or load a model first.")
+        
+        results = current_model_v8.predict_batch(
+            np.array(request.time),
+            np.array(request.x),
+            np.array(request.y),
+            np.array(request.z)
+        )
+        
+        # Convert numpy arrays to lists for JSON serialization
+        serializable_results = {k: v.tolist() if isinstance(v, np.ndarray) else v for k, v in results.items()}
+        serializable_results["timestamp"] = datetime.utcnow().isoformat()
+        
+        return serializable_results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch prediction error: {str(e)}")
 
 @app.post("/v2/assimilate", response_model=AssimilationResponseV8)
 async def assimilate_data(request: AssimilationRequestV8):
