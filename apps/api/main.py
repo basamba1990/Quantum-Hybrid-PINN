@@ -218,6 +218,16 @@ async def startup_event():
             logger.info("✅ Modèle V8 initialisé.")
         except Exception as e:
             logger.error(f"❌ Erreur V8: {e}")
+    
+    # Correction Keep-Alive: Lancement via import direct sécurisé
+    urls = os.getenv("KEEP_ALIVE_URLS")
+    if urls:
+        try:
+            from keep_alive import keep_alive_loop
+            asyncio.create_task(keep_alive_loop())
+            logger.info(f"🚀 Keep-alive activé pour: {urls}")
+        except Exception as e:
+            logger.error(f"❌ Échec lancement keep-alive: {e}")
 
 @app.get("/", tags=["Root"])
 async def root():

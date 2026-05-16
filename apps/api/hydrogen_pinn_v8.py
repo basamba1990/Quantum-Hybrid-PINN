@@ -67,28 +67,36 @@ class HydrogenPINNV8:
         return history
 
     def predict_state(self, t: float, x: float, y: float, z: float):
+        """Predict state for a single point"""
+        res = self.predict_batch(
+            np.array([t]), np.array([x]), np.array([y]), np.array([z])
+        )
+        return {k: v[0] if isinstance(v, np.ndarray) else v for k, v in res.items()}
+
+    def predict_batch(self, t: np.ndarray, x: np.ndarray, y: np.ndarray, z: np.ndarray):
+        """Vectorized prediction for industrial time-series or spatial profiles"""
         self.pinn_model.eval()
+        
+        t_tensor = torch.from_numpy(t).float().view(-1, 1).to(self.device)
+        x_tensor = torch.from_numpy(x).float().view(-1, 1).to(self.device)
+        y_tensor = torch.from_numpy(y).float().view(-1, 1).to(self.device)
+        z_tensor = torch.from_numpy(z).float().view(-1, 1).to(self.device)
+
         with torch.no_grad():
-            t_tensor = torch.tensor([[t]], dtype=torch.float32, device=self.device)
-            x_tensor = torch.tensor([[x]], dtype=torch.float32, device=self.device)
-            y_tensor = torch.tensor([[y]], dtype=torch.float32, device=self.device)
-            z_tensor = torch.tensor([[z]], dtype=torch.float32, device=self.device)
             rho, u, v, w, T = self.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
-            
-            # Use Quantum EOS for pressure prediction
             p = self.eos_model(rho, T)
 
         return {
-            "pressure": p.item(),
-            "velocity_u": u.item(),
-            "velocity_v": v.item(),
-            "velocity_w": w.item(),
-            "temperature": T.item(),
-            "density": rho.item(),
-            "time": t,
-            "x": x,
-            "y": y,
-            "z": z,
+            "pressure": p.cpu().numpy().flatten(),
+            "velocity_u": u.cpu().numpy().flatten(),
+            "velocity_v": v.cpu().numpy().flatten(),
+            "velocity_w": w.cpu().numpy().flatten(),
+            "temperature": T.cpu().numpy().flatten(),
+            "density": rho.cpu().numpy().flatten(),
+            "time": t.flatten(),
+            "x": x.flatten(),
+            "y": y.flatten(),
+            "z": z.flatten(),
         }
 
     def assimilate_data(self, current_state: List[float], observation: List[float]):
