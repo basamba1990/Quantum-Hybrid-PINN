@@ -3,13 +3,13 @@ import torch.nn as nn
 import numpy as np
 from fluid_properties import FLUID_CONFIGS, get_eos
 
-# Domain (Default)
-T_MIN, T_MAX = 0.0, 10.0
-X_MIN, X_MAX = 0.0, 1.0
-Y_MIN, Y_MAX = 0.0, 1.0
-Z_MIN, Z_MAX = 0.0, 1.0
-U_MIN, U_MAX = 0.0, 100.0
-TEMP_MIN, TEMP_MAX = 14.0, 500.0
+# Domain (Default Industrial Scale)
+T_MIN, T_MAX = 0.0, 3600.0   # 1 hour
+X_MIN, X_MAX = 0.0, 100000.0 # 100 km pipeline
+Y_MIN, Y_MAX = -0.25, 0.25   # Diameter 0.5m
+Z_MIN, Z_MAX = -0.25, 0.25
+U_MIN, U_MAX = 0.0, 20.0     # Max velocity 20 m/s
+TEMP_MIN, TEMP_MAX = 200.0, 400.0
 
 class PINN3DNavierStokes(nn.Module):
     """PINN for 3D compressible Navier-Stokes equations with multi-fluid support"""
