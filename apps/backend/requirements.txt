@@ -22,3 +22,4 @@ tensorflow-probability
 h5py>=3.8.0
 matplotlib>=3.5.0
 scikit-learn>=1.2.0
+aiohttp==3.9.0
