@@ -139,30 +139,33 @@ export default function SimulationsPage() {
     const extracted = results?.extractedData || results?.extractedParams;
     
     if (predictions.length === 0 && !extracted) {
-      return { x: [], pressure: [], velocity: [], residuals: null, isEmpty: true };
+      return { x: [], pressure: [], velocity: [], temperature: [], residuals: null, isEmpty: true };
     }
     
     let x: number[] = [];
     let pressure: number[] = [];
     let velocity: number[] = [];
+    let temperature: number[] = [];
 
     if (predictions.length > 0) {
       x = predictions.map((p: any) => p.time);
       pressure = predictions.map((p: any) => (p.pressure || 0) / 1e5);
       velocity = predictions.map((p: any) => Math.sqrt((p.velocity_u || 0)**2 + (p.velocity_v || 0)**2 + (p.velocity_w || 0)**2));
+      temperature = predictions.map((p: any) => p.temperature || 0);
     } else if (extracted) {
       // Fallback : afficher le point unique extrait par l'IA
       x = [0];
       pressure = [(extracted.pressure || 0) / 1e5];
       velocity = [extracted.velocity || 0];
+      temperature = [extracted.temperature || 0];
     }
     
     // Extraction des résidus réels pour le graphique industriel
     const residuals = physicalMetrics?.residual_history || physicalMetrics?.residuals || null;
     
-    return { x, pressure, velocity, residuals, isEmpty: false };
+    return { x, pressure, velocity, temperature, residuals, isEmpty: false };
   }
-  const { x, pressure, velocity, residuals, isEmpty } = getChartData()
+  const { x, pressure, velocity, temperature, residuals, isEmpty } = getChartData()
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
@@ -242,6 +245,7 @@ export default function SimulationsPage() {
                     <TabsList className="bg-white/5 border border-white/10 p-1">
                       <TabsTrigger value="pressure">Pression</TabsTrigger>
                       <TabsTrigger value="velocity">Vitesse</TabsTrigger>
+                      <TabsTrigger value="temperature">Température</TabsTrigger>
                       <TabsTrigger value="residuals">Convergence (Résidus)</TabsTrigger>
                     </TabsList>
                     <TabsContent value="pressure" className="mt-6 h-[400px]">
@@ -249,6 +253,9 @@ export default function SimulationsPage() {
                     </TabsContent>
                     <TabsContent value="velocity" className="mt-6 h-[400px]">
                       <Plot data={[{ x, y: velocity, type: 'scatter', mode: 'lines+markers', line: { color: '#a855f7', width: 3 }, name: 'Vitesse (m/s)' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#fff' }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Vitesse (m/s)', gridcolor: 'rgba(255,255,255,0.1)' } }} useResizeHandler style={{ width: '100%', height: '100%' }} />
+                    </TabsContent>
+                    <TabsContent value="temperature" className="mt-6 h-[400px]">
+                      <Plot data={[{ x, y: temperature, type: 'scatter', mode: 'lines+markers', line: { color: '#f59e0b', width: 3 }, fill: 'tozeroy', name: 'Température (K)' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#fff' }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Température (K)', gridcolor: 'rgba(255,255,255,0.1)' } }} useResizeHandler style={{ width: '100%', height: '100%' }} />
                     </TabsContent>
                     <TabsContent value="residuals" className="mt-6 h-[400px]">
                       {residuals ? (
