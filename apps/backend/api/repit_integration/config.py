@@ -16,11 +16,14 @@ class OpenfoamConfig:
     mesh_type: Optional[str] = None
     solver_type: Optional[str] = None
     logger: Optional[object] = None
+    # Nouveaux paramètres pour la turbulence synthétique
+    turbulence_intensity: float = 0.1
+    turbulence_length_scale: float = 0.01
+    inflow_geometry: str = "rectangle"
 
     def get_variables(self) -> List[str]:
         """Retourne la liste des variables OpenFOAM à traiter."""
-        return ["U", "p", "T"]  # À personnaliser
-
+        return ["U", "p", "T"]
 
 @dataclass
 class TrainingConfig(OpenfoamConfig):
@@ -29,4 +32,3 @@ class TrainingConfig(OpenfoamConfig):
     learning_rate: float = 1e-3
     epochs: int = 100
     model_save_dir: Path = Path("/app/models")
-    # Ajoute d'autres paramètres d'entraînement si nécessaire
