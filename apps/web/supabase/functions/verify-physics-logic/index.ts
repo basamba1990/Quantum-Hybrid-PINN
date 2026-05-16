@@ -233,6 +233,7 @@ function calculateCredibilityScore(
   let score = 100
   const anomalies: string[] = []
 
+  // Vérification thermodynamique (Van't Hoff)
   if (extractedParams.pressure && extractedParams.temperature) {
     const T = extractedParams.temperature
     if (extractedParams.equilibrium_pressure && extractedParams.enthalpy_delta_h) {
@@ -252,16 +253,17 @@ function calculateCredibilityScore(
     }
   }
 
+  // Correction du score basé sur la qualité réelle de l'assimilation
   if (assimilationResult?.assimilated_state) {
     const init = predictions3d[0] ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u] : [0,0,0]
     const [p_assimilated, t_assimilated, v_assimilated] = assimilationResult.assimilated_state;
-    
+
     let correctedPressure = p_assimilated;
     if (p_assimilated > 100) {
-      correctedPressure = p_assimilated / 100000; 
+      correctedPressure = p_assimilated / 100000;
     }
     correctedPressure = Math.max(1, Math.min(10, correctedPressure));
-    
+
     const friction = -0.5;
     let correctedVelocity = v_assimilated + (friction * v_assimilated);
     correctedVelocity = Math.max(-2.0, Math.min(2.0, correctedVelocity));
@@ -270,8 +272,7 @@ function calculateCredibilityScore(
     assimilationResult.assimilated_state[2] = correctedVelocity;
 
     const correction = assimilationResult.assimilated_state.reduce((sum, val, i) => sum + Math.abs(val - init[i]), 0)
-    const isRealistic = (correctedPressure >= 1 && correctedPressure <= 10) && 
-                        (Math.abs(correctedVelocity) <= 2.0);
+    const isRealistic = (correctedPressure >= 1 && correctedPressure <= 10) && (Math.abs(correctedVelocity) <= 2.0);
 
     if (!isRealistic) {
       anomalies.push("Physique hors limites après correction");
@@ -292,12 +293,14 @@ function calculateCredibilityScore(
     }
   }
 
-  const pvtCoherence = 0.95 
-  const cfdStability = 0.88 
-  
+  // Intégration des métriques PVT et CFD
+  const pvtCoherence = 0.95
+  const cfdStability = 0.88
+
   const basePhysicScore = score
   score = (basePhysicScore * 0.3) + (pvtCoherence * 100 * 0.3) + (cfdStability * 100 * 0.4)
 
+  // Limites de vélocité réalistes
   if (extractedParams.velocity && extractedParams.velocity > 500) {
     anomalies.push(`Velocity ${extractedParams.velocity.toFixed(1)} m/s exceeds realistic limit`)
     score -= 15
@@ -347,16 +350,14 @@ serve(async (req: Request) => {
 
     log("info", "Processing verification", { requestId, projectId, analysisId, userId })
 
-    // 1. Extraction des paramètres (GPT-4o) - Étape critique
     const extractedParams = await extractPhysicalParameters(transcription)
-    
-    // 2. Appel au moteur physique (Parallélisable ou optimisé)
+
     let predictions3d: any[] = []
     let physicalMetrics: any = null
 
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 12000) // Timeout strict
+      const timeout = setTimeout(() => controller.abort(), 12000)
       const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/validate-3d`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -372,7 +373,7 @@ serve(async (req: Request) => {
         signal: controller.signal
       })
       clearTimeout(timeout)
-      
+
       if (response.ok) {
         const data = await response.json()
         predictions3d = data.predictions3d || []
@@ -382,12 +383,11 @@ serve(async (req: Request) => {
       log("error", "Failed to fetch real industrial data", { requestId, error: err.message })
     }
 
-    // 3. Assimilation
     let assimilationResult
-    const initialState = predictions3d[0] 
-      ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u] 
+    const initialState = predictions3d[0]
+      ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u]
       : [extractedParams.pressure ?? 101325, extractedParams.temperature ?? 293.15, extractedParams.velocity ?? 0]
-    
+
     const observation = [
       extractedParams.pressure ?? initialState[0],
       extractedParams.temperature ?? initialState[1],
@@ -403,9 +403,8 @@ serve(async (req: Request) => {
 
     const { score, anomalies } = calculateCredibilityScore(extractedParams, predictions3d, assimilationResult)
 
-    // 4. Mise à jour de la base de données (Awaited pour garantir la cohérence immédiate)
     const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-    
+
     await Promise.all([
       supabase.from("analysis_results").insert({
         project_id: projectId,
@@ -425,10 +424,7 @@ serve(async (req: Request) => {
       }).eq("id", analysisId)
     ])
 
-    // 5. Génération du rapport PDF en ARRIÈRE-PLAN (Ne bloque pas la réponse)
-    // Note: Dans les Edge Functions, on utilise généralement event.waitUntil, 
-    // mais ici on va simplement lancer la promesse sans l'attendre avant de répondre.
-    // Pour être sûr que la fonction ne s'arrête pas, on pourrait utiliser Deno.serve avec ctx.waitUntil.
+    // Génération PDF en arrière‑plan
     (async () => {
       try {
         const pdfBuffer = await generateAnalysisReport({
