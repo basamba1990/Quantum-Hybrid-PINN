@@ -11,14 +11,15 @@ CREATE TABLE IF NOT EXISTS public.analysis_results (
     credibility_score NUMERIC NOT NULL,
     anomalies TEXT[],
     context TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    turbulence_intensity NUMERIC,                -- Nouveau champ
+    turbulence_length_scale NUMERIC             -- Nouveau champ
 );
 
 -- Activation de la sécurité au niveau des lignes (RLS)
 ALTER TABLE public.analysis_results ENABLE ROW LEVEL SECURITY;
 
 -- Politique permettant à l'Edge Function (via la clé service_role ou anon) d'insérer des données
--- Note : Ajustez selon vos besoins de sécurité spécifiques
 CREATE POLICY "Allow all for service role" ON public.analysis_results
     FOR ALL
     TO service_role
@@ -26,7 +27,6 @@ CREATE POLICY "Allow all for service role" ON public.analysis_results
     WITH CHECK (true);
 
 -- Politique permettant aux utilisateurs authentifiés de lire leurs propres résultats
--- (Nécessite une colonne user_id si vous voulez filtrer par utilisateur)
 CREATE POLICY "Allow authenticated users to read analysis_results" ON public.analysis_results
     FOR SELECT
     TO authenticated
