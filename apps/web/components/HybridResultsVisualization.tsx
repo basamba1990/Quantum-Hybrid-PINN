@@ -122,37 +122,45 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
 
             {/* Residuals Tab */}
             <TabsContent value="residuals" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Select Residual Type</Label>
-                <div className="flex gap-2">
-                  {['continuity', 'momentum', 'energy'].map((field) => (
-                    <Badge
-                      key={field}
-                      variant={selectedField === field ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => setSelectedField(field)}
-                    >
-                      {field.charAt(0).toUpperCase() + field.slice(1)}
-                    </Badge>
-                  ))}
+              {results.residuals && results.residuals.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>Select Residual Type</Label>
+                    <div className="flex gap-2">
+                      {['continuity', 'momentum', 'energy'].map((field) => (
+                        <Badge
+                          key={field}
+                          variant={selectedField === field ? 'default' : 'outline'}
+                          className="cursor-pointer"
+                          onClick={() => setSelectedField(field)}
+                        >
+                          {field.charAt(0).toUpperCase() + field.slice(1)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <ResponsiveContainer width="100%" height={400}>
+                    <LineChart data={results.residuals}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="step" />
+                      <YAxis scale="log" domain={['auto', 'auto']} />
+                      <Tooltip formatter={(value) => (typeof value === 'number' ? value.toExponential(2) : value)} />
+                      <Legend />
+                      <Line type="monotone" dataKey={selectedField} stroke="#ef4444" dot={false} name={selectedField} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                    <p className="text-sm text-blue-900">
+                      <strong>Interpretation:</strong> Lower residuals indicate better convergence.
+                      The hybrid approach switches between CFD and ML based on residual thresholds.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="h-[400px] flex items-center justify-center text-gray-500">
+                  En attente des données de convergence...
                 </div>
-              </div>
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={results.residuals}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="step" />
-                  <YAxis scale="log" />
-                  <Tooltip formatter={(value) => (typeof value === 'number' ? value.toExponential(2) : value)} />
-                  <Legend />
-                  <Line type="monotone" dataKey={selectedField} stroke="#ef4444" dot={false} name={selectedField} />
-                </LineChart>
-              </ResponsiveContainer>
-              <div className="bg-blue-50 p-4 rounded border border-blue-200">
-                <p className="text-sm text-blue-900">
-                  <strong>Interpretation:</strong> Lower residuals indicate better convergence.
-                  The hybrid approach switches between CFD and ML based on residual thresholds.
-                </p>
-              </div>
+              )}
             </TabsContent>
 
             {/* Field Comparison Tab */}
