@@ -101,9 +101,25 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
   // Fetch jobs on mount
   useEffect(() => {
     fetchJobs();
-    const interval = setInterval(fetchJobs, 5000); // Poll every 5 seconds
+    const interval = setInterval(async () => {
+      await fetchJobs();
+      // Mise à jour du job sélectionné en temps réel
+      if (selectedJob) {
+        try {
+          const response = await fetch(`/api/jobs/${selectedJob.jobId}`);
+          if (response.ok) {
+            const updatedJob = await response.json();
+            setSelectedJob(updatedJob);
+            if (onJobSelected) onJobSelected(updatedJob);
+          }
+        } catch (err) {
+          console.error("Failed to refresh selected job", err);
+        }
+      }
+    }, 3000); // toutes les 3 secondes
+
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedJob?.jobId]);
 
   const fetchJobs = async () => {
     try {
@@ -111,15 +127,6 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
       if (response.ok) {
         const data = await response.json();
         setJobs(data);
-        
-        // Update selected job if it exists
-        if (selectedJob) {
-          const updated = data.find((j: JobStatus) => j.jobId === selectedJob.jobId);
-          if (updated) {
-            setSelectedJob(updated);
-            if (onJobSelected) onJobSelected(updated);
-          }
-        }
       }
     } catch (err) {
       console.error('Failed to fetch jobs:', err);
