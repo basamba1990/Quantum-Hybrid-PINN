@@ -13,18 +13,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) {
-      return NextResponse.json(
-        { error: 'Supabase configuration is missing' },
-        { status: 500 }
-      );
-    }
-
-    const SUPABASE_FUNCTIONS_URL = `${supabaseUrl}/functions/v1/hybrid-simulation-orchestrator`;
     const body = await req.json();
 
-    // Validation basique
     if (!body.job_name || !body.case_path || !body.project_id) {
       return NextResponse.json(
         { error: 'Missing required fields: job_name, case_path, project_id' },
@@ -32,21 +22,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Appel à l'Edge Function Supabase avec le token de l'utilisateur
-    const response = await fetch(SUPABASE_FUNCTIONS_URL, {
+    // Appel direct à l'API FastAPI (Render ou local)
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    
+    const response = await fetch(`${API_URL}/hybrid/run-simulation`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        projectId: body.project_id,
-        userId: session.user.id,
-        jobName: body.job_name,
-        casePath: body.case_path,
-        nSteps: body.n_steps || 100,
-        timeStep: body.time_step || 0.01,
-        residualThreshold: body.residual_threshold || 0.01,
+        project_id: body.project_id,
+        user_id: session.user.id,
+        job_name: body.job_name,
+        case_path: body.case_path,
+        n_steps: body.n_steps || 100,
+        time_step: body.time_step || 0.01,
+        residual_threshold: body.residual_threshold || 0.01,
         fields: body.fields || ['U', 'p', 'T'],
       }),
     });
@@ -54,16 +43,16 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('Edge function error:', data);
+      console.error('FastAPI error:', data);
       return NextResponse.json(
-        { error: data.message || 'Edge function failed' },
+        { error: data.message || 'Simulation failed' },
         { status: response.status }
       );
     }
 
-    // Retourner le job_id comme attendu par le composant
+    // Retourne le format attendu par HybridSimulationPanel
     return NextResponse.json({
-      job_id: data.jobId,
+      job_id: data.job_id,
       status: 'running',
       message: data.message,
       results: {
@@ -72,7 +61,8 @@ export async function POST(req: NextRequest) {
         mlTime: 0,
         residuals: {},
         log: "Initialisation de la simulation hybride...",
-        credibilityScore: 0
+        credibilityScore: 0,
+        turbulentData: { time: [], tke: [], dissipation: [] }
       }
     });
   } catch (error: any) {
