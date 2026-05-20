@@ -1,58 +1,67 @@
-# Quantum-Hybrid-PINN V8 - Industrial Edition
+# Quantum-Hybrid-PINN
 
-Cette version a été corrigée pour une utilisation industrielle réelle et complexe.
+> **AI‑Accelerated Physics Simulation Platform for Hydrogen & Industrial Fluid Dynamics**
 
-## Corrections Appliquées
-- **Correction Client-Side (Vercel)** : Résolution de l'erreur de chargement du visualiseur PDF via une initialisation dynamique du worker pdf.js.
-- **Optimisation Hybride CFD-ML** : Amélioration de la communication entre le frontend et l'orchestrateur de simulation.
-- **Stabilité** : Gestion robuste des sessions utilisateur et des états de montage des composants React.
+[![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?logo=vercel)](https://quantum-hybrid-pinn.vercel.app)
+[![Next.js](https://img.shields.io/badge/Next.js-15.1-black?logo=next.js)](https://nextjs.org)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-emerald?logo=supabase)](https://supabase.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Utilisation
-1. Connectez-vous avec vos identifiants.
-2. Accédez au Dashboard pour gérer vos projets de simulation.
-3. Lancez des analyses PINN ou des simulations hybrides CFD-ML complexes.
+**Quantum-Hybrid-PINN** bridges traditional Computational Fluid Dynamics (CFD) and Scientific AI.  
+It combines **Physics‑Informed Neural Networks (PINNs)** and **Fourier Neural Operators (FNOs)** with high‑fidelity solvers (OpenFOAM) to accelerate multi‑fluid, thermodynamic and turbulent simulations from hours to seconds – while preserving mass, momentum and energy conservation.
 
 ---
-*Déployé avec succès pour une application industrielle complexe.*
 
-## Intégration Lemon Squeezy (Monétisation SaaS)
+## 🚀 Key Features
 
-Ce projet intègre Lemon Squeezy pour la gestion des abonnements et la monétisation. Suivez les étapes ci-dessous pour configurer Lemon Squeezy et activer les fonctionnalités d'abonnement.
+- **Hybrid CFD + PINN + FNO** – Switch automatically between solvers based on residual thresholds.
+- **Real‑time Dashboard** – 3D flow fields (Plotly), TKE spectra (Recharts), boundary layer profiles.
+- **Physical Credibility Score** – Validates predictions against PVT equations and Navier‑Stokes residuals.
+- **SaaS Ready** – Subscription management via Lemon Squeezy, user auth with Supabase.
+- **Modular Monorepo** – `apps/web` (Next.js), `apps/api` (FastAPI), `packages/shared` (types, utils).
 
-### Configuration Lemon Squeezy
+---
 
-1.  **Créer un compte Lemon Squeezy** : Inscrivez-vous sur [Lemon Squeezy](https://www.lemonsqueezy.com/).
-2.  **Configurer votre boutique** : Allez dans `Settings` -> `Store settings` et remplissez les informations de votre boutique (Nom, URL, Email de support, Description).
-3.  **Créer les produits d'abonnement** :
-    *   Allez dans `Products` -> `New Product`.
-    *   Créez un plan `Starter` (ex: 29 USD/mois, type `Subscription`, intervalle `Monthly`).
-    *   Créez un plan `Pro` (ex: 99 USD/mois, type `Subscription`, intervalle `Monthly`).
-4.  **Récupérer les liens de paiement** : Pour chaque produit, allez dans `Product` -> `Variants` et copiez le lien de checkout. Mettez à jour les liens dans `apps/web/app/pricing/page.tsx`.
-5.  **Configurer les Webhooks** :
-    *   Allez dans `Settings` -> `Webhooks` -> `Create Webhook`.
-    *   Définissez l'URL du webhook : `https://ton-app.vercel.app/api/webhooks/lemonsqueezy` (remplacez `ton-app.vercel.app` par l'URL de votre application déployée).
-    *   Activez les événements suivants : `order_created`, `subscription_created`, `subscription_updated`, `subscription_cancelled`, `subscription_expired`.
-6.  **Configurer les Payouts** : Allez dans `Settings` -> `Payouts` et ajoutez vos informations bancaires pour recevoir les paiements.
-7.  **Récupérer les clés API** : Allez dans `Settings` -> `API` et créez une nouvelle clé API. Notez la clé API et le secret du webhook.
+## 🧠 Scientific Foundations & Roadmap
 
-### Variables d'environnement
+Inspired by modern high‑order numerical methods and wave‑appropriate reconstruction (WARP), we are extending the platform to:
 
-Créez un fichier `.env.local` dans `apps/web/` avec les variables suivantes (remplacez les valeurs par les vôtres) :
+| Direction                     | Implementation target                          |
+| ----------------------------- | ---------------------------------------------- |
+| Multiphase & cryogenic H₂     | Gas‑liquid interfaces, cavitation, LH₂ tanks  |
+| Compressible shock capturing  | Characteristic‑space PINN constraints         |
+| Aerospace & hypersonic flows  | High‑speed turbulence, combustion              |
+| HPC scaling                   | Distributed training + inference on clusters  |
+| Edge deployment               | Real‑time digital twins for energy grids      |
 
-```
-NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
-SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
-LEMON_SQUEEZY_API_KEY=YOUR_LEMON_SQUEEZY_API_KEY
-LEMON_WEBHOOK_SECRET=YOUR_LEMON_WEBHOOK_SECRET
-NEXT_PUBLIC_API_URL=http://localhost:8000 # Ou l'URL de votre API FastAPI déployée
-```
+*Reference works: Wave‑Multiphase, WA‑CR‑Warp (Anandamohan Shamarthi) – integrated into our loss functions and validation suite.*
 
-### Fonctionnalités d'abonnement
+---
 
-*   **Page de Tarification** : Une nouvelle page `/pricing` est disponible pour afficher les plans d'abonnement et rediriger vers Lemon Squeezy Checkout.
-*   **Tableau de Bord d'Abonnement** : Une page `/dashboard/subscription` permet aux utilisateurs de voir leur statut d'abonnement et d'accéder au portail client Lemon Squeezy.
-*   **Protection des Simulations** : L'accès aux simulations est désormais protégé. Seuls les utilisateurs avec un abonnement actif (plan `Starter` ou supérieur) peuvent lancer des simulations via l'API `/api/simulations/run`.
+## 🛠️ Tech Stack
 
-### Déploiement sur Vercel
+| Layer          | Technologies                                                                   |
+| -------------- | ------------------------------------------------------------------------------ |
+| Frontend       | Next.js 15.1, React 19, TailwindCSS, Framer Motion                            |
+| Visualization  | Plotly.js (3D), Recharts (2D spectra)                                         |
+| Backend        | FastAPI (Python), PyTorch (PINN/FNO), OpenFOAM (optional solver fallback)     |
+| Database       | Supabase (PostgreSQL + RLS + Edge Functions)                                  |
+| Deployment     | Vercel (web), Render (API), Docker (local)                                    |
+| Monetization   | Lemon Squeezy (subscriptions)                                                 |
 
-Assurez-vous d'ajouter toutes les variables d'environnement ci-dessus dans les paramètres de votre projet Vercel avant de redéployer.
+---
+
+## 📦 Installation
+
+### Prerequisites
+- Node.js 20+
+- `pnpm` 10+
+- Python 3.11+ (for local API)
+- Supabase account (free tier works)
+
+### Clone & Install
+
+```bash
+git clone https://github.com/basamba1990/Quantum-Hybrid-PINN.git
+cd Quantum-Hybrid-PINN
+pnpm install
