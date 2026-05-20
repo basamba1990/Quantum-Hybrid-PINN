@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Play, Pause, RotateCcw, Download } from 'lucide-react';
+import Plot from 'react-plotly.js';
 
 interface HybridSimulationConfig {
   jobName: string;
@@ -23,7 +24,6 @@ interface HybridSimulationConfig {
   timeStep: number;
   residualThreshold: number;
   fields: string[];
-  // Paramètres H2-PIPELINE-TRANS-100KM-V8
   fluid: string;
   pressure: number;
   temperature: number;
@@ -46,12 +46,18 @@ interface JobStatus {
     mlTime: number;
     residuals: Record<string, number>;
     log: string;
+    credibilityScore?: number;
+    turbulentData?: {
+      time: number[];
+      tke: number[];
+      dissipation: number[];
+    };
   };
   errorMessage?: string;
 }
 
 interface HybridSimulationPanelProps {
-  projectId?: string; // Optional projectId prop
+  projectId?: string;
   onJobSelected?: (job: JobStatus) => void;
 }
 
@@ -76,34 +82,24 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
   const [isRunning, setIsRunning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
 
-  // Helper to extract and validate UUID from URL
   const getProjectIdFromUrl = () => {
     if (typeof window === 'undefined') return null;
-    
-    // Pattern for UUID v4
     const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
     const pathParts = window.location.pathname.split('/');
-    
-    // Look for a UUID in the path parts
     for (const part of pathParts) {
-      if (uuidPattern.test(part)) {
-        return part;
-      }
+      if (uuidPattern.test(part)) return part;
     }
-    
     return null;
   };
 
-  // Final projectId: prop takes precedence, then URL
   const projectId = propProjectId || getProjectIdFromUrl();
 
-  // Fetch jobs on mount
   useEffect(() => {
     fetchJobs();
     const interval = setInterval(async () => {
       await fetchJobs();
-      // Mise à jour du job sélectionné en temps réel
       if (selectedJob) {
         try {
           const response = await fetch(`/api/jobs/${selectedJob.jobId}`);
@@ -116,8 +112,7 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
           console.error("Failed to refresh selected job", err);
         }
       }
-    }, 3000); // toutes les 3 secondes
-
+    }, 3000);
     return () => clearInterval(interval);
   }, [selectedJob?.jobId]);
 
@@ -138,7 +133,7 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
     setError(null);
     
     if (!projectId) {
-      setError("Impossible de détecter un ID de projet valide. Veuillez vous assurer d'être sur la page d'un projet ou d'en avoir sélectionné un.");
+      setError("No valid project ID detected.");
       setLoading(false);
       return;
     }
@@ -165,10 +160,8 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to start simulation');
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to start simulation');
-      }
       const newJob: JobStatus = {
         jobId: data.job_id,
         name: config.jobName,
@@ -217,7 +210,6 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
     return variants[status] || 'default';
   };
 
-  // ---------- MODIFIED PROGRESS FUNCTION ----------
   const calculateProgress = (job: JobStatus) => {
     if (!job.results || !job.results.iteration) return null;
     return (job.results.iteration / config.nSteps) * 100;
@@ -225,48 +217,38 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
 
   return (
     <div className="space-y-8">
-      {/* SECTION: Analyses Avancées PINN V8 - Pas "classiques" */}
-      {/* Configuration Panel */}
       <Card className="border-l-4 border-l-blue-500">
         <CardHeader>
           <CardTitle>Hybrid CFD-ML Simulation</CardTitle>
-          <CardDescription>
-            Configure and launch hybrid simulations combining OpenFOAM and ML predictions
-          </CardDescription>
+          <CardDescription>Configure and launch hybrid simulations combining OpenFOAM and ML predictions</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="config" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="config">Configuration</TabsTrigger>
               <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              <TabsTrigger value="turbulent">Turbulent Flux (TKE)</TabsTrigger>
             </TabsList>
 
-            {/* Configuration Tab */}
             <TabsContent value="config" className="space-y-4 mt-4">
               <div className="space-y-2">
                 <Label htmlFor="jobName">Job Name</Label>
                 <Input
                   id="jobName"
                   value={config.jobName}
-                  onChange={(e) =>
-                    setConfig({ ...config, jobName: e.target.value })
-                  }
+                  onChange={(e) => setConfig({ ...config, jobName: e.target.value })}
                   placeholder="Enter simulation job name"
                 />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="casePath">OpenFOAM Case Path</Label>
                 <Input
                   id="casePath"
                   value={config.casePath}
-                  onChange={(e) =>
-                    setConfig({ ...config, casePath: e.target.value })
-                  }
+                  onChange={(e) => setConfig({ ...config, casePath: e.target.value })}
                   placeholder="/path/to/openfoam/case"
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="nSteps">Number of Steps</Label>
@@ -274,58 +256,43 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
                     id="nSteps"
                     type="number"
                     value={config.nSteps}
-                    onChange={(e) =>
-                      setConfig({ ...config, nSteps: parseInt(e.target.value) })
-                    }
+                    onChange={(e) => setConfig({ ...config, nSteps: parseInt(e.target.value) })}
                     min="1"
                     max="10000"
                   />
                 </div>
-
                 <div className="space-y-2">
                   <Label htmlFor="timeStep">Time Step</Label>
                   <Input
                     id="timeStep"
                     type="number"
                     value={config.timeStep}
-                    onChange={(e) =>
-                      setConfig({ ...config, timeStep: parseFloat(e.target.value) })
-                    }
+                    onChange={(e) => setConfig({ ...config, timeStep: parseFloat(e.target.value) })}
                     min="0.001"
                     step="0.001"
                   />
                 </div>
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="residualThreshold">
-                  Residual Threshold: {config.residualThreshold.toFixed(4)}
-                </Label>
+                <Label htmlFor="residualThreshold">Residual Threshold: {config.residualThreshold.toFixed(4)}</Label>
                 <Slider
                   id="residualThreshold"
                   min={0.0001}
                   max={0.1}
                   step={0.0001}
                   value={[config.residualThreshold]}
-                  onValueChange={(value) =>
-                    setConfig({ ...config, residualThreshold: value[0] })
-                  }
+                  onValueChange={(value) => setConfig({ ...config, residualThreshold: value[0] })}
                   className="w-full"
                 />
-                <p className="text-xs text-gray-500">
-                  Lower values favor CFD, higher values favor ML predictions
-                </p>
+                <p className="text-xs text-gray-500">Lower values favor CFD, higher values favor ML predictions</p>
               </div>
-
               <div className="space-y-2">
                 <Label>Fields to Monitor</Label>
                 <div className="flex flex-wrap gap-2">
                   {['U', 'p', 'T', 'rho', 'k', 'epsilon'].map((field) => (
                     <Badge
                       key={field}
-                      variant={
-                        config.fields.includes(field) ? 'default' : 'outline'
-                      }
+                      variant={config.fields.includes(field) ? 'default' : 'outline'}
                       className="cursor-pointer"
                       onClick={() => {
                         setConfig({
@@ -341,52 +308,25 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
                   ))}
                 </div>
               </div>
-
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-
               <div className="flex gap-2 pt-4">
-                <Button
-                  onClick={handleRunSimulation}
-                  disabled={loading || isRunning}
-                  className="flex-1"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Starting...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="mr-2 h-4 w-4" />
-                      Run Simulation
-                    </>
-                  )}
+                <Button onClick={handleRunSimulation} disabled={loading || isRunning} className="flex-1">
+                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+                  Run Simulation
                 </Button>
-
-                <Button
-                  onClick={handleStopSimulation}
-                  variant="outline"
-                  disabled={!isRunning}
-                >
-                  <Pause className="mr-2 h-4 w-4" />
-                  Stop
+                <Button onClick={handleStopSimulation} variant="outline" disabled={!isRunning}>
+                  <Pause className="mr-2 h-4 w-4" /> Stop
                 </Button>
-
-                <Button
-                  onClick={handleResetConfig}
-                  variant="ghost"
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Reset
+                <Button onClick={handleResetConfig} variant="ghost">
+                  <RotateCcw className="mr-2 h-4 w-4" /> Reset
                 </Button>
               </div>
             </TabsContent>
 
-            {/* Advanced Tab */}
             <TabsContent value="advanced" className="space-y-4 mt-4">
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <h4 className="font-semibold text-blue-900 mb-2">Advanced Options</h4>
@@ -397,28 +337,62 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
                   <li>• Data Reinjection: Automatically reinject predictions into CFD</li>
                 </ul>
               </div>
-
               <div className="space-y-2">
                 <Label>ML Acceleration Factor</Label>
-                <Slider
-                  min={0}
-                  max={1}
-                  step={0.1}
-                  defaultValue={[0.5]}
-                  className="w-full"
-                />
+                <Slider min={0} max={1} step={0.1} defaultValue={[0.5]} className="w-full" />
               </div>
-
               <div className="space-y-2">
                 <Label>Number of Processors</Label>
                 <Input type="number" defaultValue="1" min="1" max="32" />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="turbulent" className="space-y-4 mt-4">
+              <div className="h-[400px] w-full" ref={plotRef}>
+                {selectedJob?.results?.turbulentData ? (
+                  <Plot
+                    data={[
+                      {
+                        x: selectedJob.results.turbulentData.time,
+                        y: selectedJob.results.turbulentData.tke,
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: 'TKE (m²/s²)',
+                        line: { color: '#2563eb', width: 2 },
+                        marker: { size: 4 }
+                      },
+                      {
+                        x: selectedJob.results.turbulentData.time,
+                        y: selectedJob.results.turbulentData.dissipation,
+                        type: 'scatter',
+                        mode: 'lines',
+                        name: 'Dissipation ε (m²/s³)',
+                        line: { color: '#dc2626', width: 2, dash: 'dot' }
+                      }
+                    ]}
+                    layout={{
+                      title: 'Turbulent Kinetic Energy - Kolmogorov -5/3 Law',
+                      xaxis: { title: 'Time (s)', gridcolor: '#e5e7eb' },
+                      yaxis: { title: 'Energy / Dissipation', type: 'log', gridcolor: '#e5e7eb' },
+                      autosize: true,
+                      margin: { l: 50, r: 30, t: 60, b: 50 },
+                      legend: { orientation: 'h', yanchor: 'bottom', y: 1.02, xanchor: 'right', x: 1 }
+                    }}
+                    useResizeHandler={true}
+                    style={{ width: '100%', height: '100%' }}
+                    onInitialized={(figure) => setTimeout(() => window.dispatchEvent(new Event('resize')), 100)}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    Waiting for turbulent data from simulation...
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
 
-      {/* Job Status Panel */}
       {selectedJob && (
         <Card className="border-l-4 border-l-green-500">
           <CardHeader>
@@ -427,13 +401,10 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
                 <CardTitle>{selectedJob.name}</CardTitle>
                 <CardDescription>Job ID: {selectedJob.jobId}</CardDescription>
               </div>
-              <Badge variant={getStatusBadge(selectedJob.status)}>
-                {selectedJob.status.toUpperCase()}
-              </Badge>
+              <Badge variant={getStatusBadge(selectedJob.status)}>{selectedJob.status.toUpperCase()}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Progress Bar - MODIFIED */}
             {selectedJob.status === 'running' && (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
@@ -441,7 +412,7 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
                   {calculateProgress(selectedJob) !== null ? (
                     <span>{calculateProgress(selectedJob)!.toFixed(1)}%</span>
                   ) : (
-                    <span>Initialisation...</span>
+                    <span>Initializing...</span>
                   )}
                 </div>
                 {calculateProgress(selectedJob) !== null && (
@@ -454,52 +425,36 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
                 )}
               </div>
             )}
-
-            {/* Results */}
             {selectedJob.results && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-3 rounded">
                   <p className="text-xs text-gray-600">CFD Time</p>
-                  <p className="text-lg font-semibold">
-                    {selectedJob.results.cfdTime.toFixed(2)}s
-                  </p>
+                  <p className="text-lg font-semibold">{selectedJob.results.cfdTime.toFixed(2)}s</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded">
                   <p className="text-xs text-gray-600">ML Time</p>
-                  <p className="text-lg font-semibold">
-                    {selectedJob.results.mlTime.toFixed(2)}s
-                  </p>
+                  <p className="text-lg font-semibold">{selectedJob.results.mlTime.toFixed(2)}s</p>
                 </div>
               </div>
             )}
-
-            {/* Residuals */}
             {selectedJob.results?.residuals && (
               <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Residuals</h4>
+                <h4 className="font-semibold text-sm">Residuals (L2 norm between successive states)</h4>
                 <div className="grid grid-cols-3 gap-2">
-                  {Object.entries(selectedJob.results.residuals).map(
-                    ([field, value]) => (
-                      <div key={field} className="bg-gray-50 p-2 rounded text-center">
-                        <p className="text-xs text-gray-600">{field}</p>
-                        <p className="text-sm font-mono">
-                          {(value as number).toExponential(2)}
-                        </p>
-                      </div>
-                    )
-                  )}
+                  {Object.entries(selectedJob.results.residuals).map(([field, value]) => (
+                    <div key={field} className="bg-gray-50 p-2 rounded text-center">
+                      <p className="text-xs text-gray-600">{field}</p>
+                      <p className="text-sm font-mono">{(value as number).toExponential(2)}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
-
-            {/* Error Message */}
             {selectedJob.errorMessage && (
               <Alert variant="destructive">
                 <AlertDescription>{selectedJob.errorMessage}</AlertDescription>
               </Alert>
             )}
-
-            {/* Logs */}
             {selectedJob.results?.log && (
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
@@ -511,8 +466,7 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
                       const element = document.createElement('a');
                       element.setAttribute(
                         'href',
-                        'data:text/plain;charset=utf-8,' +
-                          encodeURIComponent(selectedJob.results?.log || '')
+                        'data:text/plain;charset=utf-8,' + encodeURIComponent(selectedJob.results?.log || '')
                       );
                       element.setAttribute('download', `${selectedJob.jobId}_log.txt`);
                       element.style.display = 'none';
@@ -533,7 +487,6 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
         </Card>
       )}
 
-      {/* Recent Jobs */}
       {jobs.length > 0 && (
         <Card>
           <CardHeader>
@@ -546,9 +499,7 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
                 <div
                   key={job.jobId}
                   className={`p-3 border rounded cursor-pointer transition-colors ${
-                    selectedJob?.jobId === job.jobId
-                      ? 'bg-blue-50 border-blue-300'
-                      : 'hover:bg-gray-50'
+                    selectedJob?.jobId === job.jobId ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
                   }`}
                   onClick={() => {
                     setSelectedJob(job);
@@ -560,9 +511,7 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
                       <p className="font-medium">{job.name}</p>
                       <p className="text-xs text-gray-500">{job.jobId}</p>
                     </div>
-                    <Badge variant={getStatusBadge(job.status)}>
-                      {job.status}
-                    </Badge>
+                    <Badge variant={getStatusBadge(job.status)}>{job.status}</Badge>
                   </div>
                 </div>
               ))}
