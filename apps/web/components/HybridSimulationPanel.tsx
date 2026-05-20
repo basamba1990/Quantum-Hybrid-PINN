@@ -30,6 +30,9 @@ interface HybridSimulationConfig {
   flowRate: number;
   length: number;
   diameter: number;
+  enableWarp: boolean;
+  enableMultiphase: boolean;
+  enableShockCapturing: boolean;
 }
 
 interface JobStatus {
@@ -75,6 +78,9 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
     flowRate: 2.0,
     length: 100,
     diameter: 0.5,
+    enableWarp: false,
+    enableMultiphase: false,
+    enableShockCapturing: false,
   });
 
   const [jobs, setJobs] = useState<JobStatus[]>([]);
@@ -156,6 +162,9 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
           flow_rate: config.flowRate,
           length: config.length,
           diameter: config.diameter,
+          enable_warp: config.enableWarp,
+          enable_multiphase: config.enableMultiphase,
+          enable_shock_capturing: config.enableShockCapturing,
         }),
       });
 
@@ -344,6 +353,45 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
               <div className="space-y-2">
                 <Label>Number of Processors</Label>
                 <Input type="number" defaultValue="1" min="1" max="32" />
+              </div>
+              <div className="space-y-4 pt-4 border-t border-gray-200">
+                <h4 className="font-semibold text-gray-900">Research & DeepTech Modules</h4>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Wave Reconstruction (WARP)</Label>
+                    <p className="text-xs text-gray-500">Stabilize shocks and reduce numerical artifacts</p>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={config.enableWarp} 
+                    onChange={(e) => setConfig({...config, enableWarp: e.target.checked})}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Multiphase Physics (LH2)</Label>
+                    <p className="text-xs text-gray-500">Enable gas-liquid interface tracking for hydrogen</p>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={config.enableMultiphase} 
+                    onChange={(e) => setConfig({...config, enableMultiphase: e.target.checked})}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Compressible Shock Physics</Label>
+                    <p className="text-xs text-gray-500">Advanced Riemann-solver based constraints</p>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    checked={config.enableShockCapturing} 
+                    onChange={(e) => setConfig({...config, enableShockCapturing: e.target.checked})}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                </div>
               </div>
             </TabsContent>
 

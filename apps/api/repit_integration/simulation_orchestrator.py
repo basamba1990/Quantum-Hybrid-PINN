@@ -171,7 +171,10 @@ class SimulationOrchestrator:
                 ml_model_path=None,
                 n_processors=1,
                 max_iterations=n_steps,
-                residual_threshold=residual_threshold
+                residual_threshold=residual_threshold,
+                enable_warp=job.config.get("enable_warp", False),
+                enable_multiphase=job.config.get("enable_multiphase", False),
+                enable_shock_capturing=job.config.get("enable_shock_capturing", False)
             )
             predictor = MLAcceleratedPredictor(config, ml_model=ml_model, uvw_mean=uvw_mean, uvw_std=uvw_std)
 

@@ -164,4 +164,5 @@ The platform incorporates and expands upon foundational concepts from leading nu
 
 * *Fourier Neural Operators for Parametric Partial Differential Equations* (Li et al.)
 * *Physics-Informed Neural Networks for Fluid Mechanics: A Review*
-* High-order numerical methods for multiphase compressible flows, wave-appropriate reconstructions (WARP), and characteristic-space interface trackings.
+* **Wave-Appropriate Reconstruction (WARP)** and High-order numerical methods for multiphase compressible flows.
+* *Fluid Intelligence: A Forward Look on AI Foundation Models in Computational Fluid Dynamics* (Ashton et al., 2025).

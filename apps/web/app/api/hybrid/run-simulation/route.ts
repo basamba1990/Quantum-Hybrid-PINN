@@ -37,6 +37,9 @@ export async function POST(req: NextRequest) {
         time_step: body.time_step || 0.01,
         residual_threshold: body.residual_threshold || 0.01,
         fields: body.fields || ['U', 'p', 'T'],
+        enable_warp: body.enable_warp || false,
+        enable_multiphase: body.enable_multiphase || false,
+        enable_shock_capturing: body.enable_shock_capturing || false,
       }),
     });
 
