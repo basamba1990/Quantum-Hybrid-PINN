@@ -3,14 +3,15 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('hybrid_simulations')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (error) throw error;
@@ -28,7 +29,7 @@ export async function GET(
 
     return NextResponse.json(job);
   } catch (error: any) {
-    console.error(`Failed to fetch job ${params.id}:`, error);
+    console.error(`Failed to fetch job ${id}:`, error);
     return NextResponse.json(
       { error: error.message || 'Job not found' },
       { status: 404 }
