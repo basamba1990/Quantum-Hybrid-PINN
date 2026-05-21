@@ -206,6 +206,9 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
       flowRate: 2.0,
       length: 100,
       diameter: 0.5,
+      enableWarp: false,
+      enableMultiphase: false,
+      enableShockCapturing: false,
     });
   };
 
