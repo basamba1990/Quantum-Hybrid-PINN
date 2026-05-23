@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
         enable_warp: body.enable_warp || false,
         enable_multiphase: body.enable_multiphase || false,
         enable_shock_capturing: body.enable_shock_capturing || false,
+        scenario_type: body.scenario_type || "H2_PIPELINE",
+        scenario_inputs: body.scenario_inputs || {},
       }),
     });
 

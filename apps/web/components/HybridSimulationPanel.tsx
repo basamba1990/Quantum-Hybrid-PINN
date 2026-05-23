@@ -1,6 +1,6 @@
 /**
  * Hybrid Simulation Configuration Panel
- * Allows users to configure and launch hybrid CFD-ML simulations
+ * Allows users to configure and launch hybrid CFD-ML simulations with industrial scenarios
  */
 
 'use client';
@@ -14,8 +14,9 @@ import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Play, Pause, RotateCcw, Download } from 'lucide-react';
-import Plot from 'react-plotly.js';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, Play, Pause, RotateCcw, Activity, Shield, MapPin, Zap } from 'lucide-react';
+import { INDUSTRIAL_SCENARIOS, ScenarioType } from '@/types/simulation-scenarios';
 
 interface HybridSimulationConfig {
   jobName: string;
@@ -24,15 +25,8 @@ interface HybridSimulationConfig {
   timeStep: number;
   residualThreshold: number;
   fields: string[];
-  fluid: string;
-  pressure: number;
-  temperature: number;
-  flowRate: number;
-  length: number;
-  diameter: number;
-  enableWarp: boolean;
-  enableMultiphase: boolean;
-  enableShockCapturing: boolean;
+  scenarioType: ScenarioType;
+  scenarioInputs: Record<string, any>;
 }
 
 interface JobStatus {
@@ -40,87 +34,45 @@ interface JobStatus {
   name: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
   createdAt: string;
-  startedAt?: string;
-  completedAt?: string;
   results?: {
-    status: string;
     iteration: number;
     cfdTime: number;
     mlTime: number;
     residuals: Record<string, number>;
     log: string;
     credibilityScore?: number;
-    turbulentData?: {
-      time: number[];
-      tke: number[];
-      dissipation: number[];
-    };
+    scenario_outputs?: Record<string, any>;
   };
   errorMessage?: string;
 }
 
-interface HybridSimulationPanelProps {
-  projectId?: string;
-  onJobSelected?: (job: JobStatus) => void;
-}
-
-export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected }: HybridSimulationPanelProps) {
+export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?: string }) {
+  const [scenarioType, setScenarioType] = useState<ScenarioType>('H2_PIPELINE');
   const [config, setConfig] = useState<HybridSimulationConfig>({
-    jobName: 'H2-PIPELINE-TRANS-100KM-V8',
-    casePath: 'h2_pipeline_v8',
-    nSteps: 100,
+    jobName: 'SIM-INDUSTRIAL-V8',
+    casePath: 'industrial_v8',
+    nSteps: 50,
     timeStep: 0.01,
     residualThreshold: 0.01,
-    fields: ['U', 'p', 'T', 'rho'],
-    fluid: 'Hydrogène (H2)',
-    pressure: 80,
-    temperature: 300,
-    flowRate: 2.0,
-    length: 100,
-    diameter: 0.5,
-    enableWarp: false,
-    enableMultiphase: false,
-    enableShockCapturing: false,
+    fields: ['U', 'p', 'T'],
+    scenarioType: 'H2_PIPELINE',
+    scenarioInputs: INDUSTRIAL_SCENARIOS['H2_PIPELINE'].inputs.reduce((acc, input) => ({
+      ...acc, [input.name]: input.defaultValue
+    }), {})
   });
 
   const [jobs, setJobs] = useState<JobStatus[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobStatus | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const plotRef = useRef<HTMLDivElement>(null);
 
-  const getProjectIdFromUrl = () => {
-    if (typeof window === 'undefined') return null;
-    const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-    const pathParts = window.location.pathname.split('/');
-    for (const part of pathParts) {
-      if (uuidPattern.test(part)) return part;
-    }
-    return null;
-  };
-
-  const projectId = propProjectId || getProjectIdFromUrl();
+  const currentScenario = INDUSTRIAL_SCENARIOS[scenarioType];
 
   useEffect(() => {
     fetchJobs();
-    const interval = setInterval(async () => {
-      await fetchJobs();
-      if (selectedJob) {
-        try {
-          const response = await fetch(`/api/jobs/${selectedJob.jobId}`);
-          if (response.ok) {
-            const updatedJob = await response.json();
-            setSelectedJob(updatedJob);
-            if (onJobSelected) onJobSelected(updatedJob);
-          }
-        } catch (err) {
-          console.error("Failed to refresh selected job", err);
-        }
-      }
-    }, 3000);
+    const interval = setInterval(fetchJobs, 5000);
     return () => clearInterval(interval);
-  }, [selectedJob?.jobId]);
+  }, []);
 
   const fetchJobs = async () => {
     try {
@@ -128,6 +80,10 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
       if (response.ok) {
         const data = await response.json();
         setJobs(data);
+        if (selectedJob) {
+          const updated = data.find((j: JobStatus) => j.jobId === selectedJob.jobId);
+          if (updated) setSelectedJob(updated);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch jobs:', err);
@@ -137,49 +93,29 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
   const handleRunSimulation = async () => {
     setLoading(true);
     setError(null);
-    
-    if (!projectId) {
-      setError("No valid project ID detected.");
-      setLoading(false);
-      return;
-    }
-
     try {
       const response = await fetch('/api/hybrid/run-simulation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          project_id: projectId,
+          project_id: propProjectId,
           job_name: config.jobName,
           case_path: config.casePath,
-          n_steps: config.nSteps,
-          time_step: config.timeStep,
-          residual_threshold: config.residualThreshold,
-          fields: config.fields,
-          fluid: config.fluid,
-          pressure: config.pressure,
-          temperature: config.temperature,
-          flow_rate: config.flowRate,
-          length: config.length,
-          diameter: config.diameter,
-          enable_warp: config.enableWarp,
-          enable_multiphase: config.enableMultiphase,
-          enable_shock_capturing: config.enableShockCapturing,
+          scenario_type: scenarioType,
+          scenario_inputs: config.scenarioInputs,
+          n_steps: config.nSteps
         }),
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to start simulation');
 
-      const newJob: JobStatus = {
+      setSelectedJob({
         jobId: data.job_id,
         name: config.jobName,
         status: 'running',
         createdAt: new Date().toISOString(),
-      };
-      setSelectedJob(newJob);
-      if (onJobSelected) onJobSelected(newJob);
-      setIsRunning(true);
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -187,389 +123,164 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
     }
   };
 
-  const handleStopSimulation = async () => {
-    if (!selectedJob) return;
-    setIsRunning(false);
-  };
-
-  const handleResetConfig = () => {
-    setConfig({
-      jobName: 'H2-PIPELINE-TRANS-100KM-V8',
-      casePath: 'h2_pipeline_v8',
-      nSteps: 100,
-      timeStep: 0.01,
-      residualThreshold: 0.01,
-      fields: ['U', 'p', 'T', 'rho'],
-      fluid: 'Hydrogène (H2)',
-      pressure: 80,
-      temperature: 300,
-      flowRate: 2.0,
-      length: 100,
-      diameter: 0.5,
-      enableWarp: false,
-      enableMultiphase: false,
-      enableShockCapturing: false,
-    });
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      pending: 'outline',
-      running: 'default',
-      completed: 'secondary',
-      failed: 'destructive',
-    };
-    return variants[status] || 'default';
-  };
-
-  const calculateProgress = (job: JobStatus) => {
-    if (!job.results || !job.results.iteration) return null;
-    return (job.results.iteration / config.nSteps) * 100;
-  };
-
   return (
-    <div className="space-y-8">
-      <Card className="border-l-4 border-l-blue-500">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4">
+      {/* Configuration Panel */}
+      <Card className="lg:col-span-1 border-t-4 border-t-blue-500 shadow-xl bg-slate-900/50 backdrop-blur-sm text-white">
         <CardHeader>
-          <CardTitle>Hybrid CFD-ML Simulation</CardTitle>
-          <CardDescription>Configure and launch hybrid simulations combining OpenFOAM and ML predictions</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5 text-blue-400" />
+            Configuration Industrielle
+          </CardTitle>
+          <CardDescription className="text-slate-400">Sélectionnez votre cas d'usage ZLECAf</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="config" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="config">Configuration</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
-              <TabsTrigger value="turbulent">Turbulent Flux (TKE)</TabsTrigger>
-            </TabsList>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Scénario Industriel</Label>
+            <Select 
+              value={scenarioType} 
+              onValueChange={(val: ScenarioType) => {
+                setScenarioType(val);
+                setConfig({
+                  ...config,
+                  scenarioType: val,
+                  scenarioInputs: INDUSTRIAL_SCENARIOS[val].inputs.reduce((acc, input) => ({
+                    ...acc, [input.name]: input.defaultValue
+                  }), {})
+                });
+              }}
+            >
+              <SelectTrigger className="bg-slate-800 border-slate-700">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 text-white border-slate-700">
+                {Object.values(INDUSTRIAL_SCENARIOS).map(s => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-            <TabsContent value="config" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="jobName">Job Name</Label>
-                <Input
-                  id="jobName"
-                  value={config.jobName}
-                  onChange={(e) => setConfig({ ...config, jobName: e.target.value })}
-                  placeholder="Enter simulation job name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="casePath">OpenFOAM Case Path</Label>
-                <Input
-                  id="casePath"
-                  value={config.casePath}
-                  onChange={(e) => setConfig({ ...config, casePath: e.target.value })}
-                  placeholder="/path/to/openfoam/case"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nSteps">Number of Steps</Label>
-                  <Input
-                    id="nSteps"
-                    type="number"
-                    value={config.nSteps}
-                    onChange={(e) => setConfig({ ...config, nSteps: parseInt(e.target.value) })}
-                    min="1"
-                    max="10000"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timeStep">Time Step</Label>
-                  <Input
-                    id="timeStep"
-                    type="number"
-                    value={config.timeStep}
-                    onChange={(e) => setConfig({ ...config, timeStep: parseFloat(e.target.value) })}
-                    min="0.001"
-                    step="0.001"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="residualThreshold">Residual Threshold: {config.residualThreshold.toFixed(4)}</Label>
-                <Slider
-                  id="residualThreshold"
-                  min={0.0001}
-                  max={0.1}
-                  step={0.0001}
-                  value={[config.residualThreshold]}
-                  onValueChange={(value) => setConfig({ ...config, residualThreshold: value[0] })}
-                  className="w-full"
-                />
-                <p className="text-xs text-gray-500">Lower values favor CFD, higher values favor ML predictions</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Fields to Monitor</Label>
-                <div className="flex flex-wrap gap-2">
-                  {['U', 'p', 'T', 'rho', 'k', 'epsilon'].map((field) => (
-                    <Badge
-                      key={field}
-                      variant={config.fields.includes(field) ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        setConfig({
-                          ...config,
-                          fields: config.fields.includes(field)
-                            ? config.fields.filter((f) => f !== field)
-                            : [...config.fields, field],
-                        });
-                      }}
-                    >
-                      {field}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-              <div className="flex gap-2 pt-4">
-                <Button onClick={handleRunSimulation} disabled={loading || isRunning} className="flex-1">
-                  {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-                  Run Simulation
-                </Button>
-                <Button onClick={handleStopSimulation} variant="outline" disabled={!isRunning}>
-                  <Pause className="mr-2 h-4 w-4" /> Stop
-                </Button>
-                <Button onClick={handleResetConfig} variant="ghost">
-                  <RotateCcw className="mr-2 h-4 w-4" /> Reset
-                </Button>
-              </div>
-            </TabsContent>
+          <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+            <p className="text-xs text-blue-200 leading-relaxed">
+              {currentScenario.description}
+            </p>
+          </div>
 
-            <TabsContent value="advanced" className="space-y-4 mt-4">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold text-blue-900 mb-2">Advanced Options</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• ML Acceleration Factor: Controls ML prediction weighting</li>
-                  <li>• CFD Solver: Choose between different OpenFOAM solvers</li>
-                  <li>• Parallel Processing: Distribute computation across processors</li>
-                  <li>• Data Reinjection: Automatically reinject predictions into CFD</li>
-                </ul>
-              </div>
-              <div className="space-y-2">
-                <Label>ML Acceleration Factor</Label>
-                <Slider min={0} max={1} step={0.1} defaultValue={[0.5]} className="w-full" />
-              </div>
-              <div className="space-y-2">
-                <Label>Number of Processors</Label>
-                <Input type="number" defaultValue="1" min="1" max="32" />
-              </div>
-              <div className="space-y-4 pt-4 border-t border-gray-200">
-                <h4 className="font-semibold text-gray-900">Research & DeepTech Modules</h4>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Wave Reconstruction (WARP)</Label>
-                    <p className="text-xs text-gray-500">Stabilize shocks and reduce numerical artifacts</p>
-                  </div>
-                  <input 
-                    type="checkbox" 
-                    checked={config.enableWarp} 
-                    onChange={(e) => setConfig({...config, enableWarp: e.target.checked})}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Multiphase Physics (LH2)</Label>
-                    <p className="text-xs text-gray-500">Enable gas-liquid interface tracking for hydrogen</p>
-                  </div>
-                  <input 
-                    type="checkbox" 
-                    checked={config.enableMultiphase} 
-                    onChange={(e) => setConfig({...config, enableMultiphase: e.target.checked})}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Compressible Shock Physics</Label>
-                    <p className="text-xs text-gray-500">Advanced Riemann-solver based constraints</p>
-                  </div>
-                  <input 
-                    type="checkbox" 
-                    checked={config.enableShockCapturing} 
-                    onChange={(e) => setConfig({...config, enableShockCapturing: e.target.checked})}
-                    className="h-4 w-4 rounded border-gray-300"
-                  />
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="turbulent" className="space-y-4 mt-4">
-              <div className="h-[400px] w-full" ref={plotRef}>
-                {selectedJob?.results?.turbulentData ? (
-                  <Plot
-                    data={[
-                      {
-                        x: selectedJob.results.turbulentData.time,
-                        y: selectedJob.results.turbulentData.tke,
-                        type: 'scatter',
-                        mode: 'lines+markers',
-                        name: 'TKE (m²/s²)',
-                        line: { color: '#2563eb', width: 2 },
-                        marker: { size: 4 }
-                      },
-                      {
-                        x: selectedJob.results.turbulentData.time,
-                        y: selectedJob.results.turbulentData.dissipation,
-                        type: 'scatter',
-                        mode: 'lines',
-                        name: 'Dissipation ε (m²/s³)',
-                        line: { color: '#dc2626', width: 2, dash: 'dot' }
-                      }
-                    ]}
-                    layout={{
-                      title: 'Turbulent Kinetic Energy - Kolmogorov -5/3 Law',
-                      xaxis: { title: 'Time (s)', gridcolor: '#e5e7eb' },
-                      yaxis: { title: 'Energy / Dissipation', type: 'log', gridcolor: '#e5e7eb' },
-                      autosize: true,
-                      margin: { l: 50, r: 30, t: 60, b: 50 },
-                      legend: { orientation: 'h', yanchor: 'bottom', y: 1.02, xanchor: 'right', x: 1 }
-                    }}
-                    useResizeHandler={true}
-                    style={{ width: '100%', height: '100%' }}
-                    onInitialized={(figure) => setTimeout(() => window.dispatchEvent(new Event('resize')), 100)}
-                  />
+          <div className="space-y-4 pt-4 border-t border-slate-700">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <Zap className="w-4 h-4" /> Paramètres d'Entrée
+            </h4>
+            {currentScenario.inputs.map(input => (
+              <div key={input.name} className="space-y-2">
+                <Label className="text-xs flex justify-between">
+                  {input.label}
+                  {input.unit && <span className="text-slate-500">[{input.unit}]</span>}
+                </Label>
+                {input.type === 'select' ? (
+                  <Select 
+                    value={config.scenarioInputs[input.name]} 
+                    onValueChange={(val) => setConfig({
+                      ...config, 
+                      scenarioInputs: { ...config.scenarioInputs, [input.name]: val }
+                    })}
+                  >
+                    <SelectTrigger className="bg-slate-800 border-slate-700">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 text-white">
+                      {input.options?.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-gray-500">
-                    Waiting for turbulent data from simulation...
-                  </div>
+                  <Input 
+                    type="number" 
+                    value={config.scenarioInputs[input.name]}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      scenarioInputs: { ...config.scenarioInputs, [input.name]: parseFloat(e.target.value) }
+                    })}
+                    className="bg-slate-800 border-slate-700"
+                  />
                 )}
               </div>
-            </TabsContent>
-          </Tabs>
+            ))}
+          </div>
+
+          <Button 
+            onClick={handleRunSimulation} 
+            disabled={loading} 
+            className="w-full bg-blue-600 hover:bg-blue-500 font-bold py-6 rounded-xl transition-all hover:scale-[1.02]"
+          >
+            {loading ? <Loader2 className="animate-spin mr-2" /> : <Play className="mr-2" />}
+            Démarrer Simulation Industrielle
+          </Button>
         </CardContent>
       </Card>
 
-      {selectedJob && (
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>{selectedJob.name}</CardTitle>
-                <CardDescription>Job ID: {selectedJob.jobId}</CardDescription>
-              </div>
-              <Badge variant={getStatusBadge(selectedJob.status)}>{selectedJob.status.toUpperCase()}</Badge>
+      {/* Results Panel */}
+      <Card className="lg:col-span-2 bg-slate-950 border-slate-800 text-white overflow-hidden shadow-2xl">
+        <CardHeader className="border-b border-slate-800 bg-slate-900/50">
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="text-2xl font-black">Tableau de Bord Scénario</CardTitle>
+              <CardDescription className="text-slate-500">Visualisation en temps réel des KPIs industriels</CardDescription>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {selectedJob.status === 'running' && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Progress</span>
-                  {calculateProgress(selectedJob) !== null ? (
-                    <span>{calculateProgress(selectedJob)!.toFixed(1)}%</span>
-                  ) : (
-                    <span>Initializing...</span>
-                  )}
-                </div>
-                {calculateProgress(selectedJob) !== null && (
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-500 h-2 rounded-full transition-all"
-                      style={{ width: `${calculateProgress(selectedJob)}%` }}
-                    />
-                  </div>
-                )}
-              </div>
+            {selectedJob && (
+              <Badge variant={selectedJob.status === 'completed' ? 'secondary' : 'default'} className="px-4 py-1">
+                {selectedJob.status.toUpperCase()}
+              </Badge>
             )}
-            {selectedJob.results && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-3 rounded">
-                  <p className="text-xs text-gray-600">CFD Time</p>
-                  <p className="text-lg font-semibold">{selectedJob.results.cfdTime.toFixed(2)}s</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded">
-                  <p className="text-xs text-gray-600">ML Time</p>
-                  <p className="text-lg font-semibold">{selectedJob.results.mlTime.toFixed(2)}s</p>
-                </div>
-              </div>
-            )}
-            {selectedJob.results?.residuals && (
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Residuals (L2 norm between successive states)</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  {Object.entries(selectedJob.results.residuals).map(([field, value]) => (
-                    <div key={field} className="bg-gray-50 p-2 rounded text-center">
-                      <p className="text-xs text-gray-600">{field}</p>
-                      <p className="text-sm font-mono">{(value as number).toExponential(2)}</p>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {!selectedJob ? (
+            <div className="flex flex-col items-center justify-center h-[500px] text-slate-600 space-y-4">
+              <Activity className="w-16 h-16 opacity-20" />
+              <p className="font-mono text-sm uppercase tracking-widest">En attente de données...</p>
+            </div>
+          ) : (
+            <div className="p-8 space-y-8">
+              {/* KPIs Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                {currentScenario.outputs.map(out => (
+                  <div key={out.name} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl relative group overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
+                      <Shield className="w-8 h-8" />
                     </div>
-                  ))}
-                </div>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{out.label}</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-blue-400">
+                        {selectedJob.results?.scenario_outputs?.[out.name] ?? '--'}
+                      </span>
+                      <span className="text-xs text-slate-600 font-bold">{out.unit}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
-            {selectedJob.errorMessage && (
-              <Alert variant="destructive">
-                <AlertDescription>{selectedJob.errorMessage}</AlertDescription>
-              </Alert>
-            )}
-            {selectedJob.results?.log && (
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-semibold text-sm">Simulation Log</h4>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      const element = document.createElement('a');
-                      element.setAttribute(
-                        'href',
-                        'data:text/plain;charset=utf-8,' + encodeURIComponent(selectedJob.results?.log || '')
-                      );
-                      element.setAttribute('download', `${selectedJob.jobId}_log.txt`);
-                      element.style.display = 'none';
-                      document.body.appendChild(element);
-                      element.click();
-                      document.body.removeChild(element);
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="bg-gray-900 text-gray-100 p-3 rounded font-mono text-xs max-h-64 overflow-y-auto">
-                  {selectedJob.results.log.split('\n').slice(-20).join('\n')}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
-      {jobs.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Jobs</CardTitle>
-            <CardDescription>All simulation jobs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {jobs.map((job) => (
-                <div
-                  key={job.jobId}
-                  className={`p-3 border rounded cursor-pointer transition-colors ${
-                    selectedJob?.jobId === job.jobId ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
-                  }`}
-                  onClick={() => {
-                    setSelectedJob(job);
-                    if (onJobSelected) onJobSelected(job);
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{job.name}</p>
-                      <p className="text-xs text-gray-500">{job.jobId}</p>
-                    </div>
-                    <Badge variant={getStatusBadge(job.status)}>{job.status}</Badge>
-                  </div>
+              {/* Status & Log */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-xs font-mono uppercase tracking-tighter text-slate-500">
+                  <span className="flex items-center gap-2">
+                    <MapPin className="w-3 h-3" /> Localisation: {config.scenarioInputs.portLocation || 'Offshore / Site'}
+                  </span>
+                  <span>Score de Crédibilité: {selectedJob.results?.credibilityScore}%</span>
                 </div>
-              ))}
+                <div className="bg-black/50 rounded-xl p-4 font-mono text-[10px] text-emerald-500/80 border border-emerald-500/10 h-32 overflow-y-auto">
+                  <p className="mb-2 text-slate-500">--- DÉBUT LOG SIMULATION PINN V8 ---</p>
+                  {selectedJob.results?.log.split('\n').map((line, i) => (
+                    <p key={i}>{line}</p>
+                  ))}
+                  {selectedJob.status === 'running' && <p className="animate-pulse">_</p>}
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
