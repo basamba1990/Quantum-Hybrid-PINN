@@ -2,6 +2,7 @@
 API FastAPI - Quantum-Hybrid-PINN PRODUCTION INDUSTRIELLE
 Simulations hybrides CFD+ML avec physique réelle et structure OpenFOAM
 Optimisé pour H2-PIPELINE-TRANS-100KM-V8 et compatible Frontend
+Support des 6 scénarios industriels ZLECAf.
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -53,6 +54,15 @@ except ImportError as e:
     logger.error(f"❌ Erreur chargement moteurs industriels: {e}")
     HAS_ENGINES = False
 
+# Import des moteurs de scénarios industriels (6 cas ZLECAf)
+try:
+    from scenario_engines import SCENARIO_ENGINES
+    HAS_SCENARIOS = True
+    logger.info("✅ Moteurs de scénarios industriels chargés.")
+except ImportError as e:
+    HAS_SCENARIOS = False
+    logger.warning(f"⚠️ Moteurs de scénarios non trouvés: {e}")
+
 # Gestion de la mémoire GPU/CPU
 def cleanup_memory():
     gc.collect()
@@ -62,7 +72,7 @@ def cleanup_memory():
 app = FastAPI(
     title="Quantum-Hybrid-PINN API",
     description="API simulations hybrides CFD-ML (PRODUCTION INDUSTRIELLE)",
-    version="3.2.0"
+    version="4.0.0"
 )
 
 jobs_store: Dict[str, Dict[str, Any]] = {}
@@ -79,13 +89,16 @@ class SimulationRequest(BaseModel):
     residual_threshold: float = 0.01
     fields: List[str] = ["U", "p", "T", "rho", "k", "epsilon"]
     ml_weight: float = 0.5
-    # Paramètres H2-PIPELINE-TRANS-100KM-V8
+    # Paramètres H2-PIPELINE-TRANS-100KM-V8 (ancien mode)
     fluid: str = "H2"
     pressure: float = 80.0 # bar
     temperature: float = 300.0 # K
     flow_rate: float = 2.0 # kg/s
     length: float = 100.0 # km
     diameter: float = 0.5 # m
+    # Nouveaux champs pour les scénarios industriels
+    scenario_type: str = "H2_PIPELINE"
+    scenario_inputs: Dict[str, Any] = {}
 
 class SimulationResponse(BaseModel):
     job_id: str
@@ -96,7 +109,7 @@ class SimulationResponse(BaseModel):
     message: str
 
 # ============================================================================
-# MOTEUR DE SIMULATION INDUSTRIELLE PINN V8 - H2 100KM
+# MOTEUR DE SIMULATION INDUSTRIELLE PINN V8 - H2 100KM (ancien mode)
 # ============================================================================
 
 class IndustrialHybridSimulator:
@@ -249,6 +262,10 @@ class IndustrialHybridSimulator:
         last_res = self.residual_history[-1]
         return max(last_res["continuity"], last_res["momentum"], last_res["energy"]) <= self.config.residual_threshold
 
+# ============================================================================
+# EXÉCUTION DES SIMULATIONS (ancien mode + nouveaux scénarios)
+# ============================================================================
+
 @app.on_event("startup")
 async def startup_event():
     global current_model_v8
@@ -270,8 +287,9 @@ async def startup_event():
 async def root():
     return {
         "message": "Quantum-Hybrid-PINN API H2-100KM-V8 (INDUSTRIAL)",
-        "version": "3.2.1",
+        "version": "4.0.0",
         "engines_loaded": HAS_ENGINES,
+        "scenarios_loaded": HAS_SCENARIOS,
         "device": str(torch.cuda.get_device_name(0)) if torch.cuda.is_available() else "CPU"
     }
 
@@ -303,29 +321,52 @@ async def run_hybrid_simulation(request: SimulationRequest, background_tasks: Ba
     )
 
 async def execute_industrial_simulation(job_id: str, request: SimulationRequest):
-    if job_id not in jobs_store: return
+    if job_id not in jobs_store: 
+        return
     job_info = jobs_store[job_id]
     try:
         results_list = []
-        simulator = IndustrialHybridSimulator(request)
-        for step in range(request.n_steps):
-            result = await simulator.run_step()
+        
+        # --- NOUVEAU : support des scénarios industriels ---
+        if HAS_SCENARIOS and request.scenario_type in SCENARIO_ENGINES:
+            logger.info(f"Exécution du scénario industriel: {request.scenario_type}")
+            engine = SCENARIO_ENGINES[request.scenario_type]
+            industrial_results = engine(request.scenario_inputs)
+            
+            # Construction d'un résultat unique contenant les sorties du scénario
+            result = {
+                "iteration": 1,
+                "cfdTime": 0,
+                "mlTime": 0,
+                "residuals": {},
+                "log": f"Scénario {request.scenario_type} exécuté avec succès",
+                "credibilityScore": industrial_results.get("safetyScore", industrial_results.get("stabilityScore", 95)),
+                "fields": {k: [v] for k, v in industrial_results.items() if isinstance(v, (int, float))},
+                "turbulentData": {"time": [0], "tke": [0.01], "dissipation": [0.001]},
+                "residuals_history": [],
+                "scenario_outputs": industrial_results   # Clé essentielle pour le frontend
+            }
             results_list.append(result)
-            job_info["results"] = results_list
-            if simulator.has_converged(): break
+        else:
+            # Mode legacy : simulateur PINN V8 classique
+            logger.info("Mode legacy : simulateur PINN V8")
+            simulator = IndustrialHybridSimulator(request)
+            for step in range(request.n_steps):
+                step_result = await simulator.run_step()
+                results_list.append(step_result)
+                job_info["results"] = results_list
+                if simulator.has_converged():
+                    break
         
         job_info["status"] = "COMPLETED"
         job_info["completed_at"] = datetime.utcnow().isoformat()
+        job_info["results"] = results_list
         
         if supabase:
             final_result = results_list[-1]
             supabase.table("hybrid_simulations").update({
                 "status": "completed",
-                "results": {
-                    **final_result,
-                    "allResults": results_list,
-                    "simulationLogs": simulator.logs
-                },
+                "results": final_result,
                 "completed_at": job_info["completed_at"]
             }).eq("id", job_id).execute()
             
@@ -336,26 +377,36 @@ async def execute_industrial_simulation(job_id: str, request: SimulationRequest)
     finally:
         cleanup_memory()
 
+# ============================================================================
+# ROUTES POUR LE FRONTEND
+# ============================================================================
+
 @app.get("/jobs/{job_id}", tags=["Simulation"])
 async def get_job_status(job_id: str):
-    if job_id not in jobs_store: raise HTTPException(status_code=404, detail="Job non trouvé")
+    if job_id not in jobs_store:
+        raise HTTPException(status_code=404, detail="Job non trouvé")
     job = jobs_store[job_id]
     return {
-        "jobId": job["job_id"],
-        "name": job["case_name"],
-        "status": job["status"],
-        "results": job["results"][-1] if job["results"] else {"iteration": 0, "log": "Initialisation..."},
-        "errorMessage": job.get("error_message")
+        "jobId": job.get("job_id") or job.get("jobId"),
+        "name": job.get("case_name") or job.get("name"),
+        "status": job.get("status"),
+        "createdAt": job.get("created_at") or job.get("createdAt"),
+        "completedAt": job.get("completed_at") or job.get("completedAt"),
+        "results": job.get("results")[-1] if isinstance(job.get("results"), list) and job.get("results") else job.get("results"),
+        "errorMessage": job.get("error_message") or job.get("errorMessage")
     }
 
 @app.get("/jobs", tags=["Simulation"])
 async def list_jobs():
     return [
         {
-            "jobId": job["job_id"],
-            "name": job["case_name"],
-            "status": job["status"],
-            "results": job["results"][-1] if job["results"] else None
+            "jobId": job.get("job_id") or job.get("jobId"),
+            "name": job.get("case_name") or job.get("name"),
+            "status": job.get("status"),
+            "createdAt": job.get("created_at") or job.get("createdAt"),
+            "completedAt": job.get("completed_at") or job.get("completedAt"),
+            "results": job.get("results")[-1] if isinstance(job.get("results"), list) and job.get("results") else job.get("results"),
+            "errorMessage": job.get("error_message") or job.get("errorMessage")
         }
         for job in jobs_store.values()
     ]
