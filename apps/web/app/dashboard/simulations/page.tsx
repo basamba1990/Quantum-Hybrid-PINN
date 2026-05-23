@@ -10,24 +10,9 @@ import { createClient } from '@/lib/supabase/client'
 import { Project, Analysis } from '@/types'
 import Link from 'next/link'
 import { HybridSimulationPanel } from '@/components/HybridSimulationPanel'
-import { HybridResultsVisualization } from '@/components/HybridResultsVisualization'
 
 // Chargement dynamique de Plotly
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false })
-
-// Interface pour les résultats hybrides (à adapter selon votre API)
-interface HybridResultsData {
-  jobId: string;
-  totalTime: number;
-  cfdTime: number;
-  mlTime: number;
-  totalSteps: number;
-  cfdSteps: number;
-  mlSteps: number;
-  residuals: Array<{ step: number; continuity: number; momentum: number; energy: number }>;
-  fieldComparisons: Array<{ field: string; cfdValue: number; mlValue: number; difference: number; percentError: number }>;
-  accelerationFactor: number;
-}
 
 export default function SimulationsPage() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -35,7 +20,6 @@ export default function SimulationsPage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null)
   const [loading, setLoading] = useState(true)
-  const [hybridResults, setHybridResults] = useState<HybridResultsData | null>(null)
   const supabase = createClient()
 
   // Chargement des projets
@@ -82,60 +66,11 @@ export default function SimulationsPage() {
     fetchAnalyses()
   }, [selectedProject, supabase])
 
-  // Callback lorsqu'un job hybride est sélectionné/mis à jour
-  const handleHybridJobSelected = (job: any) => {
-    if (!job || !job.results) {
-      setHybridResults(null);
-      return;
-    }
-
-    // Cas 1: Structure imbriquée avec .metrics (format attendu initialement)
-    if (job.results.metrics) {
-      const transformed: HybridResultsData = {
-        jobId: job.jobId || job.id,
-        totalTime: job.results.metrics.total_execution_time || 0,
-        cfdTime: job.results.metrics.cfd_execution_time || 0,
-        mlTime: job.results.metrics.ml_execution_time || 0,
-        totalSteps: job.results.metrics.total_steps || 0,
-        cfdSteps: job.results.metrics.cfd_steps || 0,
-        mlSteps: job.results.metrics.ml_steps || 0,
-        residuals: job.results.metrics.residual_history || [],
-        fieldComparisons: job.results.metrics.field_comparisons || [],
-        accelerationFactor: job.results.metrics.acceleration_factor || 1,
-      }
-      setHybridResults(transformed)
-    } 
-    // Cas 2: Structure plate (format par défaut de l'orchestrateur et de la migration)
-    else if (job.results.iteration !== undefined || job.results.residuals !== undefined) {
-      const transformed: HybridResultsData = {
-        jobId: job.jobId || job.id,
-        totalTime: (job.results.cfdTime || 0) + (job.results.mlTime || 0),
-        cfdTime: job.results.cfdTime || 0,
-        mlTime: job.results.mlTime || 0,
-        totalSteps: job.results.iteration || 1,
-        cfdSteps: job.results.cfdSteps || Math.floor((job.results.iteration || 0) * 0.4),
-        mlSteps: job.results.mlSteps || Math.ceil((job.results.iteration || 0) * 0.6),
-        residuals: Array.isArray(job.results.residuals) 
-          ? job.results.residuals 
-          : (job.results.residuals ? [{ step: job.results.iteration || 0, ...job.results.residuals }] : []),
-        fieldComparisons: job.results.fieldComparisons || [],
-        accelerationFactor: job.results.accelerationFactor || (job.results.credibilityScore ? (job.results.credibilityScore / 100) + 1 : 1.5),
-      }
-      setHybridResults(transformed)
-    }
-    else {
-      setHybridResults(null)
-    }
-  }
-
   // Données pour les graphiques Plotly (analyses existantes)
   const getChartData = () => {
-    // On essaie de récupérer les prédictions depuis plusieurs endroits possibles
     const results = selectedAnalysis?.results as any;
     const predictions = results?.predictions3d || results?.pinn_predictions || [];
     const physicalMetrics = results?.physicalMetrics || results?.physical_metrics || null;
-    
-    // Si on n'a pas de prédictions 3D mais qu'on a des paramètres extraits, on peut simuler un point unique
     const extracted = results?.extractedData || results?.extractedParams;
     
     if (predictions.length === 0 && !extracted) {
@@ -153,7 +88,6 @@ export default function SimulationsPage() {
       velocity = predictions.map((p: any) => Math.sqrt((p.velocity_u || 0)**2 + (p.velocity_v || 0)**2 + (p.velocity_w || 0)**2));
       temperature = predictions.map((p: any) => p.temperature || 0);
     } else if (extracted) {
-      // Fallback : Générer une courbe turbulente complète à partir du point extrait (pour correspondre à l'image Turbulent Flux Analysis)
       x = Array.from({ length: 101 }, (_, i) => i / 10);
       const baseP = (extracted.pressure || 8000000) / 1e5;
       const baseT = extracted.temperature || 300;
@@ -169,7 +103,6 @@ export default function SimulationsPage() {
       temperature = x.map(t => baseT + (Math.cos(t * 8) * 2) + (Math.random() * 1));
     }
     
-    // Extraction des résidus réels pour le graphique industriel
     const residuals = physicalMetrics?.residual_history || physicalMetrics?.residuals || null;
     
     return { x, pressure, velocity, temperature, residuals, isEmpty: false };
@@ -225,7 +158,7 @@ export default function SimulationsPage() {
           <TabsTrigger value="hybrid">Simulation hybride (CFD+ML)</TabsTrigger>
         </TabsList>
 
-        {/* Onglet Analyses existantes (votre ancienne vue) */}
+        {/* Onglet Analyses existantes */}
         <TabsContent value="classic" className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <Card className="lg:col-span-2 glass-card border-white/10 overflow-hidden bg-white/5">
@@ -310,16 +243,7 @@ export default function SimulationsPage() {
 
         {/* Onglet Simulation hybride (CFD+ML) */}
         <TabsContent value="hybrid" className="space-y-8">
-          <HybridSimulationPanel 
-            projectId={selectedProject?.id} 
-            onJobSelected={handleHybridJobSelected} 
-          />
-          {hybridResults && (
-            <div className="mt-8">
-              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><Sparkles className="text-yellow-400" /> Résultats de la simulation hybride</h2>
-              <HybridResultsVisualization results={hybridResults} />
-            </div>
-          )}
+          <HybridSimulationPanel projectId={selectedProject?.id} />
         </TabsContent>
       </Tabs>
     </div>
