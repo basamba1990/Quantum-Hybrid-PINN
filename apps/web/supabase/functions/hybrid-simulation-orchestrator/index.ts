@@ -21,7 +21,7 @@ const log = (level: string, msg: string, meta?: Record<string, unknown>) => {
 };
 
 // ============================================================================
-// 2. Types et schémas
+// 2. Types et schémas (incluent les champs scenario_type et scenario_inputs)
 // ============================================================================
 const HybridSimulationRequestSchema = z.object({
   projectId: z.string().uuid(),
@@ -38,11 +38,14 @@ const HybridSimulationRequestSchema = z.object({
   flow_rate: z.number().optional(),
   length: z.number().optional(),
   diameter: z.number().optional(),
+  // NOUVEAU : champs pour les scénarios industriels
+  scenario_type: z.string().default("H2_PIPELINE"),
+  scenario_inputs: z.record(z.any()).default({}),
 });
 type HybridSimulationRequest = z.infer<typeof HybridSimulationRequestSchema>;
 
 // ============================================================================
-// 3. Clients et helpers
+// 3. Helpers
 // ============================================================================
 async function retryRequest(fn: () => Promise<Response>, retries = 3): Promise<Response> {
   for (let i = 0; i < retries; i++) {
@@ -94,13 +97,10 @@ serve(async (req: Request) => {
 
     log("info", "Starting hybrid simulation", { jobName: request.jobName, projectId: request.projectId });
 
-    // Utiliser le token de l'utilisateur pour respecter les politiques RLS
-    const userSupabase = createClient(env.SUPABASE_URL, authHeader.replace('Bearer ', ''));
-    
-    // Client admin pour les mises à jour en arrière-plan si nécessaire
+    // Client admin pour les opérations DB
     const adminSupabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
-    // 1. Créer l'entrée en base avec le client utilisateur
+    // 1. Créer l'entrée en base
     const { data: job, error: insertError } = await adminSupabase
       .from("hybrid_simulations")
       .insert({
@@ -135,7 +135,7 @@ serve(async (req: Request) => {
     const jobId = job.id;
     log("info", "Job created", { jobId });
 
-    // 2. Appeler le backend FastAPI avec l'ID du job
+    // 2. Appeler le backend FastAPI avec l'ID du job ET les paramètres de scénario
     const payload = {
       job_id: jobId,
       project_id: request.projectId,
@@ -152,6 +152,9 @@ serve(async (req: Request) => {
       flow_rate: request.flow_rate,
       length: request.length,
       diameter: request.diameter,
+      // NOUVEAU : transmission des champs scénario
+      scenario_type: request.scenario_type,
+      scenario_inputs: request.scenario_inputs,
     };
 
     // Lancer l'appel en arrière-plan
@@ -167,7 +170,7 @@ serve(async (req: Request) => {
         const apiResult = await response.json();
         log("info", "Backend response received", { jobId, apiResult });
 
-        // Utiliser le client admin pour mettre à jour le statut final (plus robuste en arrière-plan)
+        // Mise à jour finale
         await adminSupabase
           .from("hybrid_simulations")
           .update({
