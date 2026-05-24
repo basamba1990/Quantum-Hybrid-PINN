@@ -5,8 +5,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.22.4";
-import jsPDF from "npm:jspdf@2.5.1";
-import autoTable from "npm:jspdf-autotable";
+import jsPDF from "https://esm.sh/jspdf@2.5.1?bundle";
+import autoTable from "https://esm.sh/jspdf-autotable";
 
 // ============================================================================
 // 1. Configuration & validation d'environnement
@@ -14,15 +14,13 @@ import autoTable from "npm:jspdf-autotable";
 
 const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
-  H2_INFERENCE_API_URL: z.string().url().default("https://api.h2-inference.com"),
+  H2_INFERENCE_API_URL: z.string().url().default("https://quantum-pinn-api-qef2.onrender.com"),
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   LOG_LEVEL: z.enum(["debug","info","warn","error"]).default("info"),
   CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   MAX_RETRIES: z.coerce.number().int().min(1).max(5).default(3),
   CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().int().default(5),
-  SIMULATION_TIMESTEPS: z.coerce.number().int().default(30),
-  SIMULATION_DURATION: z.coerce.number().positive().default(10),
 });
 
 const env = envSchema.parse(Deno.env.toObject());
@@ -144,10 +142,10 @@ class InMemoryCache {
 }
 const cache = new InMemoryCache();
 const openAICircuit = new CircuitBreaker();
-const h2Circuit = new CircuitBreaker();
+const backendCircuit = new CircuitBreaker();
 
 // ============================================================================
-// 4. Services externes (OpenAI, H2 Inference)
+// 4. Services externes (OpenAI, backend)
 // ============================================================================
 
 async function extractPhysicalParameters(transcription: string): Promise<z.infer<typeof PhysicalParametersSchema>> {
@@ -196,9 +194,32 @@ Respond ONLY with valid JSON, no other text.`,
   }, "openai-extract");
 }
 
-async function performAssimilation(currentState: number[], observation: number[]) {
+async function callBackendValidate3d(params: any): Promise<any> {
   return await withRetry(async () => {
-    return await h2Circuit.call(async () => {
+    return await backendCircuit.call(async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      try {
+        const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/validate-3d`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!response.ok) throw new Error(`Backend HTTP ${response.status}`);
+        return await response.json();
+      } catch (e) {
+        clearTimeout(timeout);
+        throw e;
+      }
+    }, "backend-validate");
+  }, "backend-validate");
+}
+
+async function callBackendAssimilate(currentState: number[], observation: number[]): Promise<any> {
+  return await withRetry(async () => {
+    return await backendCircuit.call(async () => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
       try {
@@ -210,14 +231,13 @@ async function performAssimilation(currentState: number[], observation: number[]
         });
         clearTimeout(timeout);
         if (!response.ok) throw new Error(`Assimilation HTTP ${response.status}`);
-        const data = await response.json();
-        return z.object({ assimilated_state: z.array(z.number()), timestamp: z.string() }).parse(data);
+        return await response.json();
       } catch (e) {
         clearTimeout(timeout);
         throw e;
       }
-    }, "h2-assimilate");
-  }, "h2-assimilation");
+    }, "backend-assimilate");
+  }, "backend-assimilate");
 }
 
 function simpleAssimilation(current: number[], observation: number[], gain = 0.7): number[] {
@@ -334,7 +354,7 @@ async function generateAnalysisReport(data: {
 
 function calculateCredibilityScore(
   extractedParams: z.infer<typeof PhysicalParametersSchema>,
-  predictions3d: z.infer<typeof PredictionResponseSchema>[],
+  predictions3d: any[],
   assimilationResult: any
 ) {
   let score = 100;
@@ -363,11 +383,9 @@ function calculateCredibilityScore(
     const init = [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u];
     let [p_assimilated, t_assimilated, v_assimilated] = assimilationResult.assimilated_state;
 
-    // Normalisation
     let correctedPressure = p_assimilated > 100 ? p_assimilated / 100000 : p_assimilated;
     correctedPressure = Math.max(1, Math.min(10, correctedPressure));
-    const friction = -0.5;
-    let correctedVelocity = v_assimilated + friction * v_assimilated;
+    let correctedVelocity = v_assimilated + (-0.5) * v_assimilated;
     correctedVelocity = Math.max(-2.0, Math.min(2.0, correctedVelocity));
 
     assimilationResult.assimilated_state[0] = correctedPressure;
@@ -397,7 +415,7 @@ function calculateCredibilityScore(
     }
   }
 
-  // Métriques PVT/CFD par défaut basées sur les paramètres extraits
+  // Métriques PVT/CFD par défaut
   let pvtCoherence = 0.85, cfdStability = 0.80;
   if (extractedParams.pressure && extractedParams.temperature && extractedParams.equilibrium_pressure) {
     const pressureDev = Math.abs(extractedParams.pressure - extractedParams.equilibrium_pressure) / extractedParams.equilibrium_pressure;
@@ -411,8 +429,7 @@ function calculateCredibilityScore(
     cfdStability = Math.max(0.5, 1.0 - (stdV / (avgV + 0.1)));
   }
 
-  const baseScore = score;
-  score = baseScore * 0.4 + pvtCoherence * 100 * 0.3 + cfdStability * 100 * 0.3;
+  score = score * 0.4 + pvtCoherence * 100 * 0.3 + cfdStability * 100 * 0.3;
 
   if (extractedParams.velocity && extractedParams.velocity > 500) {
     anomalies.push(`Velocity ${extractedParams.velocity.toFixed(1)} m/s exceeds realistic limit`);
@@ -467,35 +484,28 @@ serve(async (req: Request) => {
 
     let predictions3d: any[] = [];
     let physicalMetrics: any = null;
+    let assimilationResult: any = null;
 
+    // Appel au backend pour la validation 3D
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
-      const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/validate-3d`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pressure: extractedParams.pressure ?? 101325,
-          temperature: extractedParams.temperature ?? 293.15,
-          density: 1.0,
-          velocity_magnitude: extractedParams.velocity ?? 0.5,
-          x: extractedParams.x ?? 0.5,
-          y: extractedParams.y ?? 0.5,
-          z: extractedParams.z ?? 0.5,
-        }),
-        signal: controller.signal,
+      const backendResult = await callBackendValidate3d({
+        pressure: extractedParams.pressure ?? 101325,
+        temperature: extractedParams.temperature ?? 293.15,
+        density: 1.0,
+        velocity_magnitude: extractedParams.velocity ?? 0.5,
+        x: extractedParams.x ?? 0.5,
+        y: extractedParams.y ?? 0.5,
+        z: extractedParams.z ?? 0.5,
       });
-      clearTimeout(timeout);
-      if (response.ok) {
-        const data = await response.json();
-        predictions3d = data.predictions3d || [];
-        physicalMetrics = data.physical_metrics;
-      }
+      predictions3d = backendResult.predictions3d || [];
+      physicalMetrics = backendResult.physical_metrics;
     } catch (err) {
-      log("error", "Failed to fetch industrial data", { requestId, error: err.message });
+      log("error", "Failed to fetch 3D validation from backend, using fallback", { error: err.message });
+      // Fallback : générer des prédictions vides
+      predictions3d = [];
+      physicalMetrics = null;
     }
 
-    let assimilationResult;
     const initialState = predictions3d[0]
       ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u]
       : [extractedParams.pressure ?? 101325, extractedParams.temperature ?? 293.15, extractedParams.velocity ?? 0];
@@ -505,9 +515,11 @@ serve(async (req: Request) => {
       extractedParams.velocity ?? initialState[2],
     ];
 
+    // Assimilation
     try {
-      assimilationResult = await performAssimilation(initialState, observation);
+      assimilationResult = await callBackendAssimilate(initialState, observation);
     } catch (err) {
+      log("warn", "Assimilation failed, using simple Kalman fallback", { error: err.message });
       const assimilated = simpleAssimilation(initialState, observation, 0.6);
       assimilationResult = { assimilated_state: assimilated, timestamp: new Date().toISOString() };
     }
@@ -535,7 +547,7 @@ serve(async (req: Request) => {
       }).eq("id", analysisId),
     ]);
 
-    // Génération PDF en arrière-plan
+    // Génération PDF en arrière-plan (non bloquante)
     (async () => {
       try {
         const pdfBuffer = await generateAnalysisReport({
