@@ -100,6 +100,19 @@ serve(async (req: Request) => {
     // Client admin pour les opérations DB
     const adminSupabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
+    // Vérifier que le projet appartient bien à l'utilisateur (Sécurité RLS renforcée)
+    const { data: projectVerify } = await adminSupabase
+      .from("projects")
+      .select("id")
+      .eq("id", request.projectId)
+      .eq("user_id", request.userId)
+      .single();
+
+    if (!projectVerify) {
+      log("error", "Access denied to project", { projectId: request.projectId, userId: request.userId });
+      throw new Error("Accès refusé au projet spécifié ou projet inexistant");
+    }
+
     // 1. Créer l'entrée en base
     const { data: job, error: insertError } = await adminSupabase
       .from("hybrid_simulations")
