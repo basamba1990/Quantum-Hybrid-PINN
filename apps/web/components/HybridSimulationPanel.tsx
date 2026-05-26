@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,9 +40,11 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
   const [selectedJob, setSelectedJob] = useState<JobStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentScenario = INDUSTRIAL_SCENARIOS[scenarioType];
 
+  // Initialisation des valeurs par défaut des inputs
   useEffect(() => {
     const defaultInputs = currentScenario.inputs.reduce((acc, input) => ({
       ...acc, [input.name]: input.defaultValue
@@ -50,28 +52,49 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     setConfig(prev => ({ ...prev, scenarioInputs: defaultInputs }));
   }, [scenarioType]);
 
+  // Récupération de la liste des jobs (affichage historique)
   const fetchJobs = async () => {
     try {
       const res = await fetch('/api/jobs');
       if (res.ok) {
         const data = await res.json();
         setJobs(data);
-        if (selectedJob) {
-          const updated = data.find((j: JobStatus) => j.jobId === selectedJob.jobId);
-          if (updated) setSelectedJob(updated);
-        }
       }
     } catch (err) {
       console.error('Failed to fetch jobs:', err);
     }
   };
 
+  // Polling dédié pour un job spécifique (récupération des résultats)
+  const startPollingForJob = (jobId: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}`);
+        if (!res.ok) return;
+        const jobData = await res.json();
+        setSelectedJob(jobData);
+        // Arrêter le polling si le job est terminé ou en échec
+        if (jobData.status === 'completed' || jobData.status === 'failed') {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          // Rafraîchir la liste des jobs pour l'historique
+          fetchJobs();
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    }, 2000); // toutes les 2 secondes
+  };
+
+  // Nettoyage du polling au démontage du composant
   useEffect(() => {
-    fetchJobs();
-    const interval = setInterval(fetchJobs, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, []);
 
+  // Lancement d'une nouvelle simulation
   const handleRunSimulation = async () => {
     setLoading(true);
     setError(null);
@@ -90,13 +113,20 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to start simulation');
-      setSelectedJob({
-        jobId: data.job_id,
+      
+      const newJobId = data.job_id;
+      // Création d'un objet job temporaire en attendant les détails
+      const tempJob: JobStatus = {
+        jobId: newJobId,
         name: config.jobName,
         status: 'running',
         createdAt: new Date().toISOString(),
-      });
-      fetchJobs(); // refresh immédiat
+      };
+      setSelectedJob(tempJob);
+      // Lancer le polling pour ce job
+      startPollingForJob(newJobId);
+      // Rafraîchir la liste des jobs
+      fetchJobs();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -106,6 +136,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4">
+      {/* Panneau de configuration */}
       <Card className="lg:col-span-1 border-t-4 border-t-blue-500 shadow-xl bg-slate-900/50 backdrop-blur-sm text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -180,6 +211,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         </CardContent>
       </Card>
 
+      {/* Tableau de bord des résultats */}
       <Card className="lg:col-span-2 bg-slate-950 border-slate-800 text-white overflow-hidden shadow-2xl">
         <CardHeader className="border-b border-slate-800 bg-slate-900/50">
           <div className="flex justify-between items-center">
