@@ -1,6 +1,6 @@
 """
 API FastAPI - Quantum-Hybrid-PINN (asynchrone avec polling)
-Version 5.3.1 – endpoints /jobs ajoutés, scénarios complets.
+Version 5.3.2 – correction NameError, endpoints /jobs, scénarios complets.
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -43,13 +43,18 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
     sys.path.insert(0, CURRENT_DIR)
 
+# Chargement des moteurs de scénarios
+HAS_SCENARIOS = False
+SCENARIO_ENGINES = {}
 try:
     from scenario_engines import SCENARIO_ENGINES
     HAS_SCENARIOS = True
     logger.info("✅ Moteurs de scénarios chargés")
 except ImportError:
-    HAS_SCENARIOS = False
     logger.warning("⚠️ Moteurs de scénarios non trouvés")
+
+# Pour l'endpoint /health : on définit HAS_ENGINES comme alias de HAS_SCENARIOS
+HAS_ENGINES = HAS_SCENARIOS
 
 def cleanup_memory():
     gc.collect()
@@ -59,13 +64,13 @@ def cleanup_memory():
 app = FastAPI(
     title="Quantum-Hybrid-PINN API",
     description="API simulations hybrides CFD-ML (UNIFIÉE & SÉCURISÉE)",
-    version="5.1.0"
+    version="5.3.2"
 )
 
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Plus permissif pour le debug, à restreindre en prod
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -132,7 +137,7 @@ class AssimilateResponse(BaseModel):
     timestamp: str
 
 # ============================================================================
-# Endpoints V2 (utilisés par l'Edge Function)
+# Endpoints V2
 # ============================================================================
 
 @app.get("/health")
@@ -141,7 +146,7 @@ async def health():
 
 @app.get("/")
 async def root():
-    return {"message": "Quantum-Hybrid-PINN API", "version": "5.1.0"}
+    return {"message": "Quantum-Hybrid-PINN API", "version": "5.3.2"}
 
 @app.post("/v2/validate-3d", response_model=Validate3DResponse)
 async def validate_3d(request: Validate3DRequest):
@@ -248,6 +253,7 @@ async def run_hybrid_simulation(request: SimulationRequest, background_tasks: Ba
     )
 
 async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
+    final_result = None
     try:
         results_list = []
         
@@ -257,7 +263,6 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             
             # Mapping des inputs pour correspondre aux attentes des moteurs
             inputs = request.scenario_inputs.copy()
-            # Assurer que les clés standard sont présentes
             inputs['pressure'] = inputs.get('pressure', request.pressure)
             inputs['temperature'] = inputs.get('temperature', request.temperature)
             inputs['flowRate'] = inputs.get('flowRate', request.flow_rate)
@@ -278,6 +283,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                 "scenario_outputs": industrial_results
             }
             results_list.append(result)
+            final_result = result
         
         # Cas 2: Simulation Hybride réelle (Fallback)
         else:
@@ -299,11 +305,12 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                 }
             }
             results_list.append(result)
+            final_result = result
 
         # Update in-memory store
         if job_id in jobs_store:
             jobs_store[job_id]["status"] = "completed"
-            jobs_store[job_id]["results"] = results_list[-1]
+            jobs_store[job_id]["results"] = final_result
             jobs_store[job_id]["completed_at"] = datetime.utcnow().isoformat()
 
         # Update Supabase
@@ -327,7 +334,8 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                     "status": "failed",
                     "error_message": str(e)
                 }).eq("id", job_id).execute()
-            except: pass
+            except Exception as db_err:
+                logger.error(f"Failed to update Supabase: {db_err}")
     finally:
         cleanup_memory()
 
@@ -353,8 +361,8 @@ async def get_job(job_id: str):
                     "name": job["job_name"],
                     "status": job["status"],
                     "createdAt": job["created_at"],
-                    "results": job["results"],
-                    "errorMessage": job["error_message"]
+                    "results": job.get("results"),
+                    "errorMessage": job.get("error_message")
                 }
         except Exception as e:
             logger.error(f"Error fetching job from Supabase: {e}")
