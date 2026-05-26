@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Appel direct à l'API FastAPI (Render ou local)
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
     
     const response = await fetch(`${API_URL}/hybrid/run-simulation`, {
@@ -37,9 +36,13 @@ export async function POST(req: NextRequest) {
         time_step: body.time_step || 0.01,
         residual_threshold: body.residual_threshold || 0.01,
         fields: body.fields || ['U', 'p', 'T'],
-        enable_warp: body.enable_warp || false,
-        enable_multiphase: body.enable_multiphase || false,
-        enable_shock_capturing: body.enable_shock_capturing || false,
+        ml_weight: body.ml_weight || 0.5,
+        fluid: body.fluid || 'H2',
+        pressure: body.pressure || 80,
+        temperature: body.temperature || 300,
+        flow_rate: body.flow_rate || 2.0,
+        length: body.length || 100,
+        diameter: body.diameter || 0.5,
         scenario_type: body.scenario_type || "H2_PIPELINE",
         scenario_inputs: body.scenario_inputs || {},
       }),
@@ -55,20 +58,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Retourne le format attendu par HybridSimulationPanel
+    // Format attendu par HybridSimulationPanel
     return NextResponse.json({
       job_id: data.job_id,
       status: 'running',
       message: data.message,
-      results: {
-        iteration: 0,
-        cfdTime: 0,
-        mlTime: 0,
-        residuals: {},
-        log: "Initialisation de la simulation hybride...",
-        credibilityScore: 0,
-        turbulentData: { time: [], tke: [], dissipation: [] }
-      }
     });
   } catch (error: any) {
     console.error('API route error:', error);
