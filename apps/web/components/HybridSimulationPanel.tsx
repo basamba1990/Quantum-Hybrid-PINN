@@ -1,33 +1,14 @@
-/**
- * Hybrid Simulation Configuration Panel
- * Allows users to configure and launch hybrid CFD-ML simulations with industrial scenarios
- */
-
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Play, Pause, RotateCcw, Activity, Shield, MapPin, Zap } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Play, Activity, Shield, MapPin, Zap } from 'lucide-react';
 import { INDUSTRIAL_SCENARIOS, ScenarioType } from '@/types/simulation-scenarios';
-
-interface HybridSimulationConfig {
-  jobName: string;
-  casePath: string;
-  nSteps: number;
-  timeStep: number;
-  residualThreshold: number;
-  fields: string[];
-  scenarioType: ScenarioType;
-  scenarioInputs: Record<string, any>;
-}
 
 interface JobStatus {
   jobId: string;
@@ -46,21 +27,15 @@ interface JobStatus {
   errorMessage?: string;
 }
 
-export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?: string }) {
+export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
   const [scenarioType, setScenarioType] = useState<ScenarioType>('H2_PIPELINE');
-  const [config, setConfig] = useState<HybridSimulationConfig>({
+  const [config, setConfig] = useState({
     jobName: 'SIM-INDUSTRIAL-V8',
     casePath: 'industrial_v8',
     nSteps: 50,
-    timeStep: 0.01,
-    residualThreshold: 0.01,
-    fields: ['U', 'p', 'T'],
-    scenarioType: 'H2_PIPELINE',
-    scenarioInputs: INDUSTRIAL_SCENARIOS['H2_PIPELINE'].inputs.reduce((acc, input) => ({
-      ...acc, [input.name]: input.defaultValue
-    }), {})
+    scenarioType: 'H2_PIPELINE' as ScenarioType,
+    scenarioInputs: {} as Record<string, any>,
   });
-
   const [jobs, setJobs] = useState<JobStatus[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobStatus | null>(null);
   const [loading, setLoading] = useState(false);
@@ -68,17 +43,19 @@ export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?
 
   const currentScenario = INDUSTRIAL_SCENARIOS[scenarioType];
 
+  // Initialisation des inputs par défaut
   useEffect(() => {
-    fetchJobs();
-    const interval = setInterval(fetchJobs, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    const defaultInputs = currentScenario.inputs.reduce((acc, input) => ({
+      ...acc, [input.name]: input.defaultValue
+    }), {});
+    setConfig(prev => ({ ...prev, scenarioInputs: defaultInputs }));
+  }, [scenarioType]);
 
   const fetchJobs = async () => {
     try {
-      const response = await fetch('/api/jobs');
-      if (response.ok) {
-        const data = await response.json();
+      const res = await fetch('/api/jobs');
+      if (res.ok) {
+        const data = await res.json();
         setJobs(data);
         if (selectedJob) {
           const updated = data.find((j: JobStatus) => j.jobId === selectedJob.jobId);
@@ -90,6 +67,12 @@ export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?
     }
   };
 
+  useEffect(() => {
+    fetchJobs();
+    const interval = setInterval(fetchJobs, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleRunSimulation = async () => {
     setLoading(true);
     setError(null);
@@ -98,26 +81,25 @@ export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          project_id: propProjectId,
+          project_id: projectId,
           job_name: config.jobName,
           case_path: config.casePath,
           scenario_type: scenarioType,
           scenario_inputs: config.scenarioInputs,
-          n_steps: config.nSteps
+          n_steps: config.nSteps,
         }),
       });
-
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to start simulation');
-
       setSelectedJob({
         jobId: data.job_id,
         name: config.jobName,
         status: 'running',
         createdAt: new Date().toISOString(),
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      fetchJobs(); // refresh immédiat
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -137,19 +119,7 @@ export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label>Scénario Industriel</Label>
-            <Select 
-              value={scenarioType} 
-              onValueChange={(val: ScenarioType) => {
-                setScenarioType(val);
-                setConfig({
-                  ...config,
-                  scenarioType: val,
-                  scenarioInputs: INDUSTRIAL_SCENARIOS[val].inputs.reduce((acc, input) => ({
-                    ...acc, [input.name]: input.defaultValue
-                  }), {})
-                });
-              }}
-            >
+            <Select value={scenarioType} onValueChange={(val: ScenarioType) => setScenarioType(val)}>
               <SelectTrigger className="bg-slate-800 border-slate-700">
                 <SelectValue />
               </SelectTrigger>
@@ -160,13 +130,9 @@ export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?
               </SelectContent>
             </Select>
           </div>
-
           <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-            <p className="text-xs text-blue-200 leading-relaxed">
-              {currentScenario.description}
-            </p>
+            <p className="text-xs text-blue-200 leading-relaxed">{currentScenario.description}</p>
           </div>
-
           <div className="space-y-4 pt-4 border-t border-slate-700">
             <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
               <Zap className="w-4 h-4" /> Paramètres d'Entrée
@@ -178,10 +144,10 @@ export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?
                   {input.unit && <span className="text-slate-500">[{input.unit}]</span>}
                 </Label>
                 {input.type === 'select' ? (
-                  <Select 
-                    value={config.scenarioInputs[input.name]} 
+                  <Select
+                    value={config.scenarioInputs[input.name]}
                     onValueChange={(val) => setConfig({
-                      ...config, 
+                      ...config,
                       scenarioInputs: { ...config.scenarioInputs, [input.name]: val }
                     })}
                   >
@@ -195,8 +161,8 @@ export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input 
-                    type="number" 
+                  <Input
+                    type="number"
                     value={config.scenarioInputs[input.name]}
                     onChange={(e) => setConfig({
                       ...config,
@@ -208,15 +174,11 @@ export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?
               </div>
             ))}
           </div>
-
-          <Button 
-            onClick={handleRunSimulation} 
-            disabled={loading} 
-            className="w-full bg-blue-600 hover:bg-blue-500 font-bold py-6 rounded-xl transition-all hover:scale-[1.02]"
-          >
+          <Button onClick={handleRunSimulation} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 font-bold py-6 rounded-xl transition-all">
             {loading ? <Loader2 className="animate-spin mr-2" /> : <Play className="mr-2" />}
             Démarrer Simulation Industrielle
           </Button>
+          {error && <p className="text-red-400 text-xs">{error}</p>}
         </CardContent>
       </Card>
 
@@ -243,7 +205,6 @@ export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?
             </div>
           ) : (
             <div className="p-8 space-y-8">
-              {/* KPIs Grid */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
                 {currentScenario.outputs.map(out => (
                   <div key={out.name} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl relative group overflow-hidden">
@@ -260,22 +221,16 @@ export function HybridSimulationPanel({ projectId: propProjectId }: { projectId?
                   </div>
                 ))}
               </div>
-
-              {/* Status & Log */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-xs font-mono uppercase tracking-tighter text-slate-500">
-                  <span className="flex items-center gap-2">
-                    <MapPin className="w-3 h-3" /> Localisation: {config.scenarioInputs.portLocation || 'Offshore / Site'}
-                  </span>
-                  <span>Score de Crédibilité: {selectedJob.results?.credibilityScore}%</span>
-                </div>
-                <div className="bg-black/50 rounded-xl p-4 font-mono text-[10px] text-emerald-500/80 border border-emerald-500/10 h-32 overflow-y-auto">
-                  <p className="mb-2 text-slate-500">--- DÉBUT LOG SIMULATION PINN V8 ---</p>
-                  {selectedJob.results?.log.split('\n').map((line, i) => (
-                    <p key={i}>{line}</p>
-                  ))}
-                  {selectedJob.status === 'running' && <p className="animate-pulse">_</p>}
-                </div>
+              <div className="flex items-center justify-between text-xs font-mono uppercase tracking-tighter text-slate-500">
+                <span className="flex items-center gap-2">
+                  <MapPin className="w-3 h-3" /> Localisation: {config.scenarioInputs.portLocation || 'Offshore / Site'}
+                </span>
+                <span>Score de Crédibilité: {selectedJob.results?.credibilityScore ?? 0}%</span>
+              </div>
+              <div className="bg-black/50 rounded-xl p-4 font-mono text-[10px] text-emerald-500/80 border border-emerald-500/10 h-32 overflow-y-auto">
+                <p className="mb-2 text-slate-500">--- DÉBUT LOG SIMULATION PINN V8 ---</p>
+                {selectedJob.results?.log?.split('\n').map((line, i) => <p key={i}>{line}</p>)}
+                {selectedJob.status === 'running' && <p className="animate-pulse">_</p>}
               </div>
             </div>
           )}
