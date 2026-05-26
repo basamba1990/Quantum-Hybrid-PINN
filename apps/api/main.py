@@ -1,11 +1,10 @@
 """
-API FastAPI - Quantum-Hybrid-PINN PRODUCTION INDUSTRIELLE UNIFIÉE
-Simulations hybrides CFD+ML avec physique réelle et structure OpenFOAM.
+API FastAPI - Quantum-Hybrid-PINN (asynchrone avec polling)
+Version 5.3.1 – endpoints /jobs ajoutés, scénarios complets.
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Security
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, validator
 from typing import Optional, Dict, Any, List
 import logging
@@ -20,17 +19,16 @@ import torch
 import numpy as np
 from supabase import create_client, Client
 
-# Configuration du logging
+# ============================================================================
+# Configuration
+# ============================================================================
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# Security
-security = HTTPBearer()
-
-# Supabase Configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase: Optional[Client] = None
@@ -39,33 +37,19 @@ if SUPABASE_URL and SUPABASE_KEY:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         logger.info("✅ Supabase client initialized")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize Supabase: {e}")
+        logger.error(f"❌ Supabase init failed: {e}")
 
-# Ajout du chemin pour les imports locaux
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
     sys.path.insert(0, CURRENT_DIR)
 
-# Import des moteurs de scénarios industriels
 try:
     from scenario_engines import SCENARIO_ENGINES
     HAS_SCENARIOS = True
-    logger.info("✅ Moteurs de scénarios industriels chargés.")
-except ImportError as e:
+    logger.info("✅ Moteurs de scénarios chargés")
+except ImportError:
     HAS_SCENARIOS = False
-    logger.warning(f"⚠️ Moteurs de scénarios non trouvés: {e}")
-
-# Import des moteurs physiques réels
-try:
-    from hydrogen_pinn_v8 import HydrogenPINNV8
-    from pvt_physics_engine import PVTPhysicsEngine
-    from fno_pipeline_orchestrator import FNOPipelineOrchestrator
-    from repit_integration.hybrid_predictor import MLAcceleratedPredictor, HybridSimulationConfig
-    HAS_ENGINES = True
-    logger.info("✅ Moteurs industriels (V8/PVT/FNO) chargés.")
-except ImportError as e:
-    logger.error(f"❌ Erreur chargement moteurs industriels: {e}")
-    HAS_ENGINES = False
+    logger.warning("⚠️ Moteurs de scénarios non trouvés")
 
 def cleanup_memory():
     gc.collect()
@@ -91,7 +75,7 @@ app.add_middleware(
 jobs_store: Dict[str, Dict[str, Any]] = {}
 
 # ============================================================================
-# Modèles de données
+# Modèles
 # ============================================================================
 
 class SimulationRequest(BaseModel):
@@ -139,8 +123,16 @@ class Validate3DResponse(BaseModel):
     predictions3d: List[Dict[str, Any]] = []
     physical_metrics: Dict[str, Any] = {}
 
+class AssimilateRequest(BaseModel):
+    current_state: List[float]
+    observation: List[float]
+
+class AssimilateResponse(BaseModel):
+    assimilated_state: List[float]
+    timestamp: str
+
 # ============================================================================
-# Endpoints
+# Endpoints V2 (utilisés par l'Edge Function)
 # ============================================================================
 
 @app.get("/health")
@@ -168,8 +160,10 @@ async def validate_3d(request: Validate3DRequest):
     }
 
     anomalies = []
-    if pressure_bar > 800: anomalies.append("Pression critique dépassée")
-    if temp_k < 14: anomalies.append("Température sous le point triple H2")
+    if pressure_bar > 800:
+        anomalies.append("Pression critique dépassée")
+    if temp_k < 14:
+        anomalies.append("Température sous le point triple H2")
 
     predictions3d = []
     for i in range(5):
@@ -178,17 +172,42 @@ async def validate_3d(request: Validate3DRequest):
             "time": t, "x": request.x, "y": request.y, "z": request.z,
             "pressure": request.pressure * (1 - 0.01 * t),
             "velocity_u": request.velocity_magnitude * (1 + 0.02 * math.sin(t)),
+            "velocity_v": 0, "velocity_w": 0,
             "temperature": request.temperature + 0.5 * math.sin(t),
             "density": request.density
         })
+
+    physical_metrics = {
+        "reynolds": request.density * request.velocity_magnitude * 1.0 / 1e-5,
+        "mach": request.velocity_magnitude / 1300,
+        "residuals": residuals
+    }
 
     return Validate3DResponse(
         credibility_score=round(credibility_score, 2),
         residuals=residuals,
         anomalies=anomalies,
         predictions3d=predictions3d,
-        physical_metrics={"reynolds": 1.2e6, "mach": 0.05}
+        physical_metrics=physical_metrics
     )
+
+@app.post("/v2/assimilate", response_model=AssimilateResponse)
+async def assimilate(request: AssimilateRequest):
+    current = request.current_state
+    obs = request.observation
+    gain = 0.7
+    assimilated = [c + gain * (o - c) for c, o in zip(current, obs)]
+    if len(assimilated) >= 2:
+        assimilated[0] = max(1e5, min(1e7, assimilated[0]))
+        assimilated[1] = max(14, min(800, assimilated[1]))
+    return AssimilateResponse(
+        assimilated_state=assimilated,
+        timestamp=datetime.utcnow().isoformat()
+    )
+
+# ============================================================================
+# Simulation asynchrone avec écriture dans Supabase
+# ============================================================================
 
 @app.post("/hybrid/run-simulation", response_model=SimulationResponse)
 async def run_hybrid_simulation(request: SimulationRequest, background_tasks: BackgroundTasks):
@@ -291,7 +310,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
         if supabase:
             supabase.table("hybrid_simulations").update({
                 "status": "completed",
-                "results": results_list[-1],
+                "results": final_result,
                 "completed_at": datetime.utcnow().isoformat()
             }).eq("id", job_id).execute()
             logger.info(f"Job {job_id} updated to completed in Supabase")
@@ -344,4 +363,5 @@ async def get_job(job_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
