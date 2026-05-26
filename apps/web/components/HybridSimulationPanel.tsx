@@ -43,7 +43,6 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
 
   const currentScenario = INDUSTRIAL_SCENARIOS[scenarioType];
 
-  // Initialisation des inputs par défaut
   useEffect(() => {
     const defaultInputs = currentScenario.inputs.reduce((acc, input) => ({
       ...acc, [input.name]: input.defaultValue
@@ -107,7 +106,6 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4">
-      {/* Configuration Panel */}
       <Card className="lg:col-span-1 border-t-4 border-t-blue-500 shadow-xl bg-slate-900/50 backdrop-blur-sm text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -182,7 +180,6 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         </CardContent>
       </Card>
 
-      {/* Results Panel */}
       <Card className="lg:col-span-2 bg-slate-950 border-slate-800 text-white overflow-hidden shadow-2xl">
         <CardHeader className="border-b border-slate-800 bg-slate-900/50">
           <div className="flex justify-between items-center">
