@@ -159,13 +159,13 @@ serve(async (req: Request) => {
       time_step: request.timeStep,
       residual_threshold: request.residualThreshold,
       fields: request.fields,
-      fluid: request.fluid,
-      pressure: request.pressure,
-      temperature: request.temperature,
-      flow_rate: request.flow_rate,
-      length: request.length,
-      diameter: request.diameter,
-      // NOUVEAU : transmission des champs scénario
+      // Ensure physical parameters are synced with scenario_inputs if they are provided
+      fluid: request.scenario_inputs.fluid || request.fluid || "H2",
+      pressure: request.scenario_inputs.pressure || request.pressure || 80.0,
+      temperature: request.scenario_inputs.temperature || request.temperature || 300.0,
+      flow_rate: request.scenario_inputs.flowRate || request.flow_rate || 2.0,
+      length: request.scenario_inputs.length || request.length || 100.0,
+      diameter: request.scenario_inputs.diameter || request.diameter || 0.5,
       scenario_type: request.scenario_type,
       scenario_inputs: request.scenario_inputs,
     };
