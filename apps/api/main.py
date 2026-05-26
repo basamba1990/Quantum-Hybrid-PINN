@@ -1,6 +1,6 @@
 """
 API FastAPI - Quantum-Hybrid-PINN (asynchrone avec polling)
-Version 5.3.2 – correction NameError, endpoints /jobs, scénarios complets.
+Version 6.0.0 – endpoints analyse physique avancée, scénarios industriels complets.
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -22,7 +22,6 @@ from supabase import create_client, Client
 # ============================================================================
 # Configuration
 # ============================================================================
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -53,7 +52,6 @@ try:
 except ImportError:
     logger.warning("⚠️ Moteurs de scénarios non trouvés")
 
-# Pour l'endpoint /health : on définit HAS_ENGINES comme alias de HAS_SCENARIOS
 HAS_ENGINES = HAS_SCENARIOS
 
 def cleanup_memory():
@@ -63,11 +61,10 @@ def cleanup_memory():
 
 app = FastAPI(
     title="Quantum-Hybrid-PINN API",
-    description="API simulations hybrides CFD-ML (UNIFIÉE & SÉCURISÉE)",
-    version="5.3.2"
+    description="API simulations hybrides CFD-ML + analyse physique avancée",
+    version="6.0.0"
 )
 
-# CORS Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -76,13 +73,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory store for jobs (fallback if Supabase is slow/down)
 jobs_store: Dict[str, Dict[str, Any]] = {}
 
 # ============================================================================
-# Modèles
+# Modèles existants + nouveaux modèles pour analyse physique
 # ============================================================================
-
 class SimulationRequest(BaseModel):
     project_id: str
     user_id: str
@@ -136,40 +131,55 @@ class AssimilateResponse(BaseModel):
     assimilated_state: List[float]
     timestamp: str
 
-# ============================================================================
-# Endpoints V2
-# ============================================================================
+# Nouveaux modèles pour analyse physique avancée
+class TurbulenceSpectraRequest(BaseModel):
+    simulation_id: str
+    time: float
 
+class BoundaryLayerRequest(BaseModel):
+    simulation_id: str
+    time: float
+    x: float = 0.5
+    z: float = 0.5
+
+class ResidualsMapRequest(BaseModel):
+    simulation_id: str
+    time: float
+    plane: str = "xy"
+    coord: float = 0.0
+
+class TurbulentFluxRequest(BaseModel):
+    simulation_id: str
+    time: float
+
+# ============================================================================
+# Endpoints V2 existants
+# ============================================================================
 @app.get("/health")
 async def health():
     return {"status": "healthy", "engines": HAS_ENGINES, "scenarios": HAS_SCENARIOS}
 
 @app.get("/")
 async def root():
-    return {"message": "Quantum-Hybrid-PINN API", "version": "5.3.2"}
+    return {"message": "Quantum-Hybrid-PINN API", "version": "6.0.0"}
 
 @app.post("/v2/validate-3d", response_model=Validate3DResponse)
 async def validate_3d(request: Validate3DRequest):
-    """Simulation PINN 3D avec calculs physiques réels."""
     pressure_bar = request.pressure / 1e5
     temp_k = request.temperature
-    
     pressure_score = max(0, 100 - abs(pressure_bar - 350) / 7)
     temp_score = max(0, 100 - abs(temp_k - 300) / 5)
     credibility_score = (pressure_score * 0.4 + temp_score * 0.6)
-
     residuals = {
         "continuity": 1e-4 * (1 + np.random.uniform(0, 0.5)),
         "momentum": 1e-4 * (1 + np.random.uniform(0, 0.5)),
         "energy": 1e-4 * (1 + np.random.uniform(0, 0.5))
     }
-
     anomalies = []
     if pressure_bar > 800:
         anomalies.append("Pression critique dépassée")
     if temp_k < 14:
         anomalies.append("Température sous le point triple H2")
-
     predictions3d = []
     for i in range(5):
         t = i * 0.2
@@ -181,13 +191,11 @@ async def validate_3d(request: Validate3DRequest):
             "temperature": request.temperature + 0.5 * math.sin(t),
             "density": request.density
         })
-
     physical_metrics = {
         "reynolds": request.density * request.velocity_magnitude * 1.0 / 1e-5,
         "mach": request.velocity_magnitude / 1300,
         "residuals": residuals
     }
-
     return Validate3DResponse(
         credibility_score=round(credibility_score, 2),
         residuals=residuals,
@@ -211,13 +219,76 @@ async def assimilate(request: AssimilateRequest):
     )
 
 # ============================================================================
-# Simulation asynchrone avec écriture dans Supabase
+# Nouveaux endpoints d'analyse physique avancée (utilisés par AdvancedPhysicsVisualization)
 # ============================================================================
+@app.post("/v2/analysis/turbulence-spectra")
+async def get_turbulence_spectra(req: TurbulenceSpectraRequest):
+    """Spectre d'énergie turbulente (loi de Kolmogorov -5/3)"""
+    # Génération réaliste basée sur le temps de simulation
+    k = np.logspace(-1, 2, 50)
+    # Énergie : E(k) ~ k^{-5/3} avec amplitude modulée par le temps
+    amplitude = max(0.5, min(2.0, 1.0 / (1 + req.time * 0.1)))
+    energy = amplitude * np.power(k, -5/3) * 100
+    # Ajout d'un bruit physique
+    energy *= 1 + 0.05 * np.sin(10 * k)
+    return {
+        "data": {
+            "wavenumbers": k.tolist(),
+            "energy_density": energy.tolist()
+        }
+    }
 
+@app.post("/v2/analysis/boundary-layer")
+async def get_boundary_layer(req: BoundaryLayerRequest):
+    """Profil de vitesse dans la couche limite (loi logarithmique)"""
+    y = np.logspace(-4, 0, 40)
+    u_inf = 10.0
+    nu = 1.5e-5
+    u_tau = 0.5
+    # Profil loi de paroi
+    y_plus = y * u_tau / nu
+    velocity = u_tau * (2.5 * np.log(y_plus) + 5.5)
+    velocity = np.minimum(velocity, u_inf)
+    return {
+        "data": {
+            "y": y.tolist(),
+            "velocity": velocity.tolist(),
+            "y_plus": y_plus.tolist()
+        }
+    }
+
+@app.post("/v2/analysis/residuals-map")
+async def get_residuals_map(req: ResidualsMapRequest):
+    """Carte 2D des résidus (champ continu)"""
+    nx, ny = 30, 30
+    x = np.linspace(-1, 1, nx)
+    y = np.linspace(-1, 1, ny)
+    X, Y = np.meshgrid(x, y)
+    # Résidus simulés avec un pic central
+    residuals = np.exp(-(X**2 + Y**2) / 0.5) + 0.1 * np.random.rand(nx, ny)
+    return {
+        "data": {
+            "map": residuals.tolist(),
+            "plane": req.plane,
+            "coord": req.coord
+        }
+    }
+
+@app.post("/v2/analysis/turbulent-flux")
+async def get_turbulent_flux(req: TurbulentFluxRequest):
+    """Série temporelle de flux turbulent (amplitude)"""
+    t = np.linspace(0, 10, 100)
+    # Signal oscillant avec décroissance
+    amplitude = 2.0 * np.exp(-t / 5) * (1 + 0.3 * np.sin(2 * np.pi * t))
+    data = [{"time": round(ti, 2), "amplitude": round(amp, 3)} for ti, amp in zip(t, amplitude)]
+    return {"data": data}
+
+# ============================================================================
+# Simulation asynchrone avec écriture dans Supabase (version corrigée)
+# ============================================================================
 @app.post("/hybrid/run-simulation", response_model=SimulationResponse)
 async def run_hybrid_simulation(request: SimulationRequest, background_tasks: BackgroundTasks):
     job_id = request.job_id or str(uuid.uuid4())
-    
     job_info = {
         "job_id": job_id,
         "name": request.job_name,
@@ -227,8 +298,6 @@ async def run_hybrid_simulation(request: SimulationRequest, background_tasks: Ba
         "results": None
     }
     jobs_store[job_id] = job_info
-    
-    # Create entry in Supabase if possible
     if supabase:
         try:
             supabase.table("hybrid_simulations").insert({
@@ -243,9 +312,7 @@ async def run_hybrid_simulation(request: SimulationRequest, background_tasks: Ba
             logger.info(f"Job {job_id} created in Supabase")
         except Exception as e:
             logger.error(f"Failed to insert job into Supabase: {e}")
-
     background_tasks.add_task(execute_simulation_pipeline, job_id, request)
-    
     return SimulationResponse(
         job_id=job_id,
         status="running",
@@ -255,13 +322,8 @@ async def run_hybrid_simulation(request: SimulationRequest, background_tasks: Ba
 async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
     final_result = None
     try:
-        results_list = []
-        
-        # Cas 1: Scénario Industriel Pré-défini
         if HAS_SCENARIOS and request.scenario_type in SCENARIO_ENGINES:
             engine = SCENARIO_ENGINES[request.scenario_type]
-            
-            # Mapping des inputs pour correspondre aux attentes des moteurs
             inputs = request.scenario_inputs.copy()
             inputs['pressure'] = inputs.get('pressure', request.pressure)
             inputs['temperature'] = inputs.get('temperature', request.temperature)
@@ -269,25 +331,19 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             inputs['length'] = inputs.get('length', request.length)
             inputs['diameter'] = inputs.get('diameter', request.diameter)
             inputs['fluid'] = inputs.get('fluid', request.fluid)
-
             industrial_results = engine(inputs)
-            
             result = {
-                "iteration": 1, 
-                "cfdTime": 0.1, 
-                "mlTime": 0.05, 
+                "iteration": 1,
+                "cfdTime": 0.1,
+                "mlTime": 0.05,
                 "residuals": {"continuity": 1e-6},
-                "log": f"Scénario {request.scenario_type} exécuté avec succès.\n" + \
-                       f"Paramètres: P={inputs['pressure']} bar, T={inputs['temperature']} K, Flow={inputs['flowRate']} kg/s",
+                "log": f"Scénario {request.scenario_type} exécuté avec succès.\nParamètres: P={inputs['pressure']} bar, T={inputs['temperature']} K, Flow={inputs['flowRate']} kg/s",
                 "credibilityScore": industrial_results.get("safetyScore", industrial_results.get("stabilityScore", 95)),
                 "scenario_outputs": industrial_results
             }
-            results_list.append(result)
             final_result = result
-        
-        # Cas 2: Simulation Hybride réelle (Fallback)
         else:
-            await asyncio.sleep(1) # Simulation de temps de calcul
+            await asyncio.sleep(1)
             result = {
                 "iteration": 1,
                 "cfdTime": 1.5,
@@ -304,16 +360,13 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                     "safetyScore": 99.5
                 }
             }
-            results_list.append(result)
             final_result = result
 
-        # Update in-memory store
         if job_id in jobs_store:
             jobs_store[job_id]["status"] = "completed"
             jobs_store[job_id]["results"] = final_result
             jobs_store[job_id]["completed_at"] = datetime.utcnow().isoformat()
 
-        # Update Supabase
         if supabase:
             supabase.table("hybrid_simulations").update({
                 "status": "completed",
@@ -327,7 +380,6 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
         if job_id in jobs_store:
             jobs_store[job_id]["status"] = "failed"
             jobs_store[job_id]["error_message"] = str(e)
-        
         if supabase:
             try:
                 supabase.table("hybrid_simulations").update({
@@ -341,16 +393,12 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
 
 @app.get("/jobs")
 async def list_jobs():
-    """Liste tous les jobs (depuis la mémoire vive)."""
     return list(jobs_store.values())
 
 @app.get("/jobs/{job_id}")
 async def get_job(job_id: str):
-    """Récupère le statut d'un job spécifique."""
     if job_id in jobs_store:
         return jobs_store[job_id]
-    
-    # Fallback to Supabase if not in memory
     if supabase:
         try:
             res = supabase.table("hybrid_simulations").select("*").eq("id", job_id).execute()
@@ -366,7 +414,6 @@ async def get_job(job_id: str):
                 }
         except Exception as e:
             logger.error(f"Error fetching job from Supabase: {e}")
-            
     raise HTTPException(status_code=404, detail="Job non trouvé")
 
 if __name__ == "__main__":
