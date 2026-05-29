@@ -59,12 +59,27 @@ FLUID_CONFIGS = {
         'params': {
             'Tc': 304.1, 'Pc': 7.38e6, 'rho_c': 467.6
         }
+    },
+    'generique': {
+        'name': 'Roche générique',
+        'density': 2500.0,          # kg/m³
+        'wave_speed': 300.0,        # m/s (onde de compression)
+        'poisson': 0.25,
+        'young_modulus': 50e9,      # Pa
+        'mu': 1.0e-5,               # Valeur par défaut pour la compatibilité Navier-Stokes
+        'Cp': 1000.0,
+        'k': 2.0,
+        'gamma': 1.1,
+        'eos_type': 'solid_elastic_simplified',
+        'params': {
+            'rho': 2500.0, 'E': 50e9, 'nu': 0.25
+        }
     }
 }
 
 def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
     config = FLUID_CONFIGS.get(fluid_type, FLUID_CONFIGS['H2'])
-    R = config['R_specific']
+    R = config.get('R_specific', 8.314) # Default gas constant if not specified
     params = config['params']
     
     if config['eos_type'] == 'silvera_goldman':
@@ -90,6 +105,12 @@ def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor
         v = 1.0 / (rho + 1e-8)
         p = (R * T) / (v - b) - a_T / (v**2 + 2*b*v - b**2)
         return p
+        
+    elif config['eos_type'] == 'solid_elastic_simplified':
+        # Simple linear pressure-density relation for solids
+        rho_ref = params.get('rho', 2500.0)
+        E = params.get('E', 50e9)
+        return E * (rho / rho_ref - 1.0)
         
     else:
         # Default/Simplified Helmholtz for sCO2
