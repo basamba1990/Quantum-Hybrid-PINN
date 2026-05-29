@@ -134,7 +134,8 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
         { label: 'Cuivre', value: 'Cuivre' },
         { label: 'Cobalt', value: 'Cobalt' },
         { label: 'Lithium', value: 'Lithium' },
-        { label: 'Uranium', value: 'Uranium' }
+        { label: 'Uranium', value: 'Uranium' },
+        { label: 'Roche générique', value: 'generique' }
       ]},
       { name: 'depth', label: 'Profondeur', type: 'number', unit: 'm', defaultValue: 500 },
       { name: 'ventilationRate', label: 'Taux Ventilation', type: 'number', unit: 'm3/s', defaultValue: 100 }
