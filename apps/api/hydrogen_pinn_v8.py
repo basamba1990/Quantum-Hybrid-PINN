@@ -4,6 +4,7 @@ import numpy as np
 from typing import Dict, List
 
 from pinn_3d_navier_stokes import PINN3DNavierStokes, T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+from rock_pinn_3d import RockPINN3D
 from deep_kalman_filter import DeepKalmanFilter
 from quantum_eos_torch import SilveraGoldmanEOS, integrate_eos_in_pinn_loss
 
@@ -17,10 +18,15 @@ def get_device():
         return torch.device("cpu")
 
 class HydrogenPINNV8:
-    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2'):
+    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2', rock_type: str = None):
         self.device = get_device()
         self.fluid_type = fluid_type
-        self.pinn_model = PINN3DNavierStokes(layers, fluid_type=fluid_type).to(self.device)
+        self.rock_type = rock_type
+        
+        if rock_type:
+            self.pinn_model = RockPINN3D(layers, rock_type=rock_type).to(self.device)
+        else:
+            self.pinn_model = PINN3DNavierStokes(layers, fluid_type=fluid_type).to(self.device)
         # Assuming state_dim for DKL is (rho, u, v, w, T) = 5
         # Assuming observation_dim is 3 (pressure, temperature, flow rate)
         self.dkl_model = DeepKalmanFilter(state_dim=5, observation_dim=3).to(self.device)
