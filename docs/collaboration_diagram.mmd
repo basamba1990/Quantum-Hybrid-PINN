@@ -1,0 +1,18 @@
+flowchart LR
+    subgraph Quantum-Hybrid-PINN
+        A[FNO/PINO Solver<br>10-50x acceleration]
+        B[CFD Validation<br>OpenFOAM]
+        C[Credibility Score<br>Navier-Stokes residuals]
+    end
+    subgraph Amir Khademi's project
+        D[MLOps Pipeline<br>DVC / MLflow]
+        E[ML Models<br>GRU / XGBoost for RUL]
+        F[Thermodynamic Residuals<br>isentropic efficiency]
+    end
+    subgraph Integrated Platform
+        G[Reproducible Training<br>for FNO models]
+        H[Predictive Maintenance<br>& Digital Twins]
+        I[Multi-layer Validation<br>physics + thermodynamics]
+    end
+    A & B & C --> G & H & I
+    D & E & F --> G & H & I
