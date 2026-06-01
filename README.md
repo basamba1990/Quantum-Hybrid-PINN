@@ -66,6 +66,34 @@ The system is built on a modern, robust, serverless monorepo architecture engine
 
 ---
 
+## 🔗 Collaborations & Integration Roadmap
+
+To accelerate industrial adoption, we are actively exploring collaborations that bring complementary strengths to the Quantum-Hybrid-PINN ecosystem.
+
+### 🤝 Potential Collaboration with Amir Khademi (Polytechnique Montréal)
+
+We have identified a strong synergy with **Amir Khademi**'s work on physics-informed digital twins for turbofan engine prognostics ([GitHub Repository](https://github.com/AmirhosseinnnKhademi/Physics_Informed_digital_twins_NASA_CHAMPS)). Where our platform excels at high-speed, multi-physics simulation (CFD + FNO) for hydrogen and industrial fluids, Amir's project brings a complete, reproducible MLOps pipeline and a unique physics-based anomaly detection method using **isentropic efficiency residuals**.
+
+The diagram below illustrates how merging these two approaches creates a more powerful, trustworthy, and scalable system:
+
+![Collaboration Diagram](./docs/collaboration_diagram.png)
+
+Key integration points that would directly benefit the platform:
+
+*   **Reproducible ML Workflows (MLOps):** Adopting Amir's DVC-based pipeline (with `params.yaml`, `dvc.yaml`) would industrialise the training of our FNO/PINO models for hydrogen pipeline and LH₂ storage use cases. This ensures every training run is fully reproducible and trackable.
+*   **Multi-Layer Physical Validation:** Combining our Navier-Stokes residuals with Amir's thermodynamic (isentropic) residuals would create a powerful two-layer validation mechanism. This could detect both numerical inconsistencies and violations of thermodynamic laws, which is crucial for safety-critical applications (e.g., hydrogen compression or turbine systems).
+*   **Self-Contained Digital Twin Dashboard:** Our current platform relies on a web backend. Amir's approach of generating a standalone HTML dashboard (with engine schematics, real-time sensor overlays, and physics-based anomaly scores) could be replicated for our hydrogen simulation scenarios (e.g., a 100 km pipeline or an LH₂ storage tank). This would create a portable, no-server-required demonstration tool for stakeholders and potential clients.
+
+### 🚀 Current Status & Next Steps
+
+We have initiated preliminary discussions with Amir. The collaboration roadmap includes:
+
+*   [Planning] Merging the respective MLOps pipelines.
+*   [In Progress] Implementing thermodynamic residual loss functions within the PINN framework.
+*   [Future] Co-authoring a case study that applies the hybrid approach to a relevant industrial problem (e.g., predictive maintenance of hydrogen compressors).
+
+Stay tuned for updates as this collaboration evolves!
+
 ## 🚀 Advanced Research Directions (Roadmap)
 
 Inspired by modern breakthroughs in high-order numerical methods, wave mechanics, and scalable energy platforms (such as the Compute-Energy Nexus paradigms), our R&D roadmap focuses on:
@@ -166,3 +194,4 @@ The platform incorporates and expands upon foundational concepts from leading nu
 * *Physics-Informed Neural Networks for Fluid Mechanics: A Review*
 * **Wave-Appropriate Reconstruction (WARP)** and High-order numerical methods for multiphase compressible flows.
 * *Fluid Intelligence: A Forward Look on AI Foundation Models in Computational Fluid Dynamics* (Ashton et al., 2025).
+* *Out-of-Distribution Detection for Physics-Informed Neural Networks* (Keum & Warey, 2026).
