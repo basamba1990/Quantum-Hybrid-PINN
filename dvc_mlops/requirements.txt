@@ -1,0 +1,7 @@
+numpy
+h5py
+torch
+neuralop
+mlflow
+scikit-learn
+scipy
