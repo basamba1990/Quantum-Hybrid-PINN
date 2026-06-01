@@ -235,6 +235,7 @@ async def validate_3d(request: Validate3DRequest):
             "velocity_w": w.item(),
             "temperature": T.item(),
             "density": rho.item(),
+            "timestamp": datetime.utcnow().isoformat()
         }]
 
         physical_metrics = {
@@ -362,7 +363,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                     "velocity": u.mean().item(),
                     "turbulence": 0.05 * u.mean().item(), # Estimation physique
                     "thermalStability": T.mean().item(),
-                    "leakRisk": max(0.0, (p.mean().item() - 1e7) / 1e7) if p.mean().item() > 1e7 else 0.0,
+                    "leakRisk": float(max(0.0, (p.mean().item() - 1e7) / 1e7)) if p.mean().item() > 1e7 else 0.0,
                     "safetyScore": round(credibility_score, 2),
                     "predictions_over_time": [
                         {"time": float(t_sim[i]), "pressure": float(p[i]), "temperature": float(T[i]), "velocity_u": float(u[i]), "density": float(rho[i])}
