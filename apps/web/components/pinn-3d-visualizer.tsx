@@ -56,9 +56,9 @@ export default function PINN3DVisualizer({
 
   const chartData = useMemo(() => {
     const isPointSeries = new Set(predictions.map((p) => `${p.x},${p.y},${p.z}`)).size === 1
-    const x = predictions.map((p, i) => (isPointSeries ? p.x + i * 0.001 : p.x))
-    const y = predictions.map((p, i) => (isPointSeries ? p.y + Math.sin(i * 0.1) * 0.001 : p.y))
-    const z = predictions.map((p, i) => (isPointSeries ? p.z + Math.cos(i * 0.1) * 0.001 : p.z))
+    const x = predictions.map((p, i) => (isPointSeries ? (p.x || 0) + i * 0.001 : (p.x || 0)))
+    const y = predictions.map((p, i) => (isPointSeries ? (p.y || 0) + Math.sin(i * 0.1) * 0.001 : (p.y || 0)))
+    const z = predictions.map((p, i) => (isPointSeries ? (p.z || 0) + Math.cos(i * 0.1) * 0.001 : (p.z || 0)))
     const u = predictions.map((p) => p.velocity_u)
     const v = predictions.map((p) => p.velocity_v)
     const w = predictions.map((p) => p.velocity_w)
