@@ -255,10 +255,21 @@ class HydrogenPINNV8:
         for epoch in range(epochs):
             optimizer.zero_grad()
             rho_pred, u_pred, v_pred, w_pred, T_pred = self.pinn_model(t_pde, x_pde, y_pde, z_pde)
+            p = self.eos_model(rho_pred, T_pred)
             pde_loss = self.pinn_model.loss(t_pde, x_pde, y_pde, z_pde,
                                              rho_pred, u_pred, v_pred, w_pred, T_pred)
             eos_loss = integrate_eos_in_pinn_loss(self.eos_model, rho_pred, T_pred, weight=0.1)
-            total_loss = pde_loss + eos_loss
+            # Placeholder for actual values, these would come from a simulation or data
+            # For now, we'll use dummy values or derive them from PINN outputs if possible
+            # This part needs careful integration with the actual simulation data flow
+            dummy_mass_flow_rate = torch.ones_like(rho_pred) * 0.1 # Example dummy value
+            dummy_efficiency = torch.ones_like(rho_pred) * 0.8 # Example dummy value
+
+            # Calculate thermodynamic residual loss
+            # Note: pressure_pred and temperature_pred are already available from PINN output
+            loss_thermo = torch.mean(self.thermodynamic_residuals(p, T_pred, dummy_mass_flow_rate, dummy_efficiency))
+
+            total_loss = pde_loss + eos_loss + 0.05 * loss_thermo
             total_loss.backward()
             optimizer.step()
             scheduler.step()
@@ -276,3 +287,16 @@ class HydrogenPINNV8:
             obs_tensor = torch.tensor([observation], dtype=torch.float32, device=self.device)
             assimilated_state = self.dkl_model.assimilate(state_tensor, obs_tensor)
         return assimilated_state.squeeze().tolist()
+
+    def thermodynamic_residuals(self, pressure, temperature, mass_flow_rate, efficiency):
+        """
+        Calcule le résidu d'efficacité isentropique pour un compresseur/turbine.
+        Utilise les principes des projets jumeaux numériques d'Amir.
+        """
+        # Ratio de pression (modèle simplifié)
+        pressure_ratio = pressure / 1e5
+        # Température idéale de sortie
+        T_ideal = temperature * pressure_ratio ** ((1.4 - 1) / 1.4)
+        # Résidu d'efficacité
+        efficiency_residual = (T_ideal - temperature) / (T_ideal + 1e-6)
+        return efficiency_residual
