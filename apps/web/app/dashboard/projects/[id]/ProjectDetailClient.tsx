@@ -84,7 +84,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
     </div>
   )
 
-  if (!project) return (
+  if (!project || !project.id) return (
     <div className="p-8 flex flex-col items-center justify-center h-[60vh] text-center">
       <div className="p-4 bg-red-500/10 rounded-full mb-4">
         <Activity className="w-8 h-8 text-red-500" />
@@ -268,7 +268,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           </div>
           
           <div className="relative rounded-[32px] border border-white/10 bg-black/40 overflow-hidden min-h-[600px] flex flex-col items-center justify-center">
-            {selectedReport ? (
+            {selectedReport && selectedReport.file_url ? (
               <div className="w-full h-full p-4">
                 <PDFViewer url={selectedReport.file_url} />
               </div>
