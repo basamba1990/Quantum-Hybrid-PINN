@@ -28,6 +28,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Initialisation de l'application FastAPI (doit être fait avant d'utiliser @app)
+app = FastAPI(
+    title="Quantum-Hybrid-PINN API",
+    description="API simulations hybrides CFD-ML + analyse physique avancée",
+    version="6.0.0"
+)
+
 MODEL_PATH = os.getenv("PINN_MODEL_PATH", "../models/pinn_model.pt")
 PINN_MODEL = None
 
@@ -48,12 +55,6 @@ def load_pinn_model():
             logger.error(f"❌ Échec du chargement du modèle PINN: {e}")
             PINN_MODEL = None
     return PINN_MODEL
-
-app = FastAPI(
-    title="Quantum-Hybrid-PINN API",
-    description="API simulations hybrides CFD-ML + analyse physique avancée",
-    version="6.0.0"
-)
 
 @app.on_event("startup")
 async def startup_event():
