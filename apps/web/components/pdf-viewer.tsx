@@ -41,12 +41,14 @@ export default function PDFViewer({ url }: PDFViewerProps) {
           loading={<div className="text-blue-400 animate-pulse">Chargement du document scientifique...</div>}
           error={<div className="text-red-400">Erreur lors du chargement du PDF.</div>}
         >
-          <Page 
-            pageNumber={pageNumber} 
-            renderTextLayer={true}
-            renderAnnotationLayer={true}
-            width={Math.min(typeof window !== 'undefined' ? window.innerWidth * 0.8 : 800, 800)}
-          />
+          {isMounted && (
+            <Page 
+              pageNumber={pageNumber} 
+              renderTextLayer={true}
+              renderAnnotationLayer={true}
+              width={Math.min(typeof window !== 'undefined' ? window.innerWidth * 0.8 : 800, 800)}
+            />
+          )}
         </Document>
       </div>
       
