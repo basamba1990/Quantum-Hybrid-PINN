@@ -103,7 +103,25 @@ export default function SimulationsPage() {
       temperature = x.map(t => baseT + (Math.cos(t * 8) * 2) + (Math.random() * 1));
     }
     
-    const residuals = physicalMetrics?.residual_history || physicalMetrics?.residuals || null;
+    const residuals = results?.residual_history || physicalMetrics?.residual_history || physicalMetrics?.residuals || null;
+    
+    // Si c'est une simulation hybride avec historique
+    if (results?.residual_history && results.residual_history.length > 0) {
+      const history = results.residual_history;
+      const x_history = history.map((h: any) => h.step);
+      return { 
+        x: x_history, 
+        pressure, 
+        velocity, 
+        temperature, 
+        residuals: {
+          continuity: history.map((h: any) => h.continuity),
+          momentum: history.map((h: any) => h.momentum),
+          energy: history.map((h: any) => h.energy),
+        }, 
+        isEmpty: false 
+      };
+    }
     
     return { x, pressure, velocity, temperature, residuals, isEmpty: false };
   }
