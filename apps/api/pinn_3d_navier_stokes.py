@@ -11,21 +11,29 @@ Z_MIN, Z_MAX = -0.25, 0.25
 U_MIN, U_MAX = 0.0, 20.0     # Max velocity 20 m/s
 TEMP_MIN, TEMP_MAX = 200.0, 400.0
 
-class PINN3DNavierStokes(nn.Module):
-    """PINN for 3D compressible Navier-Stokes equations with multi-fluid support"""
 
-    def __init__(self, layers=None, fluid_type='H2'):
+class PINN3DNavierStokes(nn.Module):
+    """PINN for 3D compressible Navier-Stokes equations with multi-fluid support and MC Dropout"""
+
+    def __init__(self, layers=None, fluid_type='H2', dropout_rate=0.1, enable_dropout=False):
         super().__init__()
         if layers is None:
             layers = [4, 256, 256, 256, 256, 5]
-        self.layers = nn.ModuleList()
-        for i in range(len(layers)-1):
-            self.layers.append(nn.Linear(layers[i], layers[i+1]))
-            nn.init.xavier_normal_(self.layers[-1].weight)
-            nn.init.zeros_(self.layers[-1].bias)
-        
+        self.layers_list = layers
         self.fluid_type = fluid_type
         self.config = FLUID_CONFIGS.get(fluid_type, FLUID_CONFIGS['H2'])
+        self.enable_dropout = enable_dropout
+        self.dropout_rate = dropout_rate
+
+        # Construction du réseau avec des couches linéaires et Dropout optionnel
+        self.linears = nn.ModuleList()
+        self.dropouts = nn.ModuleList() if enable_dropout else None
+        for i in range(len(layers) - 1):
+            self.linears.append(nn.Linear(layers[i], layers[i + 1]))
+            nn.init.xavier_normal_(self.linears[-1].weight)
+            nn.init.zeros_(self.linears[-1].bias)
+            if enable_dropout and i < len(layers) - 2:  # pas de dropout sur la dernière couche
+                self.dropouts.append(nn.Dropout(dropout_rate))
 
     def forward(self, t, x, y, z):
         # Normalize inputs
@@ -35,18 +43,55 @@ class PINN3DNavierStokes(nn.Module):
         z_norm = (z - Z_MIN) / (Z_MAX - Z_MIN)
         inp = torch.cat([t_norm, x_norm, y_norm, z_norm], dim=-1)
 
-        for layer in self.layers[:-1]:
+        for i, layer in enumerate(self.linears[:-1]):
             inp = torch.tanh(layer(inp))
-        out = self.layers[-1](inp)
+            if self.enable_dropout and self.dropouts is not None and i < len(self.dropouts):
+                inp = self.dropouts[i](inp)
+        out = self.linears[-1](inp)
 
         # Denormalize outputs
         rho = out[..., 0:1] * 100 + 0.1
-        u   = out[..., 1:2] * (U_MAX - U_MIN) + U_MIN
-        v   = out[..., 2:3] * (U_MAX - U_MIN) + U_MIN
-        w   = out[..., 3:4] * (U_MAX - U_MIN) + U_MIN
-        T   = out[..., 4:5] * (TEMP_MAX - TEMP_MIN) + TEMP_MIN
+        u = out[..., 1:2] * (U_MAX - U_MIN) + U_MIN
+        v = out[..., 2:3] * (U_MAX - U_MIN) + U_MIN
+        w = out[..., 3:4] * (U_MAX - U_MIN) + U_MIN
+        T = out[..., 4:5] * (TEMP_MAX - TEMP_MIN) + TEMP_MIN
         return rho, u, v, w, T
 
+    # =========================================================================
+    # MC Dropout inference methods
+    # =========================================================================
+    def predict_with_uncertainty(self, t, x, y, z, n_samples=20):
+        """
+        Effectue n_samples prédictions stochastiques avec Dropout actif.
+        Retourne (mean, variance) pour chaque variable de sortie.
+        """
+        if not self.enable_dropout:
+            raise RuntimeError("Model not configured with dropout. Set enable_dropout=True in __init__.")
+
+        self.train()  # active Dropout
+        predictions = []
+        with torch.no_grad():
+            for _ in range(n_samples):
+                rho, u, v, w, T = self.forward(t, x, y, z)
+                predictions.append(torch.stack([rho, u, v, w, T], dim=-1))
+        self.eval()
+        pred_tensor = torch.stack(predictions, dim=0)  # (n_samples, batch, 5)
+        mean = pred_tensor.mean(dim=0)
+        var = pred_tensor.var(dim=0)
+        return mean, var
+
+    def compute_uncertainty_map(self, t, x, y, z, field_index=0, n_samples=20):
+        """
+        Calcule la variance spatiale pour un champ donné (0=rho, 1=u, 2=v, 3=w, 4=T).
+        Retourne un numpy array de la variance.
+        """
+        mean, var = self.predict_with_uncertainty(t, x, y, z, n_samples)
+        var_field = var[..., field_index].cpu().numpy()
+        return var_field
+
+    # =========================================================================
+    # Physics residual computation (Navier-Stokes)
+    # =========================================================================
     def compute_residuals(self, t, x, y, z, rho, u, v, w, T):
         t.requires_grad_(True)
         x.requires_grad_(True)
@@ -114,24 +159,23 @@ class PINN3DNavierStokes(nn.Module):
         # Energy Equation (Temperature)
         Cp = self.config['Cp']
         k_therm = self.config['k']
-        dissipation = mu * (2 * (u_x**2 + v_y**2 + w_z**2) + (u_y + v_x)**2 + (u_z + w_x)**2 + (v_z + w_y)**2)
-        
+        dissipation = mu * (2 * (u_x ** 2 + v_y ** 2 + w_z ** 2) +
+                           (u_y + v_x) ** 2 + (u_z + w_x) ** 2 + (v_z + w_y) ** 2)
+
         # Chemical Source Term (Temkin-Pyzhev for NH3)
         source_term = 0.0
         if self.config.get('kinetics') == 'temkin_pyzhev':
-            # Simplified Temkin-Pyzhev: r = k1 * (P_N2 * (P_H2^3 / P_NH3^2)^alpha - (P_NH3^2 / P_H2^3)^(1-alpha) / K_eq)
-            # For PINN, we use a simplified Arrhenius-based source term to represent the reaction heat
             Ea = self.config['Ea']
             delta_H = self.config['delta_H']
             R_gas = 8.314
-            # Rate proportional to Arrhenius and pressure (p)
-            rate = torch.exp(-Ea / (R_gas * T)) * (p / 1e6)**1.5 
-            source_term = -delta_H * rate * rho # Heat release (delta_H is negative)
+            rate = torch.exp(-Ea / (R_gas * T)) * (p / 1e6) ** 1.5
+            source_term = -delta_H * rate * rho
 
-        energy_res = rho * Cp * (T_t + u * T_x + v * T_y + w * T_z) - k_therm * (T_xx + T_yy + T_zz) - dissipation - source_term
+        energy_res = (rho * Cp * (T_t + u * T_x + v * T_y + w * T_z) -
+                      k_therm * (T_xx + T_yy + T_zz) - dissipation - source_term)
 
         return mass_res, momentum_x_res, momentum_y_res, momentum_z_res, energy_res
 
     def loss(self, t, x, y, z, rho, u, v, w, T):
         mass, mom_x, mom_y, mom_z, energy = self.compute_residuals(t, x, y, z, rho, u, v, w, T)
-        return (mass**2).mean() + (mom_x**2).mean() + (mom_y**2).mean() + (mom_z**2).mean() + (energy**2).mean()
+        return (mass ** 2).mean() + (mom_x ** 2).mean() + (mom_y ** 2).mean() + (mom_z ** 2).mean() + (energy ** 2).mean()
