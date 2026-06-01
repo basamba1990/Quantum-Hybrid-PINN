@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple
 import logging
 
 from pinn_3d_navier_stokes import PINN3DNavierStokes, T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+from rock_pinn_3d import RockPINN3D
 from deep_kalman_filter import DeepKalmanFilter
 from quantum_eos_torch import SilveraGoldmanEOS, integrate_eos_in_pinn_loss
 
@@ -71,38 +72,17 @@ class MahalanobisOODDetector:
 
 
 class HydrogenPINNV8:
-    """
-    Version V8 du modèle PINN hydrogène avec support de :
-    - OOD detection (Mahalanobis) avant inférence
-    - MC Dropout pour l'incertitude post‑inférence
-    - Deep Kalman Filter pour l'assimilation de données
-    - Équation d'état quantique Silvera‑Goldman
-    """
-    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2',
-                 enable_dropout: bool = False, dropout_rate: float = 0.1,
-                 enable_ood_detection: bool = False):
-        """
-        Args:
-            layers: architecture du réseau (4 entrées, 5 sorties)
-            fluid_type: 'H2', 'NH3', 'CH4', 'sCO2'
-            enable_dropout: active les couches Dropout pour l'inférence (MC Dropout)
-            dropout_rate: taux de dropout (0.1 recommandé)
-            enable_ood_detection: active la détection OOD (nécessite d'appeler fit_ood_detector)
-        """
+    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2', rock_type: str = None):
         self.device = get_device()
         self.fluid_type = fluid_type
-        self.enable_dropout = enable_dropout
-        self.dropout_rate = dropout_rate
-        self.enable_ood_detection = enable_ood_detection
-
-        # Modèle PINN (avec Dropout optionnel)
-        self.pinn_model = PINN3DNavierStokes(
-            layers, fluid_type=fluid_type,
-            enable_dropout=enable_dropout,
-            dropout_rate=dropout_rate
-        ).to(self.device)
-
-        # Filtre de Kalman profond
+        self.rock_type = rock_type
+        
+        if rock_type:
+            self.pinn_model = RockPINN3D(layers, rock_type=rock_type).to(self.device)
+        else:
+            self.pinn_model = PINN3DNavierStokes(layers, fluid_type=fluid_type).to(self.device)
+        # Assuming state_dim for DKL is (rho, u, v, w, T) = 5
+        # Assuming observation_dim is 3 (pressure, temperature, flow rate)
         self.dkl_model = DeepKalmanFilter(state_dim=5, observation_dim=3).to(self.device)
 
         # Modèle EOS quantique
