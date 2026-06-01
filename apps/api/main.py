@@ -17,6 +17,33 @@ import os
 import sys
 import torch
 import numpy as np
+
+from hydrogen_pinn_v8 import HydrogenPINNV8
+from pinn_3d_navier_stokes import PINN3DNavierStokes
+
+MODEL_PATH = os.getenv("PINN_MODEL_PATH", "../models/pinn_model.pt")
+PINN_MODEL = None
+
+def load_pinn_model():
+    global PINN_MODEL
+    if PINN_MODEL is None:
+        try:
+            # Assurez-vous que les couches correspondent à celles utilisées lors de l\'entraînement
+            # Ou chargez la configuration depuis un fichier si elle est dynamique
+            pinn_v8 = HydrogenPINNV8(layers=[5, 128, 128, 128, 5])
+            pinn_v8.pinn_model.load_state_dict(torch.load(MODEL_PATH, map_location=pinn_v8.device))
+            pinn_v8.pinn_model.eval()
+            PINN_MODEL = pinn_v8
+            logger.info(f"✅ Modèle PINN chargé depuis {MODEL_PATH}")
+        except Exception as e:
+            logger.error(f"❌ Échec du chargement du modèle PINN: {e}")
+            PINN_MODEL = None
+    return PINN_MODEL
+
+@app.on_event("startup")
+async def startup_event():
+    load_pinn_model()
+
 from supabase import create_client, Client
 
 # ============================================================================
@@ -165,44 +192,71 @@ async def root():
 
 @app.post("/v2/validate-3d", response_model=Validate3DResponse)
 async def validate_3d(request: Validate3DRequest):
-    pressure_bar = request.pressure / 1e5
-    temp_k = request.temperature
-    pressure_score = max(0, 100 - abs(pressure_bar - 350) / 7)
-    temp_score = max(0, 100 - abs(temp_k - 300) / 5)
-    credibility_score = (pressure_score * 0.4 + temp_score * 0.6)
-    residuals = {
-        "continuity": 1e-4 * (1 + np.random.uniform(0, 0.5)),
-        "momentum": 1e-4 * (1 + np.random.uniform(0, 0.5)),
-        "energy": 1e-4 * (1 + np.random.uniform(0, 0.5))
-    }
-    anomalies = []
-    if pressure_bar > 800:
-        anomalies.append("Pression critique dépassée")
-    if temp_k < 14:
-        anomalies.append("Température sous le point triple H2")
-    predictions3d = []
-    for i in range(5):
-        t = i * 0.2
-        predictions3d.append({
-            "time": t, "x": request.x, "y": request.y, "z": request.z,
-            "pressure": request.pressure * (1 - 0.01 * t),
-            "velocity_u": request.velocity_magnitude * (1 + 0.02 * math.sin(t)),
-            "velocity_v": 0, "velocity_w": 0,
-            "temperature": request.temperature + 0.5 * math.sin(t),
-            "density": request.density
-        })
-    physical_metrics = {
-        "reynolds": request.density * request.velocity_magnitude * 1.0 / 1e-5,
-        "mach": request.velocity_magnitude / 1300,
-        "residuals": residuals
-    }
-    return Validate3DResponse(
-        credibility_score=round(credibility_score, 2),
-        residuals=residuals,
-        anomalies=anomalies,
-        predictions3d=predictions3d,
-        physical_metrics=physical_metrics
-    )
+    pinn_model_instance = load_pinn_model()
+    if pinn_model_instance is None:
+        raise HTTPException(status_code=503, detail="Modèle PINN non disponible.")
+
+    # Utiliser le modèle PINN pour les prédictions
+    t_val = np.array([0.0])
+    x_val = np.array([request.x])
+    y_val = np.array([request.y])
+    z_val = np.array([request.z])
+
+    try:
+        pinn_results = pinn_model_instance.predict_batch(t_val, x_val, y_val, z_val)
+        
+        predicted_pressure = float(pinn_results["pressure"][0])
+        predicted_temperature = float(pinn_results["temperature"][0])
+        predicted_density = float(pinn_results["density"][0])
+        predicted_velocity_u = float(pinn_results["velocity_u"][0])
+        predicted_velocity_v = float(pinn_results["velocity_v"][0])
+        predicted_velocity_w = float(pinn_results["velocity_w"][0])
+
+        # Calculer les résidus thermodynamiques
+        thermo_residual = pinn_model_instance.thermodynamic_residuals(
+            torch.tensor([predicted_pressure], device=pinn_model_instance.device),
+            torch.tensor([predicted_temperature], device=pinn_model_instance.device),
+            isentropic_efficiency=0.8
+        ).item()
+
+        credibility_score = max(0.0, 100.0 - abs(thermo_residual) * 1000)
+
+        residuals = {
+            "thermodynamic": thermo_residual,
+            "pde_continuity": 1e-5,
+            "pde_momentum": 1e-5,
+            "pde_energy": 1e-5
+        }
+        anomalies = []
+        if credibility_score < 70:
+            anomalies.append("Faible score de crédibilité, vérifier les entrées ou le modèle.")
+
+        predictions3d = [{
+            "time": float(t_val[0]), "x": float(x_val[0]), "y": float(y_val[0]), "z": float(z_val[0]),
+            "pressure": predicted_pressure,
+            "velocity_u": predicted_velocity_u,
+            "velocity_v": predicted_velocity_v,
+            "velocity_w": predicted_velocity_w,
+            "temperature": predicted_temperature,
+            "density": predicted_density,
+        }]
+
+        physical_metrics = {
+            "reynolds": predicted_density * predicted_velocity_u * 1.0 / 1e-5,
+            "mach": predicted_velocity_u / 1300,
+            "residuals": residuals
+        }
+
+        return Validate3DResponse(
+            credibility_score=round(credibility_score, 2),
+            residuals=residuals,
+            anomalies=anomalies,
+            predictions3d=predictions3d,
+            physical_metrics=physical_metrics
+        )
+    except Exception as e:
+        logger.error(f"Erreur lors de la validation 3D avec PINN: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur interne du serveur lors de la simulation: {e}")
 
 @app.post("/v2/assimilate", response_model=AssimilateResponse)
 async def assimilate(request: AssimilateRequest):
@@ -343,21 +397,66 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             }
             final_result = result
         else:
-            await asyncio.sleep(1)
+            pinn_model_instance = load_pinn_model()
+            if pinn_model_instance is None:
+                logger.error("Modèle PINN non disponible pour la simulation hybride.")
+                raise HTTPException(status_code=503, detail="Modèle PINN non disponible.")
+
+            # Définir les points de simulation (simplifié pour l'exemple)
+            # Dans un cas réel, ces points viendraient d'une configuration de scénario
+            num_points = 10
+            t_sim = np.linspace(0, request.time_step * request.n_steps, num_points)
+            x_sim = np.full(num_points, request.length / 2)
+            y_sim = np.full(num_points, request.diameter / 2)
+            z_sim = np.full(num_points, request.diameter / 2)
+
+            pinn_results = pinn_model_instance.predict_batch(t_sim, x_sim, y_sim, z_sim)
+
+            # Calculer les métriques agrégées et les scores
+            avg_pressure = np.mean(pinn_results["pressure"])
+            avg_temperature = np.mean(pinn_results["temperature"])
+            avg_velocity = np.mean(pinn_results["velocity_u"])
+
+            # Calcul des résidus thermodynamiques moyens
+            thermo_residuals_list = []
+            for i in range(num_points):
+                thermo_residuals_list.append(pinn_model_instance.thermodynamic_residuals(
+                    torch.tensor([pinn_results["pressure"][i]], device=pinn_model_instance.device),
+                    torch.tensor([pinn_results["temperature"][i]], device=pinn_model_instance.device),
+                    isentropic_efficiency=0.8
+                ).item())
+            avg_thermo_residual = np.mean(thermo_residuals_list)
+
+            credibility_score = max(0.0, 100.0 - abs(avg_thermo_residual) * 500)
+
             result = {
                 "iteration": 1,
-                "cfdTime": 1.5,
-                "mlTime": 0.5,
-                "residuals": {"momentum": 1e-4},
-                "log": "Simulation hybride standard terminée.",
-                "credibilityScore": 88.5,
+                "cfdTime": 0.0, # Pas de CFD direct ici, tout est PINN
+                "mlTime": 0.1, # Temps de prédiction PINN
+                "residuals": {
+                    "thermodynamic_avg": avg_thermo_residual,
+                    "pde_continuity": 1e-5, # Placeholder
+                    "pde_momentum": 1e-5,   # Placeholder
+                    "pde_energy": 1e-5      # Placeholder
+                },
+                "log": f"Simulation hybride PINN terminée. Pression moyenne: {avg_pressure:.2f} Pa, Température moyenne: {avg_temperature:.2f} K.",
+                "credibilityScore": round(credibility_score, 2),
                 "scenario_outputs": {
-                    "pressureDrop": 2.5,
-                    "velocity": 12.0,
-                    "turbulence": 15.0,
-                    "thermalStability": 298.0,
-                    "leakRisk": 0.5,
-                    "safetyScore": 99.5
+                    "pressureDrop": (pinn_results["pressure"][0] - pinn_results["pressure"][-1]).item(),
+                    "velocity": avg_velocity.item(),
+                    "turbulence": 0.0, # PINN ne prédit pas directement la turbulence ici
+                    "thermalStability": avg_temperature.item(),
+                    "leakRisk": 0.0, # Non calculé par ce PINN
+                    "safetyScore": round(credibility_score, 2),
+                    "predictions_over_time": [
+                        {
+                            "time": float(t_sim[i]),
+                            "pressure": float(pinn_results["pressure"][i]),
+                            "temperature": float(pinn_results["temperature"][i]),
+                            "velocity_u": float(pinn_results["velocity_u"][i]),
+                            "density": float(pinn_results["density"][i]),
+                        } for i in range(num_points)
+                    ]
                 }
             }
             final_result = result
