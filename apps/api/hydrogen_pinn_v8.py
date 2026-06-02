@@ -88,6 +88,10 @@ class HydrogenPINNV8:
         # Modèle EOS quantique
         self.eos_model = SilveraGoldmanEOS(device=self.device)
 
+        # Configuration des fonctionnalités
+        self.enable_ood_detection = False
+        self.enable_dropout = False
+
         # Détecteur OOD (initialisé plus tard)
         self.ood_detector = None
 
