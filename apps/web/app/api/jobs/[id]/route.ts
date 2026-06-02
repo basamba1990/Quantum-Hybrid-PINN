@@ -20,7 +20,18 @@ export async function GET(
     }
 
     const job = await response.json();
-    return NextResponse.json(job);
+    
+    // Normalisation des champs pour le frontend (snake_case -> camelCase)
+    const normalizedJob = {
+      jobId: job.job_id,
+      name: job.name,
+      status: job.status,
+      createdAt: job.created_at,
+      results: job.results,
+      errorMessage: job.errorMessage || job.error_message
+    };
+    
+    return NextResponse.json(normalizedJob);
   } catch (error: any) {
     console.error(`Failed to fetch job ${id}:`, error);
     return NextResponse.json(

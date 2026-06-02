@@ -13,7 +13,18 @@ export async function GET(req: NextRequest) {
     }
 
     const jobs = await response.json();
-    return NextResponse.json(jobs);
+    
+    // Normalisation de la liste des jobs pour le frontend
+    const normalizedJobs = Array.isArray(jobs) ? jobs.map((job: any) => ({
+      jobId: job.job_id,
+      name: job.name,
+      status: job.status,
+      createdAt: job.created_at,
+      results: job.results,
+      errorMessage: job.errorMessage || job.error_message
+    })) : [];
+    
+    return NextResponse.json(normalizedJobs);
   } catch (error: any) {
     console.error('Failed to fetch jobs from backend:', error);
     return NextResponse.json(

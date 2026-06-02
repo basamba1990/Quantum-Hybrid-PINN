@@ -86,6 +86,13 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         }
         
         const jobData = await res.json();
+        
+        // Vérification de la structure des données reçues
+        if (!jobData || !jobData.jobId) {
+          console.error('Invalid job data received:', jobData);
+          return;
+        }
+
         setSelectedJob(jobData);
         
         // Arrêter le polling si le job est terminé ou en échec
