@@ -14,26 +14,18 @@ class CFDValidationService:
         self.reference_data = None
 
     def load_reference(self, filename="reference_dns.h5"):
-        """Charge les données DNS de référence"""
+        """Charge les données DNS de référence réelles"""
         full_path = os.path.join(self.dataset_path, filename)
         if not os.path.exists(full_path):
-            # Fallback: générer des données synthétiques si le dataset n'est pas cloné
-            print(f"Dataset non trouvé à {full_path}, utilisation de données de référence synthétiques.")
-            return self._generate_synthetic_reference()
+            # En environnement industriel, on lève une exception si les données de référence sont manquantes
+            raise FileNotFoundError(f"Données de référence CFD critiques manquantes à : {full_path}. "
+                                    "Vérifiez le déploiement du dataset DVC.")
         
         with h5py.File(full_path, 'r') as f:
-            # Structure typique des datasets KTH
+            # Structure des datasets DNS KTH/Vinuesa
             u_dns = np.array(f['u_mean'][:])
             p_dns = np.array(f['p_mean'][:])
             return {"u": u_dns, "p": p_dns}
-
-    def _generate_synthetic_reference(self):
-        """Génère un profil de canal turbulent théorique (Loi de paroi)"""
-        y = np.linspace(0, 1, 64)
-        u_tau = 0.05
-        nu = 1e-5
-        u_plus = np.log(y * u_tau / nu + 1.0) / 0.41 + 5.0
-        return {"u": u_plus, "p": np.zeros_like(y)}
 
     def compute_metrics(self, prediction, reference):
         """Calcule l'erreur L2 et la stabilité"""
