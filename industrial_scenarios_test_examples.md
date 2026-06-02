@@ -176,6 +176,18 @@ Pour ce scénario, l'analyse de flux turbulent est cruciale pour évaluer la sta
 1.  **Visualisation :** Les graphiques devraient montrer l'impact de la ventilation sur la qualité de l'air et le confort thermique.
 2.  **Données :** Faire varier le `ventilationRate` et observer l'impact sur l'`airQuality` et le `gasSafety`.
 
+### Cas de Test Spécifique : Roche Générique
+
+1.  **Paramètres :** Sélectionner `mineType: 'generique'`.
+2.  **Visualisation :** Vérifier que les visualisations de `thermalComfort` et `fluidCirculation` sont cohérentes avec les propriétés thermiques et fluidiques d'une roche générique.
+3.  **Données :** Analyser l'impact de la `depth` et du `ventilationRate` sur la distribution de la température et la circulation des fluides dans un environnement de roche générique.
+
+### Cas de Test Spécifique : Roche Élastique (Endommagement)
+
+1.  **Paramètres :** Sélectionner `mineType: 'generic_rock'`.
+2.  **Visualisation :** Les graphiques de `gasSafety` et `airQuality` devraient montrer des sensibilités accrues aux variations de `depth` et `ventilationRate`, reflétant les risques potentiels d'endommagement et de libération de gaz.
+3.  **Données :** Examiner comment les propriétés élastiques de la roche (simulées en interne) influencent la propagation des contraintes et l'intégrité structurelle, ce qui pourrait se manifester par des changements dans les métriques de sécurité.
+
 ---
 
 **Auteur :** Manus AI
