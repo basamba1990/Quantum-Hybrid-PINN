@@ -41,67 +41,15 @@ interface AdvancedPhysicsProps {
   onDataFetch?: (data: any) => void;
 }
 
-// ============================================================================
-// DONNÉES MOCK PAR DÉFAUT – garantissent l'affichage immédiat
-// ============================================================================
-const DEFAULT_TURBULENCE_DATA: TurbulenceData = {
-  wavenumbers: [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100],
-  energy_density: [100, 60, 30, 15, 8, 3.5, 1.2, 0.5, 0.15, 0.05],
-};
-
-const DEFAULT_BOUNDARY_LAYER: BoundaryLayerData = {
-  y: [0, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5],
-  velocity: [0, 0.8, 1.2, 1.8, 2.2, 2.5, 2.8, 3.0, 3.1, 3.2],
-  y_plus: [0, 0.5, 1.2, 3.0, 6.0, 12, 30, 60, 120, 300],
-};
-
-const DEFAULT_RESIDUAL_MAP: ResidualMapData = {
-  map: Array.from({ length: 20 }, () => Array.from({ length: 20 }, () => Math.random())),
-  plane: 'xy',
-  coord: 0.5,
-};
-
-const generatePhysicsData = (type: 'velocity' | 'pressure' | 'temperature') => {
-  return Array.from({ length: 101 }, (_, i) => {
-    const x = i / 10;
-    let base = 0;
-    let noiseScale = 0.05;
-    let uncertaintyScale = 0.08;
-
-    if (type === 'velocity') {
-      base = Math.log(x + 1) / Math.log(11) * 1.1;
-    } else if (type === 'pressure') {
-      base = 1.0 - (Math.exp(x / 10) - 1) / (Math.exp(1) - 1) * 0.5;
-      noiseScale = 0.02;
-      uncertaintyScale = 0.04;
-    } else if (type === 'temperature') {
-      base = 0.3 + Math.sin(x / 2) * 0.4;
-      noiseScale = 0.03;
-      uncertaintyScale = 0.06;
-    }
-
-    const noise = Math.sin(x * 10) * noiseScale + Math.random() * noiseScale;
-    const uncertainty = Math.abs(Math.sin(x * 8) * uncertaintyScale + Math.random() * uncertaintyScale);
-    const amplitude = Math.max(0, base + noise);
-
-    return {
-      time: x.toFixed(1),
-      amplitude: amplitude.toFixed(3),
-      upper: (amplitude + uncertainty).toFixed(3),
-      lower: (amplitude - uncertainty).toFixed(3),
-    };
-  });
-};
-
 export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }: AdvancedPhysicsProps) {
   const [activeTab, setActiveTab] = useState('turbulence');
-  const [turbulenceData, setTurbulenceData] = useState<TurbulenceData | null>(DEFAULT_TURBULENCE_DATA);
-  const [boundaryLayerData, setBoundaryLayerData] = useState<BoundaryLayerData | null>(DEFAULT_BOUNDARY_LAYER);
-  const [residualData, setResidualData] = useState<ResidualMapData | null>(DEFAULT_RESIDUAL_MAP);
+  const [turbulenceData, setTurbulenceData] = useState<TurbulenceData | null>(null);
+  const [boundaryLayerData, setBoundaryLayerData] = useState<BoundaryLayerData | null>(null);
+  const [residualData, setResidualData] = useState<ResidualMapData | null>(null);
   
-  const [velocityData, setVelocityData] = useState<any[]>(generatePhysicsData('velocity'));
-  const [pressureData, setPressureData] = useState<any[]>(generatePhysicsData('pressure'));
-  const [temperatureData, setTemperatureData] = useState<any[]>(generatePhysicsData('temperature'));
+  const [velocityData, setVelocityData] = useState<any[]>([]);
+  const [pressureData, setPressureData] = useState<any[]>([]);
+  const [temperatureData, setTemperatureData] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,39 +61,44 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
 
     const fetchAnalysisData = async () => {
       setLoading(true);
+      setError(null);
       try {
         const turbResponse = await fetch(`${API_BASE_URL}/v2/analysis/turbulence-spectra`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ simulation_id: simulationId, time }),
         });
-        if (turbResponse.ok) {
-          const turbResult = await turbResponse.json();
-          if (turbResult?.data) setTurbulenceData(turbResult.data);
+        if (!turbResponse.ok) {
+          throw new Error(`Turbulence API failed: ${turbResponse.status}`);
         }
+        const turbResult = await turbResponse.json();
+        if (turbResult?.data) setTurbulenceData(turbResult.data);
 
         const blResponse = await fetch(`${API_BASE_URL}/v2/analysis/boundary-layer`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ simulation_id: simulationId, time, x: 0.5, z: 0.5 }),
         });
-        if (blResponse.ok) {
-          const blResult = await blResponse.json();
-          if (blResult?.data) setBoundaryLayerData(blResult.data);
+        if (!blResponse.ok) {
+          throw new Error(`Boundary layer API failed: ${blResponse.status}`);
         }
+        const blResult = await blResponse.json();
+        if (blResult?.data) setBoundaryLayerData(blResult.data);
 
         const resResponse = await fetch(`${API_BASE_URL}/v2/analysis/residuals-map`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ simulation_id: simulationId, time, plane: 'xy', coord: 0.0 }),
         });
-        if (resResponse.ok) {
-          const resResult = await resResponse.json();
-          if (resResult?.data) setResidualData(resResult.data);
+        if (!resResponse.ok) {
+          throw new Error(`Residuals API failed: ${resResponse.status}`);
         }
+        const resResult = await resResponse.json();
+        if (resResult?.data) setResidualData(resResult.data);
       } catch (err) {
-        console.warn("Backend physique non disponible – utilisation des données mock");
-        setError("Mode démo : backend non accessible, affichage des données simulées.");
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error fetching physics analysis data';
+        console.error('Physics analysis error:', errorMsg);
+        setError(errorMsg);
       } finally {
         setLoading(false);
       }
@@ -229,6 +182,24 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
     </div>
   );
 
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          Erreur lors du chargement des données de physique avancée : {error}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="p-12 text-center text-emerald-600">
+        Chargement des données d'analyse physique...
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Card className="bg-black border-emerald-500/20 overflow-hidden rounded-[32px]">
@@ -292,7 +263,7 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
                   </div>
                 </>
               ) : (
-                <div className="p-12 text-center text-emerald-600">Données de turbulence non disponibles</div>
+                <div className="p-12 text-center text-emerald-600">Données de turbulence non disponibles du backend</div>
               )}
             </TabsContent>
 
@@ -313,60 +284,48 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="p-12 text-center text-emerald-600">Données de couche limite non disponibles</div>
+                <div className="p-12 text-center text-emerald-600">Données de couche limite non disponibles du backend</div>
               )}
             </TabsContent>
 
             {/* Cartes PINN */}
             <TabsContent value="residuals" className="space-y-6">
               {residualData ? (
-                <div className="text-center">
-                  <div className="inline-block p-4 bg-black/60 rounded-3xl border border-emerald-500/20 shadow-2xl">
-                    <div dangerouslySetInnerHTML={{ __html: generateHeatmapSVG(residualData.map) }} className="rounded-lg overflow-hidden" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 max-w-md mx-auto mt-4">
-                    <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                      <p className="text-[10px] text-emerald-600 uppercase">Plan de coupe</p>
-                      <p className="text-lg font-black text-emerald-400">{residualData.plane.toUpperCase()}</p>
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+                      <p className="text-[10px] font-mono text-emerald-400 uppercase">Plan</p>
+                      <p className="text-2xl font-black text-emerald-300">{residualData.plane.toUpperCase()}</p>
                     </div>
-                    <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                      <p className="text-[10px] text-emerald-600 uppercase">Position</p>
-                      <p className="text-lg font-black text-emerald-400">{residualData.coord.toFixed(3)} m</p>
+                    <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+                      <p className="text-[10px] font-mono text-emerald-400 uppercase">Coordonnée</p>
+                      <p className="text-2xl font-black text-emerald-300">{residualData.coord.toFixed(3)}</p>
                     </div>
                   </div>
-                </div>
+                  <div className="h-[400px] w-full bg-black/60 rounded-3xl border border-emerald-500/20 p-4 flex items-center justify-center">
+                    <div dangerouslySetInnerHTML={{ __html: generateHeatmapSVG(residualData.map) }} />
+                  </div>
+                </>
               ) : (
-                <div className="p-12 text-center text-emerald-600">Cartographie des résidus non disponible</div>
+                <div className="p-12 text-center text-emerald-600">Données de cartes PINN non disponibles du backend</div>
               )}
             </TabsContent>
 
-            {/* Multi-Physique : Vitesse, Pression, Température */}
+            {/* Multi-Physique */}
             <TabsContent value="multi-physics" className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-widest text-center">Profil de Vitesse</h4>
-                  {renderPhysicsChart(velocityData, "Vitesse (m/s)")}
-                </div>
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-widest text-center">Profil de Pression</h4>
-                  {renderPhysicsChart(pressureData, "Pression (bar)")}
-                </div>
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-widest text-center">Profil de Température</h4>
-                  {renderPhysicsChart(temperatureData, "Température (K)")}
-                </div>
-              </div>
-              <p className="text-center text-[10px] text-emerald-600 uppercase tracking-widest">Physics Validation - Nexus V8.2 | Émeraude CFD-ML Hybrid</p>
+              {velocityData.length > 0 ? (
+                <>
+                  {renderPhysicsChart(velocityData, 'Vitesse (m/s)', '#10b981')}
+                  {renderPhysicsChart(pressureData, 'Pression (Pa)', '#3b82f6')}
+                  {renderPhysicsChart(temperatureData, 'Température (K)', '#f59e0b')}
+                </>
+              ) : (
+                <div className="p-12 text-center text-emerald-600">Données multi-physique non disponibles du backend</div>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
-
-      {error && (
-        <Alert variant="default" className="bg-emerald-500/10 border-emerald-500/20 text-emerald-400">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
     </div>
   );
 }

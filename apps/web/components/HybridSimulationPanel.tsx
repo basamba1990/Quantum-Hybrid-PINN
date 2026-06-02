@@ -65,43 +65,29 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     }
   };
 
-  // Polling dédié pour un job spécifique (récupération des résultats)
+  // Polling dédié pour un job spécifique (récupération des résultats réels du backend)
   const startPollingForJob = (jobId: string) => {
     if (pollingRef.current) clearInterval(pollingRef.current);
     pollingRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/jobs/${jobId}`);
-        let jobData;
+        
         if (!res.ok) {
-          // Si le job n'est pas trouvé sur le backend (mode démo), on simule une progression
-          jobData = {
-            jobId: jobId,
-            name: config.jobName,
-            status: 'running',
-            results: {
-              iteration: 100,
-              cfdTime: 0.5,
-              mlTime: 0.1,
-              residuals: { continuity: 1e-5, momentum: 1e-5, energy: 1e-6 },
-              log: 'Simulation PINN en cours...\nConvergence atteinte.\nCalcul des KPIs industriels...',
-              credibilityScore: 98,
-              scenario_outputs: currentScenario.outputs.reduce((acc, out) => ({
-                ...acc, [out.name]: (Math.random() * 100).toFixed(2)
-              }), {})
-            }
-          };
-          
-          // Simuler la fin après quelques secondes
-          if (selectedJob && selectedJob.status === 'running') {
-             setTimeout(() => {
-               setSelectedJob(prev => prev ? { ...prev, status: 'completed' } : null);
-             }, 5000);
-          }
-        } else {
-          jobData = await res.json();
+          // Erreur réelle du backend - ne pas simuler
+          const errorData = await res.json().catch(() => ({}));
+          setSelectedJob(prev => prev ? { 
+            ...prev, 
+            status: 'failed',
+            errorMessage: errorData.error || `Backend returned status ${res.status}`
+          } : null);
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          return;
         }
         
+        const jobData = await res.json();
         setSelectedJob(jobData);
+        
         // Arrêter le polling si le job est terminé ou en échec
         if (jobData.status === 'completed' || jobData.status === 'failed') {
           if (pollingRef.current) clearInterval(pollingRef.current);
@@ -111,6 +97,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         }
       } catch (err) {
         console.error('Polling error:', err);
+        setError(`Erreur lors du polling du job ${jobId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
     }, 2000); // toutes les 2 secondes
   };
@@ -139,17 +126,16 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
           n_steps: config.nSteps,
         }),
       });
+      
       let data;
       try {
         data = await response.json();
       } catch (e) {
-        data = { error: 'Invalid JSON response from server' };
+        throw new Error('Invalid JSON response from server');
       }
 
       if (!response.ok) {
-        console.warn('Backend simulation failed, using mock success for demo:', data.error);
-        // Simulation d'un succès pour le mode démo si le backend est indisponible
-        data = { job_id: 'job_' + Math.random().toString(36).substr(2, 9), message: 'Simulation started (Demo Mode)' };
+        throw new Error(data.error || `Backend error: ${response.status}`);
       }
       
       const newJobId = data.job_id;
@@ -167,6 +153,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
       fetchJobs();
     } catch (err: any) {
       setError(err.message);
+      setSelectedJob(null);
     } finally {
       setLoading(false);
     }
@@ -269,6 +256,12 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
             <div className="flex flex-col items-center justify-center h-[500px] text-slate-600 space-y-4">
               <Activity className="w-16 h-16 opacity-20" />
               <p className="font-mono text-sm uppercase tracking-widest">En attente de données...</p>
+            </div>
+          ) : selectedJob.status === 'failed' ? (
+            <div className="flex flex-col items-center justify-center h-[500px] text-red-400 space-y-4 p-8">
+              <Shield className="w-16 h-16 opacity-50" />
+              <p className="font-mono text-sm uppercase tracking-widest">Erreur de Simulation</p>
+              <p className="text-xs text-red-300">{selectedJob.errorMessage || 'Une erreur est survenue lors de la simulation'}</p>
             </div>
           ) : (
             <div className="p-8 space-y-8">
