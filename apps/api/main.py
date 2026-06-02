@@ -5,13 +5,17 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from datetime import datetime
 import torch
+import os
 
 # Importation des modèles PINN et des services d'analyse
-from .hydrogen_pinn_v8 import HydrogenPINNV8
-from .deep_kalman_filter import DeepKalmanFilter
-from .cfd_validation_service import CFDValidationService
-from .fluid_properties import FluidProperties
-from .scenario_engines import H2PipelineScenarioEngine
+try:
+    from hydrogen_pinn_v8 import HydrogenPINNV8
+    from deep_kalman_filter import DeepKalmanFilter
+    from cfd_validation_service import CFDValidationService
+except ImportError:
+    from .hydrogen_pinn_v8 import HydrogenPINNV8
+    from .deep_kalman_filter import DeepKalmanFilter
+    from .cfd_validation_service import CFDValidationService
 
 # Initialisation de FastAPI
 app = FastAPI(
@@ -111,7 +115,7 @@ async def get_job_status(job_id: str):
 
 @app.post("/hybrid/run-simulation", response_model=SimulationResponse)
 async def run_hybrid_simulation(request: SimulationRequest, background_tasks: BackgroundTasks):
-    job_id = f"sim_{datetime.now().strftime("%Y%m%d%H%M%S")}_{np.random.randint(1000, 9999)}"
+    job_id = f"sim_{datetime.now().strftime('%Y%m%d%H%M%S')}_{np.random.randint(1000, 9999)}"
     job_info = {
         "job_id": job_id,
         "name": request.job_name,
