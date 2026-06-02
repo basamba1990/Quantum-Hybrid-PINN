@@ -367,8 +367,8 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
 
             self.logger.info("✅ Prédiction FNO réussie avec modules physiques avancés.")
         except Exception as e:
-            self.logger.error(f"❌ Erreur ML: {e}. Utilisation du fallback.")
-            next_state["U"] = current_state["U"] * (1.0 + np.random.normal(0, 0.001, current_state["U"].shape))
+            self.logger.error(f"❌ Erreur ML: {e}. Pas de fallback simulé.")
+            raise e # Re-lancer l'exception pour éviter les données simulées
         return next_state
 
     # Les méthodes _apply_warp_filter, _apply_multiphase_correction et _cfd_predict sont inchangées
