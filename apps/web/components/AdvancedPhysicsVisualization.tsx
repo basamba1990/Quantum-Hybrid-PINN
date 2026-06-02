@@ -42,7 +42,7 @@ interface AdvancedPhysicsProps {
 }
 
 // ============================================================================
-// DONNÉES MOCK PAR DÉFAUT – garantissent l’affichage immédiat
+// DONNÉES MOCK PAR DÉFAUT – garantissent l'affichage immédiat
 // ============================================================================
 const DEFAULT_TURBULENCE_DATA: TurbulenceData = {
   wavenumbers: [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100],
@@ -66,9 +66,12 @@ const generateDefaultTemperatureData = () => {
     const x = i / 10;
     const base = Math.log(x + 1) / Math.log(11) * 1.1;
     const noise = Math.sin(x * 10) * 0.05 + Math.random() * 0.1;
+    const uncertainty = Math.abs(Math.sin(x * 8) * 0.08 + Math.random() * 0.05);
     return {
       time: x.toFixed(1),
       amplitude: Math.max(0, base + noise).toFixed(3),
+      upper: Math.max(0, base + noise + uncertainty).toFixed(3),
+      lower: Math.max(0, base + noise - uncertainty).toFixed(3),
     };
   });
 };
@@ -85,7 +88,7 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
-    // Ne pas bloquer l’affichage – les données par défaut sont déjà présentes
+    // Ne pas bloquer l'affichage – les données par défaut sont déjà présentes
     if (!simulationId) return;
 
     const fetchAnalysisData = async () => {
@@ -186,35 +189,35 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
   if (loading && !turbulenceData && !temperatureData) {
     return (
       <div className="flex flex-col items-center justify-center p-12 space-y-4">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-blue-400">Chargement des spectres physiques...</p>
+        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-emerald-400">Chargement des spectres physiques...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <Card className="bg-black/40 border-white/10 overflow-hidden rounded-[32px]">
-        <CardHeader className="border-b border-white/5 bg-white/[0.02]">
+      <Card className="bg-black border-emerald-500/20 overflow-hidden rounded-[32px]">
+        <CardHeader className="border-b border-emerald-500/10 bg-black">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-2xl font-black text-white tracking-tight">Turbulent Flux Analysis</CardTitle>
-              <CardDescription className="text-gray-400">
+              <CardTitle className="text-2xl font-black text-emerald-400 tracking-tight">Turbulent Flux Analysis</CardTitle>
+              <CardDescription className="text-emerald-600/70">
                 Validation réelle H2 : Turbulence Kolmogorov, Couche Limite & Résidus PINN
               </CardDescription>
             </div>
-            <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20 font-mono">
+            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-mono">
               V8.1 ENGINE ACTIVE
             </Badge>
           </div>
         </CardHeader>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 bg-black">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 bg-white/5 p-1 rounded-2xl border border-white/10">
-              <TabsTrigger value="turbulence" className="rounded-xl data-[state=active]:bg-blue-600">Spectres TKE</TabsTrigger>
-              <TabsTrigger value="boundary-layer" className="rounded-xl data-[state=active]:bg-blue-600">Couche Limite</TabsTrigger>
-              <TabsTrigger value="residuals" className="rounded-xl data-[state=active]:bg-blue-600">Cartes PINN</TabsTrigger>
-              <TabsTrigger value="temperature" className="rounded-xl data-[state=active]:bg-blue-600">Flux Turbulent</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4 bg-emerald-500/5 p-1 rounded-2xl border border-emerald-500/20">
+              <TabsTrigger value="turbulence" className="rounded-xl data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-emerald-400">Spectres TKE</TabsTrigger>
+              <TabsTrigger value="boundary-layer" className="rounded-xl data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-emerald-400">Couche Limite</TabsTrigger>
+              <TabsTrigger value="residuals" className="rounded-xl data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-emerald-400">Cartes PINN</TabsTrigger>
+              <TabsTrigger value="temperature" className="rounded-xl data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-emerald-400">Flux Turbulent</TabsTrigger>
             </TabsList>
 
             {/* Spectres TKE */}
@@ -222,61 +225,61 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
               {turbulenceData ? (
                 <>
                   <div className="grid grid-cols-3 gap-4">
-                    <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10">
-                      <p className="text-[10px] font-mono text-blue-400 uppercase">Pente Spectrale</p>
-                      <p className="text-2xl font-black text-white">-5/3 <span className="text-xs text-gray-500">Kolmogorov</span></p>
+                    <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+                      <p className="text-[10px] font-mono text-emerald-400 uppercase">Pente Spectrale</p>
+                      <p className="text-2xl font-black text-emerald-300">-5/3 <span className="text-xs text-emerald-600">Kolmogorov</span></p>
                     </div>
-                    <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+                    <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
                       <p className="text-[10px] font-mono text-emerald-400 uppercase">Énergie Totale</p>
-                      <p className="text-2xl font-black text-white">{turbulenceData.energy_density.reduce((a,b)=>a+b,0).toExponential(2)}</p>
+                      <p className="text-2xl font-black text-emerald-300">{turbulenceData.energy_density.reduce((a,b)=>a+b,0).toExponential(2)}</p>
                     </div>
-                    <div className="p-4 rounded-2xl bg-purple-500/5 border border-purple-500/10">
-                      <p className="text-[10px] font-mono text-purple-400 uppercase">Échelles Résolues</p>
-                      <p className="text-2xl font-black text-white">{turbulenceData.wavenumbers.length} modes</p>
+                    <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+                      <p className="text-[10px] font-mono text-emerald-400 uppercase">Échelles Résolues</p>
+                      <p className="text-2xl font-black text-emerald-300">{turbulenceData.wavenumbers.length} modes</p>
                     </div>
                   </div>
-                  <div className="h-[400px] w-full bg-white/[0.02] rounded-3xl border border-white/5 p-4">
+                  <div className="h-[400px] w-full bg-black/60 rounded-3xl border border-emerald-500/20 p-4">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={convertTurbulenceForChart(turbulenceData)}>
                         <defs>
-                          <linearGradient id="colorEnergy" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                          <linearGradient id="colorEnergyEmerald" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                        <XAxis dataKey="k" stroke="#64748b" fontSize={10} label={{ value: 'Nombre d’onde k', position: 'insideBottomRight', fill: '#64748b' }} />
-                        <YAxis scale="log" domain={['auto', 'auto']} stroke="#64748b" fontSize={10} label={{ value: 'Énergie E(k)', angle: -90, fill: '#64748b' }} />
-                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155' }} />
-                        <Area type="monotone" dataKey="energy" stroke="#3b82f6" strokeWidth={3} fill="url(#colorEnergy)" name="Spectre réel" />
-                        <Line type="monotone" dataKey="theoretical" stroke="#64748b" strokeDasharray="5 5" dot={false} name="Loi -5/3" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#10b98120" vertical={false} />
+                        <XAxis dataKey="k" stroke="#10b981" fontSize={10} label={{ value: 'Nombre d\'onde k', position: 'insideBottomRight', fill: '#10b981' }} />
+                        <YAxis scale="log" domain={['auto', 'auto']} stroke="#10b981" fontSize={10} label={{ value: 'Énergie E(k)', angle: -90, fill: '#10b981' }} />
+                        <Tooltip contentStyle={{ backgroundColor: '#000000', border: '1px solid #10b981' }} labelStyle={{ color: '#10b981' }} />
+                        <Area type="monotone" dataKey="energy" stroke="#10b981" strokeWidth={3} fill="url(#colorEnergyEmerald)" name="Spectre réel" />
+                        <Line type="monotone" dataKey="theoretical" stroke="#10b98160" strokeDasharray="5 5" dot={false} name="Loi -5/3" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
                 </>
               ) : (
-                <div className="p-12 text-center text-gray-500">Données de turbulence non disponibles</div>
+                <div className="p-12 text-center text-emerald-600">Données de turbulence non disponibles</div>
               )}
             </TabsContent>
 
             {/* Couche Limite */}
             <TabsContent value="boundary-layer" className="space-y-6">
               {boundaryLayerData ? (
-                <div className="h-[400px] w-full bg-white/[0.02] rounded-3xl border border-white/5 p-4">
+                <div className="h-[400px] w-full bg-black/60 rounded-3xl border border-emerald-500/20 p-4">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={convertBoundaryLayerForChart(boundaryLayerData)}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" />
-                      <XAxis dataKey="y" stroke="#64748b" label={{ value: 'Distance à la paroi (m)', position: 'insideBottomRight', fill: '#64748b' }} />
-                      <YAxis stroke="#64748b" label={{ value: 'U (m/s)', angle: -90, fill: '#64748b' }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a' }} />
-                      <Legend />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#10b98120" />
+                      <XAxis dataKey="y" stroke="#10b981" label={{ value: 'Distance à la paroi (m)', position: 'insideBottomRight', fill: '#10b981' }} />
+                      <YAxis stroke="#10b981" label={{ value: 'U (m/s)', angle: -90, fill: '#10b981' }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#000000', border: '1px solid #10b981' }} labelStyle={{ color: '#10b981' }} />
+                      <Legend wrapperStyle={{ color: '#10b981' }} />
                       <Line type="monotone" dataKey="velocity" stroke="#10b981" strokeWidth={3} name="Vitesse réelle" />
-                      <Line type="monotone" dataKey="y_plus" stroke="#f59e0b" strokeWidth={1} name="y+" />
+                      <Line type="monotone" dataKey="y_plus" stroke="#10b98160" strokeWidth={1} name="y+" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <div className="p-12 text-center text-gray-500">Données de couche limite non disponibles</div>
+                <div className="p-12 text-center text-emerald-600">Données de couche limite non disponibles</div>
               )}
             </TabsContent>
 
@@ -284,58 +287,63 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
             <TabsContent value="residuals" className="space-y-6">
               {residualData ? (
                 <div className="text-center">
-                  <div className="inline-block p-4 bg-white/[0.02] rounded-3xl border border-white/10 shadow-2xl">
+                  <div className="inline-block p-4 bg-black/60 rounded-3xl border border-emerald-500/20 shadow-2xl">
                     <div dangerouslySetInnerHTML={{ __html: generateHeatmapSVG(residualData.map) }} className="rounded-lg overflow-hidden" />
                   </div>
                   <div className="grid grid-cols-2 gap-4 max-w-md mx-auto mt-4">
-                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                      <p className="text-[10px] text-gray-500 uppercase">Plan de coupe</p>
-                      <p className="text-lg font-black text-white">{residualData.plane.toUpperCase()}</p>
+                    <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                      <p className="text-[10px] text-emerald-600 uppercase">Plan de coupe</p>
+                      <p className="text-lg font-black text-emerald-400">{residualData.plane.toUpperCase()}</p>
                     </div>
-                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                      <p className="text-[10px] text-gray-500 uppercase">Position</p>
-                      <p className="text-lg font-black text-white">{residualData.coord.toFixed(3)} m</p>
+                    <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                      <p className="text-[10px] text-emerald-600 uppercase">Position</p>
+                      <p className="text-lg font-black text-emerald-400">{residualData.coord.toFixed(3)} m</p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="p-12 text-center text-gray-500">Cartographie des résidus non disponible</div>
+                <div className="p-12 text-center text-emerald-600">Cartographie des résidus non disponible</div>
               )}
             </TabsContent>
 
-            {/* Flux Turbulent – COURBE COMPLÈTE */}
+            {/* Flux Turbulent – COURBE COMPLÈTE AVEC ZONE D'INCERTITUDE ALIGNÉE */}
             <TabsContent value="temperature" className="space-y-6">
-              <div className="bg-blue-500/5 border border-blue-500/10 p-4 rounded-2xl">
-                <p className="text-sm text-blue-400 font-medium">
+              <div className="bg-emerald-500/5 border border-emerald-500/20 p-4 rounded-2xl">
+                <p className="text-sm text-emerald-400 font-medium">
                   <strong>Analyse de Flux Turbulent :</strong> Visualisation de l'amplitude en fonction du temps/position.
-                  Cette courbe reproduit le comportement physique observé dans les zones de haute turbulence.
+                  La zone colorée (bande verte) représente la zone d'incertitude alignée sur la courbe de vitesse, reproduisant le comportement physique observé dans les zones de haute turbulence.
                 </p>
               </div>
-              <div className="h-[400px] w-full bg-black/20 rounded-3xl p-4 border border-white/5">
+              <div className="h-[400px] w-full bg-black/60 rounded-3xl p-4 border border-emerald-500/20">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={temperatureData || []}>
                     <defs>
-                      <linearGradient id="colorAmplitude" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      <linearGradient id="colorUpper" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                    <XAxis dataKey="time" stroke="#64748b" fontSize={12} label={{ value: 'Temps / Position', position: 'insideBottom', offset: -10, fill: '#64748b' }} />
-                    <YAxis stroke="#64748b" fontSize={12} label={{ value: 'Amplitude / Pression', angle: -90, position: 'insideLeft', fill: '#64748b' }} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155' }} />
-                    <Area type="monotone" dataKey="amplitude" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorAmplitude)" name="Amplitude" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#10b98120" vertical={false} />
+                    <XAxis dataKey="time" stroke="#10b981" fontSize={12} label={{ value: 'Temps / Position (km)', position: 'insideBottom', offset: -10, fill: '#10b981' }} />
+                    <YAxis stroke="#10b981" fontSize={12} label={{ value: 'Vitesse (m/s)', angle: -90, position: 'insideLeft', fill: '#10b981' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#000000', border: '1px solid #10b981' }} labelStyle={{ color: '#10b981' }} />
+                    {/* Zone d'incertitude supérieure */}
+                    <Area type="monotone" dataKey="upper" stroke="none" fill="#10b981" fillOpacity={0.15} name="Zone supérieure" />
+                    {/* Ligne principale de vitesse */}
+                    <Area type="monotone" dataKey="amplitude" stroke="#10b981" strokeWidth={3} fill="none" name="Vitesse (m/s)" />
+                    {/* Zone d'incertitude inférieure */}
+                    <Area type="monotone" dataKey="lower" stroke="none" fill="#10b981" fillOpacity={0.1} name="Zone inférieure" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-              <p className="text-center text-[10px] text-gray-500 uppercase tracking-widest">Turbulent Flux Analysis - Nexus V8.0</p>
+              <p className="text-center text-[10px] text-emerald-600 uppercase tracking-widest">Turbulent Flux Analysis - Nexus V8.0 | Émeraude CFD-ML Hybrid</p>
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
 
       {error && (
-        <Alert variant="default" className="bg-yellow-500/10 border-yellow-500/20 text-yellow-400">
+        <Alert variant="default" className="bg-emerald-500/10 border-emerald-500/20 text-emerald-400">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
