@@ -70,8 +70,8 @@ const generateDefaultTemperatureData = () => {
     return {
       time: x.toFixed(1),
       amplitude: Math.max(0, base + noise).toFixed(3),
-      upper: Math.max(0, base + noise + uncertainty).toFixed(3),
-      lower: Math.max(0, base + noise - uncertainty).toFixed(3),
+      upper: (Math.max(0, base + noise) + uncertainty).toFixed(3),
+      lower: (Math.max(0, base + noise) - uncertainty).toFixed(3),
     };
   });
 };
@@ -214,10 +214,10 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
         <CardContent className="pt-6 bg-black">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-4 bg-emerald-500/5 p-1 rounded-2xl border border-emerald-500/20">
-              <TabsTrigger value="turbulence" className="rounded-xl data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-emerald-400">Spectres TKE</TabsTrigger>
-              <TabsTrigger value="boundary-layer" className="rounded-xl data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-emerald-400">Couche Limite</TabsTrigger>
-              <TabsTrigger value="residuals" className="rounded-xl data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-emerald-400">Cartes PINN</TabsTrigger>
-              <TabsTrigger value="temperature" className="rounded-xl data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-emerald-400">Flux Turbulent</TabsTrigger>
+              <TabsTrigger value="turbulence" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all">Spectres TKE</TabsTrigger>
+              <TabsTrigger value="boundary-layer" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all">Couche Limite</TabsTrigger>
+              <TabsTrigger value="residuals" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all">Cartes PINN</TabsTrigger>
+              <TabsTrigger value="temperature" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all">Flux Turbulent</TabsTrigger>
             </TabsList>
 
             {/* Spectres TKE */}
@@ -318,21 +318,35 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={temperatureData || []}>
                     <defs>
-                      <linearGradient id="colorUpper" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                      <linearGradient id="colorUncertainty" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity={0.1} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#10b98120" vertical={false} />
                     <XAxis dataKey="time" stroke="#10b981" fontSize={12} label={{ value: 'Temps / Position (km)', position: 'insideBottom', offset: -10, fill: '#10b981' }} />
                     <YAxis stroke="#10b981" fontSize={12} label={{ value: 'Vitesse (m/s)', angle: -90, position: 'insideLeft', fill: '#10b981' }} />
                     <Tooltip contentStyle={{ backgroundColor: '#000000', border: '1px solid #10b981' }} labelStyle={{ color: '#10b981' }} />
-                    {/* Zone d'incertitude supérieure */}
-                    <Area type="monotone" dataKey="upper" stroke="none" fill="#10b981" fillOpacity={0.15} name="Zone supérieure" />
+                    
+                    {/* Zone d'incertitude : Utilisation d'un AreaChart avec base variable (lower -> upper) */}
+                    <Area 
+                      type="monotone" 
+                      dataKey="upper" 
+                      stroke="none" 
+                      fill="url(#colorUncertainty)" 
+                      baseDataKey="lower" 
+                      name="Incertitude" 
+                    />
+                    
                     {/* Ligne principale de vitesse */}
-                    <Area type="monotone" dataKey="amplitude" stroke="#10b981" strokeWidth={3} fill="none" name="Vitesse (m/s)" />
-                    {/* Zone d'incertitude inférieure */}
-                    <Area type="monotone" dataKey="lower" stroke="none" fill="#10b981" fillOpacity={0.1} name="Zone inférieure" />
+                    <Area 
+                      type="monotone" 
+                      dataKey="amplitude" 
+                      stroke="#10b981" 
+                      strokeWidth={3} 
+                      fill="none" 
+                      name="Vitesse (m/s)" 
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

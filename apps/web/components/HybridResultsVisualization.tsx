@@ -139,16 +139,27 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                       ))}
                     </div>
                   </div>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <LineChart data={results.residuals}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="step" />
-                      <YAxis scale="log" domain={['auto', 'auto']} />
-                      <Tooltip formatter={(value) => (typeof value === 'number' ? value.toExponential(2) : value)} />
-                      <Legend />
-                      <Line type="monotone" dataKey={selectedField} stroke="#ef4444" dot={false} name={selectedField} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <div className="h-[400px] w-full bg-black rounded-3xl border border-emerald-500/20 p-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={results.residuals}>
+                        <defs>
+                          <linearGradient id="colorResidual" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#10b98120" vertical={false} />
+                        <XAxis dataKey="step" stroke="#10b981" fontSize={10} />
+                        <YAxis scale="log" domain={['auto', 'auto']} stroke="#10b981" fontSize={10} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#000000', border: '1px solid #10b981' }} 
+                          labelStyle={{ color: '#10b981' }}
+                          formatter={(value) => (typeof value === 'number' ? value.toExponential(4) : value)} 
+                        />
+                        <Area type="monotone" dataKey={selectedField} stroke="#10b981" strokeWidth={2} fill="url(#colorResidual)" name={selectedField} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
                   <div className="bg-blue-50 p-4 rounded border border-blue-200">
                     <p className="text-sm text-blue-900">
                       <strong>Interpretation:</strong> Lower residuals indicate better convergence.
