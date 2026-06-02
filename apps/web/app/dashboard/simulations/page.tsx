@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -71,11 +72,6 @@ export default function SimulationsPage() {
     const results = selectedAnalysis?.results as any;
     const predictions = results?.predictions3d || results?.pinn_predictions || [];
     const physicalMetrics = results?.physicalMetrics || results?.physical_metrics || null;
-    const extracted = results?.extractedData || results?.extractedParams;
-    
-    if (predictions.length === 0 && !extracted) {
-      return { x: [], pressure: [], velocity: [], temperature: [], residuals: null, isEmpty: true };
-    }
     
     let x: number[] = [];
     let pressure: number[] = [];
@@ -87,20 +83,6 @@ export default function SimulationsPage() {
       pressure = predictions.map((p: any) => (p.pressure || 0) / 1e5);
       velocity = predictions.map((p: any) => Math.sqrt((p.velocity_u || 0)**2 + (p.velocity_v || 0)**2 + (p.velocity_w || 0)**2));
       temperature = predictions.map((p: any) => p.temperature || 0);
-    } else if (extracted) {
-      x = Array.from({ length: 101 }, (_, i) => i / 10);
-      const baseP = (extracted.pressure || 8000000) / 1e5;
-      const baseT = extracted.temperature || 300;
-      const baseV = extracted.velocity || 2.0;
-      
-      pressure = x.map(t => {
-        const logCurve = Math.log(t + 1) / Math.log(11) * (baseP * 0.1);
-        const noise = (Math.sin(t * 10) * (baseP * 0.05)) + (Math.random() * (baseP * 0.05));
-        return baseP * 0.8 + logCurve + noise;
-      });
-      
-      velocity = x.map(t => baseV + (Math.sin(t * 5) * 0.2) + (Math.random() * 0.1));
-      temperature = x.map(t => baseT + (Math.cos(t * 8) * 2) + (Math.random() * 1));
     }
     
     const residuals = results?.residual_history || physicalMetrics?.residual_history || physicalMetrics?.residuals || null;
@@ -123,7 +105,7 @@ export default function SimulationsPage() {
       };
     }
     
-    return { x, pressure, velocity, temperature, residuals, isEmpty: false };
+    return { x, pressure, velocity, temperature, residuals, isEmpty: predictions.length === 0 };
   }
   const { x, pressure, velocity, temperature, residuals, isEmpty } = getChartData()
 
