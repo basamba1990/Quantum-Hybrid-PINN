@@ -163,10 +163,16 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
           <Tooltip contentStyle={{ backgroundColor: '#000000', border: `1px solid ${color}` }} labelStyle={{ color: color }} />
           <Area 
             type="monotone" 
+            dataKey="lower" 
+            stroke="none" 
+            fill="transparent" 
+            isAnimationActive={false}
+          />
+          <Area 
+            type="monotone" 
             dataKey="upper" 
             stroke="none" 
             fill={`url(#colorUncertainty_${yLabel})`} 
-            baseDataKey="lower" 
             name="Incertitude" 
           />
           <Area 
