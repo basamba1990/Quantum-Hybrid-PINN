@@ -14,6 +14,8 @@ import { AdvancedPhysicsVisualization } from './AdvancedPhysicsVisualization';
 import {
   LineChart,
   Line,
+  AreaChart,
+  Area,
   BarChart,
   Bar,
   XAxis,
@@ -141,12 +143,7 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                   </div>
                   <div className="h-[400px] w-full bg-black rounded-[32px] border border-emerald-500/20 p-6">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={results.residuals.map(r => ({
-                        ...r,
-                        // Création d'une zone d'incertitude pour les résidus
-                        upper: r[selectedField as keyof typeof r] as number * 1.5,
-                        lower: r[selectedField as keyof typeof r] as number * 0.5
-                      }))}>
+                      <LineChart data={results.residuals}>
                         <defs>
                           <linearGradient id="colorResidual" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
@@ -161,29 +158,22 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                           labelStyle={{ color: '#10b981' }}
                           formatter={(value) => (typeof value === 'number' ? value.toExponential(6) : value)} 
                         />
-                        <Area 
-                          type="monotone" 
-                          dataKey="upper" 
-                          stroke="none" 
-                          fill="url(#colorResidual)" 
-                          baseDataKey="lower" 
-                          name="Bande de Convergence" 
-                        />
-                        <Area 
+                        <Line 
                           type="monotone" 
                           dataKey={selectedField} 
                           stroke="#10b981" 
                           strokeWidth={3} 
-                          fill="none" 
+                          dot={false}
                           name={`Résidu ${selectedField}`} 
                         />
-                      </AreaChart>
+                      </LineChart>
                     </ResponsiveContainer>
                   </div>
                   <div className="bg-blue-50 p-4 rounded border border-blue-200">
                     <p className="text-sm text-blue-900">
                       <strong>Interpretation:</strong> Lower residuals indicate better convergence.
                       The hybrid approach switches between CFD and ML based on residual thresholds.
+                      All values are computed directly from the backend simulation results.
                     </p>
                   </div>
                 </>
