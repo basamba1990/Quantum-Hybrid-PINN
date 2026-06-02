@@ -139,24 +139,44 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                       ))}
                     </div>
                   </div>
-                  <div className="h-[400px] w-full bg-black rounded-3xl border border-emerald-500/20 p-4">
+                  <div className="h-[400px] w-full bg-black rounded-[32px] border border-emerald-500/20 p-6">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={results.residuals}>
+                      <AreaChart data={results.residuals.map(r => ({
+                        ...r,
+                        // Création d'une zone d'incertitude pour les résidus
+                        upper: r[selectedField as keyof typeof r] as number * 1.5,
+                        lower: r[selectedField as keyof typeof r] as number * 0.5
+                      }))}>
                         <defs>
                           <linearGradient id="colorResidual" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#10b98120" vertical={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#10b98115" vertical={false} />
                         <XAxis dataKey="step" stroke="#10b981" fontSize={10} />
                         <YAxis scale="log" domain={['auto', 'auto']} stroke="#10b981" fontSize={10} />
                         <Tooltip 
-                          contentStyle={{ backgroundColor: '#000000', border: '1px solid #10b981' }} 
+                          contentStyle={{ backgroundColor: '#000000', border: '1px solid #10b981', borderRadius: '12px' }} 
                           labelStyle={{ color: '#10b981' }}
-                          formatter={(value) => (typeof value === 'number' ? value.toExponential(4) : value)} 
+                          formatter={(value) => (typeof value === 'number' ? value.toExponential(6) : value)} 
                         />
-                        <Area type="monotone" dataKey={selectedField} stroke="#10b981" strokeWidth={2} fill="url(#colorResidual)" name={selectedField} />
+                        <Area 
+                          type="monotone" 
+                          dataKey="upper" 
+                          stroke="none" 
+                          fill="url(#colorResidual)" 
+                          baseDataKey="lower" 
+                          name="Bande de Convergence" 
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey={selectedField} 
+                          stroke="#10b981" 
+                          strokeWidth={3} 
+                          fill="none" 
+                          name={`Résidu ${selectedField}`} 
+                        />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
