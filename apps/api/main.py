@@ -191,11 +191,36 @@ async def validate_3d(request: PredictionRequestV8):
         max_res = max(residuals.values())
         credibility_score = max(0, min(100, 100 * (1.0 - np.log10(1.0 + max_res * 1e4) / 5.0)))
         
+        # Générer un profil temporel ou spatial pour le graphique
+        num_points = 50
+        times = np.linspace(max(0, t - 10), t + 10, num_points)
+        predictions_profile = []
+        
+        # Désactiver les gradients pour la génération du profil pour économiser de la mémoire
+        with torch.no_grad():
+            for t_p in times:
+                t_p_t = torch.tensor([[float(t_p)]], dtype=torch.float32, device=current_model_v8.device)
+                rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p_t, x_t, y_t, z_t)
+                p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
+                
+                predictions_profile.append({
+                    "time": float(t_p),
+                    "pressure": float(p_p.item()),
+                    "velocity_u": float(u_p.item()),
+                    "velocity_v": float(v_p.item()),
+                    "velocity_w": float(w_p.item()),
+                    "temperature": float(T_p.item()),
+                    "density": float(rho_p.item()),
+                    "x": request.x,
+                    "y": request.y,
+                    "z": request.z
+                })
+
         return PredictionResponseV8(
             **result, 
             credibility_score=credibility_score,
             residuals=residuals,
-            predictions3d=[result],
+            predictions3d=predictions_profile,
             timestamp=datetime.utcnow().isoformat()
         )
     except Exception as e:

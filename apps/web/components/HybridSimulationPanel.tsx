@@ -130,22 +130,9 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         status: 'completed',
         credibility_score: jobData.results?.credibilityScore || 89.5,
         results: {
-          predictions3d: jobData.results?.scenario_outputs ? [
-            {
-              time: 0,
-              pressure: jobData.results.scenario_outputs.pressure || 0,
-              velocity_u: jobData.results.scenario_outputs.velocity_u || 0,
-              velocity_v: jobData.results.scenario_outputs.velocity_v || 0,
-              velocity_w: jobData.results.scenario_outputs.velocity_w || 0,
-              temperature: jobData.results.scenario_outputs.temperature || 300,
-            }
-          ] : [],
-          residual_history: jobData.results?.residuals ? Object.entries(jobData.results.residuals).map(([key, value], idx) => ({
-            step: idx,
-            continuity: typeof value === 'number' ? value : 0,
-            momentum: 0,
-            energy: 0,
-          })) : [],
+          // Utiliser les prédictions réelles générées par le backend
+          predictions3d: jobData.results?.predictions3d || [],
+          residual_history: jobData.results?.residual_history || [],
           physical_metrics: {
             residuals: jobData.results?.residuals || {},
           },

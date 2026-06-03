@@ -497,8 +497,10 @@ serve(async (req: Request) => {
         y: extractedParams.y ?? 0.5,
         z: extractedParams.z ?? 0.5,
       });
+      // Correction : s'assurer que predictions3d contient le tableau de profil
       predictions3d = backendResult.predictions3d || [];
-      physicalMetrics = backendResult.physical_metrics;
+      // Correction : Mapper physical_metrics si présent ou utiliser les residuals directs
+      physicalMetrics = backendResult.physical_metrics || { residuals: backendResult.residuals };
     } catch (err) {
       log("error", "Failed to fetch 3D validation from backend, using fallback", { error: err.message });
       // Fallback : générer des prédictions vides
