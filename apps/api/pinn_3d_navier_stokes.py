@@ -99,53 +99,123 @@ class PINN3DNavierStokes(nn.Module):
         z.requires_grad_(True)
 
         # First derivatives
-        rho_t = torch.autograd.grad(rho.sum(), t, create_graph=True)[0]
-        rho_x = torch.autograd.grad(rho.sum(), x, create_graph=True)[0]
-        rho_y = torch.autograd.grad(rho.sum(), y, create_graph=True)[0]
-        rho_z = torch.autograd.grad(rho.sum(), z, create_graph=True)[0]
+        rho_t = torch.autograd.grad(rho.sum(), t, create_graph=True, allow_unused=True)[0]
+        if rho_t is None:
+            rho_t = torch.zeros_like(t)
+        rho_x = torch.autograd.grad(rho.sum(), x, create_graph=True, allow_unused=True)[0]
+        if rho_x is None:
+            rho_x = torch.zeros_like(x)
+        rho_y = torch.autograd.grad(rho.sum(), y, create_graph=True, allow_unused=True)[0]
+        if rho_y is None:
+            rho_y = torch.zeros_like(y)
+        rho_z = torch.autograd.grad(rho.sum(), z, create_graph=True, allow_unused=True)[0]
+        if rho_z is None:
+            rho_z = torch.zeros_like(z)
 
-        u_t = torch.autograd.grad(u.sum(), t, create_graph=True)[0]
-        u_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
-        u_y = torch.autograd.grad(u.sum(), y, create_graph=True)[0]
-        u_z = torch.autograd.grad(u.sum(), z, create_graph=True)[0]
+        u_t = torch.autograd.grad(u.sum(), t, create_graph=True, allow_unused=True)[0]
+        if u_t is None:
+            u_t = torch.zeros_like(t)
+        u_x = torch.autograd.grad(u.sum(), x, create_graph=True, allow_unused=True)[0]
+        if u_x is None:
+            u_x = torch.zeros_like(x)
+        u_y = torch.autograd.grad(u.sum(), y, create_graph=True, allow_unused=True)[0]
+        if u_y is None:
+            u_y = torch.zeros_like(y)
+        u_z = torch.autograd.grad(u.sum(), z, create_graph=True, allow_unused=True)[0]
+        if u_z is None:
+            u_z = torch.zeros_like(z)
 
-        v_t = torch.autograd.grad(v.sum(), t, create_graph=True)[0]
-        v_x = torch.autograd.grad(v.sum(), x, create_graph=True)[0]
-        v_y = torch.autograd.grad(v.sum(), y, create_graph=True)[0]
-        v_z = torch.autograd.grad(v.sum(), z, create_graph=True)[0]
+        v_t = torch.autograd.grad(v.sum(), t, create_graph=True, allow_unused=True)[0]
+        if v_t is None:
+            v_t = torch.zeros_like(t)
+        v_x = torch.autograd.grad(v.sum(), x, create_graph=True, allow_unused=True)[0]
+        if v_x is None:
+            v_x = torch.zeros_like(x)
+        v_y = torch.autograd.grad(v.sum(), y, create_graph=True, allow_unused=True)[0]
+        if v_y is None:
+            v_y = torch.zeros_like(y)
+        v_z = torch.autograd.grad(v.sum(), z, create_graph=True, allow_unused=True)[0]
+        if v_z is None:
+            v_z = torch.zeros_like(z)
 
-        w_t = torch.autograd.grad(w.sum(), t, create_graph=True)[0]
-        w_x = torch.autograd.grad(w.sum(), x, create_graph=True)[0]
-        w_y = torch.autograd.grad(w.sum(), y, create_graph=True)[0]
-        w_z = torch.autograd.grad(w.sum(), z, create_graph=True)[0]
+        w_t = torch.autograd.grad(w.sum(), t, create_graph=True, allow_unused=True)[0]
+        if w_t is None:
+            w_t = torch.zeros_like(t)
+        w_x = torch.autograd.grad(w.sum(), x, create_graph=True, allow_unused=True)[0]
+        if w_x is None:
+            w_x = torch.zeros_like(x)
+        w_y = torch.autograd.grad(w.sum(), y, create_graph=True, allow_unused=True)[0]
+        if w_y is None:
+            w_y = torch.zeros_like(y)
+        w_z = torch.autograd.grad(w.sum(), z, create_graph=True, allow_unused=True)[0]
+        if w_z is None:
+            w_z = torch.zeros_like(z)
 
-        T_t = torch.autograd.grad(T.sum(), t, create_graph=True)[0]
-        T_x = torch.autograd.grad(T.sum(), x, create_graph=True)[0]
-        T_y = torch.autograd.grad(T.sum(), y, create_graph=True)[0]
-        T_z = torch.autograd.grad(T.sum(), z, create_graph=True)[0]
+        T_t = torch.autograd.grad(T.sum(), t, create_graph=True, allow_unused=True)[0]
+        if T_t is None:
+            T_t = torch.zeros_like(t)
+        T_x = torch.autograd.grad(T.sum(), x, create_graph=True, allow_unused=True)[0]
+        if T_x is None:
+            T_x = torch.zeros_like(x)
+        T_y = torch.autograd.grad(T.sum(), y, create_graph=True, allow_unused=True)[0]
+        if T_y is None:
+            T_y = torch.zeros_like(y)
+        T_z = torch.autograd.grad(T.sum(), z, create_graph=True, allow_unused=True)[0]
+        if T_z is None:
+            T_z = torch.zeros_like(z)
 
         # Second derivatives for viscous terms
-        u_xx = torch.autograd.grad(u_x.sum(), x, create_graph=True)[0]
-        u_yy = torch.autograd.grad(u_y.sum(), y, create_graph=True)[0]
-        u_zz = torch.autograd.grad(u_z.sum(), z, create_graph=True)[0]
+        u_xx = torch.autograd.grad(u_x.sum(), x, create_graph=True, allow_unused=True)[0]
+        if u_xx is None:
+            u_xx = torch.zeros_like(x)
+        u_yy = torch.autograd.grad(u_y.sum(), y, create_graph=True, allow_unused=True)[0]
+        if u_yy is None:
+            u_yy = torch.zeros_like(y)
+        u_zz = torch.autograd.grad(u_z.sum(), z, create_graph=True, allow_unused=True)[0]
+        if u_zz is None:
+            u_zz = torch.zeros_like(z)
 
-        v_xx = torch.autograd.grad(v_x.sum(), x, create_graph=True)[0]
-        v_yy = torch.autograd.grad(v_y.sum(), y, create_graph=True)[0]
-        v_zz = torch.autograd.grad(v_z.sum(), z, create_graph=True)[0]
+        v_xx = torch.autograd.grad(v_x.sum(), x, create_graph=True, allow_unused=True)[0]
+        if v_xx is None:
+            v_xx = torch.zeros_like(x)
+        v_yy = torch.autograd.grad(v_y.sum(), y, create_graph=True, allow_unused=True)[0]
+        if v_yy is None:
+            v_yy = torch.zeros_like(y)
+        v_zz = torch.autograd.grad(v_z.sum(), z, create_graph=True, allow_unused=True)[0]
+        if v_zz is None:
+            v_zz = torch.zeros_like(z)
 
-        w_xx = torch.autograd.grad(w_x.sum(), x, create_graph=True)[0]
-        w_yy = torch.autograd.grad(w_y.sum(), y, create_graph=True)[0]
-        w_zz = torch.autograd.grad(w_z.sum(), z, create_graph=True)[0]
+        w_xx = torch.autograd.grad(w_x.sum(), x, create_graph=True, allow_unused=True)[0]
+        if w_xx is None:
+            w_xx = torch.zeros_like(x)
+        w_yy = torch.autograd.grad(w_y.sum(), y, create_graph=True, allow_unused=True)[0]
+        if w_yy is None:
+            w_yy = torch.zeros_like(y)
+        w_zz = torch.autograd.grad(w_z.sum(), z, create_graph=True, allow_unused=True)[0]
+        if w_zz is None:
+            w_zz = torch.zeros_like(z)
 
-        T_xx = torch.autograd.grad(T_x.sum(), x, create_graph=True)[0]
-        T_yy = torch.autograd.grad(T_y.sum(), y, create_graph=True)[0]
-        T_zz = torch.autograd.grad(T_z.sum(), z, create_graph=True)[0]
+        T_xx = torch.autograd.grad(T_x.sum(), x, create_graph=True, allow_unused=True)[0]
+        if T_xx is None:
+            T_xx = torch.zeros_like(x)
+        T_yy = torch.autograd.grad(T_y.sum(), y, create_graph=True, allow_unused=True)[0]
+        if T_yy is None:
+            T_yy = torch.zeros_like(y)
+        T_zz = torch.autograd.grad(T_z.sum(), z, create_graph=True, allow_unused=True)[0]
+        if T_zz is None:
+            T_zz = torch.zeros_like(z)
 
         # Pressure via Fluid-Specific EOS
         p = get_eos(self.fluid_type, rho, T)
-        p_x = torch.autograd.grad(p.sum(), x, create_graph=True)[0]
-        p_y = torch.autograd.grad(p.sum(), y, create_graph=True)[0]
-        p_z = torch.autograd.grad(p.sum(), z, create_graph=True)[0]
+        p_x = torch.autograd.grad(p.sum(), x, create_graph=True, allow_unused=True)[0]
+        if p_x is None:
+            p_x = torch.zeros_like(x)
+        p_y = torch.autograd.grad(p.sum(), y, create_graph=True, allow_unused=True)[0]
+        if p_y is None:
+            p_y = torch.zeros_like(y)
+        p_z = torch.autograd.grad(p.sum(), z, create_graph=True, allow_unused=True)[0]
+        if p_z is None:
+            p_z = torch.zeros_like(z)
 
         # Continuity Equation (Mass Conservation)
         mass_res = rho_t + (rho_x * u + rho * u_x) + (rho_y * v + rho * v_y) + (rho_z * w + rho * w_z)
