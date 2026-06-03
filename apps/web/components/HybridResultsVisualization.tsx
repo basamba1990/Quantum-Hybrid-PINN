@@ -197,7 +197,7 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                           dot={false}
                           name={`Résidu ${selectedField}`} 
                         />
-                      </LineChart>
+                      </AreaChart>
                     </ResponsiveContainer>
                   </div>
                   <div className="bg-blue-50 p-4 rounded border border-blue-200">
