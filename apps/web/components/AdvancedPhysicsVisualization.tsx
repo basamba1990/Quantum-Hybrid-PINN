@@ -153,34 +153,40 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
         <AreaChart data={data}>
           <defs>
             <linearGradient id={`colorUncertainty_${yLabel}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.4} />
-              <stop offset="100%" stopColor={color} stopOpacity={0.1} />
+              <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+              <stop offset="100%" stopColor="#10b981" stopOpacity={0.1} />
+            </linearGradient>
+            <linearGradient id="colorEnergyEmerald" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+              <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke={`${color}20`} vertical={false} />
-          <XAxis dataKey="time" stroke={color} fontSize={10} />
-          <YAxis stroke={color} fontSize={10} label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: color, fontSize: 10 }} />
-          <Tooltip contentStyle={{ backgroundColor: '#000000', border: `1px solid ${color}` }} labelStyle={{ color: color }} />
-          <Area 
-            type="monotone" 
-            dataKey="lower" 
-            stroke="none" 
-            fill="transparent" 
-            isAnimationActive={false}
-          />
+          <CartesianGrid strokeDasharray="3 3" stroke="#10b98120" vertical={false} />
+          <XAxis dataKey="time" stroke="#10b981" fontSize={10} />
+          <YAxis stroke="#10b981" fontSize={10} label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: "#10b981", fontSize: 10 }} />
+          <Tooltip contentStyle={{ backgroundColor: '#000000', border: '1px solid #10b981' }} labelStyle={{ color: '#10b981' }} />
           <Area 
             type="monotone" 
             dataKey="upper" 
             stroke="none" 
-            fill={`url(#colorUncertainty_${yLabel})`} 
+            fill="#10b98140" 
             name="Incertitude" 
+            isAnimationActive={false}
           />
           <Area 
             type="monotone" 
+            dataKey="lower" 
+            stroke="none" 
+            fill="#000000" 
+            name="Incertitude" 
+            isAnimationActive={false}
+          />
+          <Line 
+            type="monotone" 
             dataKey="amplitude" 
-            stroke={color} 
+            stroke="#10b981" 
             strokeWidth={2} 
-            fill="none" 
+            dot={false}
             name={yLabel} 
           />
         </AreaChart>
