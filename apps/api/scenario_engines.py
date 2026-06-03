@@ -222,3 +222,19 @@ SCENARIO_ENGINES = {
     "CRYOGENIC_TRANSPORT": run_cryogenic_transport_scenario,
     "MINING_INDUSTRIAL_SIM": run_mining_scenario
 }
+
+def run_rock_stress_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
+    depth = inputs.get('depth', 1000)
+    rock_type = inputs.get('rockType', 'generic_rock')
+    # Simulation simplifiée de contrainte et endommagement
+    pressure = 0.025 * depth # Gradient lithostatique ~25 MPa/km
+    stress_max = pressure * 1.5
+    damage = min(1.0, (stress_max / 50.0) ** 2) # Seuil arbitraire 50 MPa
+    return {
+        "lithostaticPressure": round(pressure, 2),
+        "maxStress": round(stress_max, 2),
+        "damageIndex": round(damage, 3),
+        "stabilityScore": round(max(0, 100 - damage * 100), 1)
+    }
+
+SCENARIO_ENGINES["ROCK_ELAST_STRESS"] = run_rock_stress_scenario
