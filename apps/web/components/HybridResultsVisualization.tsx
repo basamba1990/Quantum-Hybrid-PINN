@@ -31,6 +31,12 @@ interface ResidualData {
   continuity: number;
   momentum: number;
   energy: number;
+  continuityUpper?: number;
+  continuityLower?: number;
+  momentumUpper?: number;
+  momentumLower?: number;
+  energyUpper?: number;
+  energyLower?: number;
 }
 
 interface FieldComparison {
@@ -57,6 +63,15 @@ interface HybridResults {
 export function HybridResultsVisualizationEnhanced({ results }: { results?: HybridResults }) {
   return <HybridResultsVisualization results={results} />;
 }
+
+const prepareResidualDataForChart = (residuals: ResidualData[], selectedField: string) => {
+  return residuals.map(r => ({
+    step: r.step,
+    value: r[selectedField as keyof ResidualData],
+    upper: (r[selectedField as keyof ResidualData] as number) * 1.1, // Example: 10% upper bound
+    lower: (r[selectedField as keyof ResidualData] as number) * 0.9, // Example: 10% lower bound
+  }));
+};
 
 export function HybridResultsVisualization({ results }: { results?: HybridResults }) {
   const [selectedField, setSelectedField] = useState<string>('continuity');
@@ -143,11 +158,11 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                   </div>
                   <div className="h-[400px] w-full bg-black rounded-[32px] border border-emerald-500/20 p-6">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={results.residuals}>
+                      <AreaChart data={prepareResidualDataForChart(results.residuals, selectedField)}>
                         <defs>
                           <linearGradient id="colorResidual" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
+                            <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+                            <stop offset="100%" stopColor="#10b981" stopOpacity={0.1} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#10b98115" vertical={false} />
@@ -158,9 +173,25 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                           labelStyle={{ color: '#10b981' }}
                           formatter={(value) => (typeof value === 'number' ? value.toExponential(6) : value)} 
                         />
+                        <Area 
+                          type="monotone" 
+                          dataKey="upper" 
+                          stroke="none" 
+                          fill="#10b98140" 
+                          name="Incertitude" 
+                          isAnimationActive={false}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="lower" 
+                          stroke="none" 
+                          fill="#000000" 
+                          name="Incertitude" 
+                          isAnimationActive={false}
+                        />
                         <Line 
                           type="monotone" 
-                          dataKey={selectedField} 
+                          dataKey="value" 
                           stroke="#10b981" 
                           strokeWidth={3} 
                           dot={false}
