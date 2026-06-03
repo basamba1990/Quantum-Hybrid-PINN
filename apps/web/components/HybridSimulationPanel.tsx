@@ -24,6 +24,8 @@ interface JobStatus {
     log: string;
     credibilityScore?: number;
     scenario_outputs?: Record<string, any>;
+    predictions3d?: any[];
+    residual_history?: any[];
   };
   errorMessage?: string;
 }
