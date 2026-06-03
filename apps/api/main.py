@@ -44,15 +44,17 @@ jobs_store = {}
 class SimulationRequest(BaseModel):
     project_id: str = "default_project"
     job_name: str = "H2_Pipeline_Simulation"
-    case_path: str = "industrial_v8"
-    scenario_type: str = "H2_PIPELINE"
-    scenario_inputs: dict = {}
-    n_steps: int = 100
-    pressure: float = 80.0  # bar
-    temperature: float = 300.0  # K
-    flow_rate: float = 10.0  # kg/s
-    length: float = 100.0  # km
-    diameter: float = 0.5  # m
+    case_path: Optional[str] = "industrial_v8"
+    scenario_type: Optional[str] = "H2_PIPELINE"
+    scenario_inputs: Optional[dict] = {}
+    n_steps: Optional[int] = 100
+    pressure: Optional[float] = 80.0  # bar
+    temperature: Optional[float] = 300.0  # K
+    flow_rate: Optional[float] = 10.0  # kg/s
+    length: Optional[float] = 100.0  # km
+    diameter: Optional[float] = 0.5  # m
+    transcription: Optional[str] = None
+    description: Optional[str] = None
 
 class SimulationResponse(BaseModel):
     job_id: str

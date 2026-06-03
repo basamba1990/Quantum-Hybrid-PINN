@@ -38,6 +38,9 @@ class DeepKalmanFilter(nn.Module):
         # Observation noise covariance (diagonal)
         self.log_R = nn.Parameter(torch.ones(observation_dim) * -2.302)  # log(0.1)
 
+        # Correction layer for simplified assimilation
+        self.correction = nn.Linear(state_dim + observation_dim, state_dim)
+
     @property
     def Q(self) -> torch.Tensor:
         """Process noise covariance matrix (diagonal)."""
@@ -138,10 +141,9 @@ class DeepKalmanFilter(nn.Module):
         if P_prev is None:
             # No covariance propagation – just use a learned correction gain
             x_pred = self.f(x_prev)
-            # Learn a direct correction term
-            correction = nn.Linear(self.state_dim + self.observation_dim, self.state_dim).to(x_prev.device)
+            # Use the pre-initialized correction layer
             combined = torch.cat([x_pred, observation], dim=-1)
-            delta = correction(combined)
+            delta = self.correction(combined)
             return x_pred + delta
         else:
             x_new, _ = self.assimilate(x_prev, P_prev, observation)

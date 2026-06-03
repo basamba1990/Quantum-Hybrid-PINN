@@ -299,7 +299,8 @@ class HydrogenPINNV8:
         with torch.no_grad():
             state_tensor = torch.tensor([current_state], dtype=torch.float32, device=self.device)
             obs_tensor = torch.tensor([observation], dtype=torch.float32, device=self.device)
-            assimilated_state = self.dkl_model.assimilate(state_tensor, obs_tensor)
+            # Utilisation de la version simplifiée pour éviter les problèmes de covariance/Jacobienne en inférence
+            assimilated_state = self.dkl_model.assimilate_batch(state_tensor, obs_tensor)
         return assimilated_state.squeeze().tolist()
 
     def thermodynamic_residuals(self, pressure, temperature, isentropic_efficiency: float = 0.8):
