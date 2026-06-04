@@ -12,16 +12,17 @@ sys.path.append(str(Path(__file__).resolve().parents[3] / 'apps' / 'api'))
 
 from hydrogen_pinn_v8 import HydrogenPINNV8
 
-def train_pinn_model(epochs: int, learning_rate: float, N_pde: int, model_output_path: str):
+def train_pinn_model(epochs: int, learning_rate: float, N_pde: int, model_output_path: str, layers: list = None):
     mlflow.set_experiment("PINN_Training")
     with mlflow.start_run():
         mlflow.log_params({
             "epochs": epochs,
             "learning_rate": learning_rate,
-            "N_pde": N_pde
+            "N_pde": N_pde,
+            "layers": str(layers)
         })
 
-        pinn_v8 = HydrogenPINNV8(layers=[5, 128, 128, 128, 5]) # Example layers, adjust as needed
+        pinn_v8 = HydrogenPINNV8(layers=layers or [5, 128, 128, 128, 5])
         history = pinn_v8.train_pinn(epochs=epochs, learning_rate=learning_rate, N_pde=N_pde)
 
         # Log all losses from history
@@ -43,8 +44,14 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", type=float, default=1e-3, help="Learning rate.")
     parser.add_argument("--N_pde", type=int, default=5000, help="Number of PDE collocation points.")
     parser.add_argument("--model_output_path", type=str, default="models/pinn_model.pt", help="Path to save the trained PINN model.")
+    parser.add_argument("--layers", type=str, default="[5, 128, 128, 128, 5]", help="JSON string of layers.")
 
     args = parser.parse_args()
+    
+    try:
+        layers = json.loads(args.layers)
+    except:
+        layers = [5, 128, 128, 128, 5]
 
     # Create models and metrics directories if they don't exist
     Path("models").mkdir(parents=True, exist_ok=True)
@@ -54,5 +61,6 @@ if __name__ == "__main__":
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         N_pde=args.N_pde,
-        model_output_path=args.model_output_path
+        model_output_path=args.model_output_path,
+        layers=layers
     )
