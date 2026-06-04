@@ -540,7 +540,7 @@ serve(async (req: Request) => {
         credibility_score: score,
         anomalies,
         context,
-        created_by: userId,
+        user_id: userId,
       }),
       supabase.from("analyses").update({
         status: "completed",
