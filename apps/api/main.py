@@ -188,8 +188,16 @@ async def validate_3d(request: PredictionRequestV8):
             "energy": float(torch.abs(res_energy).item())
         }
         
-        max_res = max(residuals.values())
-        credibility_score = max(0, min(100, 100 * (1.0 - np.log10(1.0 + max_res * 1e4) / 5.0)))
+        # Calcul du score de crédibilité industriel basé sur la validation physique
+        # On compare les résidus à des seuils de tolérance issus de la littérature CFD
+        # Score = 100 * exp(-sum(residuals / tolerance))
+        tolerances = {
+            "continuity": 1e-4,
+            "momentum": 1e-4,
+            "energy": 1e-3
+        }
+        weighted_res = sum([residuals[k] / tolerances[k] for k in tolerances]) / len(tolerances)
+        credibility_score = float(100.0 * np.exp(-weighted_res))
         
         # Générer un profil temporel ou spatial pour le graphique
         num_points = 50

@@ -28,14 +28,29 @@ stages:
       - metrics/fno_metrics.json
 
   train_pinn:
-    cmd: python src/train_pinn.py --epochs ${pinn_epochs} --learning_rate ${pinn_learning_rate} --N_pde ${pinn_N_pde} --model_output_path models/pinn_model.pt
+    cmd: python src/train_pinn.py --epochs ${pinn_epochs} --learning_rate ${pinn_learning_rate} --N_pde ${pinn_N_pde} --model_output_path ${pinn_model_path} --layers "${pinn_layers}"
     deps:
       - src/train_pinn.py
     params:
       - pinn_epochs
       - pinn_learning_rate
       - pinn_N_pde
+      - pinn_layers
+      - pinn_model_path
     outs:
       - models/pinn_model.pt
     metrics:
       - metrics/pinn_metrics.json
+
+  evaluate:
+    cmd: python src/evaluate.py --model_path ${pinn_model_path} --test_data_path ${eval_test_data} --metrics_output_path ${eval_metrics_path}
+    deps:
+      - ${pinn_model_path}
+      - ${eval_test_data}
+      - src/evaluate.py
+    params:
+      - pinn_model_path
+      - eval_test_data
+      - eval_metrics_path
+    metrics:
+      - metrics/eval_metrics.json

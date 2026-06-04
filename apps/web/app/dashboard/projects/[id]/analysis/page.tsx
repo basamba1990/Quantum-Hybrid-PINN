@@ -198,13 +198,13 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
           : 'impossible'
       )
 
-      const defaultSovereignty: SovereigntyScore = {
-        dataSecurityScore: 85,
-        intellectualPropertyScore: 80,
-        independenceScore: 75,
-        overallSovereigntyIndex: 80,
+      // En mode industriel, les scores de souveraineté doivent être calculés ou récupérés
+      if (data.sovereigntyScore) {
+        setSovereigntyScore(data.sovereigntyScore)
+      } else {
+        // Ne pas injecter de scores fictifs
+        setSovereigntyScore(null)
       }
-      setSovereigntyScore(defaultSovereignty)
 
       const { error: updateError } = await supabase
         .from('analyses')

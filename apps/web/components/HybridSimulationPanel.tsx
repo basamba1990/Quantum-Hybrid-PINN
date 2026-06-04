@@ -130,7 +130,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         name: `Analyse Hybride - ${jobData.name}`,
         title: `Analyse Hybride - ${jobData.name}`,
         status: 'completed',
-        credibility_score: jobData.results?.credibilityScore || 89.5,
+        credibility_score: jobData.results?.credibilityScore || 0,
         results: {
           // Utiliser les prédictions réelles générées par le backend
           predictions3d: jobData.results?.predictions3d || [],
