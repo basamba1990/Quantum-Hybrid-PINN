@@ -1,42 +1,23 @@
 services:
   - type: web
-    name: quantum-hybrid-api
+    name: quantum-pinn-api
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
-    rootDir: apps/api
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r apps/api/requirements.txt
+      # Optionnel: DVC pull si les modèles sont sur S3/GCS
+      # dvc pull
+    startCommand: gunicorn -w 4 -k uvicorn.workers.UvicornWorker apps/api/main:app
     envVars:
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: LOG_LEVEL
-        value: INFO
-      - key: ALLOWED_ORIGINS
-        value: "*"
-      - key: BACKEND_SERVICE_URL
-        value: https://quantum-hybrid-backend-liev.onrender.com
-      - key: IS_API_GATEWAY
-        value: "true"
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: MODEL_PATH
+        value: models/pinn_model.pt
+      - key: NEXT_PUBLIC_API_URL
+        value: https://quantum-pinn-api-qef2.onrender.com
+      - key: H2_INFERENCE_API_URL
+        value: https://quantum-pinn-api-qef2.onrender.com
     disk:
-      name: model-cache
-      mountPath: /app/models_cache
-      sizeGB: 1 # Ajustez la taille si nécessaire
-    healthCheckPath: /health
-    # Augmenter la limite de mémoire si nécessaire, mais le lazy loading devrait aider
-    # memory: 1024MB # Exemple: augmenter à 1GB si 512MB est insuffisant même avec lazy loading
-
-  - type: web
-    name: quantum-hybrid-backend
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
-    rootDir: apps/backend
-    envVars:
-      - key: LOG_LEVEL
-        value: INFO
-      - key: CASES_BASE_PATH
-        value: /home/ubuntu/cases
-      - key: IS_BACKEND_WORKER
-        value: "true"
-    healthCheckPath: /health
+      name: model-storage
+      mountPath: /data
+      sizeGB: 10
