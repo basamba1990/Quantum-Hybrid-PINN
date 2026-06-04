@@ -299,8 +299,10 @@ class HydrogenPINNV8:
         with torch.no_grad():
             state_tensor = torch.tensor([current_state], dtype=torch.float32, device=self.device)
             obs_tensor = torch.tensor([observation], dtype=torch.float32, device=self.device)
-            # Utilisation de la version simplifiée pour éviter les problèmes de covariance/Jacobienne en inférence
-            assimilated_state = self.dkl_model.assimilate_batch(state_tensor, obs_tensor)
+            # En mode industriel, nous propageons la covariance pour une incertitude réelle
+            # Initialisation de la covariance si non fournie (Incertitude initiale de 10%)
+            P_init = torch.eye(self.dkl_model.state_dim, device=self.device).unsqueeze(0) * 0.1
+            assimilated_state, _ = self.dkl_model.assimilate(state_tensor, P_init, obs_tensor)
         return assimilated_state.squeeze().tolist()
 
     def thermodynamic_residuals(self, pressure, temperature, isentropic_efficiency: float = 0.8):
@@ -325,33 +327,30 @@ class HydrogenPINNV8:
 
         # Simplification: Utilisation d'un ratio de pression et d'un gamma constant (pour l'air, ~1.4)
         # C'est une approche très simplifiée pour illustrer l'intégration.
-        gamma = 1.4 # Ratio des chaleurs spécifiques (pour l'air, à adapter pour H2)
+        # Gamma pour l'hydrogène (H2) est d'environ 1.405 à température ambiante
+        gamma = 1.405 
 
-        # Supposons une pression de référence (par exemple, pression atmosphérique) pour le ratio
-        # ou un ratio de pression cible pour le composant.
-        # Ici, nous utilisons une pression de référence arbitraire pour créer un ratio.
-        # Dans un cas réel, ce serait (P_sortie / P_entrée).
-        p_ref = 1e5 # Pression de référence en Pascals (1 bar)
-        pressure_ratio = pressure / p_ref
-
-        # Calcul de la température isentropique de sortie (pour un compresseur)
-        # T_ideal_out = T_in * (P_out / P_in)^((gamma-1)/gamma)
-        # Ici, nous inversons pour trouver une température idéale de référence
-        # Cette partie est une simplification. Dans un cas réel, on aurait besoin de T_in et P_in.
-        # Pour l'instant, nous allons simuler un résidu basé sur la cohérence avec une efficacité donnée.
-        # Si T_ideal est la température de sortie idéale, et T est la température de sortie réelle,
-        # alors l'efficacité isentropique (pour un compresseur) est: eta = (T_ideal - T_in) / (T - T_in)
-        # Ou pour une turbine: eta = (T_in - T) / (T_in - T_ideal)
-
-        # Pour simplifier, nous allons créer un résidu qui pénalise les écarts par rapport à une relation
-        # P-T isentropique, en tenant compte de l'efficacité.
-        # T_isentropic = T_ref * (P / P_ref)^((gamma-1)/gamma)
-        # Nous allons utiliser la température prédite comme T_ref pour le calcul du résidu.
-        # Le résidu sera la différence entre la température prédite et une température isentropique attendue à partir de la pression prédite
-        # en supposant une température de référence (ici, la température prédite elle-même pour le calcul du résidu)
-        # et une pression de référence.
-        # C'est une simplification pour créer un signal de perte.
-        T_isentropic_expected = temperature * (pressure_ratio ** ((gamma - 1) / gamma))
+        # En mode industriel, nous utilisons les propriétés réelles de l'hydrogène.
+        # Le résidu thermodynamique lie la pression, la température et l'entropie.
+        # Pour un processus isentropique: T2/T1 = (P2/P1)^((gamma-1)/gamma)
+        # Nous définissons un résidu basé sur la conservation de l'énergie et l'efficacité réelle.
+        
+        # Pression de référence (Entrée du système)
+        p_in = 1e5 # 1 bar
+        t_in = 293.15 # 20°C
+        
+        # Température isentropique théorique
+        t_isentropic = t_in * torch.pow(pressure / p_in, (gamma - 1.0) / gamma)
+        
+        # L'efficacité isentropique relie le travail réel au travail idéal
+        # Pour un compresseur: eta = (h_isentropic - h_in) / (h_real - h_in)
+        # En supposant Cp constant pour l'hydrogène: eta = (T_isentropic - T_in) / (T - T_in)
+        
+        # Résidu: T_real - [T_in + (T_isentropic - T_in) / isentropic_efficiency]
+        expected_temperature = t_in + (t_isentropic - t_in) / isentropic_efficiency
+        residual = temperature - expected_temperature
+        
+        return residual
 
         # Le résidu thermodynamique est la différence entre la température prédite
         # et la température isentropique attendue, ajustée par l'efficacité.
