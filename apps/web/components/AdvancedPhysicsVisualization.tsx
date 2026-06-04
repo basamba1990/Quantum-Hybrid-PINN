@@ -147,18 +147,14 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
     return svg;
   };
 
-  const renderPhysicsChart = (data: any[], yLabel: string, color: string = "#10b981") => (
+  const renderPhysicsChart = (data: any[], yLabel: string) => (
     <div className="h-[300px] w-full bg-black/60 rounded-3xl p-4 border border-emerald-500/20">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data}>
           <defs>
-            <linearGradient id={`colorUncertainty_${yLabel}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={`colorUncertainty_${yLabel.replace(/\s/g, '_')}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
               <stop offset="100%" stopColor="#10b981" stopOpacity={0.1} />
-            </linearGradient>
-            <linearGradient id="colorEnergyEmerald" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-              <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#10b98120" vertical={false} />
@@ -327,9 +323,9 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
             <TabsContent value="multi-physics" className="space-y-6">
               {velocityData.length > 0 ? (
                 <>
-                  {renderPhysicsChart(velocityData, 'Vitesse (m/s)', '#10b981')}
-                  {renderPhysicsChart(pressureData, 'Pression (Pa)', '#3b82f6')}
-                  {renderPhysicsChart(temperatureData, 'Température (K)', '#f59e0b')}
+                  {renderPhysicsChart(velocityData, 'Vitesse (m/s)')}
+                  {renderPhysicsChart(pressureData, 'Pression (Pa)')}
+                  {renderPhysicsChart(temperatureData, 'Température (K)')}
                 </>
               ) : (
                 <div className="p-12 text-center text-emerald-600">Données multi-physique non disponibles du backend</div>
