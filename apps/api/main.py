@@ -3,10 +3,25 @@ import uvicorn
 import numpy as np
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from datetime import datetime
 import torch
+import logging
+
+# Importation des gestionnaires d'erreurs
+try:
+    from error_handlers import setup_error_handlers, PhysicsValidationError, ModelInferenceError
+except ImportError:
+    from .error_handlers import setup_error_handlers, PhysicsValidationError, ModelInferenceError
+
+# Configuration du logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Importation des modèles PINN et des services d'analyse
 try:
@@ -33,6 +48,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Instrumentation Prometheus
+instrumentator = Instrumentator().instrument(app)
+
+# Configuration des gestionnaires d'erreurs
+setup_error_handlers(app)
+
+@app.on_event("startup")
+async def startup():
+    instrumentator.expose(app)
 
 # Stockage des jobs en mémoire
 jobs_store = {}
@@ -224,13 +249,18 @@ async def validate_3d(request: PredictionRequestV8):
                     "z": request.z
                 })
 
-        return PredictionResponseV8(
+        final_response = PredictionResponseV8(
             **result, 
             credibility_score=credibility_score,
             residuals=residuals,
             predictions3d=predictions_profile,
             timestamp=datetime.utcnow().isoformat()
         )
+        
+        # Mise en cache du résultat
+        global_prediction_cache.set(t, request.x, request.y, request.z, final_response.dict())
+        
+        return final_response
     except Exception as e:
         import traceback
         traceback.print_exc()
