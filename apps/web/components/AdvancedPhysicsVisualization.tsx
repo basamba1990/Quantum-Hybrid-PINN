@@ -147,48 +147,70 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
     return svg;
   };
 
-  const renderPhysicsChart = (data: any[], yLabel: string) => (
-    <div className="h-[300px] w-full bg-black/60 rounded-3xl p-4 border border-emerald-500/20">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data}>
-          <defs>
-            <linearGradient id={`colorUncertainty_${yLabel.replace(/\s/g, '_')}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
-              <stop offset="100%" stopColor="#10b981" stopOpacity={0.1} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#10b98120" vertical={false} />
-          <XAxis dataKey="time" stroke="#10b981" fontSize={10} />
-          <YAxis stroke="#10b981" fontSize={10} label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: "#10b981", fontSize: 10 }} />
-          <Tooltip contentStyle={{ backgroundColor: '#000000', border: '1px solid #10b981' }} labelStyle={{ color: '#10b981' }} />
-          <Area 
-            type="monotone" 
-            dataKey="upper" 
-            stroke="none" 
-            fill="#10b98140" 
-            name="Incertitude" 
-            isAnimationActive={false}
-          />
-          <Area 
-            type="monotone" 
-            dataKey="lower" 
-            stroke="none" 
-            fill="#000000" 
-            name="Incertitude" 
-            isAnimationActive={false}
-          />
-          <Line 
-            type="monotone" 
-            dataKey="amplitude" 
-            stroke="#10b981" 
-            strokeWidth={2} 
-            dot={false}
-            name={yLabel} 
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
+  const renderPhysicsChart = (data: any[], yLabel: string, dataKey: string) => {
+    // Dynamically find upper and lower keys if they exist, else use 5% margin
+    const upperKey = `${dataKey}_upper`;
+    const lowerKey = `${dataKey}_lower`;
+    
+    const chartData = data.map(d => ({
+      ...d,
+      displayUpper: d[upperKey] !== undefined ? d[upperKey] : d[dataKey] * 1.05,
+      displayLower: d[lowerKey] !== undefined ? d[lowerKey] : d[dataKey] * 0.95,
+    }));
+
+    return (
+      <div className="h-[300px] w-full bg-black/60 rounded-3xl p-4 border border-emerald-500/20 mb-4">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData}>
+            <defs>
+              <linearGradient id={`colorUncertainty_${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+                <stop offset="100%" stopColor="#10b981" stopOpacity={0.1} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#10b98120" vertical={false} />
+            <XAxis dataKey="time" stroke="#10b981" fontSize={10} tickFormatter={(val) => typeof val === 'number' ? val.toFixed(2) : val} />
+            <YAxis 
+              stroke="#10b981" 
+              fontSize={10} 
+              domain={['auto', 'auto']}
+              label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: "#10b981", fontSize: 10 }} 
+            />
+            <Tooltip 
+              contentStyle={{ backgroundColor: '#000000', border: '1px solid #10b981', borderRadius: '12px' }} 
+              labelStyle={{ color: '#10b981' }} 
+              itemStyle={{ fontSize: '12px' }}
+              formatter={(value: any) => typeof value === 'number' ? value.toExponential(4) : value}
+            />
+            <Area 
+              type="monotone" 
+              dataKey="displayUpper" 
+              stroke="none" 
+              fill="#10b98130" 
+              name="Limite Sup" 
+              isAnimationActive={false}
+            />
+            <Area 
+              type="monotone" 
+              dataKey="displayLower" 
+              stroke="none" 
+              fill="#000000" 
+              name="Limite Inf" 
+              isAnimationActive={false}
+            />
+            <Line 
+              type="monotone" 
+              dataKey={dataKey} 
+              stroke="#10b981" 
+              strokeWidth={3} 
+              dot={false}
+              name={yLabel} 
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
 
   if (error) {
     return (
@@ -323,9 +345,9 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
             <TabsContent value="multi-physics" className="space-y-6">
               {velocityData.length > 0 ? (
                 <>
-                  {renderPhysicsChart(velocityData, 'Vitesse (m/s)')}
-                  {renderPhysicsChart(pressureData, 'Pression (Pa)')}
-                  {renderPhysicsChart(temperatureData, 'Température (K)')}
+                  {renderPhysicsChart(velocityData, 'Vitesse (m/s)', 'velocity_u')}
+                  {renderPhysicsChart(pressureData, 'Pression (Pa)', 'pressure')}
+                  {renderPhysicsChart(temperatureData, 'Température (K)', 'temperature')}
                 </>
               ) : (
                 <div className="p-12 text-center text-emerald-600">Données multi-physique non disponibles du backend</div>

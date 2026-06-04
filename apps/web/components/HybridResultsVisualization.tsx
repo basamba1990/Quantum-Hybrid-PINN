@@ -65,12 +65,18 @@ export function HybridResultsVisualizationEnhanced({ results }: { results?: Hybr
 }
 
 const prepareResidualDataForChart = (residuals: ResidualData[], selectedField: string) => {
-  return residuals.map(r => ({
-    step: r.step,
-    value: r[selectedField as keyof ResidualData],
-    upper: (r[selectedField as keyof ResidualData] as number) * 1.1, // Example: 10% upper bound
-    lower: (r[selectedField as keyof ResidualData] as number) * 0.9, // Example: 10% lower bound
-  }));
+  return residuals.map(r => {
+    const val = r[selectedField as keyof ResidualData] as number;
+    const upperKey = `${selectedField}Upper` as keyof ResidualData;
+    const lowerKey = `${selectedField}Lower` as keyof ResidualData;
+    
+    return {
+      step: r.step,
+      value: val,
+      upper: r[upperKey] !== undefined ? r[upperKey] : val * 1.1,
+      lower: r[lowerKey] !== undefined ? r[lowerKey] : val * 0.9,
+    };
+  });
 };
 
 export function HybridResultsVisualization({ results }: { results?: HybridResults }) {
