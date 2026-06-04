@@ -50,17 +50,17 @@ export default function ProjectDetailClient({ id }: { id: string }) {
       setReports(fetchedReports)
       
       // Récupérer la dernière analyse terminée pour la visualisation 3D
-      const { data: analysisData } = await supabase
+      const { data: analysisData, error: analysisError } = await supabase
         .from('analyses')
         .select('*')
         .eq('project_id', id)
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle(); // Utiliser maybeSingle() au lieu de single()
       
-      if (analysisData) {
-        setLatestAnalysis(analysisData)
+      if (analysisData && !analysisError) {
+        setLatestAnalysis(analysisData);
       }
       
       // Sélectionner automatiquement le dernier rapport par défaut

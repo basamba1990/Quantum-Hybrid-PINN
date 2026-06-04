@@ -208,20 +208,25 @@ async def validate_3d(request: PredictionRequestV8):
         with torch.no_grad():
             for t_p in times:
                 t_p_t = torch.tensor([[float(t_p)]], dtype=torch.float32, device=current_model_v8.device)
-                rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p_t, x_t, y_t, z_t)
-                p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
+                
+                # On utilise le modèle pour obtenir la structure du champ
+                rho_raw, u_raw, v_raw, w_raw, T_raw = current_model_v8.pinn_model(t_p_t, x_t, y_t, z_t)
+                
+                # APPLICATION DES CONDITIONS AUX LIMITES (Scaling Dynamique)
+                # On ajuste la température et la pression prédites par rapport aux entrées de la requête
+                T_scaled = T_raw * (request.temperature / 293.15) # 293.15 est la T_ref du modèle
+                rho_scaled = rho_raw * (request.density / 1.0)
+                
+                # Recalcul de la pression via EOS avec les valeurs scalées
+                p_p = get_eos(current_model_v8.fluid_type, rho_scaled, T_scaled)
                 
                 predictions_profile.append({
                     "time": float(t_p),
                     "pressure": float(p_p.item()),
-                    "velocity_u": float(u_p.item()),
-                    "velocity_v": float(v_p.item()),
-                    "velocity_w": float(w_p.item()),
-                    "temperature": float(T_p.item()),
-                    "density": float(rho_p.item()),
-                    "x": request.x,
-                    "y": request.y,
-                    "z": request.z
+                    "velocity_u": float(u_raw.item() * request.velocity_magnitude),
+                    "temperature": float(T_scaled.item()),
+                    "density": float(rho_scaled.item()),
+                    "x": request.x, "y": request.y, "z": request.z
                 })
 
         return PredictionResponseV8(
