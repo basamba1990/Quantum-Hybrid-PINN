@@ -1,10 +1,12 @@
 """
 Simulation Orchestrator Module – Version industrielle
+- Persistance réelle via Supabase
 - Chargement réel de l'état CFD (pas de zeros)
-- Gestion des jobs avec état réel
+- Gestion des jobs avec état persistant
 - Logger configuré
 """
 
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 import logging
@@ -13,6 +15,7 @@ from datetime import datetime
 from dataclasses import dataclass
 import uuid
 import numpy as np
+from supabase import create_client, Client
 
 from .openfoam_utils import OpenFOAMUtils
 from .fvmn_dataset import FVMNDataset
@@ -20,7 +23,7 @@ from .numpy_to_foam import numpyToFoam
 from .hybrid_predictor import HybridSimulationConfig, MLAcceleratedPredictor
 from .dataset_manager import DatasetManager
 
-logger = logging.getLogger(__name__)   # <-- Ajouté
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -58,6 +61,48 @@ class SimulationOrchestrator:
         self.jobs: Dict[str, SimulationJob] = {}
         self.dataset_manager = DatasetManager()
         self.logger = logging.getLogger(self.__class__.__name__)
+        
+        # Initialisation Supabase pour la persistance industrielle
+        self.supabase_url = os.getenv("SUPABASE_URL")
+        self.supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        self.supabase: Optional[Client] = None
+        if self.supabase_url and self.supabase_key:
+            try:
+                self.supabase = create_client(self.supabase_url, self.supabase_key)
+                self.logger.info("✅ Supabase client initialized for Orchestrator")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to initialize Supabase: {e}")
+
+    def _persist_job(self, job: SimulationJob):
+        """Sauvegarde l'état du job dans Supabase si disponible, sinon en local."""
+        job_dict = job.to_dict()
+        
+        # 1. Persistance locale (fallback)
+        job_dir = self.work_dir / job.job_id
+        job_dir.mkdir(parents=True, exist_ok=True)
+        with open(job_dir / "job_state.json", 'w') as f:
+            json.dump(job_dict, f, indent=2)
+            
+        # 2. Persistance Supabase (industrielle)
+        if self.supabase:
+            try:
+                # On utilise un upsert sur la table 'simulation_jobs'
+                # Note: La table doit exister avec les colonnes correspondantes
+                self.supabase.table("simulation_jobs").upsert({
+                    "id": job.job_id,
+                    "name": job.name,
+                    "case_path": job.case_path,
+                    "status": job.status,
+                    "created_at": job_dict["created_at"],
+                    "started_at": job_dict["started_at"],
+                    "completed_at": job_dict["completed_at"],
+                    "config": job.config,
+                    "results": job.results,
+                    "error_message": job.error_message
+                }).execute()
+                self.logger.info(f"Persisted job {job.job_id} to Supabase")
+            except Exception as e:
+                self.logger.error(f"Failed to persist job {job.job_id} to Supabase: {e}")
 
     def create_job(self, name: str, case_path: str, config: Optional[Dict[str, Any]] = None, job_id: Optional[str] = None) -> SimulationJob:
         actual_job_id = job_id or str(uuid.uuid4())
@@ -70,16 +115,17 @@ class SimulationOrchestrator:
             config=config or {}
         )
         self.jobs[actual_job_id] = job
+        self._persist_job(job)
         self.logger.info(f"Created job {actual_job_id}: {name}")
         return job
 
     def _load_latest_state(self, case_path: Path) -> Dict[str, np.ndarray]:
-        """Charge le dernier état CFD disponible (temps max) – PATCH 1"""
+        """Charge le dernier état CFD disponible (temps max) – Version Industrielle"""
         from .dataset_manager import DatasetManager
         dm = DatasetManager()
         
         if not case_path.exists():
-            self.logger.error(f"❌ Case path {case_path} does not exist. Initial state cannot be loaded.")
+            self.logger.error(f"❌ Case path {case_path} does not exist.")
             raise FileNotFoundError(f"Case path not found: {case_path}")
 
         try:
@@ -91,25 +137,24 @@ class SimulationOrchestrator:
                     state[field] = dm._load_field(field_file)
             
             if not state:
-                self.logger.error(f"❌ No CFD fields found in {case_path}. Initial state cannot be loaded.")
+                self.logger.error(f"❌ No CFD fields found in {case_path}.")
                 raise ValueError(f"No CFD fields found in {case_path}")
                 
             self.logger.info(f"Loaded state at t={latest_time} with fields {list(state.keys())}")
             return state
         except Exception as e:
-            self.logger.error(f"Error loading state from {case_path}: {e}. Falling back to zero state.")
-            # Tentative de récupération de la taille réelle du maillage via un autre champ ou par défaut
-            # Si on ne peut pas charger, on utilise une taille générique 32x32x32 (32768 pts) pour le FNO
-            default_n = 32768 
-            return {
-                "U": np.zeros((default_n, 3)),
-                "p": np.zeros((default_n, 1)),
-                "T": np.zeros((default_n, 1))
-            }
+            self.logger.error(f"CRITICAL: Error loading state from {case_path}: {e}")
+            # Suppression du fallback silencieux vers des zéros (Non Industriel)
+            # Dans une application industrielle, on doit lever une erreur claire
+            raise RuntimeError(f"Impossible de charger l'état initial physique depuis {case_path}. L'analyse ne peut pas continuer sans données réelles.")
 
     def prepare_cfd_dataset(self, job_id: str, fields: List[str], time_range: tuple, normalize: bool = True):
         if job_id not in self.jobs:
-            raise ValueError(f"Job {job_id} not found")
+            # Tenter de charger depuis Supabase/Local si absent de la mémoire
+            self._sync_job_from_storage(job_id)
+            if job_id not in self.jobs:
+                raise ValueError(f"Job {job_id} not found")
+                
         job = self.jobs[job_id]
         case_path = job.case_path
         try:
@@ -131,12 +176,64 @@ class SimulationOrchestrator:
             self.logger.error(f"Dataset preparation failed: {e}")
             return {"status": "failed", "error": str(e)}
 
+    def _sync_job_from_storage(self, job_id: str):
+        """Tente de synchroniser un job depuis Supabase ou le stockage local."""
+        # 1. Essayer Supabase
+        if self.supabase:
+            try:
+                response = self.supabase.table("simulation_jobs").select("*").eq("id", job_id).execute()
+                if response.data:
+                    data = response.data[0]
+                    job = SimulationJob(
+                        job_id=data["id"],
+                        name=data["name"],
+                        case_path=data["case_path"],
+                        status=data["status"],
+                        created_at=datetime.fromisoformat(data["created_at"].replace('Z', '+00:00')),
+                        started_at=datetime.fromisoformat(data["started_at"].replace('Z', '+00:00')) if data["started_at"] else None,
+                        completed_at=datetime.fromisoformat(data["completed_at"].replace('Z', '+00:00')) if data["completed_at"] else None,
+                        config=data["config"],
+                        results=data["results"],
+                        error_message=data["error_message"]
+                    )
+                    self.jobs[job_id] = job
+                    return
+            except Exception as e:
+                self.logger.warning(f"Failed to sync job {job_id} from Supabase: {e}")
+
+        # 2. Essayer Local
+        local_path = self.work_dir / job_id / "job_state.json"
+        if local_path.exists():
+            try:
+                with open(local_path, 'r') as f:
+                    data = json.load(f)
+                    job = SimulationJob(
+                        job_id=data["job_id"],
+                        name=data["name"],
+                        case_path=data["case_path"],
+                        status=data["status"],
+                        created_at=datetime.fromisoformat(data["created_at"]),
+                        started_at=datetime.fromisoformat(data["started_at"]) if data["started_at"] else None,
+                        completed_at=datetime.fromisoformat(data["completed_at"]) if data["completed_at"] else None,
+                        config=data["config"],
+                        results=data["results"],
+                        error_message=data["error_message"]
+                    )
+                    self.jobs[job_id] = job
+            except Exception as e:
+                self.logger.error(f"Failed to sync job {job_id} from local storage: {e}")
+
     def run_cfd_simulation(self, job_id: str, solver: str = "buoyantBoussinesqPimpleFoam", n_processors: int = 1):
         if job_id not in self.jobs:
-            raise ValueError(f"Job {job_id} not found")
+            self._sync_job_from_storage(job_id)
+            if job_id not in self.jobs:
+                raise ValueError(f"Job {job_id} not found")
+        
         job = self.jobs[job_id]
         job.status = "running"
         job.started_at = datetime.utcnow()
+        self._persist_job(job)
+        
         try:
             foam_utils = OpenFOAMUtils(job.case_path)
             log_decompose = ""
@@ -150,21 +247,28 @@ class SimulationOrchestrator:
             job.status = "completed"
             job.completed_at = datetime.utcnow()
             job.results = {"status": "success", "log": full_log, "output_path": str(Path(job.case_path) / "reconstructed_results")}
+            self._persist_job(job)
             return job.results
         except Exception as e:
             job.status = "failed"
             job.completed_at = datetime.utcnow()
             job.error_message = str(e)
+            self._persist_job(job)
             return {"status": "failed", "error": str(e)}
 
     def run_hybrid_simulation(self, job_id: str, ml_model=None, n_steps: int = 100,
                               time_step: float = 0.01, residual_threshold: float = 0.01,
                               uvw_mean: float = 0.0, uvw_std: float = 1.0) -> Dict[str, Any]:
         if job_id not in self.jobs:
-            raise ValueError(f"Job {job_id} not found")
+            self._sync_job_from_storage(job_id)
+            if job_id not in self.jobs:
+                raise ValueError(f"Job {job_id} not found")
+                
         job = self.jobs[job_id]
         job.status = "running"
         job.started_at = datetime.utcnow()
+        self._persist_job(job)
+        
         try:
             config = HybridSimulationConfig(
                 case_path=job.case_path,
@@ -178,7 +282,7 @@ class SimulationOrchestrator:
             )
             predictor = MLAcceleratedPredictor(config, ml_model=ml_model, uvw_mean=uvw_mean, uvw_std=uvw_std)
 
-            # Chargement de l'état réel
+            # Chargement de l'état réel (Lève une erreur si absent)
             initial_state = self._load_latest_state(Path(job.case_path))
 
             result = predictor.run_hybrid_simulation(
@@ -200,27 +304,55 @@ class SimulationOrchestrator:
                 "log": result.log,
                 "error_message": result.error_message
             }
+            self._persist_job(job)
             return job.results
         except Exception as e:
             job.status = "failed"
             job.completed_at = datetime.utcnow()
             job.error_message = str(e)
+            self._persist_job(job)
             return {"status": "failed", "error": str(e)}
 
     def reinject_predictions(self, job_id: str, field_name: str, data: List[List[float]], time_step: float):
         if job_id not in self.jobs:
-            raise ValueError(f"Job {job_id} not found")
+            self._sync_job_from_storage(job_id)
+            if job_id not in self.jobs:
+                raise ValueError(f"Job {job_id} not found")
         try:
+            # Implémentation réelle de la réinjection dans les fichiers OpenFOAM
+            case_path = Path(self.jobs[job_id].case_path)
+            time_dir = case_path / str(time_step)
+            time_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Conversion numpy et écriture via numpyToFoam
+            data_np = np.array(data)
+            numpyToFoam(data_np, field_name, time_dir / field_name)
+            
             return {"status": "success", "message": f"Reinjected {field_name} at t={time_step}", "field": field_name, "time_step": time_step}
         except Exception as e:
+            self.logger.error(f"Reinjection failed: {e}")
             return {"status": "failed", "error": str(e)}
 
     def get_job_status(self, job_id: str) -> Dict[str, Any]:
         if job_id not in self.jobs:
-            raise ValueError(f"Job {job_id} not found")
+            self._sync_job_from_storage(job_id)
+            if job_id not in self.jobs:
+                raise ValueError(f"Job {job_id} not found")
         return self.jobs[job_id].to_dict()
 
     def list_jobs(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
+        # Pour une version industrielle, on devrait lister depuis Supabase
+        if self.supabase:
+            try:
+                query = self.supabase.table("simulation_jobs").select("*")
+                if status:
+                    query = query.eq("status", status)
+                response = query.execute()
+                return response.data
+            except Exception as e:
+                self.logger.error(f"Failed to list jobs from Supabase: {e}")
+        
+        # Fallback local
         jobs = list(self.jobs.values())
         if status:
             jobs = [j for j in jobs if j.status == status]
@@ -228,7 +360,9 @@ class SimulationOrchestrator:
 
     def save_job_state(self, job_id: str, output_path: Optional[Path] = None) -> Path:
         if job_id not in self.jobs:
-            raise ValueError(f"Job {job_id} not found")
+            self._sync_job_from_storage(job_id)
+            if job_id not in self.jobs:
+                raise ValueError(f"Job {job_id} not found")
         if output_path is None:
             output_path = self.work_dir / job_id / "job_state.json"
         output_path.parent.mkdir(parents=True, exist_ok=True)
