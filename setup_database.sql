@@ -11,9 +11,10 @@ CREATE TABLE IF NOT EXISTS public.analysis_results (
     credibility_score NUMERIC NOT NULL,
     anomalies TEXT[],
     context TEXT,
+    user_id UUID REFERENCES public.users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    turbulence_intensity NUMERIC,                -- Nouveau champ
-    turbulence_length_scale NUMERIC             -- Nouveau champ
+    turbulence_intensity NUMERIC,
+    turbulence_length_scale NUMERIC
 );
 
 -- Activation de la sécurité au niveau des lignes (RLS)
