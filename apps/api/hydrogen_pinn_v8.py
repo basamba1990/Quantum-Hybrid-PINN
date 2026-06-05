@@ -251,10 +251,10 @@ class HydrogenPINNV8:
         history = {"loss": []}
 
         # Points de collocation aléatoires
-        t_pde = torch.rand(N_pde, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN
-        x_pde = torch.rand(N_pde, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN
-        y_pde = torch.rand(N_pde, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN
-        z_pde = torch.rand(N_pde, 1, device=self.device) * (Z_MAX - Z_MIN) + Z_MIN
+        t_pde = (torch.rand(N_pde, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
+        x_pde = (torch.rand(N_pde, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
+        y_pde = (torch.rand(N_pde, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
+        z_pde = (torch.rand(N_pde, 1, device=self.device) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
 
         for epoch in range(epochs):
             optimizer.zero_grad()
