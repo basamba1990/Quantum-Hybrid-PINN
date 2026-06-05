@@ -7,17 +7,30 @@ import json
 from pathlib import Path
 import sys
 
-# Add the parent directory of hydrogen_pinn_v8.py to the Python path
-current_file_path = Path(__file__).resolve()
-project_root = current_file_path
-while project_root.name != 'Quantum-Hybrid-PINN' and project_root.parent != project_root:
-    project_root = project_root.parent
+# Robustly add the apps/api directory to the Python path
+import os
+def add_api_to_path():
+    # Try multiple strategies to find apps/api
+    current = Path(__file__).resolve()
+    
+    # Strategy 1: Look for apps/api relative to any Quantum-Hybrid-PINN folder in the path
+    for parent in current.parents:
+        potential_api = parent / 'apps' / 'api'
+        if potential_api.exists() and (potential_api / 'hydrogen_pinn_v8.py').exists():
+            sys.path.append(str(potential_api))
+            return True
+            
+    # Strategy 2: Search in current working directory and its subdirectories
+    for root, dirs, files in os.walk(os.getcwd()):
+        if 'hydrogen_pinn_v8.py' in files and root.endswith(os.path.join('apps', 'api')):
+            sys.path.append(root)
+            return True
+    return False
 
-if project_root.name == 'Quantum-Hybrid-PINN':
-    sys.path.append(str(project_root / 'apps' / 'api'))
-else:
-    # Fallback for unexpected structures, or if not found
-    sys.path.append(str(current_file_path.parents[2] / 'apps' / 'api')) # Original assumption
+if not add_api_to_path():
+    # Final fallback: just add the parent of wherever hydrogen_pinn_v8.py might be
+    # this is a bit desperate but ensures we try something
+    sys.path.append(str(Path(__file__).resolve().parents[2] / 'apps' / 'api'))
 
 
 from hydrogen_pinn_v8 import HydrogenPINNV8
