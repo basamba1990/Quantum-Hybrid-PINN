@@ -180,21 +180,23 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
                           formatter={(value) => (typeof value === 'number' ? value.toExponential(6) : value)} 
                         />
                         <Area 
-                          type="monotone" 
-                          dataKey="upper" 
-                          stroke="none" 
-                          fill="#10b98140" 
-                          name="Incertitude" 
-                          isAnimationActive={false}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="lower" 
-                          stroke="none" 
-                          fill="#000000" 
-                          name="Incertitude" 
-                          isAnimationActive={false}
-                        />
+	                          type="monotone" 
+	                          dataKey="upper" 
+	                          stroke="none" 
+	                          fill="#10b981" 
+	                          fillOpacity={0.2}
+	                          name="Incertitude Sup" 
+	                          isAnimationActive={true}
+	                        />
+	                        <Area 
+	                          type="monotone" 
+	                          dataKey="lower" 
+	                          stroke="none" 
+	                          fill="#10b981" 
+	                          fillOpacity={0.2}
+	                          name="Incertitude Inf" 
+	                          isAnimationActive={true}
+	                        />
                         <Line 
                           type="monotone" 
                           dataKey="value" 
