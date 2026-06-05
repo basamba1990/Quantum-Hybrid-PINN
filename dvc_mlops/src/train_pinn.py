@@ -8,9 +8,10 @@ from pathlib import Path
 import sys
 
 # Add the parent directory of hydrogen_pinn_v8.py to the Python path
-sys.path.append(str(Path(__file__).resolve().parents[3] / 'apps' / 'api'))
+sys.path.append(str(Path(__file__).resolve().parents[2] / 'apps' / 'api'))
 
 from hydrogen_pinn_v8 import HydrogenPINNV8
+from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
 
 def train_pinn_model(epochs: int, learning_rate: float, N_pde: int, model_output_path: str, layers: list = None):
     mlflow.set_experiment("PINN_Training")
@@ -51,7 +52,7 @@ if __name__ == "__main__":
     try:
         layers = json.loads(args.layers)
     except:
-        layers = [5, 128, 128, 128, 5]
+        layers = [4, 128, 128, 128, 5]
 
     # Create models and metrics directories if they don't exist
     Path("models").mkdir(parents=True, exist_ok=True)
