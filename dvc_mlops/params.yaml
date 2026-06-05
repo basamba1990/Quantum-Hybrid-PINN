@@ -11,7 +11,7 @@ pinn_learning_rate: 0.001
 pinn_N_pde: 5000
 
 # Paramètres d'architecture PINN Industrielle
-pinn_layers: [5, 128, 128, 128, 5]
+pinn_layers: [4, 128, 128, 128, 5]
 pinn_model_path: "models/pinn_model.pt"
 fno_model_path: "models/fno_model.pt"
 eval_test_data: "data/processed/val.npz"

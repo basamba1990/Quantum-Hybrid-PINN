@@ -7,9 +7,23 @@ import json
 import sys
 
 # Add the parent directory of repit_integration to the Python path
-sys.path.append(str(Path(__file__).resolve().parents[3] / 'apps' / 'api'))
+def add_api_to_path():
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        potential_api = parent / 'apps' / 'api'
+        if potential_api.exists():
+            sys.path.append(str(potential_api))
+            return True
+    return False
 
-from repit_integration.dataset_manager import DatasetManager
+add_api_to_path()
+
+try:
+    from repit_integration.dataset_manager import DatasetManager
+except ImportError:
+    # Fallback for Colab
+    sys.path.append('/content/Quantum-Hybrid-PINN/apps/api')
+    from repit_integration.dataset_manager import DatasetManager
 
 def prepare_data(case_path: str, output_dir: str, fields: list, time_range: tuple, normalize: bool = True):
     output_path = Path(output_dir)

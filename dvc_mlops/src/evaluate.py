@@ -14,9 +14,24 @@ from pathlib import Path
 import sys
 
 # Ajout du chemin vers les modèles physiques
-sys.path.append(str(Path(__file__).resolve().parents[3] / 'apps' / 'api'))
+def add_api_to_path():
+    current = Path(__file__).resolve()
+    # Strategy 1: Look for apps/api relative to repository root
+    for parent in current.parents:
+        potential_api = parent / 'apps' / 'api'
+        if potential_api.exists():
+            sys.path.append(str(potential_api))
+            return True
+    return False
 
-from hydrogen_pinn_v8 import HydrogenPINNV8
+add_api_to_path()
+
+try:
+    from hydrogen_pinn_v8 import HydrogenPINNV8
+except ImportError:
+    # Fallback for Colab
+    sys.path.append('/content/Quantum-Hybrid-PINN/apps/api')
+    from hydrogen_pinn_v8 import HydrogenPINNV8
 
 def evaluate_pinn(model_path: str, test_data_path: str, metrics_output_path: str):
     """
@@ -25,9 +40,9 @@ def evaluate_pinn(model_path: str, test_data_path: str, metrics_output_path: str
     mlflow.set_experiment("PINN_Evaluation")
     with mlflow.start_run(run_name="Evaluation_Industrielle"):
         # 1. Charger le modèle
-        # Note: Dans une version industrielle, les couches devraient être chargées depuis un config
-        pinn = HydrogenPINNV8(layers=[5, 128, 128, 128, 5]) 
-        pinn.pinn_model.load_state_dict(torch.load(model_path))
+        # Correction de l'architecture : 4 entrées (t, x, y, z) pour le modèle 3D
+        pinn = HydrogenPINNV8(layers=[4, 128, 128, 128, 5]) 
+        pinn.pinn_model.load_state_dict(torch.load(model_path, map_location=pinn.device))
         pinn.pinn_model.eval()
         
         # 2. Charger les données de test (DNS ou CFD de référence)

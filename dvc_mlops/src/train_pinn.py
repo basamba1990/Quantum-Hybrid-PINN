@@ -25,15 +25,26 @@ def add_api_to_path():
         if 'hydrogen_pinn_v8.py' in files and root.endswith(os.path.join('apps', 'api')):
             sys.path.append(root)
             return True
+    
+    # Strategy 3: Hardcoded relative path from dvc_mlops/src/train_pinn.py
+    # dvc_mlops/src/train_pinn.py -> dvc_mlops/src -> dvc_mlops -> . -> apps/api
+    potential_api = current.parents[2] / 'apps' / 'api'
+    if potential_api.exists():
+        sys.path.append(str(potential_api))
+        return True
+        
     return False
 
-if not add_api_to_path():
-    # Final fallback: just add the parent of wherever hydrogen_pinn_v8.py might be
-    # this is a bit desperate but ensures we try something
-    sys.path.append(str(Path(__file__).resolve().parents[2] / 'apps' / 'api'))
+# Execute path addition
+add_api_to_path()
 
-
-from hydrogen_pinn_v8 import HydrogenPINNV8
+# Now imports should work if the path is correct
+try:
+    from hydrogen_pinn_v8 import HydrogenPINNV8
+except ImportError:
+    # Fallback for different environments (like Colab if not structured correctly)
+    sys.path.append('/content/Quantum-Hybrid-PINN/apps/api')
+    from hydrogen_pinn_v8 import HydrogenPINNV8
 from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
 
 def train_pinn_model(epochs: int, learning_rate: float, N_pde: int, model_output_path: str, layers: list = None):
@@ -74,6 +85,10 @@ if __name__ == "__main__":
     
     try:
         layers = json.loads(args.layers)
+        # Fix architecture mismatch: 3D model (t,x,y,z) needs 4 inputs, not 5
+        if layers[0] == 5:
+            print("Correction de l'architecture : passage de 5 à 4 entrées pour le modèle 3D (t, x, y, z)")
+            layers[0] = 4
     except:
         layers = [4, 128, 128, 128, 5]
 

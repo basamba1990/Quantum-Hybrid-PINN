@@ -11,9 +11,23 @@ from pathlib import Path
 import sys
 
 # Add the parent directory of fno_3d_navier_stokes.py to the Python path
-sys.path.append(str(Path(__file__).resolve().parents[3] / 'apps' / 'api'))
+def add_api_to_path():
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        potential_api = parent / 'apps' / 'api'
+        if potential_api.exists():
+            sys.path.append(str(potential_api))
+            return True
+    return False
 
-from fno_3d_navier_stokes import FNO3D, FLUID_CONFIGS
+add_api_to_path()
+
+try:
+    from fno_3d_navier_stokes import FNO3D, FLUID_CONFIGS
+except ImportError:
+    # Fallback for Colab
+    sys.path.append('/content/Quantum-Hybrid-PINN/apps/api')
+    from fno_3d_navier_stokes import FNO3D, FLUID_CONFIGS
 
 # Dummy DataLoader for now, will be replaced by actual data loading
 class DummyDataLoader:
