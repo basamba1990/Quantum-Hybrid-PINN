@@ -8,7 +8,17 @@ from pathlib import Path
 import sys
 
 # Add the parent directory of hydrogen_pinn_v8.py to the Python path
-sys.path.append(str(Path(__file__).resolve().parents[2] / 'apps' / 'api'))
+current_file_path = Path(__file__).resolve()
+project_root = current_file_path
+while project_root.name != 'Quantum-Hybrid-PINN' and project_root.parent != project_root:
+    project_root = project_root.parent
+
+if project_root.name == 'Quantum-Hybrid-PINN':
+    sys.path.append(str(project_root / 'apps' / 'api'))
+else:
+    # Fallback for unexpected structures, or if not found
+    sys.path.append(str(current_file_path.parents[2] / 'apps' / 'api')) # Original assumption
+
 
 from hydrogen_pinn_v8 import HydrogenPINNV8
 from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
