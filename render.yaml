@@ -17,6 +17,14 @@ services:
         value: https://quantum-pinn-api-qef2.onrender.com
       - key: H2_INFERENCE_API_URL
         value: https://quantum-pinn-api-qef2.onrender.com
+      - key: SUPABASE_URL
+        value: https://ivhxnaxhgfbiqlhgfkik.supabase.co
+      - key: SUPABASE_KEY
+        value: votre_cle_anon_ou_service_role_ici
+      - key: SUPABASE_BUCKET_NAME
+        value: pinn-models
+      - key: SUPABASE_MODEL_PATH
+        value: pinn_model.pt
     disk:
       name: model-storage
       mountPath: /data
