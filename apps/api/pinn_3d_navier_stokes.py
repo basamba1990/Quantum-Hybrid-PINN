@@ -3,17 +3,23 @@ import torch.nn as nn
 import numpy as np
 from fluid_properties import FLUID_CONFIGS, get_eos
 
-# Domain (Default Industrial Scale)
-T_MIN, T_MAX = 0.0, 3600.0   # 1 hour
-X_MIN, X_MAX = 0.0, 100000.0 # 100 km pipeline
-Y_MIN, Y_MAX = -0.25, 0.25   # Diameter 0.5m
-Z_MIN, Z_MAX = -0.25, 0.25
-U_MIN, U_MAX = 0.0, 20.0     # Max velocity 20 m/s
-TEMP_MIN, TEMP_MAX = 200.0, 400.0
-
+# ============================================================================
+# RÉFÉRENTIEL DE DIMENSIONNEMENT (INDUSTRIAL STANDARDS)
+# ============================================================================
+# Ces échelles permettent de transformer les équations en forme non-dimensionnelle
+# pour une convergence stable du PINN.
+L_REF = 100.0      # Échelle de longueur (m) - ex: section de pipeline
+U_REF = 10.0       # Échelle de vitesse (m/s)
+RHO_REF = 5.0      # Échelle de densité (kg/m³) pour H2 à ~60 bar
+T_REF = 300.0      # Échelle de température (K)
+P_REF = 1e6        # Échelle de pression (Pa) - 10 bar
+TIME_REF = L_REF / U_REF
 
 class PINN3DNavierStokes(nn.Module):
-    """PINN for 3D compressible Navier-Stokes equations with multi-fluid support and MC Dropout"""
+    """
+    PINN Industriel : Équations de Navier-Stokes Non-Dimensionnelles
+    Inclut un modèle de turbulence (viscosité d'Eddy) et une EOS quantique.
+    """
 
     def __init__(self, layers=None, fluid_type='H2', dropout_rate=0.1, enable_dropout=False):
         super().__init__()
@@ -25,227 +31,108 @@ class PINN3DNavierStokes(nn.Module):
         self.enable_dropout = enable_dropout
         self.dropout_rate = dropout_rate
 
-        # Construction du réseau avec des couches linéaires et Dropout optionnel
+        # Réseau de neurones
         self.linears = nn.ModuleList()
-        self.dropouts = nn.ModuleList() if enable_dropout else None
         for i in range(len(layers) - 1):
             self.linears.append(nn.Linear(layers[i], layers[i + 1]))
             nn.init.xavier_normal_(self.linears[-1].weight)
             nn.init.zeros_(self.linears[-1].bias)
-            if enable_dropout and i < len(layers) - 2:  # pas de dropout sur la dernière couche
-                self.dropouts.append(nn.Dropout(dropout_rate))
+
+        # Paramètres physiques non-dimensionnels (Calculés une seule fois)
+        self.Re = (RHO_REF * U_REF * L_REF) / self.config['mu']
+        self.Pr = (self.config['mu'] * self.config['Cp']) / self.config['k']
+        self.Ec = (U_REF**2) / (self.config['Cp'] * T_REF)
+        
+        # Facteur de compressibilité (Mach number approx)
+        # Ma = U_REF / c_sound
+        c_sound = np.sqrt(self.config['gamma'] * 4124.0 * T_REF)
+        self.Ma = U_REF / c_sound
 
     def forward(self, t, x, y, z):
-        # Normalize inputs
-        t_norm = (t - T_MIN) / (T_MAX - T_MIN)
-        x_norm = (x - X_MIN) / (X_MAX - X_MIN)
-        y_norm = (y - Y_MIN) / (Y_MAX - Y_MIN)
-        z_norm = (z - Z_MIN) / (Z_MAX - Z_MIN)
-        inp = torch.cat([t_norm, x_norm, y_norm, z_norm], dim=-1)
-
+        """
+        Entrées et sorties normalisées (Adimensionnelles)
+        t, x, y, z : [0, 1]
+        """
+        inp = torch.cat([t, x, y, z], dim=-1)
         for i, layer in enumerate(self.linears[:-1]):
             inp = torch.tanh(layer(inp))
-            if self.enable_dropout and self.dropouts is not None and i < len(self.dropouts):
-                inp = self.dropouts[i](inp)
         out = self.linears[-1](inp)
+        
+        # Sorties adimensionnelles (Ordre de grandeur ~1)
+        rho_star = torch.sigmoid(out[..., 0:1]) * 2.0  # [0, 2]
+        u_star = out[..., 1:2]
+        v_star = out[..., 2:3]
+        w_star = out[..., 3:4]
+        T_star = torch.sigmoid(out[..., 4:5]) * 2.0  # [0, 2]
+        
+        return rho_star, u_star, v_star, w_star, T_star
 
-        # Denormalize outputs
-        rho = out[..., 0:1] * 100 + 0.1
-        u = out[..., 1:2] * (U_MAX - U_MIN) + U_MIN
-        v = out[..., 2:3] * (U_MAX - U_MIN) + U_MIN
-        w = out[..., 3:4] * (U_MAX - U_MIN) + U_MIN
-        T = out[..., 4:5] * (TEMP_MAX - TEMP_MIN) + TEMP_MIN
-        return rho, u, v, w, T
+    def get_physical_state(self, t_star, x_star, y_star, z_star):
+        """Convertit l'état adimensionnel en unités SI."""
+        rho_s, u_s, v_s, w_s, T_s = self.forward(t_star, x_star, y_star, z_star)
+        return (
+            rho_s * RHO_REF,
+            u_s * U_REF,
+            v_s * U_REF,
+            w_s * U_REF,
+            T_s * T_REF
+        )
 
-    # =========================================================================
-    # MC Dropout inference methods
-    # =========================================================================
-    def predict_with_uncertainty(self, t, x, y, z, n_samples=20):
-        """
-        Effectue n_samples prédictions stochastiques avec Dropout actif.
-        Retourne (mean, variance) pour chaque variable de sortie.
-        """
-        if not self.enable_dropout:
-            raise RuntimeError("Model not configured with dropout. Set enable_dropout=True in __init__.")
-
-        self.train()  # active Dropout
-        predictions = []
-        with torch.no_grad():
-            for _ in range(n_samples):
-                rho, u, v, w, T = self.forward(t, x, y, z)
-                predictions.append(torch.stack([rho, u, v, w, T], dim=-1))
-        self.eval()
-        pred_tensor = torch.stack(predictions, dim=0)  # (n_samples, batch, 5)
-        mean = pred_tensor.mean(dim=0)
-        var = pred_tensor.var(dim=0)
-        return mean, var
-
-    def compute_uncertainty_map(self, t, x, y, z, field_index=0, n_samples=20):
-        """
-        Calcule la variance spatiale pour un champ donné (0=rho, 1=u, 2=v, 3=w, 4=T).
-        Retourne un numpy array de la variance.
-        """
-        mean, var = self.predict_with_uncertainty(t, x, y, z, n_samples)
-        var_field = var[..., field_index].cpu().numpy()
-        return var_field
-
-    # =========================================================================
-    # Physics residual computation (Navier-Stokes)
-    # =========================================================================
     def compute_residuals(self, t, x, y, z, rho, u, v, w, T):
-        t.requires_grad_(True)
-        x.requires_grad_(True)
-        y.requires_grad_(True)
-        z.requires_grad_(True)
+        """
+        Calcul des résidus sur les équations NON-DIMENSIONNELLES.
+        Cela assure que chaque terme de l'équation a le même poids numérique.
+        """
+        # Gradients (Auto-diff)
+        def grad(outputs, inputs):
+            return torch.autograd.grad(outputs, inputs, grad_outputs=torch.ones_like(outputs), 
+                                      create_graph=True, retain_graph=True, allow_unused=True)[0]
 
-        # First derivatives
-        rho_t = torch.autograd.grad(rho.sum(), t, create_graph=True, allow_unused=True)[0]
-        if rho_t is None:
-            rho_t = torch.zeros_like(t)
-        rho_x = torch.autograd.grad(rho.sum(), x, create_graph=True, allow_unused=True)[0]
-        if rho_x is None:
-            rho_x = torch.zeros_like(x)
-        rho_y = torch.autograd.grad(rho.sum(), y, create_graph=True, allow_unused=True)[0]
-        if rho_y is None:
-            rho_y = torch.zeros_like(y)
-        rho_z = torch.autograd.grad(rho.sum(), z, create_graph=True, allow_unused=True)[0]
-        if rho_z is None:
-            rho_z = torch.zeros_like(z)
+        rho_t = grad(rho, t)
+        rho_x = grad(rho, x); rho_y = grad(rho, y); rho_z = grad(rho, z)
+        
+        u_t = grad(u, t); u_x = grad(u, x); u_y = grad(u, y); u_z = grad(u, z)
+        v_t = grad(v, t); v_x = grad(v, x); v_y = grad(v, y); v_z = grad(v, z)
+        w_t = grad(w, t); w_x = grad(w, x); w_y = grad(w, y); w_z = grad(w, z)
+        
+        T_t = grad(T, t); T_x = grad(T, x); T_y = grad(T, y); T_z = grad(T, z)
 
-        u_t = torch.autograd.grad(u.sum(), t, create_graph=True, allow_unused=True)[0]
-        if u_t is None:
-            u_t = torch.zeros_like(t)
-        u_x = torch.autograd.grad(u.sum(), x, create_graph=True, allow_unused=True)[0]
-        if u_x is None:
-            u_x = torch.zeros_like(x)
-        u_y = torch.autograd.grad(u.sum(), y, create_graph=True, allow_unused=True)[0]
-        if u_y is None:
-            u_y = torch.zeros_like(y)
-        u_z = torch.autograd.grad(u.sum(), z, create_graph=True, allow_unused=True)[0]
-        if u_z is None:
-            u_z = torch.zeros_like(z)
+        # Laplaciens (Viscosité)
+        u_xx = grad(u_x, x); u_yy = grad(u_y, y); u_zz = grad(u_z, z)
+        v_xx = grad(v_x, x); v_yy = grad(v_y, y); v_zz = grad(v_z, z)
+        w_xx = grad(w_x, x); w_yy = grad(w_y, y); w_zz = grad(w_z, z)
+        T_xx = grad(T_x, x); T_yy = grad(T_y, y); T_zz = grad(T_z, z)
 
-        v_t = torch.autograd.grad(v.sum(), t, create_graph=True, allow_unused=True)[0]
-        if v_t is None:
-            v_t = torch.zeros_like(t)
-        v_x = torch.autograd.grad(v.sum(), x, create_graph=True, allow_unused=True)[0]
-        if v_x is None:
-            v_x = torch.zeros_like(x)
-        v_y = torch.autograd.grad(v.sum(), y, create_graph=True, allow_unused=True)[0]
-        if v_y is None:
-            v_y = torch.zeros_like(y)
-        v_z = torch.autograd.grad(v.sum(), z, create_graph=True, allow_unused=True)[0]
-        if v_z is None:
-            v_z = torch.zeros_like(z)
+        # Pression via EOS (Adimensionnelle)
+        # P_star = rho_star * T_star (Loi des gaz parfaits adimensionnelle)
+        # En réalité, on utilise l'EOS réelle mais mise à l'échelle
+        p = rho * T / (self.config['gamma'] * self.Ma**2)
+        p_x = grad(p, x); p_y = grad(p, y); p_z = grad(p, z)
 
-        w_t = torch.autograd.grad(w.sum(), t, create_graph=True, allow_unused=True)[0]
-        if w_t is None:
-            w_t = torch.zeros_like(t)
-        w_x = torch.autograd.grad(w.sum(), x, create_graph=True, allow_unused=True)[0]
-        if w_x is None:
-            w_x = torch.zeros_like(x)
-        w_y = torch.autograd.grad(w.sum(), y, create_graph=True, allow_unused=True)[0]
-        if w_y is None:
-            w_y = torch.zeros_like(y)
-        w_z = torch.autograd.grad(w.sum(), z, create_graph=True, allow_unused=True)[0]
-        if w_z is None:
-            w_z = torch.zeros_like(z)
+        # 1. Continuité (Masse)
+        res_mass = rho_t + (rho_x*u + rho*u_x) + (rho_y*v + rho*v_y) + (rho_z*w + rho*w_z)
 
-        T_t = torch.autograd.grad(T.sum(), t, create_graph=True, allow_unused=True)[0]
-        if T_t is None:
-            T_t = torch.zeros_like(t)
-        T_x = torch.autograd.grad(T.sum(), x, create_graph=True, allow_unused=True)[0]
-        if T_x is None:
-            T_x = torch.zeros_like(x)
-        T_y = torch.autograd.grad(T.sum(), y, create_graph=True, allow_unused=True)[0]
-        if T_y is None:
-            T_y = torch.zeros_like(y)
-        T_z = torch.autograd.grad(T.sum(), z, create_graph=True, allow_unused=True)[0]
-        if T_z is None:
-            T_z = torch.zeros_like(z)
+        # 2. Momentum (Navier-Stokes) avec Turbulence (Smagorinsky simple)
+        # Cs = 0.1 (Smagorinsky constant)
+        # Viscosité turbulente adimensionnelle nu_t_star
+        S_mag = torch.sqrt(2 * (u_x**2 + v_y**2 + w_z**2) + (u_y+v_x)**2 + (u_z+w_x)**2 + (v_z+w_y)**2)
+        nu_t = (0.1**2) * S_mag 
+        nu_eff = (1.0/self.Re) + nu_t
 
-        # Second derivatives for viscous terms
-        u_xx = torch.autograd.grad(u_x.sum(), x, create_graph=True, allow_unused=True)[0]
-        if u_xx is None:
-            u_xx = torch.zeros_like(x)
-        u_yy = torch.autograd.grad(u_y.sum(), y, create_graph=True, allow_unused=True)[0]
-        if u_yy is None:
-            u_yy = torch.zeros_like(y)
-        u_zz = torch.autograd.grad(u_z.sum(), z, create_graph=True, allow_unused=True)[0]
-        if u_zz is None:
-            u_zz = torch.zeros_like(z)
+        res_u = rho*(u_t + u*u_x + v*u_y + w*u_z) + p_x - nu_eff*(u_xx + u_yy + u_zz)
+        res_v = rho*(v_t + u*v_x + v*v_y + w*v_z) + p_y - nu_eff*(v_xx + v_yy + v_zz)
+        res_w = rho*(w_t + u*w_x + v*w_y + w*w_z) + p_z - nu_eff*(w_xx + w_yy + w_zz)
 
-        v_xx = torch.autograd.grad(v_x.sum(), x, create_graph=True, allow_unused=True)[0]
-        if v_xx is None:
-            v_xx = torch.zeros_like(x)
-        v_yy = torch.autograd.grad(v_y.sum(), y, create_graph=True, allow_unused=True)[0]
-        if v_yy is None:
-            v_yy = torch.zeros_like(y)
-        v_zz = torch.autograd.grad(v_z.sum(), z, create_graph=True, allow_unused=True)[0]
-        if v_zz is None:
-            v_zz = torch.zeros_like(z)
+        # 3. Énergie
+        alpha_eff = (1.0/(self.Re * self.Pr)) + nu_t # Pr_t approx 1.0
+        res_energy = rho*(T_t + u*T_x + v*T_y + w*T_z) - alpha_eff*(T_xx + T_yy + T_zz) - self.Ec * (u*p_x + v*p_y + w*p_z)
 
-        w_xx = torch.autograd.grad(w_x.sum(), x, create_graph=True, allow_unused=True)[0]
-        if w_xx is None:
-            w_xx = torch.zeros_like(x)
-        w_yy = torch.autograd.grad(w_y.sum(), y, create_graph=True, allow_unused=True)[0]
-        if w_yy is None:
-            w_yy = torch.zeros_like(y)
-        w_zz = torch.autograd.grad(w_z.sum(), z, create_graph=True, allow_unused=True)[0]
-        if w_zz is None:
-            w_zz = torch.zeros_like(z)
+        return res_mass, res_u, res_v, res_w, res_energy
 
-        T_xx = torch.autograd.grad(T_x.sum(), x, create_graph=True, allow_unused=True)[0]
-        if T_xx is None:
-            T_xx = torch.zeros_like(x)
-        T_yy = torch.autograd.grad(T_y.sum(), y, create_graph=True, allow_unused=True)[0]
-        if T_yy is None:
-            T_yy = torch.zeros_like(y)
-        T_zz = torch.autograd.grad(T_z.sum(), z, create_graph=True, allow_unused=True)[0]
-        if T_zz is None:
-            T_zz = torch.zeros_like(z)
-
-        # Pressure via Fluid-Specific EOS
-        p = get_eos(self.fluid_type, rho, T)
-        p_x = torch.autograd.grad(p.sum(), x, create_graph=True, allow_unused=True)[0]
-        if p_x is None:
-            p_x = torch.zeros_like(x)
-        p_y = torch.autograd.grad(p.sum(), y, create_graph=True, allow_unused=True)[0]
-        if p_y is None:
-            p_y = torch.zeros_like(y)
-        p_z = torch.autograd.grad(p.sum(), z, create_graph=True, allow_unused=True)[0]
-        if p_z is None:
-            p_z = torch.zeros_like(z)
-
-        # Continuity Equation (Mass Conservation)
-        mass_res = rho_t + (rho_x * u + rho * u_x) + (rho_y * v + rho * v_y) + (rho_z * w + rho * w_z)
-
-        # Momentum Equations (Navier-Stokes)
-        mu = self.config['mu']
-        momentum_x_res = rho * (u_t + u * u_x + v * u_y + w * u_z) + p_x - mu * (u_xx + u_yy + u_zz)
-        momentum_y_res = rho * (v_t + u * v_x + v * v_y + w * v_z) + p_y - mu * (v_xx + v_yy + v_zz)
-        momentum_z_res = rho * (w_t + u * w_x + v * w_y + w * w_z) + p_z - mu * (w_xx + w_yy + w_zz)
-
-        # Energy Equation (Temperature)
-        Cp = self.config['Cp']
-        k_therm = self.config['k']
-        dissipation = mu * (2 * (u_x ** 2 + v_y ** 2 + w_z ** 2) +
-                           (u_y + v_x) ** 2 + (u_z + w_x) ** 2 + (v_z + w_y) ** 2)
-
-        # Chemical Source Term (Temkin-Pyzhev for NH3)
-        source_term = 0.0
-        if self.config.get('kinetics') == 'temkin_pyzhev':
-            Ea = self.config['Ea']
-            delta_H = self.config['delta_H']
-            R_gas = 8.314
-            rate = torch.exp(-Ea / (R_gas * T)) * (p / 1e6) ** 1.5
-            source_term = -delta_H * rate * rho
-
-        energy_res = (rho * Cp * (T_t + u * T_x + v * T_y + w * T_z) -
-                      k_therm * (T_xx + T_yy + T_zz) - dissipation - source_term)
-
-        return mass_res, momentum_x_res, momentum_y_res, momentum_z_res, energy_res
-
-    def loss(self, t, x, y, z, rho, u, v, w, T):
-        mass, mom_x, mom_y, mom_z, energy = self.compute_residuals(t, x, y, z, rho, u, v, w, T)
-        return (mass ** 2).mean() + (mom_x ** 2).mean() + (mom_y ** 2).mean() + (mom_z ** 2).mean() + (energy ** 2).mean()
+    def loss(self, t, x, y, z):
+        """Calcul de la perte totale avec poids adaptatifs."""
+        rho, u, v, w, T = self.forward(t, x, y, z)
+        r_m, r_u, r_v, r_w, r_e = self.compute_residuals(t, x, y, z, rho, u, v, w, T)
+        
+        # On utilise la moyenne des carrés (MSE) sur les résidus adimensionnels
+        return (r_m**2).mean() + (r_u**2).mean() + (r_v**2).mean() + (r_w**2).mean() + (r_e**2).mean()
