@@ -7,6 +7,8 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional
 from datetime import datetime
 import torch
+import httpx
+from supabase import create_client, Client
 
 # Importation des modèles PINN et des services d'analyse
 try:
@@ -99,17 +101,73 @@ class AssimilationResponseV8(BaseModel):
 # Services et Modèles (Zéro Mock)
 # ============================================================================
 
-try:
-    current_model_v8 = HydrogenPINNV8()
-    model_path = os.getenv("MODEL_PATH", "models/pinn_model.pt")
-    if os.path.exists(model_path):
-        current_model_v8.pinn_model.load_state_dict(torch.load(model_path, map_location=current_model_v8.device))
-        print(f"Modèle HydrogenPINNV8 chargé depuis {model_path}")
-    else:
-        print("Modèle HydrogenPINNV8 initialisé (poids par défaut).")
-except Exception as e:
-    print(f"Erreur critique lors du chargement du modèle réel: {e}")
-    current_model_v8 = HydrogenPINNV8()
+# Variables d'environnement Supabase
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "pinn-models")
+SUPABASE_MODEL_PATH = os.getenv("SUPABASE_MODEL_PATH", "pinn_model.pt")
+
+supabase_client: Optional[Client] = None
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print("Client Supabase initialisé.")
+    except Exception as e:
+        print(f"Erreur lors de l'initialisation du client Supabase: {e}")
+else:
+    print("Variables d'environnement Supabase manquantes. Le téléchargement du modèle depuis Supabase sera ignoré.")
+
+async def download_model_from_supabase(model_local_path: str):
+    if not supabase_client:
+        print("Supabase client non initialisé, impossible de télécharger le modèle.")
+        return False
+
+    try:
+        print(f"Téléchargement du modèle depuis Supabase: {SUPABASE_BUCKET_NAME}/{SUPABASE_MODEL_PATH}")
+        # Télécharger le modèle
+        res = supabase_client.storage.from_(SUPABASE_BUCKET_NAME).download(SUPABASE_MODEL_PATH)
+        
+        if res:
+            # Assurez-vous que le répertoire local existe
+            os.makedirs(os.path.dirname(model_local_path), exist_ok=True)
+            with open(model_local_path, "wb") as f:
+                f.write(res)
+            print(f"Modèle téléchargé avec succès depuis Supabase vers {model_local_path}")
+            return True
+        else:
+            print(f"Erreur: Le téléchargement du modèle {SUPABASE_MODEL_PATH} depuis Supabase a échoué. Réponse vide.")
+            return False
+    except Exception as e:
+        print(f"Erreur lors du téléchargement du modèle depuis Supabase: {e}")
+        return False
+
+# Initialisation du modèle PINN
+current_model_v8 = None
+model_path = os.getenv("MODEL_PATH", "models/pinn_model.pt")
+
+@app.on_event("startup")
+async def load_pinn_model():
+    global current_model_v8
+    print("Tentative de chargement du modèle PINN...")
+    try:
+        # Tente de télécharger depuis Supabase en premier
+        downloaded = await download_model_from_supabase(model_path)
+        
+        if downloaded and os.path.exists(model_path):
+            current_model_v8 = HydrogenPINNV8()
+            current_model_v8.pinn_model.load_state_dict(torch.load(model_path, map_location=current_model_v8.device))
+            print(f"Modèle HydrogenPINNV8 chargé depuis {model_path} (téléchargé de Supabase).")
+        elif os.path.exists(model_path): # Fallback si le téléchargement échoue mais le fichier existe localement
+            current_model_v8 = HydrogenPINNV8()
+            current_model_v8.pinn_model.load_state_dict(torch.load(model_path, map_location=current_model_v8.device))
+            print(f"Modèle HydrogenPINNV8 chargé depuis {model_path} (local).")
+        else:
+            current_model_v8 = HydrogenPINNV8() # Initialise avec poids par défaut si aucun modèle n'est trouvé
+            print("Modèle HydrogenPINNV8 initialisé (poids par défaut, aucun modèle trouvé/téléchargé).")
+    except Exception as e:
+        print(f"Erreur critique lors du chargement du modèle: {e}")
+        current_model_v8 = HydrogenPINNV8() # Assurez-vous que current_model_v8 est toujours défini
+        print("Modèle HydrogenPINNV8 initialisé (poids par défaut suite à une erreur).")
 
 analysis_service = CFDValidationService()
 
