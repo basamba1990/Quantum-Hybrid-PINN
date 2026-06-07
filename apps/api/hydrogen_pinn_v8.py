@@ -259,10 +259,20 @@ class HydrogenPINNV8:
         for epoch in range(epochs):
             optimizer.zero_grad()
             rho_pred, u_pred, v_pred, w_pred, T_pred = self.pinn_model(t_pde, x_pde, y_pde, z_pde)
-            p = self.eos_model(rho_pred, T_pred)
+            # Calcul de la pression via l'EOS Silvera-Goldman
+            p_eos = self.eos_model(rho_pred, T_pred)
+            
+            # Perte PDE (Navier-Stokes)
             pde_loss = self.pinn_model.loss(t_pde, x_pde, y_pde, z_pde,
                                              rho_pred, u_pred, v_pred, w_pred, T_pred)
-            eos_loss = integrate_eos_in_pinn_loss(self.eos_model, rho_pred, T_pred, weight=0.1)
+            
+            # Contrainte de consistance thermodynamique stricte : P_pred doit être égal à P_EOS
+            # Note: Dans PINN3DNavierStokes, la pression est recalculée via get_eos.
+            # On force ici la cohérence avec le modèle quantique Silvera-Goldman.
+            eos_loss = torch.mean((p_eos - p_eos.detach())**2) # Placeholder pour la cohérence interne
+            # En réalité, nous voulons que le modèle respecte l'EOS dans ses résidus.
+            # On ajoute un poids plus fort à la consistance thermodynamique.
+            eos_consistency_loss = integrate_eos_in_pinn_loss(self.eos_model, rho_pred, T_pred, weight=1.0)
             # Placeholder for actual values, these would come from a simulation or data
             # For now, we'll use dummy values or derive them from PINN outputs if possible
             # This part needs careful integration with the actual simulation data flow
@@ -283,7 +293,7 @@ class HydrogenPINNV8:
             # simplified residual calculation, but could be incorporated in a more complex model.
             loss_thermo = torch.mean(self.thermodynamic_residuals(p, T_pred, isentropic_efficiency))
 
-            total_loss = pde_loss + eos_loss + 0.05 * loss_thermo
+            total_loss = pde_loss + eos_consistency_loss + 0.05 * loss_thermo
             total_loss.backward()
             optimizer.step()
             scheduler.step()
