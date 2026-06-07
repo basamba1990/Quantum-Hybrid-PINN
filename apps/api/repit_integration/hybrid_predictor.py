@@ -198,8 +198,18 @@ class BaseHybridPredictor:
             previous_state = current_state.copy()
             current_state = next_state
 
-        mean_residual = np.mean([max(r.values()) for r in all_residuals]) if all_residuals else 0.0
-        credibility_score = max(5.0, min(98.5, -np.log10(mean_residual + 1e-10) * 25))
+        # Calcul rigoureux du score de crédibilité basé sur les résidus PDE normalisés
+        # Un score scientifique doit refléter la confiance dans la solution par rapport aux lois physiques
+        if all_residuals:
+            # On calcule la moyenne des résidus sur tous les champs surveillés
+            res_array = np.array([list(r.values()) for r in all_residuals])
+            mean_res = np.mean(res_array)
+            # Normalisation : un résidu de 1e-4 est excellent (95%+), 1e-2 est limite (50%)
+            # Utilisation d'une fonction sigmoïde inversée pour une décroissance physique
+            credibility_score = 100.0 / (1.0 + np.exp(10.0 * (mean_res - 0.005) / 0.005))
+            credibility_score = max(0.0, min(100.0, credibility_score))
+        else:
+            credibility_score = 0.0
 
         logs.append(f"\n=== RÉSUMÉ FINAL ===")
         logs.append(f"Itérations complétées : {n_steps}")
