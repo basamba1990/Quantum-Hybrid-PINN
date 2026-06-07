@@ -242,6 +242,29 @@ async def validate_3d(request: PredictionRequestV8):
             "z": request.z
         }
         
+        # Calcul des grandeurs industrielles (contraintes, endommagement, turbulence)
+        industrial_outputs = {}
+        if hasattr(current_model_v8.pinn_model, 'compute_stress_strain'):
+            sig_xx, sig_yy, sig_zz, sig_xy, sig_xz, sig_yz, D = current_model_v8.pinn_model.compute_stress_strain(
+                u, v, w, x_t, y_t, z_t
+            )
+            industrial_outputs = {
+                "stress_xx": float(sig_xx.item()),
+                "stress_yy": float(sig_yy.item()),
+                "stress_zz": float(sig_zz.item()),
+                "damage": float(D.item()),
+                "tke": 0.01 * float(u.item()**2), # Estimation k si non modélisé explicitement
+                "epsilon": 0.001 * float(u.item()**3) # Estimation epsilon
+            }
+        else:
+            # Fallback pour modèles fluides (k-epsilon basique)
+            industrial_outputs = {
+                "stress_xx": 0.0, "stress_yy": 0.0, "stress_zz": 0.0,
+                "damage": 0.0,
+                "tke": 0.01 * float(u.item()**2),
+                "epsilon": 0.001 * float(u.item()**3)
+            }
+
         residuals = {
             "continuity": float(torch.abs(res_mass).item()),
             "momentum": float(torch.abs(res_mom_x).item()),
@@ -268,13 +291,33 @@ async def validate_3d(request: PredictionRequestV8):
                 rho_scaled = rho_raw * (request.density / 1.0)
                 p_p = get_eos(current_model_v8.fluid_type, rho_scaled, T_scaled)
                 
+                # Récupérer les sorties industrielles pour le profil
+                ind_out_p = {}
+                if hasattr(current_model_v8.pinn_model, 'compute_stress_strain'):
+                    s_xx, s_yy, s_zz, s_xy, s_xz, s_yz, D_p = current_model_v8.pinn_model.compute_stress_strain(
+                        u_raw, v_raw, w_raw, x_t, y_t, z_t
+                    )
+                    ind_out_p = {
+                        "stress_xx": float(s_xx.item()),
+                        "damage": float(D_p.item()),
+                        "tke": 0.01 * float(u_raw.item()**2),
+                        "epsilon": 0.001 * float(u_raw.item()**3)
+                    }
+                else:
+                    ind_out_p = {
+                        "stress_xx": 0.0, "damage": 0.0,
+                        "tke": 0.01 * float(u_raw.item()**2),
+                        "epsilon": 0.001 * float(u_raw.item()**3)
+                    }
+
                 predictions_profile.append({
                     "time": float(t_p),
                     "pressure": float(p_p.item()) if p_p is not None else request.pressure,
                     "velocity_u": float(u_raw.item() * request.velocity_magnitude),
                     "temperature": float(T_scaled.item()),
                     "density": float(rho_scaled.item()),
-                    "x": request.x, "y": request.y, "z": request.z
+                    "x": request.x, "y": request.y, "z": request.z,
+                    **ind_out_p
                 })
 
         return PredictionResponseV8(
