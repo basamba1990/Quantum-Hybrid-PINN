@@ -230,7 +230,7 @@ async def validate_3d(request: PredictionRequestV8):
         p_t = get_eos(current_model_v8.fluid_type, rho, T)
         
         result = {
-            "pressure": float(p_t.item()),
+            "pressure": float(p_t.item()) if p_t is not None else request.pressure,
             "velocity_u": float(u.item()),
             "velocity_v": float(v.item()),
             "velocity_w": float(w.item()),
@@ -270,7 +270,7 @@ async def validate_3d(request: PredictionRequestV8):
                 
                 predictions_profile.append({
                     "time": float(t_p),
-                    "pressure": float(p_p.item()),
+                    "pressure": float(p_p.item()) if p_p is not None else request.pressure,
                     "velocity_u": float(u_raw.item() * request.velocity_magnitude),
                     "temperature": float(T_scaled.item()),
                     "density": float(rho_scaled.item()),
@@ -365,13 +365,16 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             y_val = D_phys / 2
             z_val = D_phys / 2
             
-            # Ajout d'une légère variation spatiale stochastique pour l'audit des résidus
-            x_noise = x_val * (1.0 + 0.05 * np.random.randn())
-            
-            t_t = torch.tensor([[t_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-            x_t = torch.tensor([[x_noise]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-            y_t = torch.tensor([[y_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-            z_t = torch.tensor([[z_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            # Ajout d'une variation stochastique pour l'audit des résidus sur toutes les dimensions
+            t_perturbed = t_val * (1.0 + 0.01 * np.random.randn())
+            x_perturbed = x_val * (1.0 + 0.05 * np.random.randn())
+            y_perturbed = y_val * (1.0 + 0.05 * np.random.randn())
+            z_perturbed = z_val * (1.0 + 0.05 * np.random.randn())
+
+            t_t = torch.tensor([[t_perturbed]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            x_t = torch.tensor([[x_perturbed]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            y_t = torch.tensor([[y_perturbed]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            z_t = torch.tensor([[z_perturbed]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
             
             rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
             res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
@@ -427,8 +430,9 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                 })
 
         final_residuals = history[-1]
-        max_res = max(final_residuals["continuity"], final_residuals["momentum"], final_residuals["energy"])
-        credibility_score = max(0, min(100, 100 * (1.0 - np.log10(1.0 + max_res * 1e4) / 5.0)))
+        tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
+        weighted_res = sum([final_residuals[k] / tolerances[k] for k in tolerances]) / len(tolerances)
+        credibility_score = float(100.0 * np.exp(-weighted_res))
         
         final_result = {
             "iteration": num_steps, 
