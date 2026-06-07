@@ -59,18 +59,18 @@ export default function PINN3DVisualizer({
     const x = predictions.map((p, i) => (isPointSeries ? (p.x || 0) + i * 0.001 : (p.x || 0)))
     const y = predictions.map((p, i) => (isPointSeries ? (p.y || 0) + Math.sin(i * 0.1) * 0.001 : (p.y || 0)))
     const z = predictions.map((p, i) => (isPointSeries ? (p.z || 0) + Math.cos(i * 0.1) * 0.001 : (p.z || 0)))
-    const u = predictions.map((p) => p.velocity_u)
-    const v = predictions.map((p) => p.velocity_v)
-    const w = predictions.map((p) => p.velocity_w)
+    const u = predictions.map((p) => p.velocity_u || 0)
+    const v = predictions.map((p) => p.velocity_v || 0)
+    const w = predictions.map((p) => p.velocity_w || 0)
 
     return {
       x, y, z,
-      pressure: predictions.map((p) => p.pressure),
-      temperature: predictions.map((p) => p.temperature),
-      density: predictions.map((p) => p.density),
+      pressure: predictions.map((p) => p.pressure || 0),
+      temperature: predictions.map((p) => p.temperature || 0),
+      density: predictions.map((p) => p.density || 0),
       u, v, w,
       velocityMagnitude: predictions.map(
-        (p) => Math.sqrt(p.velocity_u ** 2 + p.velocity_v ** 2 + p.velocity_w ** 2)
+        (p) => Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2)
       ),
     }
   }, [predictions])
@@ -91,21 +91,21 @@ export default function PINN3DVisualizer({
 
   const hoverText = useMemo(
     () => predictions.map(
-      (p, i) => `t=${p.time.toFixed(2)}s<br>P=${p.pressure.toExponential(2)} Pa<br>T=${p.temperature.toFixed(1)} K<br>ρ=${p.density.toFixed(4)} kg/m³<br>|V|=${Math.sqrt(p.velocity_u ** 2 + p.velocity_v ** 2 + p.velocity_w ** 2).toFixed(3)} m/s`
+      (p, i) => `t=${p.time?.toFixed(2) || '0.00'}s<br>P=${(p.pressure || 0).toExponential(2)} Pa<br>T=${(p.temperature || 0).toFixed(1)} K<br>ρ=${(p.density || 0).toFixed(4)} kg/m³<br>|V|=${Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2).toFixed(3)} m/s`
     ),
     [predictions]
   )
 
   const velocityHoverText = useMemo(
     () => predictions.map(
-      (p, i) => `t=${p.time.toFixed(2)}s<br>u=${p.velocity_u.toFixed(3)} m/s<br>v=${p.velocity_v.toFixed(3)} m/s<br>w=${p.velocity_w.toFixed(3)} m/s<br>|V|=${Math.sqrt(p.velocity_u ** 2 + p.velocity_v ** 2 + p.velocity_w ** 2).toFixed(3)} m/s`
+      (p, i) => `t=${p.time?.toFixed(2) || '0.00'}s<br>u=${(p.velocity_u || 0).toFixed(3)} m/s<br>v=${(p.velocity_v || 0).toFixed(3)} m/s<br>w=${(p.velocity_w || 0).toFixed(3)} m/s<br>|V|=${Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2).toFixed(3)} m/s`
     ),
     [predictions]
   )
 
   const temperatureHoverText = useMemo(
     () => predictions.map(
-      (p, i) => `t=${p.time.toFixed(2)}s<br>T=${p.temperature.toFixed(1)} K<br>P=${p.pressure.toExponential(2)} Pa`
+      (p, i) => `t=${p.time?.toFixed(2) || '0.00'}s<br>T=${(p.temperature || 0).toFixed(1)} K<br>P=${(p.pressure || 0).toExponential(2)} Pa`
     ),
     [predictions]
   )

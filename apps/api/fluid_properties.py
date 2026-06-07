@@ -83,12 +83,22 @@ def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor
     params = config['params']
     
     if config['eos_type'] == 'silvera_goldman':
-        # Silvera-Goldman for H2
+        # Silvera-Goldman for H2 (Quantum EOS Implementation)
+        # p = p_ideal + p_repulsion + p_attraction + p_quantum
         p_ideal = rho * R * T
-        repulsion = params['A'] * rho * torch.exp(params['alpha'] * rho / 100.0)
+        
+        # Termes de répulsion (potentiel exponentiel de Silvera-Goldman)
+        # alpha est le paramètre de pente du potentiel
+        repulsion = params['A'] * torch.exp(-params['alpha'] * (100.0 / (rho + 1e-6))**(1/3))
+        
+        # Termes d'attraction (Van der Waals à longue portée corrigé)
         attraction = -params['B'] * (rho**2)
+        
+        # Correction quantique (Boyle temperature and ZPF effects)
         quantum_corr = params['C'] * (rho**3) / (T + 1e-6)
-        return p_ideal * (1 + repulsion + attraction + quantum_corr)
+        
+        # Somme des contributions de pression
+        return p_ideal + repulsion + attraction + quantum_corr
         
     elif config['eos_type'] == 'peng_robinson':
         # Peng-Robinson for NH3, CH4
