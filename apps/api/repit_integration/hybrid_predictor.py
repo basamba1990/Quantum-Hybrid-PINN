@@ -295,7 +295,9 @@ class MLAcceleratedPredictor(BaseHybridPredictor):
             # Récupérer le champ prédit (par exemple U, p, T)
             # On stocke chaque prédiction sous forme de vecteurs plats ou de grilles
             # Ici on simplifie en ne gardant que la pression
-            p_field = pred.get("p", np.zeros((100,1))).flatten()
+            # Correction: Utiliser le champ de pression actuel comme secours si le modèle ML échoue,
+            # plutôt qu'un vecteur de zéros non physique.
+            p_field = pred.get("p", current_state.get("p", np.zeros((1, 1)))).flatten()
             predictions_list.append(p_field)
         self.ml_model.eval()
         predictions_array = np.array(predictions_list)  # (n_mc_samples, N)

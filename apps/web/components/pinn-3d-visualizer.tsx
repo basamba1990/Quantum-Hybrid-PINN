@@ -55,10 +55,12 @@ export default function PINN3DVisualizer({
   }
 
   const chartData = useMemo(() => {
-    const isPointSeries = new Set(predictions.map((p) => `${p.x},${p.y},${p.z}`)).size === 1
-    const x = predictions.map((p, i) => (isPointSeries ? (p.x || 0) + i * 0.001 : (p.x || 0)))
-    const y = predictions.map((p, i) => (isPointSeries ? (p.y || 0) + Math.sin(i * 0.1) * 0.001 : (p.y || 0)))
-    const z = predictions.map((p, i) => (isPointSeries ? (p.z || 0) + Math.cos(i * 0.1) * 0.001 : (p.z || 0)))
+    // Correction: Utiliser directement les coordonnées spatiales réelles fournies par le backend.
+    // La génération artificielle de points pour les séries uniques n'est plus nécessaire
+    // car le backend fournit maintenant une grille 3D.
+    const x = predictions.map((p) => p.x || 0)
+    const y = predictions.map((p) => p.y || 0)
+    const z = predictions.map((p) => p.z || 0)
     const u = predictions.map((p) => p.velocity_u || 0)
     const v = predictions.map((p) => p.velocity_v || 0)
     const w = predictions.map((p) => p.velocity_w || 0)

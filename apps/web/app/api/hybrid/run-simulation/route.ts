@@ -27,6 +27,11 @@ export async function POST(req: NextRequest) {
     // Extraction des valeurs depuis scenario_inputs pour les mapper au top-level attendu par l'API
     const scenarioInputs = body.scenario_inputs || {};
     
+    // **FIX: Validation stricte des paramètres physiques**
+    // Aucune valeur par défaut arbitraire ne doit écraser les entrées utilisateur.
+    // Si l'utilisateur ne fournit pas une valeur, elle doit être NULL ou undefined,
+    // et l'API backend doit gérer les défauts de manière physiquement rigoureuse.
+    
     const payload = {
       project_id: body.project_id,
       user_id: session.user.id,
@@ -37,13 +42,14 @@ export async function POST(req: NextRequest) {
       residual_threshold: body.residual_threshold || 0.01,
       fields: body.fields || ['U', 'p', 'T'],
       ml_weight: body.ml_weight || 0.5,
-      fluid: body.fluid || scenarioInputs.fluid || 'H2',
-      // Priorité aux entrées directes, puis aux entrées de scénario, puis aux défauts
-      pressure: body.pressure || scenarioInputs.pressure || 80,
-      temperature: body.temperature || scenarioInputs.temperature || 300,
-      flow_rate: body.flow_rate || scenarioInputs.flowRate || 2.0,
-      length: body.length || scenarioInputs.length || 100,
-      diameter: body.diameter || scenarioInputs.diameter || 0.5,
+      fluid: body.fluid || scenarioInputs.fluid || null,
+      // **CORRECTION**: Pas de défauts arbitraires. Les valeurs doivent provenir
+      // directement de l'utilisateur ou du scénario, jamais de constantes magiques.
+      pressure: body.pressure !== undefined ? body.pressure : (scenarioInputs.pressure !== undefined ? scenarioInputs.pressure : null),
+      temperature: body.temperature !== undefined ? body.temperature : (scenarioInputs.temperature !== undefined ? scenarioInputs.temperature : null),
+      flow_rate: body.flow_rate !== undefined ? body.flow_rate : (scenarioInputs.flowRate !== undefined ? scenarioInputs.flowRate : null),
+      length: body.length !== undefined ? body.length : (scenarioInputs.length !== undefined ? scenarioInputs.length : null),
+      diameter: body.diameter !== undefined ? body.diameter : (scenarioInputs.diameter !== undefined ? scenarioInputs.diameter : null),
       scenario_type: body.scenario_type || "H2_PIPELINE",
       scenario_inputs: scenarioInputs,
     };

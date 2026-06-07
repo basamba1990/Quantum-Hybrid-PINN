@@ -324,7 +324,7 @@ async def assimilate_data(request: AssimilationRequestV8):
 
 @app.post("/hybrid/run-simulation", response_model=SimulationResponse)
 async def run_hybrid_simulation(request: SimulationRequest, background_tasks: BackgroundTasks):
-    job_id = f"sim_{datetime.now().strftime('%Y%m%d%H%M%S')}_{np.random.randint(1000, 9999)}"
+    job_id = f"sim_{datetime.now().strftime("%Y%m%d%H%M%S%f")}" # Utilisation du microseconde pour un ID unique sans aléatoire
     job_info = {
         "job_id": job_id,
         "name": request.job_name,
@@ -366,10 +366,11 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             z_val = D_phys / 2
             
             # Ajout d'une variation stochastique pour l'audit des résidus sur toutes les dimensions
-            t_perturbed = t_val * (1.0 + 0.01 * np.random.randn())
-            x_perturbed = x_val * (1.0 + 0.05 * np.random.randn())
-            y_perturbed = y_val * (1.0 + 0.05 * np.random.randn())
-            z_perturbed = z_val * (1.0 + 0.05 * np.random.randn())
+            # Suppression des variations stochastiques pour une rigueur physique
+            t_perturbed = t_val
+            x_perturbed = x_val
+            y_perturbed = y_val
+            z_perturbed = z_val
 
             t_t = torch.tensor([[t_perturbed]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
             x_t = torch.tensor([[x_perturbed]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
@@ -393,41 +394,50 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             history.append(step_data)
 
         # Spatial Profile (Vraie structure 3D pour le visualiseur)
-        num_points = 100
-        x_profile = np.linspace(0, L_phys, num_points)
+        num_x_points = 20 # Nombre de points le long de l'axe X
+        num_radial_points = 3 # Nombre de points le long du rayon
+        num_angular_points = 8 # Nombre de points autour de la circonférence
+        
+        x_profile = np.linspace(0, L_phys, num_x_points)
         predictions_list = []
+        
+        # Utilisation d'un temps fixe pour cette visualisation spatiale (par exemple, le temps final de la simulation)
+        fixed_time_for_3d_viz = t_val # Ou une autre valeur de temps représentative
+
         with torch.no_grad():
-            for i in range(num_points):
-                # Trajectoire hélicoïdale pour visualiser l'écoulement 3D
-                theta = 2 * np.pi * i / 20
-                r = D_phys * 0.4
-                curr_x = x_profile[i]
-                curr_y = r * np.cos(theta)
-                curr_z = r * np.sin(theta)
-                
-                t_p = torch.tensor([[float(L_phys)]], dtype=torch.float32, device=current_model_v8.device)
-                x_p = torch.tensor([[float(curr_x)]], dtype=torch.float32, device=current_model_v8.device)
-                y_p = torch.tensor([[float(curr_y)]], dtype=torch.float32, device=current_model_v8.device)
-                z_p = torch.tensor([[float(curr_z)]], dtype=torch.float32, device=current_model_v8.device)
-                
-                rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
-                
-                # Scaling physique rigoureux
-                p_drop_total = scenario_outputs.get('pressureDrop', 0) * 1e5
-                local_p = P_phys * 1e5 - (curr_x / L_phys) * p_drop_total + (rho_p.item() - 0.5) * 1e3
-                
-                predictions_list.append({
-                    "time": float(curr_x), 
-                    "x": float(curr_x),
-                    "y": float(curr_y),
-                    "z": float(curr_z),
-                    "pressure": float(local_p), 
-                    "velocity_u": float(u_p.item() * scenario_outputs.get('velocity', 1.0)), 
-                    "velocity_v": float(v_p.item() * 0.1), 
-                    "velocity_w": float(w_p.item() * 0.1), 
-                    "temperature": float(T_p.item() * (T_phys / 293.15)),
-                    "density": float(rho_p.item() * (P_phys / 80.0))
-                })
+            for i in range(num_x_points):
+                curr_x_pos = x_profile[i]
+                for r_idx in range(num_radial_points):
+                    # Distribuer les points radialement, y compris le centre
+                    r_val = (r_idx / (num_radial_points - 1)) * (D_phys / 2) if num_radial_points > 1 else 0.0
+                    for a_idx in range(num_angular_points):
+                        theta = (a_idx / num_angular_points) * 2 * np.pi
+                        curr_y_pos = r_val * np.cos(theta)
+                        curr_z_pos = r_val * np.sin(theta)
+                        
+                        t_p = torch.tensor([[float(fixed_time_for_3d_viz)]], dtype=torch.float32, device=current_model_v8.device)
+                        x_p = torch.tensor([[float(curr_x_pos)]], dtype=torch.float32, device=current_model_v8.device)
+                        y_p = torch.tensor([[float(curr_y_pos)]], dtype=torch.float32, device=current_model_v8.device)
+                        z_p = torch.tensor([[float(curr_z_pos)]], dtype=torch.float32, device=current_model_v8.device)
+                        
+                        rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
+                        
+                        # Scaling physique rigoureux
+                        p_drop_total = scenario_outputs.get(\'pressureDrop\', 0) * 1e5
+                        local_p = P_phys * 1e5 - (curr_x_pos / L_phys) * p_drop_total + (rho_p.item() - 0.5) * 1e3
+                        
+                        predictions_list.append({
+                            "time": float(fixed_time_for_3d_viz), 
+                            "x": float(curr_x_pos),
+                            "y": float(curr_y_pos),
+                            "z": float(curr_z_pos),
+                            "pressure": float(local_p), 
+                            "velocity_u": float(u_p.item() * scenario_outputs.get(\'velocity\', 1.0)), 
+                            "velocity_v": float(v_p.item() * 0.1), 
+                            "velocity_w": float(w_p.item() * 0.1), 
+                            "temperature": float(T_p.item() * (T_phys / 293.15)),
+                            "density": float(rho_p.item() * (P_phys / 80.0))
+                        })
 
         final_residuals = history[-1]
         tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
