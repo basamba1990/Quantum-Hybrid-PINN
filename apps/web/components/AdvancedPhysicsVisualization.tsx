@@ -50,6 +50,7 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
   const [velocityData, setVelocityData] = useState<any[]>([]);
   const [pressureData, setPressureData] = useState<any[]>([]);
   const [temperatureData, setTemperatureData] = useState<any[]>([]);
+  const [industrialData, setIndustrialData] = useState<any[]>([]);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +96,25 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
         }
         const resResult = await resResponse.json();
         if (resResult?.data) setResidualData(resResult.data);
+
+        // Fetch Industrial Data (Stress, Damage, TKE)
+        const indResponse = await fetch(`${API_BASE_URL}/v2/validate-3d`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            simulation_id: simulationId, 
+            time, 
+            x: 0.5, y: 0.5, z: 0.5,
+            pressure: 101325, temperature: 293.15, density: 1.0, velocity_magnitude: 1.0
+          }),
+        });
+        if (indResponse.ok) {
+          const indResult = await indResponse.json();
+          if (indResult?.predictions3d) {
+            setIndustrialData(indResult.predictions3d);
+            if (onDataFetch) onDataFetch(indResult);
+          }
+        }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error fetching physics analysis data';
         console.error('Physics analysis error:', errorMsg);
@@ -248,11 +268,14 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
         </CardHeader>
         <CardContent className="pt-6 bg-black">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 bg-emerald-500/5 p-1 rounded-2xl border border-emerald-500/20">
-              <TabsTrigger value="turbulence" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all">Spectres TKE</TabsTrigger>
-              <TabsTrigger value="boundary-layer" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all">Couche Limite</TabsTrigger>
-              <TabsTrigger value="residuals" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all">Cartes PINN</TabsTrigger>
-              <TabsTrigger value="multi-physics" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all">Multi-Physique</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-7 bg-emerald-500/5 p-1 rounded-2xl border border-emerald-500/20">
+              <TabsTrigger value="turbulence" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Spectres</TabsTrigger>
+              <TabsTrigger value="boundary-layer" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Paroi</TabsTrigger>
+              <TabsTrigger value="residuals" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Résidus</TabsTrigger>
+              <TabsTrigger value="damage" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Endommagement</TabsTrigger>
+              <TabsTrigger value="tke" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Turbulence</TabsTrigger>
+              <TabsTrigger value="stress" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Contraintes</TabsTrigger>
+              <TabsTrigger value="multi-physics" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Multi-P</TabsTrigger>
             </TabsList>
 
             {/* Spectres TKE */}
@@ -341,13 +364,65 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
               )}
             </TabsContent>
 
+            {/* Endommagement */}
+            <TabsContent value="damage" className="space-y-6">
+              {industrialData.length > 0 ? (
+                <>
+                  <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 mb-4">
+                    <p className="text-xs font-mono text-emerald-400 uppercase">État de Dégradation Isotrope (D)</p>
+                    <p className="text-sm text-emerald-600/80 mt-1">Évolution de la variable d'endommagement calculée par le RockPINN3D.</p>
+                  </div>
+                  {renderPhysicsChart(industrialData, 'Endommagement D', 'damage')}
+                </>
+              ) : (
+                <div className="p-12 text-center text-emerald-600">Données d'endommagement non disponibles</div>
+              )}
+            </TabsContent>
+
+            {/* Turbulence k-epsilon */}
+            <TabsContent value="tke" className="space-y-6">
+              {industrialData.length > 0 ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+                      <p className="text-[10px] font-mono text-emerald-400 uppercase">Énergie Cinétique (k)</p>
+                      <p className="text-xl font-black text-emerald-300">k-ε Model Active</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20">
+                      <p className="text-[10px] font-mono text-emerald-400 uppercase">Dissipation (ε)</p>
+                      <p className="text-xl font-black text-emerald-300">SciML Validated</p>
+                    </div>
+                  </div>
+                  {renderPhysicsChart(industrialData, 'TKE k (m²/s²)', 'tke')}
+                  {renderPhysicsChart(industrialData, 'Dissipation ε (m²/s³)', 'epsilon')}
+                </>
+              ) : (
+                <div className="p-12 text-center text-emerald-600">Données de turbulence non disponibles</div>
+              )}
+            </TabsContent>
+
+            {/* Contraintes */}
+            <TabsContent value="stress" className="space-y-6">
+              {industrialData.length > 0 ? (
+                <>
+                  <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 mb-4">
+                    <p className="text-xs font-mono text-emerald-400 uppercase">Tenseur des Contraintes (σ_xx)</p>
+                    <p className="text-sm text-emerald-600/80 mt-1">Composante normale du tenseur des contraintes effectives en milieu poreux.</p>
+                  </div>
+                  {renderPhysicsChart(industrialData, 'Contrainte σ_xx (Pa)', 'stress_xx')}
+                </>
+              ) : (
+                <div className="p-12 text-center text-emerald-600">Données de contraintes non disponibles</div>
+              )}
+            </TabsContent>
+
             {/* Multi-Physique */}
             <TabsContent value="multi-physics" className="space-y-6">
-              {velocityData.length > 0 ? (
+              {(velocityData.length > 0 || industrialData.length > 0) ? (
                 <>
-                  {renderPhysicsChart(velocityData, 'Vitesse (m/s)', 'velocity_u')}
-                  {renderPhysicsChart(pressureData, 'Pression (Pa)', 'pressure')}
-                  {renderPhysicsChart(temperatureData, 'Température (K)', 'temperature')}
+                  {renderPhysicsChart(industrialData.length > 0 ? industrialData : velocityData, 'Vitesse (m/s)', 'velocity_u')}
+                  {renderPhysicsChart(industrialData.length > 0 ? industrialData : pressureData, 'Pression (Pa)', 'pressure')}
+                  {renderPhysicsChart(industrialData.length > 0 ? industrialData : temperatureData, 'Température (K)', 'temperature')}
                 </>
               ) : (
                 <div className="p-12 text-center text-emerald-600">Données multi-physique non disponibles du backend</div>

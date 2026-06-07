@@ -68,29 +68,31 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
         setProject(projectData)
 
         // Fetch existing audit if available
-        const { data: auditDataResult } = await supabase
-          .from('physics_validations')
+        const { data: analysisData } = await supabase
+          .from('analyses')
           .select('*')
           .eq('project_id', id)
+          .eq('status', 'completed')
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle()
 
-        if (auditDataResult) {
+        if (analysisData) {
+          const results = analysisData.results || {}
           setAuditData({
-            isPhysicallyCoherent: auditDataResult.is_physically_coherent,
-            credibilityScore: auditDataResult.credibility_score,
-            anomalies: auditDataResult.anomalies || [],
-            extractedData: auditDataResult.extracted_data || {},
-            predictions: auditDataResult.pinn_results?.predictions || [],
-            predictions3d: auditDataResult.pinn_results?.predictions3d || [],
-            assimilation: auditDataResult.pinn_results?.assimilation || null,
+            isPhysicallyCoherent: (analysisData.credibility_score || 0) > 50,
+            credibilityScore: analysisData.credibility_score || 0,
+            anomalies: results.anomalies || [],
+            extractedData: results.extractedData || {},
+            predictions: results.predictions3d || [],
+            predictions3d: results.predictions3d || [],
+            assimilation: results.assimilation || null,
           })
           
           setVerificationStatus(
-            auditDataResult.is_physically_coherent
+            (analysisData.credibility_score || 0) > 50
               ? 'coherent'
-              : (auditDataResult.anomalies?.length > 0 ? 'anomaly' : 'impossible')
+              : (results.anomalies?.length > 0 ? 'anomaly' : 'impossible')
           )
         }
 
