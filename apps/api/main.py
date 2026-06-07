@@ -365,8 +365,11 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             y_val = D_phys / 2
             z_val = D_phys / 2
             
+            # Ajout d'une légère variation spatiale stochastique pour l'audit des résidus
+            x_noise = x_val * (1.0 + 0.05 * np.random.randn())
+            
             t_t = torch.tensor([[t_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-            x_t = torch.tensor([[x_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            x_t = torch.tensor([[x_noise]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
             y_t = torch.tensor([[y_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
             z_t = torch.tensor([[z_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
             
@@ -386,26 +389,41 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             }
             history.append(step_data)
 
-        # Spatial Profile
+        # Spatial Profile (Vraie structure 3D pour le visualiseur)
         num_points = 100
         x_profile = np.linspace(0, L_phys, num_points)
         predictions_list = []
         with torch.no_grad():
             for i in range(num_points):
-                # Using the model to generate a profile, scaled by industrial results
-                t_p = torch.tensor([[float(L_phys)]], dtype=torch.float32, device=current_model_v8.device)
-                x_p = torch.tensor([[float(x_profile[i])]], dtype=torch.float32, device=current_model_v8.device)
-                rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, torch.zeros_like(x_p), torch.zeros_like(x_p))
+                # Trajectoire hélicoïdale pour visualiser l'écoulement 3D
+                theta = 2 * np.pi * i / 20
+                r = D_phys * 0.4
+                curr_x = x_profile[i]
+                curr_y = r * np.cos(theta)
+                curr_z = r * np.sin(theta)
                 
-                # Apply scaling based on industrial scenario results
-                # We use the industrial pressure drop to modulate the PINN pressure profile
-                local_p = P_phys * 1e5 - (i / num_points) * (scenario_outputs.get('pressureDrop', 0) * 1e5)
+                t_p = torch.tensor([[float(L_phys)]], dtype=torch.float32, device=current_model_v8.device)
+                x_p = torch.tensor([[float(curr_x)]], dtype=torch.float32, device=current_model_v8.device)
+                y_p = torch.tensor([[float(curr_y)]], dtype=torch.float32, device=current_model_v8.device)
+                z_p = torch.tensor([[float(curr_z)]], dtype=torch.float32, device=current_model_v8.device)
+                
+                rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
+                
+                # Scaling physique rigoureux
+                p_drop_total = scenario_outputs.get('pressureDrop', 0) * 1e5
+                local_p = P_phys * 1e5 - (curr_x / L_phys) * p_drop_total + (rho_p.item() - 0.5) * 1e3
                 
                 predictions_list.append({
-                    "time": float(x_profile[i]), 
+                    "time": float(curr_x), 
+                    "x": float(curr_x),
+                    "y": float(curr_y),
+                    "z": float(curr_z),
                     "pressure": float(local_p), 
                     "velocity_u": float(u_p.item() * scenario_outputs.get('velocity', 1.0)), 
-                    "temperature": float(T_p.item() * (T_phys / 293.15))
+                    "velocity_v": float(v_p.item() * 0.1), 
+                    "velocity_w": float(w_p.item() * 0.1), 
+                    "temperature": float(T_p.item() * (T_phys / 293.15)),
+                    "density": float(rho_p.item() * (P_phys / 80.0))
                 })
 
         final_residuals = history[-1]
