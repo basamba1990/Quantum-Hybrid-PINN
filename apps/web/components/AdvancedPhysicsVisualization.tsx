@@ -58,9 +58,13 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
-    if (!simulationId) return;
+    if (!simulationId) {
+      console.log("AdvancedPhysicsVisualization: simulationId is missing");
+      return;
+    }
 
     const fetchAnalysisData = async () => {
+      console.log(`AdvancedPhysicsVisualization: Fetching data for sim ${simulationId} at time ${time}`);
       setLoading(true);
       setError(null);
       try {
@@ -167,15 +171,22 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
   };
 
   const renderPhysicsChart = (data: any[], yLabel: string, dataKey: string) => {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return <div className="p-8 text-center text-emerald-600/50">Aucune donnée disponible pour {yLabel}</div>;
+    }
+
     // Dynamically find upper and lower keys if they exist, else use 5% margin
     const upperKey = `${dataKey}_upper`;
     const lowerKey = `${dataKey}_lower`;
     
-    const chartData = data.map(d => ({
-      ...d,
-      displayUpper: d[upperKey] !== undefined ? d[upperKey] : d[dataKey] * 1.05,
-      displayLower: d[lowerKey] !== undefined ? d[lowerKey] : d[dataKey] * 0.95,
-    }));
+    const chartData = data.map(d => {
+      const val = d[dataKey] || 0;
+      return {
+        ...d,
+        displayUpper: d[upperKey] !== undefined ? d[upperKey] : val * 1.05,
+        displayLower: d[lowerKey] !== undefined ? d[lowerKey] : val * 0.95,
+      };
+    });
 
     return (
       <div className="h-[300px] w-full bg-black/60 rounded-3xl p-4 border border-emerald-500/20 mb-4">
