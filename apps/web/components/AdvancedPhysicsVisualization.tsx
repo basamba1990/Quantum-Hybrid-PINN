@@ -91,11 +91,10 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ simulation_id: simulationId, time, plane: 'xy', coord: 0.0 }),
         });
-        if (!resResponse.ok) {
-          throw new Error(`Residuals API failed: ${resResponse.status}`);
+        if (resResponse.ok) {
+          const resResult = await resResponse.json();
+          if (resResult?.data) setResidualData(resResult.data);
         }
-        const resResult = await resResponse.json();
-        if (resResult?.data) setResidualData(resResult.data);
 
         // Fetch Industrial Data (Stress, Damage, TKE)
         const indResponse = await fetch(`${API_BASE_URL}/v2/validate-3d`, {
@@ -397,7 +396,10 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
                   {renderPhysicsChart(industrialData, 'Dissipation ε (m²/s³)', 'epsilon')}
                 </>
               ) : (
-                <div className="p-12 text-center text-emerald-600">Données de turbulence non disponibles</div>
+                <div className="p-12 text-center text-emerald-600">
+                  <p>Données de turbulence non disponibles</p>
+                  <p className="text-xs mt-2 opacity-50">En attente de calculs de dissipation ε du solveur PINN</p>
+                </div>
               )}
             </TabsContent>
 
