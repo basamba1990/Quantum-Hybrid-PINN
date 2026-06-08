@@ -146,9 +146,13 @@ async function getProjectContext(supabase: any, projectId: string, userId: strin
       context += `Description: ${project.transcription.substring(0, 500)}...\n`
     }
     if (lastAnalysis) {
-      context += `Dernière analyse: score ${lastAnalysis.credibility_score}/100`
+      context += `Dernière analyse : Score de Crédibilité Scientifique de ${lastAnalysis.credibility_score}/100.\n`
       if (lastAnalysis.anomalies?.length) {
-        context += `, anomalies détectées: ${lastAnalysis.anomalies}`
+        context += `Anomalies physiques détectées : ${Array.isArray(lastAnalysis.anomalies) ? lastAnalysis.anomalies.join(', ') : lastAnalysis.anomalies}.\n`
+      }
+      if (lastAnalysis.results?.extractedParams) {
+        const p = lastAnalysis.results.extractedParams
+        context += `Paramètres extraits : Pression=${p.pressure} Pa, Température=${p.temperature} K, Fluide=${p.fluid_type || 'H2'}.\n`
       }
     }
     return context
