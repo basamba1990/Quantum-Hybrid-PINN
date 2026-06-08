@@ -55,7 +55,7 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
 
   useEffect(() => {
     if (!simulationId) {
