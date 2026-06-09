@@ -367,7 +367,7 @@ async def assimilate_data(request: AssimilationRequestV8):
 
 @app.post("/hybrid/run-simulation", response_model=SimulationResponse)
 async def run_hybrid_simulation(request: SimulationRequest, background_tasks: BackgroundTasks):
-    job_id = f"sim_{datetime.now().strftime("%Y%m%d%H%M%S%f")}" # Utilisation du microseconde pour un ID unique sans aléatoire
+    job_id = f"sim_{datetime.now().strftime('%Y%m%d%H%M%S%f')}" # Correction : guillemets simples
     job_info = {
         "job_id": job_id,
         "name": request.job_name,
@@ -466,7 +466,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                         rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
                         
                         # Scaling physique rigoureux
-                        p_drop_total = scenario_outputs.get(\'pressureDrop\', 0) * 1e5
+                        p_drop_total = scenario_outputs.get('pressureDrop', 0) * 1e5
                         local_p = P_phys * 1e5 - (curr_x_pos / L_phys) * p_drop_total + (rho_p.item() - 0.5) * 1e3
                         
                         predictions_list.append({
@@ -475,7 +475,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                             "y": float(curr_y_pos),
                             "z": float(curr_z_pos),
                             "pressure": float(local_p), 
-                            "velocity_u": float(u_p.item() * scenario_outputs.get(\'velocity\', 1.0)), 
+                            "velocity_u": float(u_p.item() * scenario_outputs.get('velocity', 1.0)), 
                             "velocity_v": float(v_p.item() * 0.1), 
                             "velocity_w": float(w_p.item() * 0.1), 
                             "temperature": float(T_p.item() * (T_phys / 293.15)),
