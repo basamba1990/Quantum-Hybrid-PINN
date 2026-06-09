@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import Link from "next/link"
 import { 
   FlaskConical, 
   Activity, 
@@ -12,8 +11,12 @@ import {
   Loader2,
   ChevronRight,
   Settings,
-  Database
+  Database,
+  ShieldAlert,
+  Wind,
+  Layers
 } from "lucide-react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -85,26 +88,52 @@ export default function SimulationsPage() {
     const residuals = results?.residuals || null;
     
     if (!Array.isArray(predictions) || predictions.length === 0) {
-      return { x: [], pressure: [], velocity: [], temperature: [], residuals, isEmpty: true };
+      return { 
+        x: [], 
+        pressure: [], 
+        velocity: [], 
+        temperature: [], 
+        damage: [],
+        k: [],
+        epsilon: [],
+        stress: [],
+        residuals, 
+        isEmpty: true 
+      };
     }
 
     try {
       const x = predictions.map(p => p?.time || 0);
       const pressure = predictions.map(p => (p?.pressure || 0) / 1e5);
       const temperature = predictions.map(p => p?.temperature || 0);
+      const damage = predictions.map(p => p?.damage || 0);
+      const k = predictions.map(p => p?.k || 0);
+      const epsilon = predictions.map(p => p?.epsilon || 0);
+      const stress = predictions.map(p => p?.stress || 0);
       const velocity = predictions.map(p => {
         const u = p?.velocity_u || 0;
         const v = p?.velocity_v || 0;
         const w = p?.velocity_w || 0;
         return Math.sqrt(u**2 + v**2 + w**2);
       });
-      return { x, pressure, velocity, temperature, residuals, isEmpty: false };
+      return { x, pressure, velocity, temperature, damage, k, epsilon, stress, residuals, isEmpty: false };
     } catch (err) {
       console.error("Error mapping chart data:", err);
-      return { x: [], pressure: [], velocity: [], temperature: [], residuals, isEmpty: true };
+      return { 
+        x: [], 
+        pressure: [], 
+        velocity: [], 
+        temperature: [], 
+        damage: [],
+        k: [],
+        epsilon: [],
+        stress: [],
+        residuals, 
+        isEmpty: true 
+      };
     }
   }
-  const { x, pressure, velocity, temperature, residuals, isEmpty } = getChartData()
+  const { x, pressure, velocity, temperature, damage, k, epsilon, stress, residuals, isEmpty } = getChartData()
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
@@ -181,21 +210,49 @@ export default function SimulationsPage() {
                   </div>
                 ) : (
                   <Tabs defaultValue="pressure" className="w-full">
-                    <TabsList className="bg-white/5 border border-white/10 p-1">
-                      <TabsTrigger value="pressure">Pression</TabsTrigger>
-                      <TabsTrigger value="velocity">Vitesse</TabsTrigger>
-                      <TabsTrigger value="temperature">Température</TabsTrigger>
-                      <TabsTrigger value="residuals">Convergence (Résidus)</TabsTrigger>
-                    </TabsList>
+                    <div className="overflow-x-auto pb-2">
+                      <TabsList className="bg-white/5 border border-white/10 p-1 flex w-max">
+                        <TabsTrigger value="pressure">Pression</TabsTrigger>
+                        <TabsTrigger value="velocity">Vitesse</TabsTrigger>
+                        <TabsTrigger value="temperature">Température</TabsTrigger>
+                        <TabsTrigger value="damage" className="flex items-center gap-1"><ShieldAlert className="w-3 h-3" /> Endommagement</TabsTrigger>
+                        <TabsTrigger value="turbulence" className="flex items-center gap-1"><Wind className="w-3 h-3" /> Turbulence (k,ε)</TabsTrigger>
+                        <TabsTrigger value="stress" className="flex items-center gap-1"><Layers className="w-3 h-3" /> Contraintes</TabsTrigger>
+                        <TabsTrigger value="residuals">Convergence (Résidus)</TabsTrigger>
+                      </TabsList>
+                    </div>
+                    
                     <TabsContent value="pressure" className="mt-6 h-[400px]">
                       <Plot data={[{ x, y: pressure, type: 'scatter', mode: 'lines+markers', line: { color: '#3b82f6', width: 3 }, fill: 'tozeroy', name: 'Pression (bar)' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#fff' }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Pression (bar)', gridcolor: 'rgba(255,255,255,0.1)' } }} useResizeHandler style={{ width: '100%', height: '100%' }} />
                     </TabsContent>
+                    
                     <TabsContent value="velocity" className="mt-6 h-[400px]">
                       <Plot data={[{ x, y: velocity, type: 'scatter', mode: 'lines+markers', line: { color: '#a855f7', width: 3 }, name: 'Vitesse (m/s)' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#fff' }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Vitesse (m/s)', gridcolor: 'rgba(255,255,255,0.1)' } }} useResizeHandler style={{ width: '100%', height: '100%' }} />
                     </TabsContent>
+                    
                     <TabsContent value="temperature" className="mt-6 h-[400px]">
                       <Plot data={[{ x, y: temperature, type: 'scatter', mode: 'lines+markers', line: { color: '#f59e0b', width: 3 }, fill: 'tozeroy', name: 'Température (K)' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#fff' }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Température (K)', gridcolor: 'rgba(255,255,255,0.1)' } }} useResizeHandler style={{ width: '100%', height: '100%' }} />
                     </TabsContent>
+
+                    <TabsContent value="damage" className="mt-6 h-[400px]">
+                      <Plot data={[{ x, y: damage, type: 'scatter', mode: 'lines+markers', line: { color: '#ef4444', width: 3 }, name: 'Endommagement (%)' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#fff' }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Indice d\'endommagement', gridcolor: 'rgba(255,255,255,0.1)' } }} useResizeHandler style={{ width: '100%', height: '100%' }} />
+                    </TabsContent>
+
+                    <TabsContent value="turbulence" className="mt-6 h-[400px]">
+                      <Plot 
+                        data={[
+                          { x, y: k, type: 'scatter', mode: 'lines', name: 'Énergie Cinétique (k)', line: { color: '#10b981' } },
+                          { x, y: epsilon, type: 'scatter', mode: 'lines', name: 'Dissipation (ε)', line: { color: '#ec4899' } }
+                        ]} 
+                        layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#fff' }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Valeurs de Turbulence', gridcolor: 'rgba(255,255,255,0.1)', type: 'log' } }} 
+                        useResizeHandler style={{ width: '100%', height: '100%' }} 
+                      />
+                    </TabsContent>
+
+                    <TabsContent value="stress" className="mt-6 h-[400px]">
+                      <Plot data={[{ x, y: stress, type: 'scatter', mode: 'lines+markers', line: { color: '#6366f1', width: 3 }, name: 'Contraintes (Pa)' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#fff' }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Contraintes de Von Mises (Pa)', gridcolor: 'rgba(255,255,255,0.1)' } }} useResizeHandler style={{ width: '100%', height: '100%' }} />
+                    </TabsContent>
+                    
                     <TabsContent value="residuals" className="mt-6 h-[400px]">
                       {residuals ? (
                         <Plot 
