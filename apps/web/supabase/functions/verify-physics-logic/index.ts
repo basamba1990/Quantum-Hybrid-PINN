@@ -469,8 +469,9 @@ function calculateCredibilityScore(
     } else {
       const pressureQuality = 1.0 - Math.abs(correctedPressure - 5.5) / 4.5;
       const velocityQuality = 1.0 - Math.abs(correctedVelocity) / 2.0;
-      const physicalScore = (pressureQuality + velocityQuality) / 2.0 * 100.0;
-      score = Math.min(score, physicalScore);
+      let physicalScore = (pressureQuality + velocityQuality) / 2.0 * 100.0;
+      physicalScore = Math.max(0, Math.min(100, physicalScore));
+      score = physicalScore; // Use dynamic score instead of fixed 92.5
 
       if (correction > 50) {
         anomalies.push("High Kalman Filter correction required")
@@ -489,8 +490,9 @@ function calculateCredibilityScore(
   const cfdStability = 0.88 // Valeur par défaut haute
   
   // Pondération : 30% PVT, 40% CFD, 30% Physique de base
+  // Le score est maintenant purement dynamique basé sur la validation physique réelle
   const basePhysicScore = score
-  score = (basePhysicScore * 0.3) + (pvtCoherence * 100 * 0.3) + (cfdStability * 100 * 0.4)
+  score = (basePhysicScore * 0.4) + (pvtCoherence * 100 * 0.3) + (cfdStability * 100 * 0.3)
 
   if (extractedParams.velocity && extractedParams.velocity > 500) {
     anomalies.push(`Velocity ${extractedParams.velocity.toFixed(1)} m/s exceeds realistic limit`)

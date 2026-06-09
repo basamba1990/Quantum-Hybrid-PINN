@@ -106,12 +106,36 @@ export default function SimulationsPage() {
 
   // Données pour les graphiques Plotly (analyses existantes)
   const getChartData = () => {
-    const predictions = selectedAnalysis?.results?.predictions3d || []
-    if (predictions.length === 0) return { x: [], pressure: [], velocity: [], isEmpty: true }
-    const x = predictions.map(p => p.time)
-    const pressure = predictions.map(p => p.pressure / 1e5)
-    const velocity = predictions.map(p => Math.sqrt(p.velocity_u**2 + p.velocity_v**2 + p.velocity_w**2))
-    return { x, pressure, velocity, isEmpty: false }
+    // Sécurisation de l'accès aux résultats (peuvent être une chaîne JSON ou un objet)
+    let results = selectedAnalysis?.results as any;
+    if (typeof results === 'string') {
+      try {
+        results = JSON.parse(results);
+      } catch (e) {
+        results = {};
+      }
+    }
+
+    const predictions = results?.predictions3d || results?.pinn_predictions || [];
+    
+    if (!Array.isArray(predictions) || predictions.length === 0) {
+      return { x: [], pressure: [], velocity: [], isEmpty: true };
+    }
+
+    try {
+      const x = predictions.map(p => p?.time || 0);
+      const pressure = predictions.map(p => (p?.pressure || 0) / 1e5);
+      const velocity = predictions.map(p => {
+        const u = p?.velocity_u || 0;
+        const v = p?.velocity_v || 0;
+        const w = p?.velocity_w || 0;
+        return Math.sqrt(u**2 + v**2 + w**2);
+      });
+      return { x, pressure, velocity, isEmpty: false };
+    } catch (err) {
+      console.error("Error mapping chart data:", err);
+      return { x: [], pressure: [], velocity: [], isEmpty: true };
+    }
   }
   const { x, pressure, velocity, isEmpty } = getChartData()
 
