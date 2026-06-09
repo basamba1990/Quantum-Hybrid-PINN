@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import dynamic from 'next/dynamic'
-import { HybridSimulationPanel } from "@/components/simulation/hybrid-simulation-panel"
+import { HybridSimulationPanel } from "@/components/HybridSimulationPanel"
 
 // Import dynamique de Plotly pour éviter les erreurs SSR
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false, loading: () => <div className="w-full h-[400px] bg-white/5 animate-pulse rounded-xl" /> })
