@@ -1,73 +1,75 @@
+"use client"
 
-'use client'
-
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
-import { Play, Download, Share2, Info, Loader2, AlertCircle, FlaskConical, Sparkles } from 'lucide-react'
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { 
+  FlaskConical, 
+  Activity, 
+  Play, 
+  Share2, 
+  AlertCircle, 
+  Info,
+  Loader2,
+  ChevronRight,
+  Settings,
+  Database
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
 import dynamic from 'next/dynamic'
-import { createClient } from '@/lib/supabase/client'
-import { Project, Analysis } from '@/types'
-import Link from 'next/link'
-import { HybridSimulationPanel } from '@/components/HybridSimulationPanel'
+import { HybridSimulationPanel } from "@/components/simulation/hybrid-simulation-panel"
 
-// Chargement dynamique de Plotly
-const Plot = dynamic(() => import('react-plotly.js'), { ssr: false })
+// Import dynamique de Plotly pour éviter les erreurs SSR
+const Plot = dynamic(() => import('react-plotly.js'), { ssr: false, loading: () => <div className="w-full h-[400px] bg-white/5 animate-pulse rounded-xl" /> })
 
 export default function SimulationsPage() {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
-  const [analyses, setAnalyses] = useState<Analysis[]>([])
-  const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null)
+  const [projects, setProjects] = useState<any[]>([])
+  const [selectedProject, setSelectedProject] = useState<any>(null)
+  const [analyses, setAnalyses] = useState<any[]>([])
+  const [selectedAnalysis, setSelectedAnalysis] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
-  // Chargement des projets
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchData = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-        const { data, error } = await supabase
-          .from('projects')
-          .select('*')
-          .order('created_at', { ascending: false })
-        if (error) throw error
-        setProjects(data || [])
-        if (data && data.length > 0) setSelectedProject(data[0])
+        const projectsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`)
+        const projectsData = await projectsRes.json()
+        setProjects(projectsData)
+        
+        if (projectsData.length > 0) {
+          setSelectedProject(projectsData[0])
+        }
       } catch (err) {
-        console.error('Error fetching projects:', err)
+        console.error("Error fetching projects:", err)
       } finally {
         setLoading(false)
       }
     }
-    fetchProjects()
-  }, [supabase])
+    fetchData()
+  }, [])
 
-  // Chargement des analyses pour le projet sélectionné
   useEffect(() => {
-    const fetchAnalyses = async () => {
-      if (!selectedProject) return
-      try {
-        const { data, error } = await supabase
-          .from('analyses')
-          .select('*')
-          .eq('project_id', selectedProject.id)
-          .eq('status', 'completed')
-          .order('created_at', { ascending: false })
-        if (error) throw error
-        setAnalyses(data || [])
-        if (data && data.length > 0) setSelectedAnalysis(data[0])
-        else setSelectedAnalysis(null)
-      } catch (err) {
-        console.error('Error fetching analyses:', err)
+    if (selectedProject) {
+      const fetchAnalyses = async () => {
+        try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${selectedProject.id}/analyses`)
+          const data = await res.json()
+          setAnalyses(data)
+          if (data.length > 0) {
+            setSelectedAnalysis(data[0])
+          } else {
+            setSelectedAnalysis(null)
+          }
+        } catch (err) {
+          console.error("Error fetching analyses:", err)
+        }
       }
+      fetchAnalyses()
     }
-    fetchAnalyses()
-  }, [selectedProject, supabase])
+  }, [selectedProject])
 
-  // Données pour les graphiques Plotly (analyses existantes)
   const getChartData = () => {
     // Sécurisation de l'accès aux résultats (peuvent être une chaîne JSON ou un objet)
     let results = selectedAnalysis?.results as any;
@@ -80,24 +82,26 @@ export default function SimulationsPage() {
     }
 
     const predictions = results?.predictions3d || results?.pinn_predictions || [];
+    const residuals = results?.residuals || null;
     
     if (!Array.isArray(predictions) || predictions.length === 0) {
-      return { x: [], pressure: [], velocity: [], isEmpty: true };
+      return { x: [], pressure: [], velocity: [], temperature: [], residuals, isEmpty: true };
     }
 
     try {
       const x = predictions.map(p => p?.time || 0);
       const pressure = predictions.map(p => (p?.pressure || 0) / 1e5);
+      const temperature = predictions.map(p => p?.temperature || 0);
       const velocity = predictions.map(p => {
         const u = p?.velocity_u || 0;
         const v = p?.velocity_v || 0;
         const w = p?.velocity_w || 0;
         return Math.sqrt(u**2 + v**2 + w**2);
       });
-      return { x, pressure, velocity, isEmpty: false };
+      return { x, pressure, velocity, temperature, residuals, isEmpty: false };
     } catch (err) {
       console.error("Error mapping chart data:", err);
-      return { x: [], pressure: [], velocity: [], isEmpty: true };
+      return { x: [], pressure: [], velocity: [], temperature: [], residuals, isEmpty: true };
     }
   }
   const { x, pressure, velocity, temperature, residuals, isEmpty } = getChartData()
@@ -227,7 +231,7 @@ export default function SimulationsPage() {
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-white/5"><span className="text-gray-400">Score Crédibilité</span><span className={`font-mono font-bold ${(selectedAnalysis?.credibility_score || 0) > 80 ? 'text-emerald-400' : 'text-yellow-400'}`}>{selectedAnalysis?.credibility_score ? `${selectedAnalysis.credibility_score.toFixed(1)}%` : '--'}</span></div>
                   <div className="flex justify-between items-center py-2 border-b border-white/5"><span className="text-gray-400">Statut PINN</span><span className="font-mono text-blue-400 uppercase text-xs">{selectedAnalysis?.status || 'N/A'}</span></div>
-                  <div className="space-y-2 pt-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Anomalies</span><div className="max-h-[100px] overflow-y-auto space-y-1">{selectedAnalysis?.results?.anomalies?.map((a, i) => <p key={i} className="text-[10px] text-red-400 leading-tight">• {a}</p>) || <p className="text-[10px] text-emerald-400">Aucune anomalie.</p>}</div></div>
+                  <div className="space-y-2 pt-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Anomalies</span><div className="max-h-[100px] overflow-y-auto space-y-1">{selectedAnalysis?.results?.anomalies?.map((a: any, i: number) => <p key={i} className="text-[10px] text-red-400 leading-tight">• {a}</p>) || <p className="text-[10px] text-emerald-400">Aucune anomalie.</p>}</div></div>
                 </CardContent>
               </Card>
             </div>
