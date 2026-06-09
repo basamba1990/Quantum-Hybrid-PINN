@@ -69,43 +69,36 @@ export default function SimulationsPage() {
 
   // Données pour les graphiques Plotly (analyses existantes)
   const getChartData = () => {
-    const results = selectedAnalysis?.results as any;
-    const predictions = results?.predictions3d || results?.pinn_predictions || [];
-    const physicalMetrics = results?.physicalMetrics || results?.physical_metrics || null;
-    
-    let x: number[] = [];
-    let pressure: number[] = [];
-    let velocity: number[] = [];
-    let temperature: number[] = [];
+    // Sécurisation de l'accès aux résultats (peuvent être une chaîne JSON ou un objet)
+    let results = selectedAnalysis?.results as any;
+    if (typeof results === 'string') {
+      try {
+        results = JSON.parse(results);
+      } catch (e) {
+        results = {};
+      }
+    }
 
-    if (predictions.length > 0) {
-      x = predictions.map((p: any) => p.time);
-      pressure = predictions.map((p: any) => (p.pressure || 0) / 1e5);
-      velocity = predictions.map((p: any) => Math.sqrt((p.velocity_u || 0)**2 + (p.velocity_v || 0)**2 + (p.velocity_w || 0)**2));
-      temperature = predictions.map((p: any) => p.temperature || 0);
+    const predictions = results?.predictions3d || results?.pinn_predictions || [];
+    
+    if (!Array.isArray(predictions) || predictions.length === 0) {
+      return { x: [], pressure: [], velocity: [], isEmpty: true };
     }
-    
-    const residuals = results?.residual_history || physicalMetrics?.residual_history || physicalMetrics?.residuals || null;
-    
-    // Si c'est une simulation hybride avec historique
-    if (results?.residual_history && results.residual_history.length > 0) {
-      const history = results.residual_history;
-      const x_history = history.map((h: any) => h.step);
-      return { 
-        x: x_history, 
-        pressure, 
-        velocity, 
-        temperature, 
-        residuals: {
-          continuity: history.map((h: any) => h.continuity),
-          momentum: history.map((h: any) => h.momentum),
-          energy: history.map((h: any) => h.energy),
-        }, 
-        isEmpty: false 
-      };
+
+    try {
+      const x = predictions.map(p => p?.time || 0);
+      const pressure = predictions.map(p => (p?.pressure || 0) / 1e5);
+      const velocity = predictions.map(p => {
+        const u = p?.velocity_u || 0;
+        const v = p?.velocity_v || 0;
+        const w = p?.velocity_w || 0;
+        return Math.sqrt(u**2 + v**2 + w**2);
+      });
+      return { x, pressure, velocity, isEmpty: false };
+    } catch (err) {
+      console.error("Error mapping chart data:", err);
+      return { x: [], pressure: [], velocity: [], isEmpty: true };
     }
-    
-    return { x, pressure, velocity, temperature, residuals, isEmpty: predictions.length === 0 };
   }
   const { x, pressure, velocity, temperature, residuals, isEmpty } = getChartData()
 
