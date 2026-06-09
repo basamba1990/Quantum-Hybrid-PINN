@@ -4,7 +4,7 @@ from pinn_3d_navier_stokes import PINN3DNavierStokes
 from rock_properties import ROCK_CONFIGS
 
 class RockPINN3D(PINN3DNavierStokes):
-    """PINN 3D pour roche avec endommagement et non-linéarité élastique"""
+    """PINN 3D pour roche avec endommagement et couplage poroélastique de Biot"""
 
     def __init__(self, layers=None, rock_type='generic_rock'):
         super().__init__(layers, fluid_type='H2')  # fluide factice, on override
@@ -15,6 +15,7 @@ class RockPINN3D(PINN3DNavierStokes):
         self.damage_threshold = self.rock_config['damage_threshold']
         self.damage_rate = self.rock_config['damage_rate']
         self.nonlinear_alpha = self.rock_config['nonlinear_alpha']
+        self.alpha_biot = 0.7  # Coefficient de Biot (typique pour les roches)
 
     def compute_stress_strain(self, u, v, w, x, y, z):
         """Calcule le tenseur des déformations et contraintes avec endommagement"""
@@ -42,8 +43,8 @@ class RockPINN3D(PINN3DNavierStokes):
                             2*(eps_xy**2 + eps_xz**2 + eps_yz**2) + 1e-8)
 
         # Module d'Young non linéaire (pression dépendante)
-        pressure = -(eps_xx + eps_yy + eps_zz) * self.E0 / (3*(1-2*self.nu))  # estimation
-        E = self.E0 * (1 + self.nonlinear_alpha * torch.abs(pressure))
+        pressure_rock = -(eps_xx + eps_yy + eps_zz) * self.E0 / (3*(1-2*self.nu))  # estimation
+        E = self.E0 * (1 + self.nonlinear_alpha * torch.abs(pressure_rock))
 
         # Coefficient de Lamé
         mu = E / (2*(1+self.nu))
@@ -76,20 +77,25 @@ class RockPINN3D(PINN3DNavierStokes):
 
         return sigma_xx, sigma_yy, sigma_zz, sigma_xy, sigma_xz, sigma_yz, D
 
-    def compute_residuals(self, t, x, y, z, rho, u, v, w, T):
+    def compute_residuals(self, t, x, y, z, rho, u, v, w, T, p_fluid=None):
         # Continuity equation for solids (mass conservation)
         rho_t = torch.autograd.grad(rho.sum(), t, create_graph=True)[0]
         rho_x = torch.autograd.grad(rho.sum(), x, create_graph=True)[0]
         rho_y = torch.autograd.grad(rho.sum(), y, create_graph=True)[0]
         rho_z = torch.autograd.grad(rho.sum(), z, create_graph=True)[0]
-        mass_res = rho_t + (rho_x * u + rho * torch.autograd.grad(u.sum(), x, create_graph=True)[0]) + \
-                   (rho_y * v + rho * torch.autograd.grad(v.sum(), y, create_graph=True)[0]) + \
-                   (rho_z * w + rho * torch.autograd.grad(w.sum(), z, create_graph=True)[0])
+        
+        u_x = torch.autograd.grad(u.sum(), x, create_graph=True)[0]
+        v_y = torch.autograd.grad(v.sum(), y, create_graph=True)[0]
+        w_z = torch.autograd.grad(w.sum(), z, create_graph=True)[0]
+        
+        mass_res = rho_t + (rho_x * u + rho * u_x) + \
+                   (rho_y * v + rho * v_y) + \
+                   (rho_z * w + rho * w_z)
 
         # Calcul des contraintes
         sig_xx, sig_yy, sig_zz, sig_xy, sig_xz, sig_yz, D = self.compute_stress_strain(u, v, w, x, y, z)
 
-        # Divergence du tenseur des contraintes (approximée par gradients de torch)
+        # Divergence du tenseur des contraintes
         sig_xx_x = torch.autograd.grad(sig_xx.sum(), x, create_graph=True)[0]
         sig_xy_y = torch.autograd.grad(sig_xy.sum(), y, create_graph=True)[0]
         sig_xz_z = torch.autograd.grad(sig_xz.sum(), z, create_graph=True)[0]
@@ -105,14 +111,26 @@ class RockPINN3D(PINN3DNavierStokes):
         sig_zz_z = torch.autograd.grad(sig_zz.sum(), z, create_graph=True)[0]
         div_sigma_z = sig_xz_x + sig_yz_y + sig_zz_z
 
-        # Équation du mouvement (accélération = divergence des contraintes)
+        # Industrial Correction 1: Accélération (dérivée seconde)
         u_t = torch.autograd.grad(u.sum(), t, create_graph=True)[0]
+        u_tt = torch.autograd.grad(u_t.sum(), t, create_graph=True)[0]
         v_t = torch.autograd.grad(v.sum(), t, create_graph=True)[0]
+        v_tt = torch.autograd.grad(v_t.sum(), t, create_graph=True)[0]
         w_t = torch.autograd.grad(w.sum(), t, create_graph=True)[0]
+        w_tt = torch.autograd.grad(w_t.sum(), t, create_graph=True)[0]
         
-        momentum_x_res = self.rho_rock * u_t - div_sigma_x
-        momentum_y_res = self.rho_rock * v_t - div_sigma_y
-        momentum_z_res = self.rho_rock * w_t - div_sigma_z
+        # Industrial Correction 2: Couplage de Biot (Pression de pore)
+        # Si p_fluid n'est pas fourni, on utilise une pression nulle (découplé)
+        if p_fluid is not None:
+            p_x = torch.autograd.grad(p_fluid.sum(), x, create_graph=True)[0]
+            p_y = torch.autograd.grad(p_fluid.sum(), y, create_graph=True)[0]
+            p_z = torch.autograd.grad(p_fluid.sum(), z, create_graph=True)[0]
+        else:
+            p_x = p_y = p_z = torch.zeros_like(x)
+
+        momentum_x_res = self.rho_rock * u_tt - div_sigma_x + self.alpha_biot * p_x
+        momentum_y_res = self.rho_rock * v_tt - div_sigma_y + self.alpha_biot * p_y
+        momentum_z_res = self.rho_rock * w_tt - div_sigma_z + self.alpha_biot * p_z
 
         # Energy equation (simplified for rock)
         T_t = torch.autograd.grad(T.sum(), t, create_graph=True)[0]

@@ -241,11 +241,31 @@ class PINN3DNavierStokes(nn.Module):
             rate = torch.exp(-Ea / (R_gas * T)) * (p / 1e6) ** 1.5
             source_term = -delta_H * rate * rho
 
+        # Industrial Correction: Pressure work term (-p * div(v) - v * grad(p))
+        work_pressure = -(p_x * u + p_y * v + p_z * w) - p * (u_x + v_y + w_z)
+
         energy_res = (rho * Cp * (T_t + u * T_x + v * T_y + w * T_z) -
-                      k_therm * (T_xx + T_yy + T_zz) - dissipation - source_term)
+                      k_therm * (T_xx + T_yy + T_zz) - dissipation - source_term - work_pressure)
 
         return mass_res, momentum_x_res, momentum_y_res, momentum_z_res, energy_res
 
-    def loss(self, t, x, y, z, rho, u, v, w, T):
-        mass, mom_x, mom_y, mom_z, energy = self.compute_residuals(t, x, y, z, rho, u, v, w, T)
-        return (mass ** 2).mean() + (mom_x ** 2).mean() + (mom_y ** 2).mean() + (mom_z ** 2).mean() + (energy ** 2).mean()
+    def loss(self, t_pde, x_pde, y_pde, z_pde, t_bc=None, x_bc=None, y_bc=None, z_bc=None, u_bc_target=None):
+        """
+        Calcul de la perte combinée : PDE (collocation) + Conditions aux limites (BC).
+        """
+        # 1. PDE Loss (Points de collocation)
+        rho, u, v, w, T = self.forward(t_pde, x_pde, y_pde, z_pde)
+        mass, mom_x, mom_y, mom_z, energy = self.compute_residuals(t_pde, x_pde, y_pde, z_pde, rho, u, v, w, T)
+        pde_loss = (mass**2).mean() + (mom_x**2).mean() + (mom_y**2).mean() + (mom_z**2).mean() + (energy**2).mean()
+
+        # 2. Boundary Condition Loss (No-slip walls by default if provided)
+        bc_loss = torch.tensor(0.0, device=t_pde.device)
+        if t_bc is not None:
+            _, u_bc, v_bc, w_bc, _ = self.forward(t_bc, x_bc, y_bc, z_bc)
+            if u_bc_target is not None:
+                bc_loss = ((u_bc - u_bc_target)**2).mean() + (v_bc**2).mean() + (w_bc**2).mean()
+            else:
+                # Default: No-slip (velocity = 0)
+                bc_loss = (u_bc**2).mean() + (v_bc**2).mean() + (w_bc**2).mean()
+
+        return pde_loss + 10.0 * bc_loss

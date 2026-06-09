@@ -244,7 +244,7 @@ class HydrogenPINNV8:
 
     def train_pinn(self, epochs: int = 5000, learning_rate: float = 1e-3,
                    N_pde: int = 5000) -> Dict[str, List[float]]:
-        """Entraînement du modèle PINN (inchangé)"""
+        """Entraînement du modèle PINN avec corrections industrielles"""
         optimizer = torch.optim.Adam(self.pinn_model.parameters(), lr=learning_rate)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
@@ -259,41 +259,20 @@ class HydrogenPINNV8:
         for epoch in range(epochs):
             optimizer.zero_grad()
             rho_pred, u_pred, v_pred, w_pred, T_pred = self.pinn_model(t_pde, x_pde, y_pde, z_pde)
-            # Calcul de la pression via l'EOS Silvera-Goldman
-            p_eos = self.eos_model(rho_pred, T_pred)
             
-            # Perte PDE (Navier-Stokes)
-            pde_loss = self.pinn_model.loss(t_pde, x_pde, y_pde, z_pde,
-                                             rho_pred, u_pred, v_pred, w_pred, T_pred)
+            # 1. Perte PDE (Navier-Stokes + Industrial Corrections)
+            # On passe les points de collocation à la méthode loss du modèle
+            pde_loss = self.pinn_model.loss(t_pde, x_pde, y_pde, z_pde)
             
-            # Contrainte de consistance thermodynamique stricte : P_pred doit être égal à P_EOS
-            # Note: Dans PINN3DNavierStokes, la pression est recalculée via get_eos.
-            # On force ici la cohérence avec le modèle quantique Silvera-Goldman.
-            eos_loss = torch.mean((p_eos - p_eos.detach())**2) # Placeholder pour la cohérence interne
-            # En réalité, nous voulons que le modèle respecte l'EOS dans ses résidus.
-            # On ajoute un poids plus fort à la consistance thermodynamique.
+            # 2. Contrainte de consistance thermodynamique stricte via EOS Silvera-Goldman
+            # On utilise le modèle EOS quantique pour calculer la pression et valider la consistance
             eos_consistency_loss = integrate_eos_in_pinn_loss(self.eos_model, rho_pred, T_pred, weight=1.0)
-            # Placeholder for actual values, these would come from a simulation or data
-            # For now, we'll use dummy values or derive them from PINN outputs if possible
-            # This part needs careful integration with the actual simulation data flow
-            # For a more realistic scenario, mass_flow_rate and efficiency would come from data or another model.
-            # For now, we'll use fixed values or derive them if possible from PINN outputs.
-            # Let's assume a constant isentropic efficiency for the component (e.g., compressor/turbine).
-            isentropic_efficiency = 0.8 # Example constant value for a component
-            # Mass flow rate could be derived from density and velocity if a cross-sectional area is known.
-            # For simplicity, let's use a placeholder for now, or assume it's implicitly handled by the loss scaling.
-            # If we had a specific component, we would need inlet/outlet conditions.
-            # Given the current PINN output (p, T), we can focus on the efficiency residual itself.
+            
+            # 3. Résidu Thermodynamique Réel (Conservation de l'entropie / Mach)
+            thermo_res = self.thermodynamic_residuals(rho_pred, T_pred, u_pred, v_pred, w_pred, x_pde, y_pde, z_pde)
+            loss_thermo = torch.mean(thermo_res**2)
 
-
-            # Calculate thermodynamic residual loss
-            # Note: pressure_pred and temperature_pred are already available from PINN output
-            # The thermodynamic_residuals function now directly uses the predicted pressure and temperature
-            # and a fixed isentropic efficiency. The mass_flow_rate is not directly used in the current
-            # simplified residual calculation, but could be incorporated in a more complex model.
-            loss_thermo = torch.mean(self.thermodynamic_residuals(p, T_pred, isentropic_efficiency))
-
-            total_loss = pde_loss + eos_consistency_loss + 0.05 * loss_thermo
+            total_loss = pde_loss + eos_consistency_loss + 0.1 * loss_thermo
             total_loss.backward()
             optimizer.step()
             scheduler.step()
@@ -304,92 +283,38 @@ class HydrogenPINNV8:
 
         return history
 
+    def thermodynamic_residuals(self, rho, T, u, v, w, x, y, z):
+        """
+        Résidu thermodynamique réel basé sur les dérivées de l'EOS quantique.
+        Vérifie la compressibilité et la vitesse du son réelle.
+        """
+        # Utiliser les dérivées réelles de l'EOS Silvera-Goldman
+        eos_derivs = self.eos_model.compute_pressure_derivatives(rho, T)
+        dp_drho = eos_derivs['dp_drho']
+        dp_dT = eos_derivs['dp_dT']
+        
+        # Capacité thermique à volume constant (Cv) pour H2 ~ 10100 J/(kg.K)
+        Cv = 10100.0 
+        
+        # Calcul de la vitesse du son réelle au carré (c^2)
+        # c^2 = (dp/drho)_s = dp/drho + (T/rho^2 * Cv) * (dp/dT)^2
+        c2 = dp_drho + (T / (rho**2 * Cv + 1e-8)) * (dp_dT**2)
+        
+        # Calcul du nombre de Mach local
+        velocity_mag = torch.sqrt(u**2 + v**2 + w**2 + 1e-8)
+        mach_number = velocity_mag / torch.sqrt(torch.clamp(c2, min=1e-8))
+        
+        # Pénalité industrielle : Le nombre de Mach ne doit pas dépasser les limites physiques
+        # du scénario de transport (souvent subsonique ou faiblement transsonique)
+        mach_residual = torch.relu(mach_number - 2.0) # Pénaliser Mach > 2.0
+        
+        return mach_residual
+
     def assimilate_data(self, current_state: List[float], observation: List[float]) -> List[float]:
         self.dkl_model.eval()
         with torch.no_grad():
             state_tensor = torch.tensor([current_state], dtype=torch.float32, device=self.device)
             obs_tensor = torch.tensor([observation], dtype=torch.float32, device=self.device)
-            # En mode industriel, nous propageons la covariance pour une incertitude réelle
-            # Initialisation de la covariance si non fournie (Incertitude initiale de 10%)
-            P_init = torch.eye(self.dkl_model.state_dim, device=self.device).unsqueeze(0) * 0.1
-            assimilated_state, _ = self.dkl_model.assimilate(state_tensor, P_init, obs_tensor)
+            # Assimilation via Deep Kalman Filter
+            assimilated_state, _ = self.dkl_model(state_tensor, obs_tensor)
         return assimilated_state.squeeze().tolist()
-
-    def thermodynamic_residuals(self, pressure, temperature, isentropic_efficiency: float = 0.8):
-        """
-        Calcule le résidu d'efficacité isentropique pour un compresseur/turbine.
-        Ce calcul est basé sur une simplification pour l'intégration initiale.
-        Pour une implémentation plus réaliste, il faudrait des conditions d'entrée/sortie
-        spécifiques à un composant (par exemple, un compresseur ou une turbine).
-
-        Args:
-            pressure (torch.Tensor): Pression prédite par le PINN.
-            temperature (torch.Tensor): Température prédite par le PINN.
-            isentropic_efficiency (float): Efficacité isentropique du composant (par défaut 0.8).
-
-        Returns:
-            torch.Tensor: Le résidu d'efficacité isentropique.
-        """
-        # Pour une modélisation plus complète, on aurait besoin de:
-        # - Pression et température d'entrée/sortie du composant
-        # - Capacités thermiques (Cp, Cv) et constante des gaz (R) du fluide
-        # - Débit massique (mass_flow_rate) pour calculer la puissance et l'énergie
-
-        # Simplification: Utilisation d'un ratio de pression et d'un gamma constant (pour l'air, ~1.4)
-        # C'est une approche très simplifiée pour illustrer l'intégration.
-        # Gamma pour l'hydrogène (H2) est d'environ 1.405 à température ambiante
-        gamma = 1.405 
-
-        # En mode industriel, nous utilisons les propriétés réelles de l'hydrogène.
-        # Le résidu thermodynamique lie la pression, la température et l'entropie.
-        # Pour un processus isentropique: T2/T1 = (P2/P1)^((gamma-1)/gamma)
-        # Nous définissons un résidu basé sur la conservation de l'énergie et l'efficacité réelle.
-        
-        # Pression de référence (Entrée du système)
-        p_in = 1e5 # 1 bar
-        t_in = 293.15 # 20°C
-        
-        # Température isentropique théorique
-        t_isentropic = t_in * torch.pow(pressure / p_in, (gamma - 1.0) / gamma)
-        
-        # L'efficacité isentropique relie le travail réel au travail idéal
-        # Pour un compresseur: eta = (h_isentropic - h_in) / (h_real - h_in)
-        # En supposant Cp constant pour l'hydrogène: eta = (T_isentropic - T_in) / (T - T_in)
-        
-        # Résidu: T_real - [T_in + (T_isentropic - T_in) / isentropic_efficiency]
-        expected_temperature = t_in + (t_isentropic - t_in) / isentropic_efficiency
-        residual = temperature - expected_temperature
-        
-        return residual
-
-        # Le résidu thermodynamique est la différence entre la température prédite
-        # et la température isentropique attendue, ajustée par l'efficacité.
-        # Pour un compresseur, T_real > T_ideal. Si efficiency < 1, T_real est encore plus grande.
-        # Donc, (T_real - T_ideal) / (1 - efficiency) devrait être petit.
-        # Ou, (T_real - T_ideal) / T_ideal est le résidu non-isentropique.
-
-        # Une façon de formuler le résidu est de dire que la température réelle doit être
-        # cohérente avec la température isentropique et l'efficacité.
-        # Pour un compresseur: T_real = T_in + (T_ideal_out - T_in) / isentropic_efficiency
-        # Pour une turbine: T_real = T_in - (T_in - T_ideal_out) * isentropic_efficiency
-
-        # Étant donné que nous n'avons pas T_in et P_in pour un composant spécifique,
-        # nous allons créer un résidu qui pénalise la déviation de la relation isentropique
-        # en tenant compte de l'efficacité.
-        # Le résidu est la différence entre la température prédite et la température
-        # qui serait attendue si le processus était isentropique avec l'efficacité donnée.
-
-        # Si le processus était isentropique (efficacité = 1), T_pred devrait être T_isentropic_expected.
-        # Si l'efficacité est < 1, la température réelle sera plus élevée (pour un compresseur).
-        # Le résidu devrait être proche de zéro si T_pred est cohérent avec T_isentropic_expected et isentropic_efficiency.
-
-        # Résidu basé sur l'écart entre la température prédite et la température isentropique
-        # ajustée par l'efficacité. Ceci est une forme de pénalité pour la non-conformité
-        # aux lois de la thermodynamique pour un processus avec une efficacité donnée.
-        thermodynamic_residual = (temperature - T_isentropic_expected) / (T_isentropic_expected + 1e-6)
-
-        # Nous pouvons aussi considérer un résidu basé sur l'efficacité elle-même.
-        # Si nous avions T_in et P_in, nous pourrions calculer l'efficacité réelle et la comparer à isentropic_efficiency.
-        # Pour l'instant, nous utilisons le résidu de température.
-
-        return thermodynamic_residual
