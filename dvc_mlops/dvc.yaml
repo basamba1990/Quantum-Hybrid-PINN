@@ -1,0 +1,56 @@
+
+stages:
+  prepare:
+    cmd: python src/prepare.py --case_path data/raw/simulations --output_dir data/processed
+    deps:
+      - data/raw/simulations
+      - src/prepare.py
+    outs:
+      - data/processed/train.npz
+      - data/processed/val.npz
+      - data/processed/metadata.json
+  train_fno:
+    cmd: python src/train_fno.py --train_data_path data/processed/train.npz --val_data_path data/processed/val.npz --model_output_path models/fno_model.pt --epochs ${epochs} --learning_rate ${learning_rate} --n_modes ${n_modes} --width ${width} --in_channels ${in_channels} --out_channels ${out_channels}
+    deps:
+      - data/processed/train.npz
+      - data/processed/val.npz
+      - src/train_fno.py
+    params:
+      - epochs
+      - learning_rate
+      - n_modes
+      - width
+      - in_channels
+      - out_channels
+    outs:
+      - models/fno_model.pt
+    metrics:
+      - metrics/fno_metrics.json
+
+  train_pinn:
+    cmd: python src/train_pinn.py --epochs ${pinn_epochs} --learning_rate ${pinn_learning_rate} --N_pde ${pinn_N_pde} --model_output_path ${pinn_model_path} --layers "${pinn_layers}"
+    deps:
+      - src/train_pinn.py
+    params:
+      - pinn_epochs
+      - pinn_learning_rate
+      - pinn_N_pde
+      - pinn_layers
+      - pinn_model_path
+    outs:
+      - models/pinn_model.pt
+    metrics:
+      - metrics/pinn_metrics.json
+
+  evaluate:
+    cmd: python src/evaluate.py --model_path ${pinn_model_path} --test_data_path ${eval_test_data} --metrics_output_path ${eval_metrics_path}
+    deps:
+      - ${pinn_model_path}
+      - ${eval_test_data}
+      - src/evaluate.py
+    params:
+      - pinn_model_path
+      - eval_test_data
+      - eval_metrics_path
+    metrics:
+      - metrics/eval_metrics.json

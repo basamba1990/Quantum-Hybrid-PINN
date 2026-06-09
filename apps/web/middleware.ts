@@ -59,7 +59,14 @@ export async function middleware(request: NextRequest) {
 
     // 2. LOGIQUE DE REDIRECTION SIMPLIFIÉE
     const isDashboard = pathname.startsWith('/dashboard')
-    const isLoginPage = pathname === '/auth/login'
+    const isLoginPage = pathname === '/auth/login' || pathname === '/login'
+
+    // Redirection /login -> /auth/login pour éviter le 404
+    if (pathname === '/login') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/auth/login'
+      return NextResponse.redirect(url)
+    }
 
     if (!user && isDashboard) {
       const url = request.nextUrl.clone()

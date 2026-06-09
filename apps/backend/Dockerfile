@@ -14,17 +14,24 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copier le code source
+# Copier le code source du backend
 COPY . .
+
+# Note sur la structure Render :
+# Si rootDir est apps/backend, on ne peut pas COPY ../api.
+# On compte sur le fait que Render monte le repo complet dans /opt/render/project/src.
 
 # Créer les répertoires nécessaires
 RUN mkdir -p /home/ubuntu/cases
 
-# Exposer le port de l'API (Retour à 8080 pour la détection automatique de Render)
+# Définir la variable d'environnement pour le chemin des cas
+ENV CASES_BASE_PATH=/home/ubuntu/cases
+
+# Exposer le port de l'API
 EXPOSE 8080
 
-# Définir le PYTHONPATH pour inclure le dossier api
-ENV PYTHONPATH=/app/api
+# Définir le PYTHONPATH pour inclure le dossier api actuel
+ENV PYTHONPATH=/app:/app/api
 
-# Commande de lancement - Utilisation du port 8080
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Commande de lancement - Initialisation des cas puis démarrage de l'API
+CMD python scripts/init_cases.py && uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8080}

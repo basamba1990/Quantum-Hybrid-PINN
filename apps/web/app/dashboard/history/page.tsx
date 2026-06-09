@@ -17,7 +17,7 @@ interface SimulationRun {
   created_at: string
   status: string
   project_id: string
-  // Note: ces champs pourraient être étendus selon la structure réelle de vos analyses
+  credibility_score?: number
   accuracy?: string
   type?: string
 }
@@ -137,7 +137,7 @@ export default function HistoryPage() {
                   <div className="text-right hidden md:block">
                     <p className="text-xs text-gray-500 uppercase">Précision</p>
                     <p className={`font-mono font-bold ${run.status === 'completed' ? 'text-white' : 'text-gray-600'}`}>
-                      {run.accuracy || '--'}
+                      {run.credibility_score ? `${run.credibility_score.toFixed(1)}%` : (run.accuracy || '--')}
                     </p>
                   </div>
                   <div className="flex gap-2">

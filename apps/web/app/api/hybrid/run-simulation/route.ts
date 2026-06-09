@@ -13,18 +13,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) {
-      return NextResponse.json(
-        { error: 'Supabase configuration is missing' },
-        { status: 500 }
-      );
-    }
-
-    const SUPABASE_FUNCTIONS_URL = `${supabaseUrl}/functions/v1/hybrid-simulation-orchestrator`;
     const body = await req.json();
 
-    // Validation basique
     if (!body.job_name || !body.case_path || !body.project_id) {
       return NextResponse.json(
         { error: 'Missing required fields: job_name, case_path, project_id' },
@@ -32,48 +22,59 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Appel à l'Edge Function Supabase avec le token de l'utilisateur
-    const response = await fetch(SUPABASE_FUNCTIONS_URL, {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    
+    // Extraction des valeurs depuis scenario_inputs pour les mapper au top-level attendu par l'API
+    const scenarioInputs = body.scenario_inputs || {};
+    
+    // **FIX: Validation stricte des paramètres physiques**
+    // Aucune valeur par défaut arbitraire ne doit écraser les entrées utilisateur.
+    // Si l'utilisateur ne fournit pas une valeur, elle doit être NULL ou undefined,
+    // et l'API backend doit gérer les défauts de manière physiquement rigoureuse.
+    
+    const payload = {
+      project_id: body.project_id,
+      user_id: session.user.id,
+      job_name: body.job_name,
+      case_path: body.case_path,
+      n_steps: body.n_steps || 100,
+      time_step: body.time_step || 0.01,
+      residual_threshold: body.residual_threshold || 0.01,
+      fields: body.fields || ['U', 'p', 'T'],
+      ml_weight: body.ml_weight || 0.5,
+      fluid: body.fluid || scenarioInputs.fluid || null,
+      // **CORRECTION**: Pas de défauts arbitraires. Les valeurs doivent provenir
+      // directement de l'utilisateur ou du scénario, jamais de constantes magiques.
+      pressure: body.pressure !== undefined ? body.pressure : (scenarioInputs.pressure !== undefined ? scenarioInputs.pressure : null),
+      temperature: body.temperature !== undefined ? body.temperature : (scenarioInputs.temperature !== undefined ? scenarioInputs.temperature : null),
+      flow_rate: body.flow_rate !== undefined ? body.flow_rate : (scenarioInputs.flowRate !== undefined ? scenarioInputs.flowRate : null),
+      length: body.length !== undefined ? body.length : (scenarioInputs.length !== undefined ? scenarioInputs.length : null),
+      diameter: body.diameter !== undefined ? body.diameter : (scenarioInputs.diameter !== undefined ? scenarioInputs.diameter : null),
+      scenario_type: body.scenario_type || "H2_PIPELINE",
+      scenario_inputs: scenarioInputs,
+    };
+    
+    const response = await fetch(`${API_URL}/hybrid/run-simulation`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        projectId: body.project_id,
-        userId: session.user.id,
-        jobName: body.job_name,
-        casePath: body.case_path,
-        nSteps: body.n_steps || 100,
-        timeStep: body.time_step || 0.01,
-        residualThreshold: body.residual_threshold || 0.01,
-        fields: body.fields || ['U', 'p', 'T'],
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('Edge function error:', data);
+      console.error('FastAPI error:', data);
       return NextResponse.json(
-        { error: data.message || 'Edge function failed' },
+        { error: data.message || 'Simulation failed' },
         { status: response.status }
       );
     }
 
-    // Retourner le job_id comme attendu par le composant
+    // Format attendu par HybridSimulationPanel
     return NextResponse.json({
-      job_id: data.jobId,
+      job_id: data.job_id,
       status: 'running',
       message: data.message,
-      results: {
-        iteration: 0,
-        cfdTime: 0,
-        mlTime: 0,
-        residuals: {},
-        log: "Initialisation de la simulation hybride...",
-        credibilityScore: 0
-      }
     });
   } catch (error: any) {
     console.error('API route error:', error);

@@ -1,128 +1,171 @@
-/**
- * Hybrid Simulation Configuration Panel
- * Allows users to configure and launch hybrid CFD-ML simulations
- */
-
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Play, Pause, RotateCcw, Download } from 'lucide-react';
-
-interface HybridSimulationConfig {
-  jobName: string;
-  casePath: string;
-  nSteps: number;
-  timeStep: number;
-  residualThreshold: number;
-  fields: string[];
-}
+import { Loader2, Play, Activity, Shield, MapPin, Zap } from 'lucide-react';
+import { INDUSTRIAL_SCENARIOS, ScenarioType } from '@/types/simulation-scenarios';
+import { createClient } from '@/lib/supabase/client';
 
 interface JobStatus {
   jobId: string;
   name: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
   createdAt: string;
-  startedAt?: string;
-  completedAt?: string;
   results?: {
-    status: string;
     iteration: number;
     cfdTime: number;
     mlTime: number;
     residuals: Record<string, number>;
     log: string;
+    credibilityScore?: number;
+    scenario_outputs?: Record<string, any>;
+    predictions3d?: any[];
+    residual_history?: any[];
   };
   errorMessage?: string;
 }
 
-interface HybridSimulationPanelProps {
-  projectId?: string; // Optional projectId prop
-  onJobSelected?: (job: JobStatus) => void;
-}
-
-export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected }: HybridSimulationPanelProps) {
-  const [config, setConfig] = useState<HybridSimulationConfig>({
-    jobName: 'H2_Pipeline_Prediction',
-    casePath: 'h2_pipeline',
+export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
+  const [scenarioType, setScenarioType] = useState<ScenarioType>('H2_PIPELINE');
+  const [config, setConfig] = useState({
+    jobName: 'SIM-INDUSTRIAL-V8',
+    casePath: 'industrial_v8',
     nSteps: 50,
-    timeStep: 0.01,
-    residualThreshold: 0.01,
-    fields: ['U', 'p', 'T'],
+    scenarioType: 'H2_PIPELINE' as ScenarioType,
+    scenarioInputs: {} as Record<string, any>,
   });
-
   const [jobs, setJobs] = useState<JobStatus[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobStatus | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const supabase = createClient();
 
-  // Helper to extract and validate UUID from URL
-  const getProjectIdFromUrl = () => {
-    if (typeof window === 'undefined') return null;
-    
-    // Pattern for UUID v4
-    const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-    const pathParts = window.location.pathname.split('/');
-    
-    // Look for a UUID in the path parts
-    for (const part of pathParts) {
-      if (uuidPattern.test(part)) {
-        return part;
-      }
-    }
-    
-    return null;
-  };
+  const currentScenario = INDUSTRIAL_SCENARIOS[scenarioType];
 
-  // Final projectId: prop takes precedence, then URL
-  const projectId = propProjectId || getProjectIdFromUrl();
-
-  // Fetch jobs on mount
+  // Initialisation des valeurs par défaut des inputs
   useEffect(() => {
-    fetchJobs();
-    const interval = setInterval(fetchJobs, 5000); // Poll every 5 seconds
-    return () => clearInterval(interval);
-  }, []);
+    const defaultInputs = currentScenario.inputs.reduce((acc, input) => ({
+      ...acc, [input.name]: input.defaultValue
+    }), {});
+    setConfig(prev => ({ ...prev, scenarioInputs: defaultInputs }));
+  }, [scenarioType]);
 
+  // Récupération de la liste des jobs (affichage historique)
   const fetchJobs = async () => {
     try {
-      const response = await fetch('/api/jobs');
-      if (response.ok) {
-        const data = await response.json();
+      const res = await fetch('/api/jobs');
+      if (res.ok) {
+        const data = await res.json();
         setJobs(data);
-        
-        // Update selected job if it exists
-        if (selectedJob) {
-          const updated = data.find((j: JobStatus) => j.jobId === selectedJob.jobId);
-          if (updated) {
-            setSelectedJob(updated);
-            if (onJobSelected) onJobSelected(updated);
-          }
-        }
       }
     } catch (err) {
       console.error('Failed to fetch jobs:', err);
     }
   };
 
+  // Polling dédié pour un job spécifique (récupération des résultats réels du backend)
+  const startPollingForJob = (jobId: string) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}`);
+        
+        if (!res.ok) {
+          // Erreur réelle du backend - ne pas simuler
+          const errorData = await res.json().catch(() => ({}));
+          setSelectedJob(prev => prev ? { 
+            ...prev, 
+            status: 'failed',
+            errorMessage: errorData.error || `Backend returned status ${res.status}`
+          } : null);
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          return;
+        }
+        
+        const jobData = await res.json();
+        
+        // Vérification de la structure des données reçues
+        if (!jobData || !jobData.jobId) {
+          console.error('Invalid job data received:', jobData);
+          return;
+        }
+
+        setSelectedJob(jobData);
+        
+        // Arrêter le polling si le job est terminé ou en échec
+        if (jobData.status === 'completed' || jobData.status === 'failed') {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          // Si la simulation est complétée, créer une analyse PINN automatiquement
+          if (jobData.status === 'completed' && projectId) {
+            await createAnalysisFromHybridResults(jobData, projectId);
+          }
+          // Rafraîchir la liste des jobs pour l'historique
+          fetchJobs();
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+        setError(`Erreur lors du polling du job ${jobId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
+    }, 2000); // toutes les 2 secondes
+  };
+
+
+  // Création d'une analyse PINN à partir des résultats hybrides
+  const createAnalysisFromHybridResults = async (jobData: JobStatus, projectId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Transformer les résultats hybrides en format d'analyse PINN
+      const analysisData = {
+        project_id: projectId,
+        name: `Analyse Hybride - ${jobData.name}`,
+        title: `Analyse Hybride - ${jobData.name}`,
+        status: 'completed',
+        credibility_score: jobData.results?.credibilityScore || 0,
+        results: {
+          // Utiliser les prédictions réelles générées par le backend
+          predictions3d: jobData.results?.predictions3d || [],
+          residual_history: jobData.results?.residual_history || [],
+          physical_metrics: {
+            residuals: jobData.results?.residuals || {},
+          },
+        },
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+      };
+
+      const { error: insertError } = await supabase
+        .from('analyses')
+        .insert([analysisData]);
+
+      if (insertError) {
+        console.error('Error creating analysis from hybrid results:', insertError);
+      }
+    } catch (err) {
+      console.error('Failed to create analysis from hybrid results:', err);
+    }
+  };
+
+    // Nettoyage du polling au démontage du composant
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
+
+  // Lancement d'une nouvelle simulation
   const handleRunSimulation = async () => {
     setLoading(true);
     setError(null);
-    
-    if (!projectId) {
-      setError("Impossible de détecter un ID de projet valide. Veuillez vous assurer d'être sur la page d'un projet ou d'en avoir sélectionné un.");
-      setLoading(false);
-      return;
-    }
-
     try {
       const response = await fetch('/api/hybrid/run-simulation', {
         method: 'POST',
@@ -131,412 +174,181 @@ export function HybridSimulationPanel({ projectId: propProjectId, onJobSelected 
           project_id: projectId,
           job_name: config.jobName,
           case_path: config.casePath,
+          scenario_type: scenarioType,
+          scenario_inputs: config.scenarioInputs,
           n_steps: config.nSteps,
-          time_step: config.timeStep,
-          residual_threshold: config.residualThreshold,
-          fields: config.fields,
         }),
       });
-
-      const data = await response.json();
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        throw new Error('Invalid JSON response from server');
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to start simulation');
+        throw new Error(data.error || `Backend error: ${response.status}`);
       }
-      const newJob: JobStatus = {
-        jobId: data.job_id,
+      
+      const newJobId = data.job_id;
+      // Création d'un objet job temporaire en attendant les détails
+      const tempJob: JobStatus = {
+        jobId: newJobId,
         name: config.jobName,
         status: 'running',
         createdAt: new Date().toISOString(),
       };
-      setSelectedJob(newJob);
-      if (onJobSelected) onJobSelected(newJob);
-      setIsRunning(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setSelectedJob(tempJob);
+      // Lancer le polling pour ce job
+      startPollingForJob(newJobId);
+      // Rafraîchir la liste des jobs
+      fetchJobs();
+    } catch (err: any) {
+      setError(err.message);
+      setSelectedJob(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStopSimulation = async () => {
-    if (!selectedJob) return;
-    setIsRunning(false);
-  };
-
-  const handleResetConfig = () => {
-    setConfig({
-      jobName: 'H2_Pipeline_Prediction',
-      casePath: 'h2_pipeline',
-      nSteps: 50,
-      timeStep: 0.01,
-      residualThreshold: 0.01,
-      fields: ['U', 'p', 'T'],
-    });
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      pending: 'outline',
-      running: 'default',
-      completed: 'secondary',
-      failed: 'destructive',
-    };
-    return variants[status] || 'default';
-  };
-
-  // ---------- MODIFIED PROGRESS FUNCTION ----------
-  const calculateProgress = (job: JobStatus) => {
-    if (!job.results || !job.results.iteration) return null;
-    return (job.results.iteration / config.nSteps) * 100;
-  };
-
   return (
-    <div className="space-y-6 p-6">
-      {/* Configuration Panel */}
-      <Card className="border-l-4 border-l-blue-500">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4">
+      {/* Panneau de configuration */}
+      <Card className="lg:col-span-1 border-t-4 border-t-blue-500 shadow-xl bg-slate-900/50 backdrop-blur-sm text-white">
         <CardHeader>
-          <CardTitle>Hybrid CFD-ML Simulation</CardTitle>
-          <CardDescription>
-            Configure and launch hybrid simulations combining OpenFOAM and ML predictions
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5 text-blue-400" />
+            Configuration Industrielle
+          </CardTitle>
+          <CardDescription className="text-slate-400">Sélectionnez votre cas d'usage ZLECAf</CardDescription>
         </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="config" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="config">Configuration</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
-            </TabsList>
-
-            {/* Configuration Tab */}
-            <TabsContent value="config" className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="jobName">Job Name</Label>
-                <Input
-                  id="jobName"
-                  value={config.jobName}
-                  onChange={(e) =>
-                    setConfig({ ...config, jobName: e.target.value })
-                  }
-                  placeholder="Enter simulation job name"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="casePath">OpenFOAM Case Path</Label>
-                <Input
-                  id="casePath"
-                  value={config.casePath}
-                  onChange={(e) =>
-                    setConfig({ ...config, casePath: e.target.value })
-                  }
-                  placeholder="/path/to/openfoam/case"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nSteps">Number of Steps</Label>
-                  <Input
-                    id="nSteps"
-                    type="number"
-                    value={config.nSteps}
-                    onChange={(e) =>
-                      setConfig({ ...config, nSteps: parseInt(e.target.value) })
-                    }
-                    min="1"
-                    max="10000"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="timeStep">Time Step</Label>
-                  <Input
-                    id="timeStep"
-                    type="number"
-                    value={config.timeStep}
-                    onChange={(e) =>
-                      setConfig({ ...config, timeStep: parseFloat(e.target.value) })
-                    }
-                    min="0.001"
-                    step="0.001"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="residualThreshold">
-                  Residual Threshold: {config.residualThreshold.toFixed(4)}
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Scénario Industriel</Label>
+            <Select value={scenarioType} onValueChange={(val: ScenarioType) => setScenarioType(val)}>
+              <SelectTrigger className="bg-slate-800 border-slate-700">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 text-white border-slate-700">
+                {Object.values(INDUSTRIAL_SCENARIOS).map(s => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+            <p className="text-xs text-blue-200 leading-relaxed">{currentScenario.description}</p>
+          </div>
+          <div className="space-y-4 pt-4 border-t border-slate-700">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <Zap className="w-4 h-4" /> Paramètres d'Entrée
+            </h4>
+            {currentScenario.inputs.map(input => (
+              <div key={input.name} className="space-y-2">
+                <Label className="text-xs flex justify-between">
+                  {input.label}
+                  {input.unit && <span className="text-slate-500">[{input.unit}]</span>}
                 </Label>
-                <Slider
-                  id="residualThreshold"
-                  min={0.0001}
-                  max={0.1}
-                  step={0.0001}
-                  value={[config.residualThreshold]}
-                  onValueChange={(value) =>
-                    setConfig({ ...config, residualThreshold: value[0] })
-                  }
-                  className="w-full"
-                />
-                <p className="text-xs text-gray-500">
-                  Lower values favor CFD, higher values favor ML predictions
-                </p>
+                {input.type === 'select' ? (
+                  <Select
+                    value={config.scenarioInputs[input.name]}
+                    onValueChange={(val) => setConfig({
+                      ...config,
+                      scenarioInputs: { ...config.scenarioInputs, [input.name]: val }
+                    })}
+                  >
+                    <SelectTrigger className="bg-slate-800 border-slate-700">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 text-white">
+                      {input.options?.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    type="number"
+                    value={config.scenarioInputs[input.name]}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      scenarioInputs: { ...config.scenarioInputs, [input.name]: parseFloat(e.target.value) }
+                    })}
+                    className="bg-slate-800 border-slate-700"
+                  />
+                )}
               </div>
-
-              <div className="space-y-2">
-                <Label>Fields to Monitor</Label>
-                <div className="flex flex-wrap gap-2">
-                  {['U', 'p', 'T', 'rho', 'k', 'epsilon'].map((field) => (
-                    <Badge
-                      key={field}
-                      variant={
-                        config.fields.includes(field) ? 'default' : 'outline'
-                      }
-                      className="cursor-pointer"
-                      onClick={() => {
-                        setConfig({
-                          ...config,
-                          fields: config.fields.includes(field)
-                            ? config.fields.filter((f) => f !== field)
-                            : [...config.fields, field],
-                        });
-                      }}
-                    >
-                      {field}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <div className="flex gap-2 pt-4">
-                <Button
-                  onClick={handleRunSimulation}
-                  disabled={loading || isRunning}
-                  className="flex-1"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Starting...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="mr-2 h-4 w-4" />
-                      Run Simulation
-                    </>
-                  )}
-                </Button>
-
-                <Button
-                  onClick={handleStopSimulation}
-                  variant="outline"
-                  disabled={!isRunning}
-                >
-                  <Pause className="mr-2 h-4 w-4" />
-                  Stop
-                </Button>
-
-                <Button
-                  onClick={handleResetConfig}
-                  variant="ghost"
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Reset
-                </Button>
-              </div>
-            </TabsContent>
-
-            {/* Advanced Tab */}
-            <TabsContent value="advanced" className="space-y-4 mt-4">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold text-blue-900 mb-2">Advanced Options</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• ML Acceleration Factor: Controls ML prediction weighting</li>
-                  <li>• CFD Solver: Choose between different OpenFOAM solvers</li>
-                  <li>• Parallel Processing: Distribute computation across processors</li>
-                  <li>• Data Reinjection: Automatically reinject predictions into CFD</li>
-                </ul>
-              </div>
-
-              <div className="space-y-2">
-                <Label>ML Acceleration Factor</Label>
-                <Slider
-                  min={0}
-                  max={1}
-                  step={0.1}
-                  defaultValue={[0.5]}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Number of Processors</Label>
-                <Input type="number" defaultValue="1" min="1" max="32" />
-              </div>
-            </TabsContent>
-          </Tabs>
+            ))}
+          </div>
+          <Button onClick={handleRunSimulation} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 font-bold py-6 rounded-xl transition-all">
+            {loading ? <Loader2 className="animate-spin mr-2" /> : <Play className="mr-2" />}
+            Démarrer Simulation Industrielle
+          </Button>
+          {error && <p className="text-red-400 text-xs">{error}</p>}
         </CardContent>
       </Card>
 
-      {/* Job Status Panel */}
-      {selectedJob && (
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>{selectedJob.name}</CardTitle>
-                <CardDescription>Job ID: {selectedJob.jobId}</CardDescription>
-              </div>
-              <Badge variant={getStatusBadge(selectedJob.status)}>
+      {/* Tableau de bord des résultats */}
+      <Card className="lg:col-span-2 bg-slate-950 border-slate-800 text-white overflow-hidden shadow-2xl">
+        <CardHeader className="border-b border-slate-800 bg-slate-900/50">
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="text-2xl font-black">Tableau de Bord Scénario</CardTitle>
+              <CardDescription className="text-slate-500">Visualisation en temps réel des KPIs industriels</CardDescription>
+            </div>
+            {selectedJob && (
+              <Badge variant={selectedJob.status === 'completed' ? 'secondary' : 'default'} className="px-4 py-1">
                 {selectedJob.status.toUpperCase()}
               </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {!selectedJob ? (
+            <div className="flex flex-col items-center justify-center h-[500px] text-slate-600 space-y-4">
+              <Activity className="w-16 h-16 opacity-20" />
+              <p className="font-mono text-sm uppercase tracking-widest">En attente de données...</p>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Progress Bar - MODIFIED */}
-            {selectedJob.status === 'running' && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Progress</span>
-                  {calculateProgress(selectedJob) !== null ? (
-                    <span>{calculateProgress(selectedJob)!.toFixed(1)}%</span>
-                  ) : (
-                    <span>Initialisation...</span>
-                  )}
-                </div>
-                {calculateProgress(selectedJob) !== null && (
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-500 h-2 rounded-full transition-all"
-                      style={{ width: `${calculateProgress(selectedJob)}%` }}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Results */}
-            {selectedJob.results && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-3 rounded">
-                  <p className="text-xs text-gray-600">CFD Time</p>
-                  <p className="text-lg font-semibold">
-                    {selectedJob.results.cfdTime.toFixed(2)}s
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded">
-                  <p className="text-xs text-gray-600">ML Time</p>
-                  <p className="text-lg font-semibold">
-                    {selectedJob.results.mlTime.toFixed(2)}s
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Residuals */}
-            {selectedJob.results?.residuals && (
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm">Residuals</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  {Object.entries(selectedJob.results.residuals).map(
-                    ([field, value]) => (
-                      <div key={field} className="bg-gray-50 p-2 rounded text-center">
-                        <p className="text-xs text-gray-600">{field}</p>
-                        <p className="text-sm font-mono">
-                          {(value as number).toExponential(2)}
-                        </p>
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {selectedJob.errorMessage && (
-              <Alert variant="destructive">
-                <AlertDescription>{selectedJob.errorMessage}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Logs */}
-            {selectedJob.results?.log && (
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <h4 className="font-semibold text-sm">Simulation Log</h4>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      const element = document.createElement('a');
-                      element.setAttribute(
-                        'href',
-                        'data:text/plain;charset=utf-8,' +
-                          encodeURIComponent(selectedJob.results?.log || '')
-                      );
-                      element.setAttribute('download', `${selectedJob.jobId}_log.txt`);
-                      element.style.display = 'none';
-                      document.body.appendChild(element);
-                      element.click();
-                      document.body.removeChild(element);
-                    }}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="bg-gray-900 text-gray-100 p-3 rounded font-mono text-xs max-h-64 overflow-y-auto">
-                  {selectedJob.results.log.split('\n').slice(-20).join('\n')}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recent Jobs */}
-      {jobs.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Jobs</CardTitle>
-            <CardDescription>All simulation jobs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {jobs.map((job) => (
-                <div
-                  key={job.jobId}
-                  className={`p-3 border rounded cursor-pointer transition-colors ${
-                    selectedJob?.jobId === job.jobId
-                      ? 'bg-blue-50 border-blue-300'
-                      : 'hover:bg-gray-50'
-                  }`}
-                  onClick={() => {
-                    setSelectedJob(job);
-                    if (onJobSelected) onJobSelected(job);
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{job.name}</p>
-                      <p className="text-xs text-gray-500">{job.jobId}</p>
+          ) : selectedJob.status === 'failed' ? (
+            <div className="flex flex-col items-center justify-center h-[500px] text-red-400 space-y-4 p-8">
+              <Shield className="w-16 h-16 opacity-50" />
+              <p className="font-mono text-sm uppercase tracking-widest">Erreur de Simulation</p>
+              <p className="text-xs text-red-300">{selectedJob.errorMessage || 'Une erreur est survenue lors de la simulation'}</p>
+            </div>
+          ) : (
+            <div className="p-8 space-y-8">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                {currentScenario.outputs.map(out => (
+                  <div key={out.name} className="bg-slate-900 border border-slate-800 p-6 rounded-2xl relative group overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-30 transition-opacity">
+                      <Shield className="w-8 h-8" />
                     </div>
-                    <Badge variant={getStatusBadge(job.status)}>
-                      {job.status}
-                    </Badge>
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{out.label}</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-blue-400">
+                        {selectedJob.results?.scenario_outputs?.[out.name] ?? '--'}
+                      </span>
+                      <span className="text-xs text-slate-600 font-bold">{out.unit}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <div className="flex items-center justify-between text-xs font-mono uppercase tracking-tighter text-slate-500">
+                <span className="flex items-center gap-2">
+                  <MapPin className="w-3 h-3" /> Localisation: {config.scenarioInputs.portLocation || 'Offshore / Site'}
+                </span>
+                <span>Score de Crédibilité: {selectedJob.results?.credibilityScore ?? 0}%</span>
+              </div>
+              <div className="bg-black/50 rounded-xl p-4 font-mono text-[10px] text-emerald-500/80 border border-emerald-500/10 h-32 overflow-y-auto">
+                <p className="mb-2 text-slate-500">--- DÉBUT LOG SIMULATION PINN V8 ---</p>
+                {selectedJob.results?.log?.split('\n').map((line, i) => <p key={i}>{line}</p>)}
+                {selectedJob.status === 'running' && <p className="animate-pulse">_</p>}
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

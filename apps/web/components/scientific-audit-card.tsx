@@ -14,6 +14,14 @@ import PINN3DVisualizer from './pinn-3d-visualizer'
 // ✅ Importer le type partagé
 import type { Prediction3D } from '@/types'
 
+interface ConfidenceMetrics {
+  model_confidence: number;
+  uncertainty_range: [number, number];
+  anomaly_z_score: number;
+  ood_detected: boolean;
+  physics_violations: number;
+}
+
 interface AuditData {
   isPhysicallyCoherent: boolean
   credibilityScore: number
@@ -27,6 +35,7 @@ interface AuditData {
     temperature: number
   }>
   predictions3d?: Prediction3D[] // ✅ Utilise le type global avec timestamp
+  confidenceMetrics?: ConfidenceMetrics;
   assimilation?: {
     initial_state: number[]
     observation: number[]
@@ -159,7 +168,40 @@ export default function ScientificAuditCard({
                 <PINN3DVisualizer predictions={auditData.predictions3d} />
                 
                 {/* Data Assimilation Info */}
-                {auditData.assimilation && (
+                {/* Confidence Metrics Info */}
+        {auditData.confidenceMetrics && (
+          <div className="border-t pt-4">
+            <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-purple-600" />
+              Métriques de Confiance et Fiabilité
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Confiance du Modèle</div>
+                <div className="text-sm font-bold text-slate-800">{(auditData.confidenceMetrics.model_confidence * 100).toFixed(1)}%</div>
+              </div>
+              <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Plage d'Incertitude</div>
+                <div className="text-sm font-bold text-slate-800">[{auditData.confidenceMetrics.uncertainty_range[0].toFixed(2)}, {auditData.confidenceMetrics.uncertainty_range[1].toFixed(2)}]</div>
+              </div>
+              <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Z-Score Anomalie</div>
+                <div className="text-sm font-bold text-slate-800">{auditData.confidenceMetrics.anomaly_z_score.toFixed(2)}</div>
+              </div>
+              <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">OOD Détecté</div>
+                <div className={`text-sm font-bold ${auditData.confidenceMetrics.ood_detected ? 'text-red-600' : 'text-green-600'}`}>{auditData.confidenceMetrics.ood_detected ? 'Oui' : 'Non'}</div>
+              </div>
+              <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Violations Physiques</div>
+                <div className={`text-sm font-bold ${auditData.confidenceMetrics.physics_violations > 0 ? 'text-red-600' : 'text-green-600'}`}>{auditData.confidenceMetrics.physics_violations}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Data Assimilation Info */}
+        {auditData.assimilation && (
                   <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3">
                     <h4 className="text-xs font-bold text-indigo-800 mb-2 flex items-center gap-1">
                       <Activity className="w-3 h-3" />

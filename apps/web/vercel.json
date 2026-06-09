@@ -2,5 +2,11 @@
   "cleanUrls": true,
   "framework": "nextjs",
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm run build"
+  "buildCommand": "pnpm run build",
+  "crons": [
+    {
+      "path": "/api/cron/keep-alive",
+      "schedule": "*/10 * * * *"
+    }
+  ]
 }
