@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -10,24 +11,9 @@ import { createClient } from '@/lib/supabase/client'
 import { Project, Analysis } from '@/types'
 import Link from 'next/link'
 import { HybridSimulationPanel } from '@/components/HybridSimulationPanel'
-import { HybridResultsVisualization } from '@/components/HybridResultsVisualization'
 
 // Chargement dynamique de Plotly
 const Plot = dynamic(() => import('react-plotly.js'), { ssr: false })
-
-// Interface pour les résultats hybrides (à adapter selon votre API)
-interface HybridResultsData {
-  jobId: string;
-  totalTime: number;
-  cfdTime: number;
-  mlTime: number;
-  totalSteps: number;
-  cfdSteps: number;
-  mlSteps: number;
-  residuals: Array<{ step: number; continuity: number; momentum: number; energy: number }>;
-  fieldComparisons: Array<{ field: string; cfdValue: number; mlValue: number; difference: number; percentError: number }>;
-  accelerationFactor: number;
-}
 
 export default function SimulationsPage() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -35,7 +21,6 @@ export default function SimulationsPage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([])
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null)
   const [loading, setLoading] = useState(true)
-  const [hybridResults, setHybridResults] = useState<HybridResultsData | null>(null)
   const supabase = createClient()
 
   // Chargement des projets
@@ -82,28 +67,6 @@ export default function SimulationsPage() {
     fetchAnalyses()
   }, [selectedProject, supabase])
 
-  // Callback lorsqu'un job hybride est sélectionné/mis à jour
-  const handleHybridJobSelected = (job: any) => {
-    if (job.results && job.results.metrics) {
-      // Utiliser les métriques réelles renvoyées par l'API de simulation hybride
-      const transformed: HybridResultsData = {
-        jobId: job.jobId || job.id,
-        totalTime: job.results.metrics.total_execution_time || 0,
-        cfdTime: job.results.metrics.cfd_execution_time || 0,
-        mlTime: job.results.metrics.ml_execution_time || 0,
-        totalSteps: job.results.metrics.total_steps || 0,
-        cfdSteps: job.results.metrics.cfd_steps || 0,
-        mlSteps: job.results.metrics.ml_steps || 0,
-        residuals: job.results.metrics.residual_history || [],
-        fieldComparisons: job.results.metrics.field_comparisons || [],
-        accelerationFactor: job.results.metrics.acceleration_factor || 1,
-      }
-      setHybridResults(transformed)
-    } else {
-      setHybridResults(null)
-    }
-  }
-
   // Données pour les graphiques Plotly (analyses existantes)
   const getChartData = () => {
     // Sécurisation de l'accès aux résultats (peuvent être une chaîne JSON ou un objet)
@@ -137,7 +100,7 @@ export default function SimulationsPage() {
       return { x: [], pressure: [], velocity: [], isEmpty: true };
     }
   }
-  const { x, pressure, velocity, isEmpty } = getChartData()
+  const { x, pressure, velocity, temperature, residuals, isEmpty } = getChartData()
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
@@ -184,11 +147,11 @@ export default function SimulationsPage() {
       {/* Onglets : Analyses existantes / Nouvelle simulation hybride */}
       <Tabs defaultValue="classic" className="space-y-6">
         <TabsList className="bg-white/5 border border-white/10 p-1 w-full max-w-md">
-          <TabsTrigger value="classic">Analyses classiques</TabsTrigger>
+          <TabsTrigger value="classic">Analyses Avancées PINN V8</TabsTrigger>
           <TabsTrigger value="hybrid">Simulation hybride (CFD+ML)</TabsTrigger>
         </TabsList>
 
-        {/* Onglet Analyses existantes (votre ancienne vue) */}
+        {/* Onglet Analyses existantes */}
         <TabsContent value="classic" className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <Card className="lg:col-span-2 glass-card border-white/10 overflow-hidden bg-white/5">
@@ -217,12 +180,42 @@ export default function SimulationsPage() {
                     <TabsList className="bg-white/5 border border-white/10 p-1">
                       <TabsTrigger value="pressure">Pression</TabsTrigger>
                       <TabsTrigger value="velocity">Vitesse</TabsTrigger>
+                      <TabsTrigger value="temperature">Température</TabsTrigger>
+                      <TabsTrigger value="residuals">Convergence (Résidus)</TabsTrigger>
                     </TabsList>
                     <TabsContent value="pressure" className="mt-6 h-[400px]">
-                      <Plot data={[{ x, y: pressure, type: 'scatter', mode: 'lines+markers', line: { color: '#3b82f6', width: 3 }, fill: 'tozeroy' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)' }} useResizeHandler style={{ width: '100%', height: '100%' }} />
+                      <Plot data={[{ x, y: pressure, type: 'scatter', mode: 'lines+markers', line: { color: '#3b82f6', width: 3 }, fill: 'tozeroy', name: 'Pression (bar)' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#fff' }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Pression (bar)', gridcolor: 'rgba(255,255,255,0.1)' } }} useResizeHandler style={{ width: '100%', height: '100%' }} />
                     </TabsContent>
                     <TabsContent value="velocity" className="mt-6 h-[400px]">
-                      <Plot data={[{ x, y: velocity, type: 'scatter', mode: 'lines+markers', line: { color: '#a855f7', width: 3 } }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)' }} useResizeHandler style={{ width: '100%', height: '100%' }} />
+                      <Plot data={[{ x, y: velocity, type: 'scatter', mode: 'lines+markers', line: { color: '#a855f7', width: 3 }, name: 'Vitesse (m/s)' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#fff' }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Vitesse (m/s)', gridcolor: 'rgba(255,255,255,0.1)' } }} useResizeHandler style={{ width: '100%', height: '100%' }} />
+                    </TabsContent>
+                    <TabsContent value="temperature" className="mt-6 h-[400px]">
+                      <Plot data={[{ x, y: temperature, type: 'scatter', mode: 'lines+markers', line: { color: '#f59e0b', width: 3 }, fill: 'tozeroy', name: 'Température (K)' }]} layout={{ autosize: true, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { color: '#fff' }, xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Température (K)', gridcolor: 'rgba(255,255,255,0.1)' } }} useResizeHandler style={{ width: '100%', height: '100%' }} />
+                    </TabsContent>
+                    <TabsContent value="residuals" className="mt-6 h-[400px]">
+                      {residuals ? (
+                        <Plot 
+                          data={[
+                            { x, y: residuals.continuity || residuals.continuity_residual, type: 'scatter' as const, mode: 'lines', name: 'Masse', line: { color: '#ef4444' } },
+                            { x, y: residuals.momentum || residuals.momentum_x || residuals.momentum_residual, type: 'scatter' as const, mode: 'lines', name: 'Momentum', line: { color: '#3b82f6' } },
+                            { x, y: residuals.energy || residuals.energy_residual, type: 'scatter' as const, mode: 'lines', name: 'Énergie', line: { color: '#10b981' } },
+                            { x, y: residuals.k, type: 'scatter' as const, mode: 'lines', name: 'k', line: { color: '#f59e0b' } },
+                            { x, y: residuals.epsilon, type: 'scatter' as const, mode: 'lines', name: 'epsilon', line: { color: '#ec4899' } }
+                          ].filter(d => d.y !== undefined) as any} 
+                          layout={{ 
+                            autosize: true, 
+                            paper_bgcolor: 'rgba(0,0,0,0)', 
+                            plot_bgcolor: 'rgba(0,0,0,0)', 
+                            font: { color: '#fff' },
+                            yaxis: { type: 'log', title: 'Résidus (Log)', gridcolor: 'rgba(255,255,255,0.1)' },
+                            xaxis: { title: 'Temps (s)', gridcolor: 'rgba(255,255,255,0.1)' }
+                          }} 
+                          useResizeHandler 
+                          style={{ width: '100%', height: '100%' }} 
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-gray-500 italic">Données de résidus non disponibles pour cette analyse.</div>
+                      )}
                     </TabsContent>
                   </Tabs>
                 )}
@@ -243,16 +236,7 @@ export default function SimulationsPage() {
 
         {/* Onglet Simulation hybride (CFD+ML) */}
         <TabsContent value="hybrid" className="space-y-8">
-          <HybridSimulationPanel 
-            projectId={selectedProject?.id} 
-            onJobSelected={handleHybridJobSelected} 
-          />
-          {hybridResults && (
-            <div className="mt-8">
-              <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><Sparkles className="text-yellow-400" /> Résultats de la simulation hybride</h2>
-              <HybridResultsVisualization results={hybridResults} />
-            </div>
-          )}
+          <HybridSimulationPanel projectId={selectedProject?.id} />
         </TabsContent>
       </Tabs>
     </div>

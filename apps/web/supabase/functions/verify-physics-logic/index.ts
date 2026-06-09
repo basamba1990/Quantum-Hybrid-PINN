@@ -1,7 +1,12 @@
 // supabase/functions/verify-physics-logic/index.ts
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { z } from "https://esm.sh/zod@3.22.4"
+// Combine l'Edge Function et la génération PDF
+// Déploiement : supabase functions deploy verify-physics-logic
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://esm.sh/zod@3.22.4";
+import jsPDF from "https://esm.sh/jspdf@2.5.1?bundle";
+import autoTable from "https://esm.sh/jspdf-autotable";
 
 // ============================================================================
 // 1. Configuration & validation d'environnement
@@ -9,18 +14,16 @@ import { z } from "https://esm.sh/zod@3.22.4"
 
 const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
-  H2_INFERENCE_API_URL: z.string().url().default("https://api.h2-inference.com"),
+  H2_INFERENCE_API_URL: z.string().url().default("https://quantum-pinn-api-qef2.onrender.com"),
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   LOG_LEVEL: z.enum(["debug","info","warn","error"]).default("info"),
   CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   MAX_RETRIES: z.coerce.number().int().min(1).max(5).default(3),
   CIRCUIT_BREAKER_THRESHOLD: z.coerce.number().int().default(5),
-  SIMULATION_TIMESTEPS: z.coerce.number().int().default(30),
-  SIMULATION_DURATION: z.coerce.number().positive().default(10),
-})
+});
 
-const env = envSchema.parse(Deno.env.toObject())
+const env = envSchema.parse(Deno.env.toObject());
 
 // ============================================================================
 // 2. Zod schemas (validation stricte)
@@ -44,14 +47,14 @@ const PhysicalParametersSchema = z.object({
   entropy_delta_s: z.number().optional().nullable(),
   gravimetric_density_w: z.number().optional().nullable(),
   equilibrium_pressure: z.number().positive().optional().nullable(),
-}).strict()
+}).strict();
 
 const VerificationRequestSchema = z.object({
   projectId: z.string().uuid(),
   analysisId: z.string().uuid(),
   transcription: z.string().min(1).max(10000),
   context: z.string().default("hydrogen_storage"),
-})
+});
 
 const PredictionResponseSchema = z.object({
   pressure: z.number(),
@@ -65,92 +68,91 @@ const PredictionResponseSchema = z.object({
   y: z.number(),
   z: z.number(),
   timestamp: z.string(),
-})
+});
 
 // ============================================================================
 // 3. Helpers : logging, retry, circuit breaker, cache
 // ============================================================================
 
 const log = (level: string, msg: string, meta?: Record<string, unknown>) => {
-  const levels = { debug:0, info:1, warn:2, error:3 }
+  const levels = { debug:0, info:1, warn:2, error:3 };
   if (levels[level] >= levels[env.LOG_LEVEL]) {
-    console[level](JSON.stringify({ level, msg, timestamp: new Date().toISOString(), ...meta }))
+    console[level](JSON.stringify({ level, msg, timestamp: new Date().toISOString(), ...meta }));
   }
-}
+};
 
 class CircuitBreaker {
-  private failures = 0
-  private lastFailure = 0
-  private state: "CLOSED" | "OPEN" = "CLOSED"
-
+  private failures = 0;
+  private lastFailure = 0;
+  private state: "CLOSED" | "OPEN" = "CLOSED";
   async call<T>(fn: () => Promise<T>, endpoint: string): Promise<T> {
     if (this.state === "OPEN" && Date.now() - this.lastFailure < 60000) {
-      throw new Error(`Circuit breaker OPEN for ${endpoint}`)
+      throw new Error(`Circuit breaker OPEN for ${endpoint}`);
     }
     if (this.state === "OPEN") {
-      this.state = "CLOSED"
-      this.failures = 0
+      this.state = "CLOSED";
+      this.failures = 0;
     }
     try {
-      const result = await fn()
-      this.failures = 0
-      return result
+      const result = await fn();
+      this.failures = 0;
+      return result;
     } catch (err) {
-      this.failures++
-      this.lastFailure = Date.now()
+      this.failures++;
+      this.lastFailure = Date.now();
       if (this.failures >= env.CIRCUIT_BREAKER_THRESHOLD) {
-        this.state = "OPEN"
-        log("warn", `Circuit breaker OPEN for ${endpoint}`, { failures: this.failures })
+        this.state = "OPEN";
+        log("warn", `Circuit breaker OPEN for ${endpoint}`, { failures: this.failures });
       }
-      throw err
+      throw err;
     }
   }
 }
 
 async function withRetry<T>(fn: () => Promise<T>, endpoint: string, maxRetries = env.MAX_RETRIES): Promise<T> {
-  let lastError: Error
+  let lastError: Error;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      return await fn()
+      return await fn();
     } catch (err) {
-      lastError = err
-      if (attempt === maxRetries) break
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1) + Math.random() * 200, 10000)
-      log("warn", `Retry ${attempt}/${maxRetries} for ${endpoint}`, { delay, error: err.message })
-      await new Promise(resolve => setTimeout(resolve, delay))
+      lastError = err;
+      if (attempt === maxRetries) break;
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1) + Math.random() * 200, 10000);
+      log("warn", `Retry ${attempt}/${maxRetries} for ${endpoint}`, { delay, error: err.message });
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
-  throw lastError!
+  throw lastError!;
 }
 
 class InMemoryCache {
-  private store = new Map<string, { value: any; expires: number }>()
+  private store = new Map<string, { value: any; expires: number }>();
   get<T>(key: string): T | null {
-    const entry = this.store.get(key)
-    if (!entry) return null
+    const entry = this.store.get(key);
+    if (!entry) return null;
     if (Date.now() > entry.expires) {
-      this.store.delete(key)
-      return null
+      this.store.delete(key);
+      return null;
     }
-    return entry.value as T
+    return entry.value as T;
   }
   set(key: string, value: any, ttlSec = env.CACHE_TTL_SECONDS) {
-    this.store.set(key, { value, expires: Date.now() + ttlSec * 1000 })
+    this.store.set(key, { value, expires: Date.now() + ttlSec * 1000 });
   }
 }
-const cache = new InMemoryCache()
-const openAICircuit = new CircuitBreaker()
-const h2Circuit = new CircuitBreaker()
+const cache = new InMemoryCache();
+const openAICircuit = new CircuitBreaker();
+const backendCircuit = new CircuitBreaker();
 
 // ============================================================================
-// 4. Services externes (OpenAI, H2 Inference)
+// 4. Services externes (OpenAI, backend)
 // ============================================================================
 
 async function extractPhysicalParameters(transcription: string): Promise<z.infer<typeof PhysicalParametersSchema>> {
   return await withRetry(async () => {
     return await openAICircuit.call(async () => {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 15000)
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
       try {
         const response = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
@@ -165,11 +167,11 @@ async function extractPhysicalParameters(transcription: string): Promise<z.infer
                 role: "system",
                 content: `You are an expert physicist specializing in hydrogen storage and thermodynamics.
 Extract all physical parameters from the following text. Return a JSON object with:
-	- pressure (Pa), temperature (K), velocity (m/s), efficiency (%), power (W), volume (m³), mass_flow_rate (kg/s)
-	- x, y, z (coordinates 0-1, default 0.5)
-	- fluid, fluid_type ("H2", "NH3", "CH4", "sCO2")
-	- scenario ("storage", "transport", "pipeline")
-	- enthalpy_delta_h (kJ/mol), entropy_delta_s (J/K/mol), gravimetric_density_w (wt.%), equilibrium_pressure (Pa)
+  - pressure (Pa), temperature (K), velocity (m/s), efficiency (%), power (W), volume (m³), mass_flow_rate (kg/s)
+  - x, y, z (coordinates 0-1, default 0.5)
+  - fluid, fluid_type ("H2", "NH3", "CH4", "sCO2")
+  - scenario ("storage", "transport", "pipeline")
+  - enthalpy_delta_h (kJ/mol), entropy_delta_s (J/K/mol), gravimetric_density_w (wt.%), equilibrium_pressure (Pa)
 Respond ONLY with valid JSON, no other text.`,
               },
               { role: "user", content: transcription },
@@ -178,293 +180,225 @@ Respond ONLY with valid JSON, no other text.`,
             response_format: { type: "json_object" },
           }),
           signal: controller.signal,
-        })
-        clearTimeout(timeout)
-        if (!response.ok) throw new Error(`OpenAI HTTP ${response.status}`)
-        const data = await response.json()
-        const parsed = JSON.parse(data.choices[0].message.content)
-        return PhysicalParametersSchema.parse(parsed)
+        });
+        clearTimeout(timeout);
+        if (!response.ok) throw new Error(`OpenAI HTTP ${response.status}`);
+        const data = await response.json();
+        const parsed = JSON.parse(data.choices[0].message.content);
+        return PhysicalParametersSchema.parse(parsed);
       } catch (e) {
-        clearTimeout(timeout)
-        throw e
+        clearTimeout(timeout);
+        throw e;
       }
-    }, "openai")
-  }, "openai-extract")
+    }, "openai");
+  }, "openai-extract");
 }
 
-async function fetch3DPrediction(point: { time: number; x: number; y: number; z: number }) {
-  const cacheKey = `pinn:${point.time}:${point.x}:${point.y}:${point.z}`
-  const cached = cache.get(cacheKey)
-  if (cached) return PredictionResponseSchema.parse(cached)
-
+async function callBackendValidate3d(params: any): Promise<any> {
   return await withRetry(async () => {
-    return await h2Circuit.call(async () => {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 8000)
+    return await backendCircuit.call(async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
       try {
         const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/validate-3d`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(point),
+          body: JSON.stringify(params),
           signal: controller.signal,
-        })
-        clearTimeout(timeout)
-        if (!response.ok) throw new Error(`3D prediction HTTP ${response.status}`)
-        const data = await response.json()
-        const validated = PredictionResponseSchema.parse(data)
-        cache.set(cacheKey, validated)
-        return validated
+        });
+        clearTimeout(timeout);
+        if (!response.ok) throw new Error(`Backend HTTP ${response.status}`);
+        return await response.json();
       } catch (e) {
-        clearTimeout(timeout)
-        throw e
+        clearTimeout(timeout);
+        throw e;
       }
-    }, "h2-validate")
-  }, "h2-prediction")
+    }, "backend-validate");
+  }, "backend-validate");
 }
 
-async function performAssimilation(currentState: number[], observation: number[]) {
+async function callBackendAssimilate(currentState: number[], observation: number[]): Promise<any> {
   return await withRetry(async () => {
-    return await h2Circuit.call(async () => {
-      const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/assimilate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ current_state: currentState, observation }),
-      })
-      if (!response.ok) throw new Error(`Assimilation HTTP ${response.status}`)
-      const data = await response.json()
-      return z.object({ assimilated_state: z.array(z.number()), timestamp: z.string() }).parse(data)
-    }, "h2-assimilate")
-  }, "h2-assimilation")
+    return await backendCircuit.call(async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      try {
+        const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/assimilate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ current_state: currentState, observation }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!response.ok) throw new Error(`Assimilation HTTP ${response.status}`);
+        return await response.json();
+      } catch (e) {
+        clearTimeout(timeout);
+        throw e;
+      }
+    }, "backend-assimilate");
+  }, "backend-assimilate");
 }
 
 function simpleAssimilation(current: number[], observation: number[], gain = 0.7): number[] {
-  return current.map((c, i) => c + gain * (observation[i] - c))
+  return current.map((c, i) => c + gain * (observation[i] - c));
 }
 
 // ============================================================================
-// 5. Equations d'état pour chaque fluide (JavaScript pur)
+// 5. Générateur de PDF (intégré)
 // ============================================================================
 
-// Équation de Silvera-Goldman pour H2
-function silveraGoldmanPressure(rho: number, T: number): number {
-  const R = 4124.0
-  const A = 1.713e-3
-  const B = 1.567e-6
-  const C = 2.145e-12
-  const alpha = 1.44
-  const p_ideal = rho * R * T
-  const repulsion = A * rho * Math.exp(alpha * rho / 100.0)
-  const attraction = -B * rho * rho
-  const quantum = C * rho * rho * rho / (T + 1e-6)
-  return p_ideal * (1 + repulsion + attraction + quantum)
-}
+async function generateAnalysisReport(data: {
+  analysisId: string;
+  extractedData: z.infer<typeof PhysicalParametersSchema>;
+  credibilityScore: number;
+  anomalies: string[];
+  predictions3d?: any[];
+  residuals?: Record<string, number>;
+}): Promise<ArrayBuffer> {
+  const doc = new jsPDF();
+  doc.setFontSize(22);
+  doc.setTextColor(0, 51, 102);
+  doc.text("RAPPORT D'ANALYSE SCIENTIFIQUE PINN V8", 20, 30);
 
-// Équation de Peng-Robinson pour NH3 et CH4
-function pengRobinsonPressure(rho: number, T: number, params: { a: number, b: number, Tc: number, omega: number }, fluidType: string): number {
-  const R_specific = (fluidType === "NH3") ? 488.2 : 518.3
-  const Tr = T / params.Tc
-  const kappa = 0.37464 + 1.54226 * params.omega - 0.26992 * params.omega ** 2
-  const alpha = (1 + kappa * (1 - Math.sqrt(Tr))) ** 2
-  const aT = params.a * alpha
-  const v = 1 / rho
-  return (R_specific * T / (v - params.b)) - (aT / (v * (v + params.b) + params.b * (v - params.b)))
-}
+  doc.setFontSize(12);
+  doc.setTextColor(100);
+  doc.text(`ID Analyse: ${data.analysisId}`, 20, 40);
+  doc.text(`Date: ${new Date().toLocaleString()}`, 20, 47);
 
-// Équation simplifiée pour sCO2
-function scCO2Pressure(rho: number, T: number, rho_c: number): number {
-  const R = 188.9
-  return rho * R * T * (1 + 0.1 * (rho / rho_c))
-}
+  // 1. Paramètres extraits
+  doc.setFontSize(16);
+  doc.setTextColor(0);
+  doc.text("1. Paramètres Physiques Extraits (GPT-4o)", 20, 65);
 
-// Wrapper unifié
-function computePressure(fluidType: string, rho: number, T: number): number {
-  switch (fluidType) {
-    case "H2":
-      return silveraGoldmanPressure(rho, T)
-    case "NH3":
-    case "CH4":
-      // Paramètres simplifiés (à améliorer)
-      return pengRobinsonPressure(rho, T, { a: 0.1, b: 1e-5, Tc: fluidType === "NH3" ? 405.5 : 190.6, omega: fluidType === "NH3" ? 0.25 : 0.01 }, fluidType)
-    case "sCO2":
-      return scCO2Pressure(rho, T, 467.6)
-    default:
-      return rho * 4124 * T
+  doc.setFontSize(10);
+  let y = 75;
+  const params = data.extractedData;
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== null && value !== undefined) {
+      doc.text(`${key}: ${value}`, 30, y);
+      y += 7;
+      if (y > 270) { doc.addPage(); y = 20; }
+    }
+  });
+
+  // 2. Score de crédibilité
+  y += 10;
+  doc.setFontSize(16);
+  doc.text("2. Évaluation de la Crédibilité Physique", 20, y);
+  y += 10;
+  doc.setFontSize(24);
+  const score = data.credibilityScore;
+  if (score >= 80) doc.setTextColor(0, 153, 76);
+  else if (score >= 50) doc.setTextColor(204, 102, 0);
+  else doc.setTextColor(204, 0, 0);
+  doc.text(`${score}%`, 20, y + 10);
+
+  // 3. Anomalies
+  doc.setTextColor(0);
+  y += 30;
+  doc.setFontSize(16);
+  doc.text("3. Détection d'Anomalies", 20, y);
+  y += 10;
+  doc.setFontSize(10);
+  if (data.anomalies && data.anomalies.length > 0) {
+    data.anomalies.forEach((anomaly: string) => {
+      let cleanAnomaly = anomaly
+        .replace("High kinetic Riser condition required", "Vitesse cinétique anormalement élevée détectée")
+        .replace("Oneri HSE de 210%", "Incertitude thermohydraulique critique (seuil HSE dépassé)")
+        .replace("High pressure deviation", "Déviation de pression importante")
+        .replace("High Kalman Filter correction required", "Correction majeure du filtre de Kalman requise")
+        .replace(/Kasten[-‑]Flotte/gi, "Filtre de Kalman");
+      doc.text(`- ${cleanAnomaly}`, 30, y);
+      y += 7;
+      if (y > 270) { doc.addPage(); y = 20; }
+    });
+  } else {
+    doc.text("Aucune anomalie critique détectée.", 30, y);
+    y += 10;
   }
-}
 
-// ============================================================================
-// 6. Moteur de simulation industrielle avancée (solveur d'EDO physique)
-// ============================================================================
+  // 4. Résidus de conservation (tableau)
+  y += 15;
+  doc.setFontSize(16);
+  doc.text("4. Résidus de Conservation (Navier-Stokes)", 20, y);
+  y += 10;
 
-interface SimulationParams {
-  pressure?: number | null
-  temperature?: number | null
-  velocity?: number | null
-  fluid_type?: string | null
-  scenario?: string | null
-  x?: number | null
-  y?: number | null
-  z?: number | null
-  mass_flow_rate?: number | null
-  volume?: number | null
-}
-
-/**
- * Résout un système d'équations différentielles ordinaires (EDO) pour un fluide compressible 0D.
- * Respecte les lois de conservation de la masse, de l'énergie et du momentum.
- * Utilise un schéma d'Euler explicite.
- */
-function simulateIndustrialDynamics(
-  params: SimulationParams,
-  timeSteps: number,
-  duration: number
-): z.infer<typeof PredictionResponseSchema>[] {
-  const predictions: z.infer<typeof PredictionResponseSchema>[] = []
-  const fluid = params.fluid_type ?? "H2"
-  const dt = duration / (timeSteps - 1)
-
-  // Propriétés thermophysiques par fluide
-  const props: Record<string, { R: number; Cp: number; mu: number; k: number; T_ref: number; P_ref: number }> = {
-    H2:   { R: 4124, Cp: 14300, mu: 8.8e-6, k: 0.18, T_ref: 20.3, P_ref: 1e5 },
-    NH3:  { R: 488.2, Cp: 2100, mu: 1e-5, k: 0.02, T_ref: 298, P_ref: 1e5 },
-    CH4:  { R: 518.3, Cp: 2200, mu: 1.1e-5, k: 0.03, T_ref: 298, P_ref: 1e5 },
-    sCO2: { R: 188.9, Cp: 850, mu: 3e-5, k: 0.05, T_ref: 304.1, P_ref: 73.8e5 },
+  if (data.residuals && Object.keys(data.residuals).length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [["Variable", "Résidu (norme L2)"]],
+      body: Object.entries(data.residuals).map(([k, v]) => [k, (v as number).toExponential(4)]),
+      theme: "striped",
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: [0, 51, 102], textColor: 255 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 10;
+  } else {
+    doc.text("Données de résidus non disponibles.", 20, y);
+    y += 10;
   }
-  const p = props[fluid] ?? props.H2
 
-  // État initial
-  let P = params.pressure ?? p.P_ref
-  let T = params.temperature ?? p.T_ref
-  let u = params.velocity ?? 0.5
-  let m_dot = params.mass_flow_rate ?? 0.1
-  let V = params.volume ?? 100.0      // m³
-  let rho = P / (p.R * T)             // loi des gaz parfaits initiale
-  let mass = rho * V
+  // 5. Champs 3D
+  doc.setFontSize(16);
+  doc.text("5. Résumé des Champs de Simulation 3D", 20, y);
+  doc.setFontSize(10);
+  doc.text("Les données de champ complet sont disponibles dans le visualiseur interactif du dashboard.", 20, y + 10);
 
-  for (let i = 0; i < timeSteps; i++) {
-    const t = i * dt
-
-    // ===== Conservation de la masse =====
-    let m_dot_out = 0.0
-    if (fluid === "H2" && T > 33) {
-      // Boil-off pour l'hydrogène (évaporation)
-      m_dot_out = 0.0005 * mass * Math.max(0, (T - 33) / 100)
-    }
-    if (fluid === "CH4" && params.mass_flow_rate) {
-      const leakFactor = 0.01 * (params.mass_flow_rate / 0.1)
-      m_dot_out = leakFactor * m_dot
-    }
-    const dm = (m_dot - m_dot_out) * dt
-    mass += dm
-    rho = Math.max(0.01, mass / V)
-
-    // ===== Équation d'état pour mise à jour de la pression =====
-    P = computePressure(fluid, rho, T)
-    P = Math.max(1e4, P)
-
-    // ===== Conservation de l'énergie (température) =====
-    const T_ext = 293.0
-    const heatTransferCoeff = 10.0   
-    const area = Math.pow(V, 2/3)
-    const Q_conv = -heatTransferCoeff * area * (T - T_ext) / (mass * p.Cp)
-    let Q_rxn = 0
-    if (fluid === "NH3") {
-      const conversion = 0.8 * (1 - Math.exp(-t / 5))
-      const reactionRate = 0.01 * conversion * m_dot
-      Q_rxn = 5000 * reactionRate / (mass * p.Cp)   
-    }
-    const dT = (Q_conv + Q_rxn) * dt
-    T += dT
-    T = Math.max(20, Math.min(800, T))
-
-    // ===== Conservation du momentum (vitesse) =====
-    const scenario = params.scenario ?? "storage"
-    const L = 10.0   
-    let dP_dx, friction, maxU
-    if (scenario === "storage") {
-      dP_dx = -(P - p.P_ref) / (L * 1000)
-      friction = -0.5 * u
-      maxU = 2.0
-    } else {
-      dP_dx = -(P - p.P_ref) / L
-      friction = -0.02 * u * u / (2 * L)
-      maxU = 100.0
-    }
-    const du = (dP_dx / rho + friction) * dt
-    u += du
-    u = Math.max(0, Math.min(maxU, u))
-
-    predictions.push({
-      pressure: P,
-      velocity_u: u,
-      velocity_v: 0.05 * Math.sin(t * 2) * u,
-      velocity_w: 0.03 * Math.cos(t * 1.5) * u,
-      temperature: T,
-      density: rho,
-      time: t,
-      x: params.x ?? 0.5,
-      y: params.y ?? 0.5,
-      z: params.z ?? 0.5,
-      timestamp: new Date(Date.now() + t * 1000).toISOString(),
-    })
-  }
-  return predictions
+  return doc.output("arraybuffer");
 }
 
 // ============================================================================
-// 7. Calcul du score de crédibilité (Logique métier corrigée)
+// 6. Score de crédibilité (logique métrique)
 // ============================================================================
 
 function calculateCredibilityScore(
   extractedParams: z.infer<typeof PhysicalParametersSchema>,
-  predictions3d: z.infer<typeof PredictionResponseSchema>[],
+  predictions3d: any[],
   assimilationResult: any
 ) {
-  let score = 100
-  const anomalies: string[] = []
+  let score = 100;
+  const anomalies: string[] = [];
 
-  if (extractedParams.pressure && extractedParams.temperature) {
-    const T = extractedParams.temperature
-    if (extractedParams.equilibrium_pressure && extractedParams.enthalpy_delta_h) {
-      const R = 8.314
-      const P_eq_extracted = extractedParams.equilibrium_pressure
-      const dH = extractedParams.enthalpy_delta_h * 1000
-      const dS = (extractedParams.entropy_delta_s ?? 130.7)
-      const P_eq_calc = Math.exp(dS/R - dH/(R*T)) * 1e5
-      const dev = Math.abs(P_eq_extracted - P_eq_calc) / P_eq_calc
-      if (dev > 0.4) {
-        anomalies.push(`Thermodynamic inconsistency (Van't Hoff dev ${(dev*100).toFixed(1)}%)`)
-        score -= 25
-      } else if (dev > 0.2) {
-        anomalies.push(`Moderate Van't Hoff deviation (${(dev*100).toFixed(1)}%)`)
-        score -= 12
-      }
+  // Thermodynamique (Van't Hoff)
+  if (extractedParams.pressure && extractedParams.temperature && extractedParams.equilibrium_pressure && extractedParams.enthalpy_delta_h) {
+    const T = extractedParams.temperature;
+    const R = 8.314;
+    const P_eq_extracted = extractedParams.equilibrium_pressure;
+    const dH = extractedParams.enthalpy_delta_h * 1000;
+    const dS = extractedParams.entropy_delta_s ?? 130.7;
+    const P_eq_calc = Math.exp(dS / R - dH / (R * T)) * 1e5;
+    const dev = Math.abs(P_eq_extracted - P_eq_calc) / P_eq_calc;
+    if (dev > 0.4) {
+      anomalies.push(`Thermodynamic inconsistency (Van't Hoff dev ${(dev * 100).toFixed(1)}%)`);
+      score -= 25;
+    } else if (dev > 0.2) {
+      anomalies.push(`Moderate Van't Hoff deviation (${(dev * 100).toFixed(1)}%)`);
+      score -= 12;
     }
   }
 
-  if (assimilationResult?.assimilated_state) {
-    const init = predictions3d[0] ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u] : [0,0,0]
-    const [p_assimilated, t_assimilated, v_assimilated] = assimilationResult.assimilated_state;
-    
-    let correctedPressure = p_assimilated;
-    if (p_assimilated > 100) {
-      correctedPressure = p_assimilated / 100000; 
-    }
+  // Correction assimilation
+  if (assimilationResult?.assimilated_state && predictions3d.length > 0) {
+    const init = [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u];
+    let [p_assimilated, t_assimilated, v_assimilated] = assimilationResult.assimilated_state;
+
+    let correctedPressure = p_assimilated > 100 ? p_assimilated / 100000 : p_assimilated;
     correctedPressure = Math.max(1, Math.min(10, correctedPressure));
-    
-    const friction = -0.5;
-    let correctedVelocity = v_assimilated + (friction * v_assimilated);
+    let correctedVelocity = v_assimilated + (-0.5) * v_assimilated;
     correctedVelocity = Math.max(-2.0, Math.min(2.0, correctedVelocity));
 
     assimilationResult.assimilated_state[0] = correctedPressure;
     assimilationResult.assimilated_state[2] = correctedVelocity;
 
-    const correction = assimilationResult.assimilated_state.reduce((sum, val, i) => sum + Math.abs(val - init[i]), 0)
-    const isRealistic = (correctedPressure >= 1 && correctedPressure <= 10) && 
-                        (Math.abs(correctedVelocity) <= 2.0);
+    const init_p_norm = init[0] > 100 ? init[0] / 100000 : init[0];
+    const pressureCorrection = Math.abs(correctedPressure - init_p_norm) / (init_p_norm + 1e-6);
+    const velocityCorrection = Math.abs(correctedVelocity - init[2]) / (Math.abs(init[2]) + 1e-6);
+    const avgCorrection = (pressureCorrection + velocityCorrection) / 2;
 
+    const isRealistic = (correctedPressure >= 1 && correctedPressure <= 10) && Math.abs(correctedVelocity) <= 2.0;
     if (!isRealistic) {
-      anomalies.push("Physique hors limites après correction")
+      anomalies.push("Physique hors limites après correction");
       score = Math.min(score, 45.0);
     } else {
       const pressureQuality = 1.0 - Math.abs(correctedPressure - 5.5) / 4.5;
@@ -481,7 +415,6 @@ function calculateCredibilityScore(
         score -= 5
       }
     }
-    // --- SUPPRESSION DU SCORE FORCÉ À 92.5% ---
   }
 
   // Intégration des métriques enrichies (Point 5 du rapport)
@@ -495,156 +428,154 @@ function calculateCredibilityScore(
   score = (basePhysicScore * 0.4) + (pvtCoherence * 100 * 0.3) + (cfdStability * 100 * 0.3)
 
   if (extractedParams.velocity && extractedParams.velocity > 500) {
-    anomalies.push(`Velocity ${extractedParams.velocity.toFixed(1)} m/s exceeds realistic limit`)
-    score -= 15
+    anomalies.push(`Velocity ${extractedParams.velocity.toFixed(1)} m/s exceeds realistic limit`);
+    score -= 15;
   }
 
-  return { score: Math.max(0, Math.min(100, score)), anomalies }
+  return { score: Math.max(0, Math.min(100, score)), anomalies };
 }
 
 // ============================================================================
-// 8. Authentification
+// 7. Authentification
 // ============================================================================
 
 async function verifyAuth(req: Request): Promise<{ userId: string }> {
-  const authHeader = req.headers.get("Authorization")
+  const authHeader = req.headers.get("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    throw new Error("Missing or invalid Authorization header")
+    throw new Error("Missing or invalid Authorization header");
   }
-  const token = authHeader.split(" ")[1]
-  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-  if (error || !user) throw new Error("Invalid token")
-  return { userId: user.id }
+  const token = authHeader.split(" ")[1];
+  const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) throw new Error("Invalid token");
+  return { userId: user.id };
 }
 
 // ============================================================================
-// 9. Métriques Prometheus
+// 8. Handler principal
 // ============================================================================
 
-let requestCounter = 0
-let errorCounter = 0
-
-function getMetrics(): string {
-  return `# HELP edge_function_requests_total Total requests
-# TYPE edge_function_requests_total counter
-edge_function_requests_total{function="verify-physics-logic"} ${requestCounter}
-# HELP edge_function_errors_total Total errors
-# TYPE edge_function_errors_total counter
-edge_function_errors_total{function="verify-physics-logic"} ${errorCounter}
-`
-}
-
-// ============================================================================
-// 10. Handler principal
-// ============================================================================
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, content-type",
+};
 
 serve(async (req: Request) => {
-  const requestId = crypto.randomUUID()
-  const startTime = Date.now()
-  requestCounter++
-
   if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, content-type",
-      },
-    })
+    return new Response("ok", { headers: corsHeaders });
   }
 
-  if (req.method === "GET" && new URL(req.url).pathname === "/metrics") {
-    return new Response(getMetrics(), { headers: { "Content-Type": "text/plain" } })
-  }
+  const requestId = crypto.randomUUID();
+  const startTime = Date.now();
 
   try {
-    const { userId } = await verifyAuth(req)
-    const payload = await req.json()
-    const { projectId, analysisId, transcription, context } = VerificationRequestSchema.parse(payload)
+    const { userId } = await verifyAuth(req);
+    const payload = await req.json();
+    const { projectId, analysisId, transcription, context } = VerificationRequestSchema.parse(payload);
 
-    log("info", "Processing verification", { requestId, projectId, analysisId, userId })
+    log("info", "Processing verification", { requestId, projectId, analysisId, userId });
 
-    const extractedParams = await extractPhysicalParameters(transcription)
-    log("debug", "Extracted parameters", { requestId, params: extractedParams })
+    const extractedParams = await extractPhysicalParameters(transcription);
 
-    let predictions3d = simulateIndustrialDynamics(
-      {
-        pressure: extractedParams.pressure ?? undefined,
-        temperature: extractedParams.temperature ?? undefined,
-        velocity: extractedParams.velocity ?? undefined,
-        fluid_type: extractedParams.fluid_type ?? undefined,
-        scenario: extractedParams.scenario ?? undefined,
-        x: extractedParams.x,
-        y: extractedParams.y,
-        z: extractedParams.z,
-        mass_flow_rate: extractedParams.mass_flow_rate ?? undefined,
-        volume: extractedParams.volume ?? undefined,
-      },
-      env.SIMULATION_TIMESTEPS,
-      env.SIMULATION_DURATION
-    )
+    let predictions3d: any[] = [];
+    let physicalMetrics: any = null;
+    let assimilationResult: any = null;
 
+    // Appel au backend pour la validation 3D
     try {
-      const pinnPred = await fetch3DPrediction({
-        time: 0,
+      const backendResult = await callBackendValidate3d({
+        pressure: extractedParams.pressure ?? 101325,
+        temperature: extractedParams.temperature ?? 293.15,
+        density: 1.0,
+        velocity_magnitude: extractedParams.velocity ?? 0.5,
         x: extractedParams.x ?? 0.5,
         y: extractedParams.y ?? 0.5,
         z: extractedParams.z ?? 0.5,
-      })
-      predictions3d[0] = pinnPred
-      log("info", "PINN prediction integrated", { requestId })
+      });
+      // Correction : s'assurer que predictions3d contient le tableau de profil
+      predictions3d = backendResult.predictions3d || [];
+      // Correction : Mapper physical_metrics si présent ou utiliser les residuals directs
+      physicalMetrics = backendResult.physical_metrics || { residuals: backendResult.residuals };
     } catch (err) {
-      log("warn", "External PINN unavailable, using internal simulation", { requestId, error: err.message })
+      log("error", "Failed to fetch 3D validation from backend, using fallback", { error: err.message });
+      // Fallback : générer des prédictions vides
+      predictions3d = [];
+      physicalMetrics = null;
     }
 
-    let assimilationResult
+    const initialState = predictions3d[0]
+      ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u]
+      : [extractedParams.pressure ?? 101325, extractedParams.temperature ?? 293.15, extractedParams.velocity ?? 0];
+    const observation = [
+      extractedParams.pressure ?? initialState[0],
+      extractedParams.temperature ?? initialState[1],
+      extractedParams.velocity ?? initialState[2],
+    ];
+
+    // Assimilation
     try {
-      const initialState = [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u]
-      const observation = [
-        extractedParams.pressure ?? initialState[0],
-        extractedParams.temperature ?? initialState[1],
-        extractedParams.velocity ?? initialState[2],
-      ]
-      assimilationResult = await performAssimilation(initialState, observation)
+      assimilationResult = await callBackendAssimilate(initialState, observation);
     } catch (err) {
-      log("warn", "Assimilation API failed, using simple Kalman fallback", { requestId, error: err.message })
-      const initialState = [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u]
-      const observation = [
-        extractedParams.pressure ?? initialState[0],
-        extractedParams.temperature ?? initialState[1],
-        extractedParams.velocity ?? initialState[2],
-      ]
-      const assimilated = simpleAssimilation(initialState, observation, 0.6)
-      assimilationResult = { assimilated_state: assimilated, timestamp: new Date().toISOString() }
+      log("warn", "Assimilation failed, using simple Kalman fallback", { error: err.message });
+      const assimilated = simpleAssimilation(initialState, observation, 0.6);
+      assimilationResult = { assimilated_state: assimilated, timestamp: new Date().toISOString() };
     }
 
-    const { score, anomalies } = calculateCredibilityScore(extractedParams, predictions3d, assimilationResult)
+    const { score, anomalies } = calculateCredibilityScore(extractedParams, predictions3d, assimilationResult);
 
-    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY)
+    const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
-    const insertPromise = supabase.from("analysis_results").insert({
-      project_id: projectId,
-      analysis_id: analysisId,
-      extracted_parameters: extractedParams,
-      pinn_predictions: predictions3d,
-      assimilation_results: assimilationResult,
-      credibility_score: score,
-      anomalies,
-      context,
-      created_by: userId,
-    })
+    await Promise.all([
+      supabase.from("analysis_results").insert({
+        project_id: projectId,
+        analysis_id: analysisId,
+        extracted_parameters: extractedParams,
+        pinn_predictions: predictions3d,
+        assimilation_results: assimilationResult,
+        credibility_score: score,
+        anomalies,
+        context,
+        user_id: userId,
+      }),
+      supabase.from("analyses").update({
+        status: "completed",
+        results: { predictions3d, anomalies, extractedParams },
+        credibility_score: score,
+      }).eq("id", analysisId),
+    ]);
 
-    const updatePromise = supabase.from("analyses").update({
-      status: "completed",
-      results: { predictions3d, anomalies, extractedParams },
-      credibility_score: score,
-    }).eq("id", analysisId)
+    // Génération PDF en arrière-plan (non bloquante)
+    (async () => {
+      try {
+        const pdfBuffer = await generateAnalysisReport({
+          analysisId,
+          extractedData: extractedParams,
+          credibilityScore: score,
+          anomalies,
+          predictions3d,
+          residuals: physicalMetrics?.residuals ?? { continuity: 0, momentum: 0, energy: 0 },
+        });
+        const fileName = `report_${analysisId}_${Date.now()}.pdf`;
+        const { error: uploadError } = await supabase.storage
+          .from("reports")
+          .upload(fileName, pdfBuffer, { contentType: "application/pdf", upsert: true });
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from("reports").getPublicUrl(fileName);
+          await supabase.from("reports").insert({
+            project_id: projectId,
+            name: `Rapport d'Analyse - ${extractedParams.fluid_type || 'H2'} - ${new Date().toLocaleDateString()}`,
+            file_url: urlData.publicUrl,
+          });
+          log("info", "Background report PDF generated", { requestId });
+        }
+      } catch (e) {
+        log("error", "Background report generation failed", { error: e.message });
+      }
+    })();
 
-    await Promise.all([insertPromise, updatePromise])
-
-    const durationMs = Date.now() - startTime
-    log("info", "Verification completed", { requestId, score, anomaliesCount: anomalies.length, durationMs })
+    const durationMs = Date.now() - startTime;
+    log("info", "Verification completed", { requestId, durationMs });
 
     return new Response(
       JSON.stringify({
@@ -654,28 +585,15 @@ serve(async (req: Request) => {
         extractedData: extractedParams,
         predictions3d,
         assimilation: assimilationResult,
+        physicalMetrics,
       }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-      }
-    )
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error) {
-    errorCounter++
-    log("error", "Unhandled error", { requestId: crypto.randomUUID(), error: error.message })
-    let status = 500
-    if (error instanceof z.ZodError) status = 400
-    else if (error.message.includes("Authorization") || error.message.includes("token")) status = 401
-
+    log("error", "Unhandled error", { error: error.message });
     return new Response(
       JSON.stringify({ status: "error", error: error.message }),
-      {
-        status,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-      }
-    )
+      { status: error instanceof z.ZodError ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
-})
+});

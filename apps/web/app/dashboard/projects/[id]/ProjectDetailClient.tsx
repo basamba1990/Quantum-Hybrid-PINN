@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Project, Report } from '@/types'
 import PDFViewer from '@/components/pdf-viewer'
+import PINN3DVisualizer from '@/components/pinn-3d-visualizer'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import { 
@@ -26,6 +27,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
+  const [latestAnalysis, setLatestAnalysis] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
@@ -46,6 +48,20 @@ export default function ProjectDetailClient({ id }: { id: string }) {
       setProject(projectData)
       const fetchedReports = reportsData || []
       setReports(fetchedReports)
+      
+      // Récupérer la dernière analyse terminée pour la visualisation 3D
+      const { data: analysisData, error: analysisError } = await supabase
+        .from('analyses')
+        .select('*')
+        .eq('project_id', id)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(); // Utiliser maybeSingle() au lieu de single()
+      
+      if (analysisData && !analysisError) {
+        setLatestAnalysis(analysisData);
+      }
       
       // Sélectionner automatiquement le dernier rapport par défaut
       if (fetchedReports.length > 0) {
@@ -68,7 +84,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
     </div>
   )
 
-  if (!project) return (
+  if (!project || !project.id) return (
     <div className="p-8 flex flex-col items-center justify-center h-[60vh] text-center">
       <div className="p-4 bg-red-500/10 rounded-full mb-4">
         <Activity className="w-8 h-8 text-red-500" />
@@ -154,6 +170,22 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         </div>
       </div>
 
+      {/* NOUVEAU : Visualiseur 3D PINN */}
+      {latestAnalysis && latestAnalysis.results?.predictions3d && (
+        <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-[32px] p-8">
+          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-blue-500" />
+            Visualisation Scientifique 3D (Dernière Analyse)
+          </h2>
+          <div className="rounded-2xl overflow-hidden bg-black/20 border border-white/5">
+            <PINN3DVisualizer 
+              predictions={latestAnalysis.results.predictions3d} 
+              title={`Simulation PINN - ${latestAnalysis.title || 'H2 Pipeline'}`}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Reports List */}
@@ -236,7 +268,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           </div>
           
           <div className="relative rounded-[32px] border border-white/10 bg-black/40 overflow-hidden min-h-[600px] flex flex-col items-center justify-center">
-            {selectedReport ? (
+            {selectedReport && selectedReport.file_url ? (
               <div className="w-full h-full p-4">
                 <PDFViewer url={selectedReport.file_url} />
               </div>

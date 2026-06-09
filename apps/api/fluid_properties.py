@@ -59,21 +59,46 @@ FLUID_CONFIGS = {
         'params': {
             'Tc': 304.1, 'Pc': 7.38e6, 'rho_c': 467.6
         }
+    },
+    'generique': {
+        'name': 'Roche générique',
+        'density': 2500.0,          # kg/m³
+        'wave_speed': 300.0,        # m/s (onde de compression)
+        'poisson': 0.25,
+        'young_modulus': 50e9,      # Pa
+        'mu': 1.0e-5,               # Valeur par défaut pour la compatibilité Navier-Stokes
+        'Cp': 1000.0,
+        'k': 2.0,
+        'gamma': 1.1,
+        'eos_type': 'solid_elastic_simplified',
+        'params': {
+            'rho': 2500.0, 'E': 50e9, 'nu': 0.25
+        }
     }
 }
 
 def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
     config = FLUID_CONFIGS.get(fluid_type, FLUID_CONFIGS['H2'])
-    R = config['R_specific']
+    R = config.get('R_specific', 8.314) # Default gas constant if not specified
     params = config['params']
     
     if config['eos_type'] == 'silvera_goldman':
-        # Silvera-Goldman for H2
+        # Silvera-Goldman for H2 (Quantum EOS Implementation)
+        # p = p_ideal + p_repulsion + p_attraction + p_quantum
         p_ideal = rho * R * T
-        repulsion = params['A'] * rho * torch.exp(params['alpha'] * rho / 100.0)
+        
+        # Termes de répulsion (potentiel exponentiel de Silvera-Goldman)
+        # alpha est le paramètre de pente du potentiel
+        repulsion = params['A'] * torch.exp(-params['alpha'] * (100.0 / (rho + 1e-6))**(1/3))
+        
+        # Termes d'attraction (Van der Waals à longue portée corrigé)
         attraction = -params['B'] * (rho**2)
+        
+        # Correction quantique (Boyle temperature and ZPF effects)
         quantum_corr = params['C'] * (rho**3) / (T + 1e-6)
-        return p_ideal * (1 + repulsion + attraction + quantum_corr)
+        
+        # Somme des contributions de pression
+        return p_ideal + repulsion + attraction + quantum_corr
         
     elif config['eos_type'] == 'peng_robinson':
         # Peng-Robinson for NH3, CH4
@@ -90,6 +115,12 @@ def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor
         v = 1.0 / (rho + 1e-8)
         p = (R * T) / (v - b) - a_T / (v**2 + 2*b*v - b**2)
         return p
+        
+    elif config['eos_type'] == 'solid_elastic_simplified':
+        # Simple linear pressure-density relation for solids
+        rho_ref = params.get('rho', 2500.0)
+        E = params.get('E', 50e9)
+        return E * (rho / rho_ref - 1.0)
         
     else:
         # Default/Simplified Helmholtz for sCO2

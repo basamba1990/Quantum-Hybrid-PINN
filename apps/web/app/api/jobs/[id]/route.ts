@@ -1,34 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from('hybrid_simulations')
-      .select('*')
-      .eq('id', params.id)
-      .single();
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
+    const response = await fetch(`${API_URL}/jobs/${id}`, {
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store'
+    });
 
-    if (error) throw error;
+    if (!response.ok) {
+      if (response.status === 404) {
+        return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+      }
+      throw new Error(`Backend error: ${response.status}`);
+    }
 
-    const job = {
-      jobId: data.id,
-      name: data.job_name,
-      status: data.status,
-      createdAt: data.created_at,
-      startedAt: data.started_at,
-      completedAt: data.completed_at,
-      results: data.results,
-      errorMessage: data.error_message,
+    const job = await response.json();
+    
+    // Normalisation des champs pour le frontend (snake_case -> camelCase)
+    const normalizedJob = {
+      jobId: job.job_id,
+      name: job.name,
+      status: job.status,
+      createdAt: job.created_at,
+      results: job.results,
+      errorMessage: job.errorMessage || job.error_message
     };
-
-    return NextResponse.json(job);
+    
+    return NextResponse.json(normalizedJob);
   } catch (error: any) {
-    console.error(`Failed to fetch job ${params.id}:`, error);
+    console.error(`Failed to fetch job ${id}:`, error);
     return NextResponse.json(
       { error: error.message || 'Job not found' },
       { status: 404 }

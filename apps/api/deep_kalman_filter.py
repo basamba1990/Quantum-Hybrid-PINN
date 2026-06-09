@@ -38,6 +38,9 @@ class DeepKalmanFilter(nn.Module):
         # Observation noise covariance (diagonal)
         self.log_R = nn.Parameter(torch.ones(observation_dim) * -2.302)  # log(0.1)
 
+        # Correction layer for simplified assimilation
+        self.correction = nn.Linear(state_dim + observation_dim, state_dim)
+
     @property
     def Q(self) -> torch.Tensor:
         """Process noise covariance matrix (diagonal)."""
@@ -70,15 +73,21 @@ class DeepKalmanFilter(nn.Module):
             # Linearize transition (Jacobian via automatic differentiation)
             # Note: full Jacobian per batch is expensive; we approximate by per-element
             # For simplicity, compute Jacobian for each sample individually (or use a fixed linearization)
-            F = torch.autograd.functional.jacobian(self.f, x_prev, create_graph=False)
-            # F shape: (batch, state_dim, state_dim) if vectorized
-            # In practice, we approximate F as identity + small perturbation
-            # Simpler: assume linear transition with fixed matrix (training learns it)
-            # For efficiency, we compute a single Jacobian for the mean
-            x_mean = x_prev.mean(dim=0, keepdim=True)
-            F_mean = torch.autograd.functional.jacobian(self.f, x_mean).squeeze(0)
-            # Expand to batch
-            F_batch = F_mean.unsqueeze(0).expand(batch_size, -1, -1)
+            # Calcul de la Jacobienne F = df/dx
+            # Pour une application industrielle, nous calculons la Jacobienne pour chaque échantillon du batch
+            # si le batch est petit, ou nous utilisons une approximation vectorisée.
+            # Ici, nous utilisons vmap pour vectoriser le calcul de la Jacobienne sur le batch (PyTorch 2.0+)
+            def get_jacobian(func, x):
+                return torch.vmap(lambda x: torch.autograd.functional.jacobian(func, x.unsqueeze(0)))(x).squeeze(1).squeeze(1)
+            
+            try:
+                F_batch = get_jacobian(self.f, x_prev)
+            except:
+                # Fallback si vmap n'est pas disponible ou échoue: Jacobienne au point moyen
+                x_mean = x_prev.mean(dim=0, keepdim=True)
+                F_mean = torch.autograd.functional.jacobian(self.f, x_mean).squeeze(0)
+                F_batch = F_mean.unsqueeze(0).expand(batch_size, -1, -1)
+                
             P_pred = F_batch @ P_prev @ F_batch.transpose(-2, -1) + self.Q.unsqueeze(0).expand(batch_size, -1, -1)
 
         return x_pred, P_pred
@@ -98,12 +107,17 @@ class DeepKalmanFilter(nn.Module):
         """
         x_pred, P_pred = self.forward(x_prev, P_prev)
 
-        # Linearize observation model
-        # Approximate Jacobian for efficiency (compute for the mean)
-        x_mean = x_pred.mean(dim=0, keepdim=True)
-        H_mean = torch.autograd.functional.jacobian(self.h, x_mean).squeeze(0)
-        batch_size = x_pred.shape[0]
-        H_batch = H_mean.unsqueeze(0).expand(batch_size, -1, -1)
+        # Linéarisation du modèle d'observation H = dh/dx
+        def get_jacobian(func, x):
+            return torch.vmap(lambda x: torch.autograd.functional.jacobian(func, x.unsqueeze(0)))(x).squeeze(1).squeeze(1)
+        
+        try:
+            H_batch = get_jacobian(self.h, x_pred)
+        except:
+            # Fallback Jacobienne au point moyen
+            x_mean = x_pred.mean(dim=0, keepdim=True)
+            H_mean = torch.autograd.functional.jacobian(self.h, x_mean).squeeze(0)
+            H_batch = H_mean.unsqueeze(0).expand(batch_size, -1, -1)
 
         # Innovation covariance
         S = H_batch @ P_pred @ H_batch.transpose(-2, -1) + self.R.unsqueeze(0).expand(batch_size, -1, -1)
@@ -138,10 +152,9 @@ class DeepKalmanFilter(nn.Module):
         if P_prev is None:
             # No covariance propagation – just use a learned correction gain
             x_pred = self.f(x_prev)
-            # Learn a direct correction term
-            correction = nn.Linear(self.state_dim + self.observation_dim, self.state_dim).to(x_prev.device)
+            # Use the pre-initialized correction layer
             combined = torch.cat([x_pred, observation], dim=-1)
-            delta = correction(combined)
+            delta = self.correction(combined)
             return x_pred + delta
         else:
             x_new, _ = self.assimilate(x_prev, P_prev, observation)

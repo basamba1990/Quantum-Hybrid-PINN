@@ -1,0 +1,7 @@
+numpy
+h5py
+torch
+neuraloperator>=2.0.0
+mlflow
+scikit-learn
+scipy

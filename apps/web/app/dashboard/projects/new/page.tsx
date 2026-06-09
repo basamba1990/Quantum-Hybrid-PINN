@@ -103,6 +103,35 @@ export default function NewProjectPage() {
 
       if (newProject) {
         toast.success('Nexus de Simulation Initialisé 🚀')
+        
+        // En mode industriel, nous déclenchons automatiquement l'analyse physique 
+        // si une transcription ou des paramètres sont fournis
+        if (formData.transcription) {
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            // Appel asynchrone sans attendre la fin pour ne pas bloquer l'UI
+            fetch(
+              `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/verify-physics-logic`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+                },
+                body: JSON.stringify({
+                  projectId: newProject.id,
+                  transcription: formData.transcription,
+                  context: 'hydrogen_storage_auto',
+                }),
+              }
+            ).catch(err => console.error("Auto-analysis trigger failed:", err));
+            
+            toast.info('Analyse physique PINN lancée en arrière-plan...');
+          } catch (err) {
+            console.error("Failed to trigger auto-analysis:", err);
+          }
+        }
+
         router.push(`/dashboard/projects/${newProject.id}`)
         router.refresh()
       }

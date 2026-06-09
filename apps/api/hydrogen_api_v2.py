@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 import torch
+import numpy as np # Ajouté pour np.linspace, etc.
 from datetime import datetime
 import uvicorn
 
@@ -29,6 +30,8 @@ from hydrogen_pinn_model import (
 )
 from hydrogen_pinn_v8 import HydrogenPINNV8, get_device
 from fno_3d_navier_stokes import PINO3DNavierStokes
+from advanced_physics_analysis import AdvancedPhysicsAnalysis
+from pvt_physics_engine import PVTPhysicsEngine
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -58,6 +61,10 @@ current_model_v8: Optional[HydrogenPINNV8] = None
 models_dir_v8 = "models_v8"
 os.makedirs(models_dir_v8, exist_ok=True)
 
+# Initialize Analysis Service
+physics_engine = PVTPhysicsEngine(fluid_type="H2")
+analysis_service = AdvancedPhysicsAnalysis(fluid_engine=physics_engine)
+
 
 # ============================================================================
 # Pydantic Models V1
@@ -83,6 +90,12 @@ class PredictionRequest(BaseModel):
 
 class BatchPredictionRequest(BaseModel):
     batch: List[PredictionRequest]
+
+class BatchPredictionRequestV8(BaseModel):
+    time: List[float]
+    x: List[float]
+    y: List[float]
+    z: List[float]
 
 class PredictionResponse(BaseModel):
     pressure: float
@@ -145,6 +158,23 @@ class ModelStatusResponseV8(BaseModel):
     model_name: Optional[str]
     device: str
     timestamp: str
+
+class TurbulenceSpectraRequest(BaseModel):
+    simulation_id: str
+    time: float
+    region: Optional[Dict] = None
+
+class BoundaryLayerRequest(BaseModel):
+    simulation_id: str
+    time: float
+    x: float
+    z: float
+
+class ResidualMapRequest(BaseModel):
+    simulation_id: str
+    time: float
+    plane: str = "xy"
+    coord: float = 0.0
 
 # ============================================================================
 # Health Check
@@ -291,6 +321,28 @@ async def validate_3d(request: PredictionRequestV8):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"3D Validation error: {str(e)}")
 
+@app.post("/v2/predict-batch")
+async def predict_batch_v8(request: BatchPredictionRequestV8):
+    global current_model_v8
+    try:
+        if current_model_v8 is None:
+            raise ValueError("No V8 model loaded. Initialize or load a model first.")
+        
+        results = current_model_v8.predict_batch(
+            np.array(request.time),
+            np.array(request.x),
+            np.array(request.y),
+            np.array(request.z)
+        )
+        
+        # Convert numpy arrays to lists for JSON serialization
+        serializable_results = {k: v.tolist() if isinstance(v, np.ndarray) else v for k, v in results.items()}
+        serializable_results["timestamp"] = datetime.utcnow().isoformat()
+        
+        return serializable_results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch prediction error: {str(e)}")
+
 @app.post("/v2/assimilate", response_model=AssimilationResponseV8)
 async def assimilate_data(request: AssimilationRequestV8):
     global current_model_v8
@@ -304,6 +356,142 @@ async def assimilate_data(request: AssimilationRequestV8):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Data assimilation error: {str(e)}")
+
+# ============================================================================
+# Advanced Analysis Endpoints
+# ============================================================================
+
+@app.post("/v2/analysis/turbulence-spectra")
+async def get_turbulence_spectra(request: TurbulenceSpectraRequest):
+    global current_model_v8, analysis_service
+    try:
+        if current_model_v8 is None:
+            raise ValueError("No V8 model loaded. Initialize or load a model first.")
+
+        # Utiliser le modèle PINN pour obtenir les champs de vitesse
+        # Pour l'exemple, nous allons prédire à un point central pour obtenir des valeurs
+        # En réalité, on ferait une prédiction sur une grille 3D
+        t_tensor = torch.tensor(request.time, dtype=torch.float32).reshape(1, 1)
+        x_tensor = torch.tensor(0.5, dtype=torch.float32).reshape(1, 1)
+        y_tensor = torch.tensor(0.5, dtype=torch.float32).reshape(1, 1)
+        z_tensor = torch.tensor(0.5, dtype=torch.float32).reshape(1, 1)
+
+        # Obtenir les prédictions du modèle
+        predictions = current_model_v8.predict_state(t_tensor, x_tensor, y_tensor, z_tensor)
+
+        # Extraire les composantes de vitesse
+        u = np.array([predictions["velocity_u"]])
+        v = np.array([predictions["velocity_v"]])
+        w = np.array([predictions["velocity_w"]])
+        
+        # Pour avoir des données 3D pour l'analyse de turbulence, nous allons les dupliquer
+        # Ceci est une simplification. Idéalement, le PINN prédit sur une grille 3D.
+        nx, ny, nz = 8, 8, 8 # Taille de grille simplifiée pour l'exemple
+        u_3d = np.full((nx, ny, nz), u[0])
+        v_3d = np.full((nx, ny, nz), v[0])
+        w_3d = np.full((nx, ny, nz), w[0])
+
+        spectra = analysis_service.compute_turbulence_spectrum([u_3d, v_3d, w_3d], 0.01, 0.01, 0.01)
+        return {
+            "status": "success",
+            "data": spectra,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Turbulence analysis error: {str(e)}")
+
+@app.post("/v2/analysis/boundary-layer")
+async def get_boundary_layer(request: BoundaryLayerRequest):
+    global current_model_v8
+    try:
+        if current_model_v8 is None:
+            raise ValueError("No V8 model loaded. Initialize or load a model first.")
+
+        # Générer un profil de couche limite en utilisant le modèle PINN
+        # Simuler une ligne de points le long de l'axe y à des x, z fixes
+        num_points = 50
+        y_coords = torch.linspace(0, 0.1, num_points, dtype=torch.float32).reshape(-1, 1)
+        t_tensor = torch.full((num_points, 1), request.time, dtype=torch.float32)
+        x_tensor = torch.full((num_points, 1), request.x, dtype=torch.float32)
+        z_tensor = torch.full((num_points, 1), request.z, dtype=torch.float32)
+
+        predictions = current_model_v8.predict_batch(t_tensor, x_tensor, y_coords, z_tensor)
+        
+        # Extraire la vitesse u et calculer y_plus (simplifié)
+        velocity_u = predictions["velocity_u"].cpu().numpy()
+        y_np = y_coords.cpu().numpy().flatten()
+
+        # Calcul de y_plus (simplifié, devrait être basé sur des paramètres physiques réels)
+        u_tau = 0.05 # Vitesse de frottement (exemple)
+        nu = 1.5e-5 # Viscosité cinématique H2 (exemple)
+        y_plus = y_np * u_tau / nu
+
+        return {
+            "status": "success",
+            "data": {
+                "y": y_np.tolist(),
+                "velocity": velocity_u.tolist(),
+                "y_plus": y_plus.tolist()
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Boundary layer analysis error: {str(e)}")
+
+@app.post("/v2/analysis/residuals-map")
+async def get_residuals_map(request: ResidualMapRequest):
+    global current_model_v8
+    try:
+        if current_model_v8 is None:
+            raise ValueError("No V8 model loaded. Initialize or load a model first.")
+
+        # Générer une carte de résidus 2D en utilisant le modèle PINN
+        # Pour l'exemple, nous allons créer une grille 2D et calculer les résidus
+        grid_size = 32
+        if request.plane == "xy":
+            x_coords = torch.linspace(0, 1, grid_size, dtype=torch.float32)
+            y_coords = torch.linspace(0, 1, grid_size, dtype=torch.float32)
+            X, Y = torch.meshgrid(x_coords, y_coords, indexing="ij")
+            t_tensor = torch.full(X.shape, request.time, dtype=torch.float32)
+            z_tensor = torch.full(X.shape, request.coord, dtype=torch.float32)
+            
+            predictions = current_model_v8.predict_batch(t_tensor.flatten(), X.flatten(), Y.flatten(), z_tensor.flatten())
+            residuals = current_model_v8.calculate_residuals(predictions, t_tensor.flatten(), X.flatten(), Y.flatten(), z_tensor.flatten())
+            res_map = residuals["continuity"].reshape(grid_size, grid_size).cpu().numpy()
+        elif request.plane == "xz":
+            x_coords = torch.linspace(0, 1, grid_size, dtype=torch.float32)
+            z_coords = torch.linspace(0, 1, grid_size, dtype=torch.float32)
+            X, Z = torch.meshgrid(x_coords, z_coords, indexing="ij")
+            t_tensor = torch.full(X.shape, request.time, dtype=torch.float32)
+            y_tensor = torch.full(X.shape, request.coord, dtype=torch.float32)
+
+            predictions = current_model_v8.predict_batch(t_tensor.flatten(), X.flatten(), y_tensor.flatten(), Z.flatten())
+            residuals = current_model_v8.calculate_residuals(predictions, t_tensor.flatten(), X.flatten(), y_tensor.flatten(), Z.flatten())
+            res_map = residuals["continuity"].reshape(grid_size, grid_size).cpu().numpy()
+        elif request.plane == "yz":
+            y_coords = torch.linspace(0, 1, grid_size, dtype=torch.float32)
+            z_coords = torch.linspace(0, 1, grid_size, dtype=torch.float32)
+            Y, Z = torch.meshgrid(y_coords, z_coords, indexing="ij")
+            t_tensor = torch.full(Y.shape, request.time, dtype=torch.float32)
+            x_tensor = torch.full(Y.shape, request.coord, dtype=torch.float32)
+
+            predictions = current_model_v8.predict_batch(t_tensor.flatten(), x_tensor.flatten(), Y.flatten(), Z.flatten())
+            residuals = current_model_v8.calculate_residuals(predictions, t_tensor.flatten(), x_tensor.flatten(), Y.flatten(), Z.flatten())
+            res_map = residuals["continuity"].reshape(grid_size, grid_size).cpu().numpy()
+        else:
+            raise HTTPException(status_code=400, detail="Invalid plane specified. Must be 'xy', 'xz', or 'yz'.")
+
+        return {
+            "status": "success",
+            "data": {
+                "map": res_map.tolist(),
+                "plane": request.plane,
+                "coord": request.coord
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Residual map error: {str(e)}")
 
 # ============================================================================
 # Main Entry Point

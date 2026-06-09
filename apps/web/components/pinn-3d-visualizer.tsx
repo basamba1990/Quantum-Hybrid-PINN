@@ -1,11 +1,10 @@
 'use client'
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Prediction3D } from '@/types'
 
-// Dynamically import Plotly to avoid SSR issues
 const Plot = dynamic(() => import('react-plotly.js').then((mod) => mod.default), {
   ssr: false,
   loading: () => (
@@ -26,10 +25,26 @@ export default function PINN3DVisualizer({
 }: PINN3DVisualizerProps) {
   const [isMounted, setIsMounted] = useState(false)
   const [activeTab, setActiveTab] = useState('pressure')
+  const [forceUpdate, setForceUpdate] = useState(0)
+  const plotRefs = useRef<Record<string, any>>({})
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab)
+    setTimeout(() => {
+      setForceUpdate(prev => prev + 1)
+      if (plotRefs.current[newTab]) {
+        try {
+          window.Plotly?.Plots?.resize(plotRefs.current[newTab])
+        } catch (e) {
+          console.warn('Plotly resize failed:', e)
+        }
+      }
+    }, 100)
+  }
 
   if (!isMounted || !predictions || predictions.length === 0) {
     return (
@@ -39,36 +54,29 @@ export default function PINN3DVisualizer({
     )
   }
 
-  // Memoized data transformation to avoid recalculation on every render
   const chartData = useMemo(() => {
-    const isPointSeries = new Set(predictions.map((p) => `${p.x},${p.y},${p.z}`)).size === 1
-
-    const x = predictions.map((p, i) => (isPointSeries ? p.x + i * 0.001 : p.x))
-    const y = predictions.map((p, i) => (isPointSeries ? p.y + Math.sin(i * 0.1) * 0.001 : p.y))
-    const z = predictions.map((p, i) => (isPointSeries ? p.z + Math.cos(i * 0.1) * 0.001 : p.z))
-
-    // Velocity components
-    const u = predictions.map((p) => p.velocity_u)
-    const v = predictions.map((p) => p.velocity_v)
-    const w = predictions.map((p) => p.velocity_w)
+    // Correction: Utiliser directement les coordonnées spatiales réelles fournies par le backend.
+    // La génération artificielle de points pour les séries uniques n'est plus nécessaire
+    // car le backend fournit maintenant une grille 3D.
+    const x = predictions.map((p) => p.x || 0)
+    const y = predictions.map((p) => p.y || 0)
+    const z = predictions.map((p) => p.z || 0)
+    const u = predictions.map((p) => p.velocity_u || 0)
+    const v = predictions.map((p) => p.velocity_v || 0)
+    const w = predictions.map((p) => p.velocity_w || 0)
 
     return {
-      x,
-      y,
-      z,
-      pressure: predictions.map((p) => p.pressure),
-      temperature: predictions.map((p) => p.temperature),
-      density: predictions.map((p) => p.density),
-      u,
-      v,
-      w,
+      x, y, z,
+      pressure: predictions.map((p) => p.pressure || 0),
+      temperature: predictions.map((p) => p.temperature || 0),
+      density: predictions.map((p) => p.density || 0),
+      u, v, w,
       velocityMagnitude: predictions.map(
-        (p) => Math.sqrt(p.velocity_u ** 2 + p.velocity_v ** 2 + p.velocity_w ** 2)
+        (p) => Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2)
       ),
     }
   }, [predictions])
 
-  // Memoized base layout configuration
   const baseLayout = useMemo(
     () => ({
       autosize: true,
@@ -83,33 +91,24 @@ export default function PINN3DVisualizer({
     [title]
   )
 
-  // Memoized hover text for predictions
   const hoverText = useMemo(
-    () =>
-      predictions.map(
-        (p, i) =>
-          `t=${p.time.toFixed(2)}s<br>P=${p.pressure.toExponential(2)} Pa<br>T=${p.temperature.toFixed(1)} K<br>ρ=${p.density.toFixed(4)} kg/m³<br>|V|=${Math.sqrt(p.velocity_u ** 2 + p.velocity_v ** 2 + p.velocity_w ** 2).toFixed(3)} m/s`
-      ),
+    () => predictions.map(
+      (p, i) => `t=${p.time?.toFixed(2) || '0.00'}s<br>P=${(p.pressure || 0).toExponential(2)} Pa<br>T=${(p.temperature || 0).toFixed(1)} K<br>ρ=${(p.density || 0).toFixed(4)} kg/m³<br>|V|=${Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2).toFixed(3)} m/s`
+    ),
     [predictions]
   )
 
-  // Memoized velocity hover text
   const velocityHoverText = useMemo(
-    () =>
-      predictions.map(
-        (p, i) =>
-          `t=${p.time.toFixed(2)}s<br>u=${p.velocity_u.toFixed(3)} m/s<br>v=${p.velocity_v.toFixed(3)} m/s<br>w=${p.velocity_w.toFixed(3)} m/s<br>|V|=${Math.sqrt(p.velocity_u ** 2 + p.velocity_v ** 2 + p.velocity_w ** 2).toFixed(3)} m/s`
-      ),
+    () => predictions.map(
+      (p, i) => `t=${p.time?.toFixed(2) || '0.00'}s<br>u=${(p.velocity_u || 0).toFixed(3)} m/s<br>v=${(p.velocity_v || 0).toFixed(3)} m/s<br>w=${(p.velocity_w || 0).toFixed(3)} m/s<br>|V|=${Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2).toFixed(3)} m/s`
+    ),
     [predictions]
   )
 
-  // Memoized temperature hover text
   const temperatureHoverText = useMemo(
-    () =>
-      predictions.map(
-        (p, i) =>
-          `t=${p.time.toFixed(2)}s<br>T=${p.temperature.toFixed(1)} K<br>P=${p.pressure.toExponential(2)} Pa`
-      ),
+    () => predictions.map(
+      (p, i) => `t=${p.time?.toFixed(2) || '0.00'}s<br>T=${(p.temperature || 0).toFixed(1)} K<br>P=${(p.pressure || 0).toExponential(2)} Pa`
+    ),
     [predictions]
   )
 
@@ -117,19 +116,18 @@ export default function PINN3DVisualizer({
     <div className="space-y-4">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
         <h3 className="text-lg font-semibold text-slate-800 mb-6">{title}</h3>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="pressure">Pression</TabsTrigger>
             <TabsTrigger value="velocity">Vitesse</TabsTrigger>
             <TabsTrigger value="temperature">Température</TabsTrigger>
           </TabsList>
 
-          {/* Pressure Distribution Plot */}
-          <TabsContent value="pressure" className="h-[500px]">
-            <Plot
-              data={[
-                {
+          <TabsContent value="pressure" className="h-[500px] w-full">
+            <div className="w-full h-full" ref={(el) => { if (el) plotRefs.current['pressure'] = el }}>
+              <Plot
+                key={`pressure-${forceUpdate}`}
+                data={[{
                   type: 'scatter3d',
                   mode: 'markers',
                   x: chartData.x,
@@ -139,33 +137,27 @@ export default function PINN3DVisualizer({
                     size: 6,
                     color: chartData.pressure,
                     colorscale: 'Viridis',
-                    colorbar: {
-                      title: { text: 'Pression (Pa)', font: { size: 12 } },
-                      thickness: 15,
-                      len: 0.7,
-                    },
+                    colorbar: { title: { text: 'Pression (Pa)', font: { size: 12 } }, thickness: 15, len: 0.7 },
                     opacity: 0.85,
                     line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
                   },
                   text: hoverText,
                   hoverinfo: 'text',
                   hovertemplate: '%{text}<extra></extra>',
-                },
-              ]}
-              layout={{
-                ...baseLayout,
-                title: { ...baseLayout.title, text: `${title} – Pression` },
-              }}
-              config={{ responsive: true, displayModeBar: true }}
-              style={{ width: '100%', height: '100%' }}
-            />
+                }]}
+                layout={{ ...baseLayout, title: { ...baseLayout.title, text: `${title} – Pression` } }}
+                config={{ responsive: true, displayModeBar: true }}
+                style={{ width: '100%', height: '100%' }}
+                useResizeHandler={true}
+              />
+            </div>
           </TabsContent>
 
-          {/* Velocity Cone Plot */}
-          <TabsContent value="velocity" className="h-[500px]">
-            <Plot
-              data={[
-                {
+          <TabsContent value="velocity" className="h-[500px] w-full">
+            <div className="w-full h-full" ref={(el) => { if (el) plotRefs.current['velocity'] = el }}>
+              <Plot
+                key={`velocity-${forceUpdate}`}
+                data={[{
                   type: 'cone',
                   x: chartData.x,
                   y: chartData.y,
@@ -176,30 +168,24 @@ export default function PINN3DVisualizer({
                   colorscale: 'Portland',
                   sizemode: 'scaled',
                   sizeref: 2,
-                  colorbar: {
-                    title: { text: 'Vitesse (m/s)', font: { size: 12 } },
-                    thickness: 15,
-                    len: 0.7,
-                  },
+                  colorbar: { title: { text: 'Vitesse (m/s)', font: { size: 12 } }, thickness: 15, len: 0.7 },
                   text: velocityHoverText,
                   hoverinfo: 'text',
                   hovertemplate: '%{text}<extra></extra>',
-                } as any,
-              ]}
-              layout={{
-                ...baseLayout,
-                title: { ...baseLayout.title, text: `${title} – Vecteurs de Vitesse` },
-              }}
-              config={{ responsive: true, displayModeBar: true }}
-              style={{ width: '100%', height: '100%' }}
-            />
+                } as any]}
+                layout={{ ...baseLayout, title: { ...baseLayout.title, text: `${title} – Vecteurs de Vitesse` } }}
+                config={{ responsive: true, displayModeBar: true }}
+                style={{ width: '100%', height: '100%' }}
+                useResizeHandler={true}
+              />
+            </div>
           </TabsContent>
 
-          {/* Temperature Distribution Plot */}
-          <TabsContent value="temperature" className="h-[500px]">
-            <Plot
-              data={[
-                {
+          <TabsContent value="temperature" className="h-[500px] w-full">
+            <div className="w-full h-full" ref={(el) => { if (el) plotRefs.current['temperature'] = el }}>
+              <Plot
+                key={`temperature-${forceUpdate}`}
+                data={[{
                   type: 'scatter3d',
                   mode: 'markers',
                   x: chartData.x,
@@ -209,26 +195,20 @@ export default function PINN3DVisualizer({
                     size: 6,
                     color: chartData.temperature,
                     colorscale: 'Hot',
-                    colorbar: {
-                      title: { text: 'Température (K)', font: { size: 12 } },
-                      thickness: 15,
-                      len: 0.7,
-                    },
+                    colorbar: { title: { text: 'Température (K)', font: { size: 12 } }, thickness: 15, len: 0.7 },
                     opacity: 0.85,
                     line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
                   },
                   text: temperatureHoverText,
                   hoverinfo: 'text',
                   hovertemplate: '%{text}<extra></extra>',
-                },
-              ]}
-              layout={{
-                ...baseLayout,
-                title: { ...baseLayout.title, text: `${title} – Température` },
-              }}
-              config={{ responsive: true, displayModeBar: true }}
-              style={{ width: '100%', height: '100%' }}
-            />
+                }]}
+                layout={{ ...baseLayout, title: { ...baseLayout.title, text: `${title} – Température` } }}
+                config={{ responsive: true, displayModeBar: true }}
+                style={{ width: '100%', height: '100%' }}
+                useResizeHandler={true}
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
