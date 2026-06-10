@@ -38,8 +38,9 @@ export default function SimulationsPage() {
     const fetchData = async () => {
       try {
         const projectsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`)
+        if (!projectsRes.ok) throw new Error(`HTTP ${projectsRes.status}`)
         const projectsData = await projectsRes.json()
-        setProjects(projectsData)
+        setProjects(Array.isArray(projectsData) ? projectsData : [])
         
         if (projectsData.length > 0) {
           setSelectedProject(projectsData[0])
@@ -58,8 +59,9 @@ export default function SimulationsPage() {
       const fetchAnalyses = async () => {
         try {
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${selectedProject.id}/analyses`)
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
           const data = await res.json()
-          setAnalyses(data)
+          setAnalyses(Array.isArray(data) ? data : [])
           if (data.length > 0) {
             setSelectedAnalysis(data[0])
           } else {
