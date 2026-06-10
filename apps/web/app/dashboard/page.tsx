@@ -182,13 +182,13 @@ export default function DashboardPage() {
                       
                       <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[10px] font-bold text-gray-400">
-                            {project.name[0].toUpperCase()}
-                          </div>
-                          <div className="text-[10px] font-mono text-gray-500">
-                            <p className="uppercase tracking-widest">Date Init</p>
-                            <p className="text-gray-300">{new Date(project.created_at).toLocaleDateString()}</p>
-                          </div>
+	                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[10px] font-bold text-gray-400">
+	                            {project.name ? project.name[0].toUpperCase() : 'P'}
+	                          </div>
+	                          <div className="text-[10px] font-mono text-gray-500">
+	                            <p className="uppercase tracking-widest">Date Init</p>
+	                            <p className="text-gray-300">{project.created_at ? new Date(project.created_at).toLocaleDateString() : 'Inconnue'}</p>
+	                          </div>
                         </div>
                         <div className="p-2 bg-white/5 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-all">
                           <ArrowUpRight className="w-4 h-4" />

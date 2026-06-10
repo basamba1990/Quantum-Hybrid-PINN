@@ -272,9 +272,9 @@ export default function ReportsPage() {
                         <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">{report.name}</h3>
                         <div className="flex items-center gap-4 mt-1">
                           <div className="flex items-center gap-1.5 text-[10px] font-mono text-gray-500 uppercase tracking-widest">
-                            <Clock className="w-3 h-3" />
-                            {new Date(report.created_at).toLocaleDateString('fr-FR')}
-                          </div>
+	                            <Clock className="w-3 h-3" />
+	                            {report.created_at ? new Date(report.created_at).toLocaleDateString('fr-FR') : 'Inconnue'}
+	                          </div>
                           <div className="flex items-center gap-1.5 text-[10px] font-mono text-gray-500 uppercase tracking-widest">
                             <Database className="w-3 h-3" />
                             PDF Archive
