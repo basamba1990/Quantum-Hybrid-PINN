@@ -92,8 +92,8 @@ class PredictionResponseV8(BaseModel):
     timestamp: str
 
 class AssimilationRequestV8(BaseModel):
-    current_state: List[float]
-    observation: List[float]
+    current_state: List[float] = []
+    observation: List[float] = []
 
 class AssimilationResponseV8(BaseModel):
     assimilated_state: List[float]
@@ -185,6 +185,26 @@ async def root():
         "device": str(get_device()),
         "endpoints": ["/health", "/jobs", "/hybrid/run-simulation", "/v2/validate-3d", "/v2/assimilate"]
     }
+
+@app.get("/api/projects")
+async def get_projects():
+    try:
+        if supabase_client:
+            response = supabase_client.table("projects").select("*").execute()
+            return response.data
+        return []
+    except Exception as e:
+        return []
+
+@app.get("/api/projects/{project_id}/analyses")
+async def get_project_analyses(project_id: str):
+    try:
+        if supabase_client:
+            response = supabase_client.table("analyses").select("*").eq("project_id", project_id).execute()
+            return response.data
+        return []
+    except Exception as e:
+        return []
 
 @app.get("/health")
 async def health_check():
