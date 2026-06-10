@@ -33,42 +33,59 @@ export default function ProjectDetailClient({ id }: { id: string }) {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: projectData } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', id)
-        .single()
+      try {
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle()
 
-      const { data: reportsData } = await supabase
-        .from('reports')
-        .select('*')
-        .eq('project_id', id)
-        .order('created_at', { ascending: false })
+        if (projectError) throw projectError
+        setProject(projectData)
 
-      setProject(projectData)
-      const fetchedReports = reportsData || []
-      setReports(fetchedReports)
-      
-      // Récupérer la dernière analyse terminée pour la visualisation 3D
-      const { data: analysisData, error: analysisError } = await supabase
-        .from('analyses')
-        .select('*')
-        .eq('project_id', id)
-        .eq('status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(); // Utiliser maybeSingle() au lieu de single()
-      
-      if (analysisData && !analysisError) {
-        setLatestAnalysis(analysisData);
+        const { data: reportsData, error: reportsError } = await supabase
+          .from('reports')
+          .select('*')
+          .eq('project_id', id)
+          .order('created_at', { ascending: false })
+
+        if (reportsError) console.error("Error fetching reports:", reportsError)
+        const fetchedReports = reportsData || []
+        setReports(fetchedReports)
+        
+        // Récupérer la dernière analyse terminée pour la visualisation 3D
+        const { data: analysisData, error: analysisError } = await supabase
+          .from('analyses')
+          .select('*')
+          .eq('project_id', id)
+          .eq('status', 'completed')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (analysisData && !analysisError) {
+          // Sécurisation du format des résultats
+          let processedAnalysis = { ...analysisData };
+          if (typeof processedAnalysis.results === 'string') {
+            try {
+              processedAnalysis.results = JSON.parse(processedAnalysis.results);
+            } catch (e) {
+              console.error("Failed to parse analysis results", e);
+              processedAnalysis.results = {};
+            }
+          }
+          setLatestAnalysis(processedAnalysis);
+        }
+        
+        // Sélectionner automatiquement le dernier rapport par défaut
+        if (fetchedReports.length > 0) {
+          setSelectedReport(fetchedReports[0])
+        }
+      } catch (err) {
+        console.error("Critical error in ProjectDetailClient:", err)
+      } finally {
+        setLoading(false)
       }
-      
-      // Sélectionner automatiquement le dernier rapport par défaut
-      if (fetchedReports.length > 0) {
-        setSelectedReport(fetchedReports[0])
-      }
-      
-      setLoading(false)
     }
 
     fetchData()
@@ -137,7 +154,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
             <div className="flex items-center gap-6 pt-2">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-gray-500" />
-                <span className="text-xs text-gray-500">Initialisé le {format(new Date(project.created_at), 'dd MMMM yyyy')}</span>
+                <span className="text-xs text-gray-500">Initialisé le {project.created_at ? format(new Date(project.created_at), 'dd MMMM yyyy') : 'Date inconnue'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Database className="w-4 h-4 text-gray-500" />
@@ -229,7 +246,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
                         selectedReport?.id === report.id ? 'text-blue-400' : 'text-white group-hover:text-blue-400'
                       }`}>{report.name}</p>
                       <p className="text-[10px] font-mono text-gray-500 uppercase mt-1">
-                        {format(new Date(report.created_at), 'dd.MM.yyyy HH:mm')}
+                        {report.created_at ? format(new Date(report.created_at), 'dd.MM.yyyy HH:mm') : 'Date inconnue'}
                       </p>
                     </div>
                     <ChevronRight className={`w-4 h-4 transition-colors ${
