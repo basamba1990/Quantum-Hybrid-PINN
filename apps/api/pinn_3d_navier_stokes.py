@@ -18,8 +18,8 @@ class PINN3DNavierStokes(nn.Module):
     def __init__(self, layers=None, fluid_type='H2', dropout_rate=0.1, enable_dropout=False):
         super().__init__()
         if layers is None:
-            # Architecture correspondant aux poids entraînés (128 neurones, 4 couches cachées)
-            layers = [4, 128, 128, 128, 128, 5]
+            # Architecture correspondant aux poids entraînés (128 neurones, 3 couches cachées)
+            layers = [4, 128, 128, 128, 5]
         self.layers_list = layers
         self.fluid_type = fluid_type
         self.config = FLUID_CONFIGS.get(fluid_type, FLUID_CONFIGS['H2'])
