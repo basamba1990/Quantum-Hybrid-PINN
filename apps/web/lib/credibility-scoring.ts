@@ -350,10 +350,10 @@ export function generateCredibilityReport(
   report += `- Assimilation: ${score.assimilationScore}/100\n\n`
 
   report += `### Résidus Navier-Stokes:\n`
-  report += `- Continuité: ${residuals.continuityResidual.toExponential(2)} Pa\n`
-  report += `- Momentum: ${residuals.momentumResidual.toExponential(2)} Pa\n`
-  report += `- Énergie: ${residuals.energyResidual.toExponential(2)} J/(kg·s)\n`
-  report += `- Norme totale: ${residuals.totalResidualNorm.toExponential(2)}\n\n`
+  report += `- Continuité: ${(residuals.continuityResidual !== null && residuals.continuityResidual !== undefined ? residuals.continuityResidual.toExponential(2) : 'N/A')} Pa\n`
+  report += `- Momentum: ${(residuals.momentumResidual !== null && residuals.momentumResidual !== undefined ? residuals.momentumResidual.toExponential(2) : 'N/A')} Pa\n`
+  report += `- Énergie: ${(residuals.energyResidual !== null && residuals.energyResidual !== undefined ? residuals.energyResidual.toExponential(2) : 'N/A')} J/(kg·s)\n`
+  report += `- Norme totale: ${(residuals.totalResidualNorm !== null && residuals.totalResidualNorm !== undefined ? residuals.totalResidualNorm.toExponential(2) : 'N/A')}\n\n`
 
   if (score.anomalies.length > 0) {
     report += `### Anomalies Détectées:\n`
