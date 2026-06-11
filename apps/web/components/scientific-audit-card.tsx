@@ -232,7 +232,7 @@ export default function ScientificAuditCard({
                 </div>
                 <div className="text-sm font-bold text-slate-800">
                   {typeof value === 'number' ? (
-                    value > 1000 ? value.toExponential(2) : value.toFixed(2)
+                    (value !== null && value !== undefined) ? (value > 1000 ? value.toExponential(2) : value.toFixed(2)) : 'N/A'
                   ) : value}
                 </div>
               </div>
