@@ -407,10 +407,10 @@ function calculateCredibilityScore(
       physicalScore = Math.max(0, Math.min(100, physicalScore));
       score = physicalScore; // Use dynamic score instead of fixed 92.5
 
-      if (correction > 50) {
+      if (avgCorrection * 100 > 50) {
         anomalies.push("High Kalman Filter correction required")
         score -= 10
-      } else if (correction > 20) {
+      } else if (avgCorrection * 100 > 20) {
         anomalies.push("Moderate Kalman Filter correction")
         score -= 5
       }
