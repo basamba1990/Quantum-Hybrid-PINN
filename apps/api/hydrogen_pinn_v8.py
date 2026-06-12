@@ -315,6 +315,7 @@ class HydrogenPINNV8:
         with torch.no_grad():
             state_tensor = torch.tensor([current_state], dtype=torch.float32, device=self.device)
             obs_tensor = torch.tensor([observation], dtype=torch.float32, device=self.device)
-            # Assimilation via Deep Kalman Filter
-            assimilated_state, _ = self.dkl_model(state_tensor, obs_tensor)
+            # FIX 422: DeepKalmanFilter.forward expect (x_prev, P_prev)
+            # Use assimilate_batch for simplified assimilation without covariance
+            assimilated_state = self.dkl_model.assimilate_batch(state_tensor, obs_tensor)
         return assimilated_state.squeeze().tolist()
