@@ -328,7 +328,7 @@ async function generateAnalysisReport(data: {
     autoTable(doc, {
       startY: y,
       head: [["Variable", "Résidu (norme L2)"]],
-      body: Object.entries(data.residuals).map(([k, v]) => [k, (v as number).toExponential(4)]),
+      body: Object.entries(data.residuals).map(([k, v]) => [k, (v !== null && v !== undefined) ? (v as number).toExponential(4) : "N/A"]),
       theme: "striped",
       styles: { fontSize: 10 },
       headStyles: { fillColor: [0, 51, 102], textColor: 255 },
@@ -554,7 +554,7 @@ serve(async (req: Request) => {
           credibilityScore: score,
           anomalies,
           predictions3d,
-          residuals: physicalMetrics?.residuals ?? { continuity: 0, momentum: 0, energy: 0 },
+          residuals: physicalMetrics?.residuals ?? { continuity: 0.0, momentum: 0.0, energy: 0.0 },
         });
         const fileName = `report_${analysisId}_${Date.now()}.pdf`;
         const { error: uploadError } = await supabase.storage

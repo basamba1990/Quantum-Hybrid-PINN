@@ -107,6 +107,27 @@ export default function NewProjectPage() {
         // En mode industriel, nous déclenchons automatiquement l'analyse physique 
         // si une transcription ou des paramètres sont fournis
         if (formData.transcription) {
+          // Create an analysis entry first
+          const { data: newAnalysis, error: analysisError } = await supabase
+            .from('analyses')
+            .insert({
+              project_id: newProject.id,
+              user_id: user.id,
+              title: `Analyse auto: ${formData.name}`,
+              description: `Analyse générée automatiquement pour le projet ${formData.name}`,
+              analysis_type: 'auto_pinn_v8',
+              transcription: formData.transcription,
+              status: 'pending',
+            })
+            .select()
+            .single();
+
+          if (analysisError) {
+            console.error('Analysis creation error:', analysisError);
+            throw new Error(`Erreur lors de la création de l\'analyse: ${analysisError.message}`);
+          }
+
+          if (newAnalysis) {
           try {
             const { data: { session } } = await supabase.auth.getSession();
             // Appel asynchrone sans attendre la fin pour ne pas bloquer l'UI
@@ -120,6 +141,7 @@ export default function NewProjectPage() {
                 },
                 body: JSON.stringify({
                   projectId: newProject.id,
+                  analysisId: newAnalysis.id,
                   transcription: formData.transcription,
                   context: 'hydrogen_storage_auto',
                 }),
@@ -130,6 +152,7 @@ export default function NewProjectPage() {
           } catch (err) {
             console.error("Failed to trigger auto-analysis:", err);
           }
+        }
         }
 
         router.push(`/dashboard/projects/${newProject.id}`)
