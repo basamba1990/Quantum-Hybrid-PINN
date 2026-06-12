@@ -4,6 +4,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Prediction3D } from '@/types'
+import XPBDVisualizer from './xpbd-visualizer'
 
 const Plot = dynamic(() => import('react-plotly.js').then((mod) => mod.default), {
   ssr: false,
@@ -113,9 +114,12 @@ export default function PINN3DVisualizer({
   )
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
+      {/* Intégration du moteur XPBD de Fable 5 pour la visualisation interactive haute performance */}
+      <XPBDVisualizer predictions={predictions} title={title} />
+
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-        <h3 className="text-lg font-semibold text-slate-800 mb-6">{title}</h3>
+        <h3 className="text-lg font-semibold text-slate-800 mb-6">{title} - Données Détaillées</h3>
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="pressure">Pression</TabsTrigger>

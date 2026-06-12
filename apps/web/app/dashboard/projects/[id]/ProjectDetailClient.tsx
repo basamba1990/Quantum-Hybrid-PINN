@@ -34,6 +34,8 @@ export default function ProjectDetailClient({ id }: { id: string }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        if (!id) return;
+        
         const { data: projectData, error: projectError } = await supabase
           .from('projects')
           .select('*')
@@ -74,6 +76,8 @@ export default function ProjectDetailClient({ id }: { id: string }) {
               processedAnalysis.results = {};
             }
           }
+          // Assurer que results n'est pas nul
+          processedAnalysis.results = processedAnalysis.results || {};
           setLatestAnalysis(processedAnalysis);
         }
         
@@ -187,8 +191,8 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* NOUVEAU : Visualiseur 3D PINN */}
-      {latestAnalysis && latestAnalysis.results?.predictions3d && (
+      {/* NOUVEAU : Visualiseur 3D PINN Sécurisé */}
+      {latestAnalysis && latestAnalysis.results && (latestAnalysis.results.predictions3d || latestAnalysis.results.predictions_list) && (
         <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-[32px] p-8">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <Activity className="w-5 h-5 text-blue-500" />
@@ -196,7 +200,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           </h2>
           <div className="rounded-2xl overflow-hidden bg-black/20 border border-white/5">
             <PINN3DVisualizer 
-              predictions={latestAnalysis.results.predictions3d} 
+              predictions={latestAnalysis.results.predictions3d || latestAnalysis.results.predictions_list} 
               title={`Simulation PINN - ${latestAnalysis.title || 'H2 Pipeline'}`}
             />
           </div>
