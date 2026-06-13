@@ -1,38 +1,61 @@
--- Migration 009: Create analysis_results table
+-- 1) Add the missing column (if it doesn't exist yet)
+ALTER TABLE public.analysis_results
+ADD COLUMN IF NOT EXISTS user_id uuid;
 
-CREATE TABLE IF NOT EXISTS analysis_results (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-    analysis_id UUID NOT NULL REFERENCES analyses(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    extracted_parameters JSONB,
-    pinn_predictions JSONB,
-    assimilation_results JSONB,
-    credibility_score DECIMAL(5, 2),
-    anomalies TEXT[],
-    context TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- 2) (Optional but recommended) If you have existing rows, you must backfill user_id.
+--    Example (ONLY if you can derive user_id from analysis_id via an analyses table):
+-- UPDATE public.analysis_results ar
+-- SET user_id = a.user_id
+-- FROM public.analyses a
+-- WHERE ar.analysis_id = a.id;
 
-ALTER TABLE analysis_results ENABLE ROW LEVEL SECURITY;
+-- 3) If you want NOT NULL, do it AFTER backfill:
+-- ALTER TABLE public.analysis_results
+-- ALTER COLUMN user_id SET NOT NULL;
 
-CREATE POLICY "Users can view their own analysis results" ON analysis_results
-    FOR SELECT USING (auth.uid() = user_id);
+-- 4) Add FK if you want referential integrity (guarded so it won’t re-add twice)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'analysis_results_user_id_fkey'
+  ) THEN
+    ALTER TABLE public.analysis_results
+    ADD CONSTRAINT analysis_results_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
-CREATE POLICY "Users can insert their own analysis results" ON analysis_results
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- 5) Drop and recreate policies (otherwise reruns may error or leave stale ones)
+DROP POLICY IF EXISTS "Users can view their own analysis results" ON public.analysis_results;
+DROP POLICY IF EXISTS "Users can insert their own analysis results" ON public.analysis_results;
+DROP POLICY IF EXISTS "Users can update their own analysis results" ON public.analysis_results;
+DROP POLICY IF EXISTS "Users can delete their own analysis results" ON public.analysis_results;
 
-CREATE POLICY "Users can update their own analysis results" ON analysis_results
-    FOR UPDATE USING (auth.uid() = user_id);
+-- 6) Enable RLS
+ALTER TABLE public.analysis_results ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can delete their own analysis results" ON analysis_results
-    FOR DELETE USING (auth.uid() = user_id);
+-- 7) Recreate policies (best-practice: wrap auth.uid() as shown below)
+CREATE POLICY "Users can view their own analysis results"
+ON public.analysis_results
+FOR SELECT
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
 
-CREATE INDEX idx_analysis_results_project_id ON analysis_results(project_id);
-CREATE INDEX idx_analysis_results_analysis_id ON analysis_results(analysis_id);
-CREATE INDEX idx_analysis_results_user_id ON analysis_results(user_id);
+CREATE POLICY "Users can insert their own analysis results"
+ON public.analysis_results
+FOR INSERT
+TO authenticated
+WITH CHECK ((SELECT auth.uid()) = user_id);
 
--- Add trigger for updated_at
-CREATE TRIGGER update_analysis_results_updated_at BEFORE UPDATE ON analysis_results
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE POLICY "Users can update their own analysis results"
+ON public.analysis_results
+FOR UPDATE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
+
+CREATE POLICY "Users can delete their own analysis results"
+ON public.analysis_results
+FOR DELETE
+TO authenticated
+USING ((SELECT auth.uid()) = user_id);
