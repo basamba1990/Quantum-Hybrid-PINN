@@ -68,16 +68,21 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         if (analysisData && !analysisError) {
           // Sécurisation du format des résultats
           let processedAnalysis = { ...analysisData };
-          if (typeof processedAnalysis.results === 'string') {
-            try {
+          try {
+            if (typeof processedAnalysis.results === 'string') {
               processedAnalysis.results = JSON.parse(processedAnalysis.results);
-            } catch (e) {
-              console.error("Failed to parse analysis results", e);
-              processedAnalysis.results = {};
             }
+          } catch (e) {
+            console.error("Failed to parse analysis results", e);
+            processedAnalysis.results = {};
           }
-          // Assurer que results n'est pas nul
+          
+          // FIX: Garantir une structure minimale pour éviter les crashs de rendu
           processedAnalysis.results = processedAnalysis.results || {};
+          if (!processedAnalysis.results.predictions3d && !processedAnalysis.results.predictions_list) {
+             processedAnalysis.results.predictions3d = [];
+          }
+          
           setLatestAnalysis(processedAnalysis);
         }
         
