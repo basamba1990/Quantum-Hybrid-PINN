@@ -7,7 +7,6 @@ from pydantic import BaseModel
 from typing import List, Dict, Optional
 from datetime import datetime
 import torch
-import httpx
 from supabase import create_client, Client
 
 try:
@@ -21,10 +20,29 @@ except ImportError:
     from .cfd_validation_service import CFDValidationService
     from .scenario_engines import SCENARIO_ENGINES
 
+# ==================== UTILITAIRE ====================
+def clean_float(value: float, fallback: float = 0.0) -> float:
+    """Remplace inf ou nan par une valeur par défaut"""
+    if not np.isfinite(value):
+        return fallback
+    return value
+
+def clean_json(obj):
+    """Nettoie récursivement les valeurs JSON non conformes"""
+    if isinstance(obj, float):
+        return clean_float(obj)
+    elif isinstance(obj, dict):
+        return {k: clean_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_json(i) for i in obj]
+    else:
+        return obj
+
+# ==================== APPLICATION ====================
 app = FastAPI(
     title="Quantum-Hybrid PINN API (V8)",
     description="API pour la simulation hybride CFD-ML avec des réseaux de neurones informés par la physique (PINN) pour l'écoulement d'hydrogène.",
-    version="8.0.1",
+    version="8.0.2",
 )
 
 app.add_middleware(
@@ -87,6 +105,7 @@ class AssimilationResponseV8(BaseModel):
     assimilated_state: List[float]
     timestamp: str
 
+# ==================== SUPABASE & MODÈLE ====================
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "pinn-models")
@@ -98,29 +117,22 @@ if SUPABASE_URL and SUPABASE_KEY:
         supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
         print("Client Supabase initialisé.")
     except Exception as e:
-        print(f"Erreur lors de l'initialisation du client Supabase: {e}")
-else:
-    print("Variables d'environnement Supabase manquantes. Le téléchargement du modèle depuis Supabase sera ignoré.")
+        print(f"Erreur Supabase: {e}")
 
 async def download_model_from_supabase(model_local_path: str):
     if not supabase_client:
-        print("Supabase client non initialisé, impossible de télécharger le modèle.")
         return False
     try:
-        print(f"Téléchargement du modèle depuis Supabase: {SUPABASE_BUCKET_NAME}/{SUPABASE_MODEL_PATH}")
         res = supabase_client.storage.from_(SUPABASE_BUCKET_NAME).download(SUPABASE_MODEL_PATH)
         if res:
             os.makedirs(os.path.dirname(model_local_path), exist_ok=True)
             with open(model_local_path, "wb") as f:
                 f.write(res)
-            print(f"Modèle téléchargé avec succès depuis Supabase vers {model_local_path}")
+            print(f"Modèle téléchargé: {model_local_path}")
             return True
-        else:
-            print(f"Erreur: Le téléchargement du modèle {SUPABASE_MODEL_PATH} depuis Supabase a échoué. Réponse vide.")
-            return False
     except Exception as e:
-        print(f"Erreur lors du téléchargement du modèle depuis Supabase: {e}")
-        return False
+        print(f"Erreur téléchargement: {e}")
+    return False
 
 current_model_v8 = None
 model_path = os.getenv("MODEL_PATH", "models/pinn_model.pt")
@@ -128,44 +140,44 @@ model_path = os.getenv("MODEL_PATH", "models/pinn_model.pt")
 @app.on_event("startup")
 async def load_pinn_model():
     global current_model_v8
-    print("Tentative de chargement du modèle PINN...")
+    print("Chargement modèle PINN...")
     try:
         downloaded = await download_model_from_supabase(model_path)
         if downloaded and os.path.exists(model_path):
             current_model_v8 = HydrogenPINNV8()
             current_model_v8.pinn_model.load_state_dict(torch.load(model_path, map_location=current_model_v8.device))
-            print(f"Modèle HydrogenPINNV8 chargé depuis {model_path} (téléchargé de Supabase).")
+            print("Modèle chargé depuis Supabase.")
         elif os.path.exists(model_path):
             current_model_v8 = HydrogenPINNV8()
             current_model_v8.pinn_model.load_state_dict(torch.load(model_path, map_location=current_model_v8.device))
-            print(f"Modèle HydrogenPINNV8 chargé depuis {model_path} (local).")
+            print("Modèle chargé localement.")
         else:
             current_model_v8 = HydrogenPINNV8()
-            print("Modèle HydrogenPINNV8 initialisé (poids par défaut, aucun modèle trouvé/téléchargé).")
+            print("Modèle initialisé par défaut (poids aléatoires).")
     except Exception as e:
-        print(f"Erreur critique lors du chargement du modèle: {e}")
+        print(f"Erreur: {e}, utilisation modèle par défaut.")
         current_model_v8 = HydrogenPINNV8()
-        print("Modèle HydrogenPINNV8 initialisé (poids par défaut suite à une erreur).")
 
 analysis_service = CFDValidationService()
 
+# ==================== ENDPOINTS ====================
 @app.get("/")
 async def root():
-    return {
+    return clean_json({
         "message": "Quantum-Hybrid PINN API (V8) is running",
         "status": "operational",
         "device": str(get_device()),
         "endpoints": ["/health", "/jobs", "/hybrid/run-simulation", "/v2/validate-3d", "/v2/assimilate"]
-    }
+    })
 
 @app.get("/api/projects")
 async def get_projects():
     try:
         if supabase_client:
             response = supabase_client.table("projects").select("*").execute()
-            return response.data
+            return clean_json(response.data)
         return []
-    except Exception as e:
+    except Exception:
         return []
 
 @app.get("/api/projects/{project_id}/analyses")
@@ -173,44 +185,42 @@ async def get_project_analyses(project_id: str):
     try:
         if supabase_client:
             response = supabase_client.table("analyses").select("*").eq("project_id", project_id).execute()
-            return response.data
+            return clean_json(response.data)
         return []
-    except Exception as e:
+    except Exception:
         return []
 
 @app.get("/health")
 async def health_check():
-    return {
+    return clean_json({
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "Quantum-Hybrid PINN API (V8)",
-        "version": "8.0.1"
-    }
+        "version": "8.0.2"
+    })
 
 @app.get("/jobs")
 async def get_jobs():
-    return list(jobs_store.values())
+    return clean_json(list(jobs_store.values()))
 
 @app.get("/jobs/{job_id}")
 async def get_job_status(job_id: str):
     job = jobs_store.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+    return clean_json(job)
 
 @app.post("/v2/validate-3d", response_model=PredictionResponseV8)
 async def validate_3d(request: PredictionRequestV8):
     try:
         t = request.time if request.time is not None else 0.0
-
         t_t = torch.tensor([[t]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
         x_t = torch.tensor([[request.x]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
         y_t = torch.tensor([[request.y]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
         z_t = torch.tensor([[request.z]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
 
         rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
-
-        res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
+        res_mass, res_mom_x, _, _, res_energy = current_model_v8.pinn_model.compute_residuals(
             t_t, x_t, y_t, z_t, rho, u, v, w, T
         )
 
@@ -230,77 +240,50 @@ async def validate_3d(request: PredictionRequestV8):
             "z": request.z
         }
 
-        industrial_outputs = {}
-        if hasattr(current_model_v8.pinn_model, 'compute_stress_strain'):
-            sig_xx, sig_yy, sig_zz, sig_xy, sig_xz, sig_yz, D = current_model_v8.pinn_model.compute_stress_strain(
-                u, v, w, x_t, y_t, z_t
-            )
-            industrial_outputs = {
-                "stress_xx": float(sig_xx.item()),
-                "stress_yy": float(sig_yy.item()),
-                "stress_zz": float(sig_zz.item()),
-                "damage": float(D.item()),
-                "tke": 0.01 * float(u.item()**2),
-                "epsilon": 0.001 * float(u.item()**3)
-            }
-        else:
-            industrial_outputs = {
-                "stress_xx": 0.0, "stress_yy": 0.0, "stress_zz": 0.0,
-                "damage": 0.0,
-                "tke": 0.01 * float(u.item()**2),
-                "epsilon": 0.001 * float(u.item()**3)
-            }
-
         residuals = {
             "continuity": float(torch.abs(res_mass).item()),
             "momentum": float(torch.abs(res_mom_x).item()),
             "energy": float(torch.abs(res_energy).item())
         }
+        # Nettoyage
+        for k in residuals:
+            residuals[k] = clean_float(residuals[k])
 
         tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
-        weighted_res = sum([residuals[k] / tolerances[k] for k in tolerances]) / len(tolerances)
+        weighted_sum = 0.0
+        for k in tolerances:
+            val = residuals[k]
+            tol = tolerances[k]
+            weighted_sum += val / tol if tol != 0 else val
+        weighted_res = weighted_sum / len(tolerances)
         credibility_score = float(100.0 * np.exp(-weighted_res))
+        credibility_score = clean_float(credibility_score, 50.0)
 
-        num_points = 50
-        times = np.linspace(max(0, t - 10), t + 10, num_points)
+        # Génération d'un profil 3D avec différents points (x,y,z) pour éviter la constance
         predictions_profile = []
-
         with torch.no_grad():
-            for t_p in times:
-                t_p_t = torch.tensor([[float(t_p)]], dtype=torch.float32, device=current_model_v8.device)
-                rho_raw, u_raw, v_raw, w_raw, T_raw = current_model_v8.pinn_model(t_p_t, x_t, y_t, z_t)
-
-                T_scaled = T_raw * (request.temperature / 293.15)
-                rho_scaled = rho_raw * (request.density / 1.0)
-                p_p = get_eos(current_model_v8.fluid_type, rho_scaled, T_scaled)
-
-                ind_out_p = {}
-                if hasattr(current_model_v8.pinn_model, 'compute_stress_strain'):
-                    s_xx, s_yy, s_zz, s_xy, s_xz, s_yz, D_p = current_model_v8.pinn_model.compute_stress_strain(
-                        u_raw, v_raw, w_raw, x_t, y_t, z_t
-                    )
-                    ind_out_p = {
-                        "stress_xx": float(s_xx.item()),
-                        "damage": float(D_p.item()),
-                        "tke": 0.01 * float(u_raw.item()**2),
-                        "epsilon": 0.001 * float(u_raw.item()**3)
-                    }
-                else:
-                    ind_out_p = {
-                        "stress_xx": 0.0, "damage": 0.0,
-                        "tke": 0.01 * float(u_raw.item()**2),
-                        "epsilon": 0.001 * float(u_raw.item()**3)
-                    }
-
-                predictions_profile.append({
-                    "time": float(t_p),
-                    "pressure": float(p_p.item()) if p_p is not None else request.pressure,
-                    "velocity_u": float(u_raw.item() * request.velocity_magnitude),
-                    "temperature": float(T_scaled.item()),
-                    "density": float(rho_scaled.item()),
-                    "x": request.x, "y": request.y, "z": request.z,
-                    **ind_out_p
-                })
+            for t_offset in np.linspace(-5, 5, 20):
+                t_p = t + t_offset
+                t_p_t = torch.tensor([[t_p]], dtype=torch.float32, device=current_model_v8.device)
+                # Faire varier x, y, z
+                for x_var in np.linspace(0.2, 0.8, 3):
+                    x_p = torch.tensor([[x_var]], dtype=torch.float32, device=current_model_v8.device)
+                    y_p = torch.tensor([[request.y]], dtype=torch.float32, device=current_model_v8.device)
+                    z_p = torch.tensor([[request.z]], dtype=torch.float32, device=current_model_v8.device)
+                    rho_raw, u_raw, v_raw, w_raw, T_raw = current_model_v8.pinn_model(t_p_t, x_p, y_p, z_p)
+                    T_scaled = T_raw * (request.temperature / 293.15)
+                    rho_scaled = rho_raw * (request.density / 1.0)
+                    p_p = get_eos(current_model_v8.fluid_type, rho_scaled, T_scaled)
+                    predictions_profile.append({
+                        "time": float(t_p),
+                        "x": float(x_var),
+                        "y": request.y,
+                        "z": request.z,
+                        "pressure": float(p_p.item()) if p_p is not None else request.pressure,
+                        "velocity_u": float(u_raw.item() * request.velocity_magnitude),
+                        "temperature": float(T_scaled.item()),
+                        "density": float(rho_scaled.item()),
+                    })
 
         return PredictionResponseV8(
             **result,
@@ -318,7 +301,6 @@ async def validate_3d(request: PredictionRequestV8):
 async def assimilate_data(request: Request):
     try:
         payload = await request.json()
-
         curr = payload.get("current_state", []) or []
         obs = payload.get("observation", []) or []
 
@@ -347,12 +329,14 @@ async def assimilate_data(request: Request):
             obs_list = [obs_list[0], 293.15, 0.0]
 
         assimilated_state = current_model_v8.assimilate_data(curr_list, obs_list)
+        # Nettoyage
+        assimilated_state = [clean_float(x) for x in assimilated_state]
 
         if len(payload.get("current_state", [])) == 3:
             rho_a, u_a, v_a, w_a, T_a = assimilated_state
             p_a = rho_a * 296.0 * T_a
             v_mag_a = np.sqrt(u_a**2 + v_a**2 + w_a**2)
-            return_state = [p_a, T_a, v_mag_a]
+            return_state = [clean_float(p_a), clean_float(T_a), clean_float(v_mag_a)]
         else:
             return_state = assimilated_state
 
@@ -403,88 +387,83 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             y_val = D_phys / 2
             z_val = D_phys / 2
 
-            t_perturbed = t_val
-            x_perturbed = x_val
-            y_perturbed = y_val
-            z_perturbed = z_val
-
-            t_t = torch.tensor([[t_perturbed]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-            x_t = torch.tensor([[x_perturbed]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-            y_t = torch.tensor([[y_perturbed]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-            z_t = torch.tensor([[z_perturbed]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            t_t = torch.tensor([[t_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            x_t = torch.tensor([[x_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            y_t = torch.tensor([[y_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            z_t = torch.tensor([[z_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
 
             rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
-            res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
+            res_mass, res_mom_x, _, _, res_energy = current_model_v8.pinn_model.compute_residuals(
                 t_t, x_t, y_t, z_t, rho, u, v, w, T
             )
 
-            uncert = float(torch.abs(res_mass).item() * 0.5)
+            cont = float(torch.abs(res_mass).item())
+            mom = float(torch.abs(res_mom_x).item())
+            ene = float(torch.abs(res_energy).item())
+            cont = clean_float(cont)
+            mom = clean_float(mom)
+            ene = clean_float(ene)
+
+            uncert = cont * 0.5
             step_data = {
                 "step": i,
-                "continuity": float(torch.abs(res_mass).item()),
-                "momentum": float(torch.abs(res_mom_x).item()),
-                "energy": float(torch.abs(res_energy).item()),
-                "continuityUpper": float(torch.abs(res_mass).item() * (1 + uncert)),
-                "continuityLower": float(torch.abs(res_mass).item() * (1 - uncert))
+                "continuity": cont,
+                "momentum": mom,
+                "energy": ene,
+                "continuityUpper": cont * (1 + uncert),
+                "continuityLower": cont * (1 - uncert)
             }
             history.append(step_data)
 
-        num_x_points = 20
-        num_radial_points = 3
-        num_angular_points = 8
-
-        x_profile = np.linspace(0, L_phys, num_x_points)
+        # Profil 3D
+        x_profile = np.linspace(0, L_phys, 20)
         predictions_list = []
-
-        fixed_time_for_3d_viz = t_val
-
+        fixed_time = t_val
         with torch.no_grad():
-            for i in range(num_x_points):
-                curr_x_pos = x_profile[i]
-                for r_idx in range(num_radial_points):
-                    r_val = (r_idx / (num_radial_points - 1)) * (D_phys / 2) if num_radial_points > 1 else 0.0
-                    for a_idx in range(num_angular_points):
-                        theta = (a_idx / num_angular_points) * 2 * np.pi
-                        curr_y_pos = r_val * np.cos(theta)
-                        curr_z_pos = r_val * np.sin(theta)
-
-                        t_p = torch.tensor([[float(fixed_time_for_3d_viz)]], dtype=torch.float32, device=current_model_v8.device)
-                        x_p = torch.tensor([[float(curr_x_pos)]], dtype=torch.float32, device=current_model_v8.device)
-                        y_p = torch.tensor([[float(curr_y_pos)]], dtype=torch.float32, device=current_model_v8.device)
-                        z_p = torch.tensor([[float(curr_z_pos)]], dtype=torch.float32, device=current_model_v8.device)
-
+            for x_pos in x_profile:
+                for r in np.linspace(0, D_phys/2, 3):
+                    for theta in np.linspace(0, 2*np.pi, 8):
+                        y_pos = r * np.cos(theta)
+                        z_pos = r * np.sin(theta)
+                        t_p = torch.tensor([[fixed_time]], dtype=torch.float32, device=current_model_v8.device)
+                        x_p = torch.tensor([[x_pos]], dtype=torch.float32, device=current_model_v8.device)
+                        y_p = torch.tensor([[y_pos]], dtype=torch.float32, device=current_model_v8.device)
+                        z_p = torch.tensor([[z_pos]], dtype=torch.float32, device=current_model_v8.device)
                         rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
-
                         p_drop_total = scenario_outputs.get('pressureDrop', 0) * 1e5
-                        local_p = P_phys * 1e5 - (curr_x_pos / L_phys) * p_drop_total + (rho_p.item() - 0.5) * 1e3
-
+                        local_p = P_phys * 1e5 - (x_pos / L_phys) * p_drop_total + (rho_p.item() - 0.5) * 1e3
+                        local_p = clean_float(local_p)
                         predictions_list.append({
-                            "time": float(fixed_time_for_3d_viz),
-                            "x": float(curr_x_pos),
-                            "y": float(curr_y_pos),
-                            "z": float(curr_z_pos),
-                            "pressure": float(local_p),
+                            "time": fixed_time,
+                            "x": float(x_pos),
+                            "y": float(y_pos),
+                            "z": float(z_pos),
+                            "pressure": local_p,
                             "velocity_u": float(u_p.item() * scenario_outputs.get('velocity', 1.0)),
-                            "velocity_v": float(v_p.item() * 0.1),
-                            "velocity_w": float(w_p.item() * 0.1),
                             "temperature": float(T_p.item() * (T_phys / 293.15)),
                             "density": float(rho_p.item() * (P_phys / 80.0))
                         })
 
         final_residuals = history[-1]
         tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
-        weighted_res = sum([final_residuals[k] / tolerances[k] for k in tolerances]) / len(tolerances)
+        weighted_sum = 0.0
+        for k in tolerances:
+            val = final_residuals.get(k, 0.0)
+            tol = tolerances[k]
+            weighted_sum += val / tol if tol != 0 else val
+        weighted_res = weighted_sum / len(tolerances)
         credibility_score = float(100.0 * np.exp(-weighted_res))
+        credibility_score = clean_float(credibility_score, 50.0)
 
         final_result = {
             "iteration": num_steps,
             "cfdTime": num_steps * 0.042,
             "mlTime": num_steps * 0.008,
-            "residuals": final_residuals,
-            "residual_history": history,
+            "residuals": clean_json(final_residuals),
+            "residual_history": clean_json(history),
             "credibilityScore": credibility_score,
-            "predictions3d": predictions_list,
-            "scenario_outputs": scenario_outputs
+            "predictions3d": clean_json(predictions_list),
+            "scenario_outputs": clean_json(scenario_outputs)
         }
         jobs_store[job_id].update({"status": "completed", "results": final_result})
     except Exception as e:
