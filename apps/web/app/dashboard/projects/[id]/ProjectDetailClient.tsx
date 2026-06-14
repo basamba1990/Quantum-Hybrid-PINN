@@ -66,7 +66,6 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           .maybeSingle();
         
         if (analysisData && !analysisError) {
-          // Sécurisation du format des résultats
           let processedAnalysis = { ...analysisData };
           try {
             if (typeof processedAnalysis.results === 'string') {
@@ -77,7 +76,6 @@ export default function ProjectDetailClient({ id }: { id: string }) {
             processedAnalysis.results = {};
           }
           
-          // FIX: Garantir une structure minimale pour éviter les crashs de rendu
           processedAnalysis.results = processedAnalysis.results || {};
           if (!processedAnalysis.results.predictions3d && !processedAnalysis.results.predictions_list) {
              processedAnalysis.results.predictions3d = [];
@@ -86,7 +84,6 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           setLatestAnalysis(processedAnalysis);
         }
         
-        // Sélectionner automatiquement le dernier rapport par défaut
         if (fetchedReports.length > 0) {
           setSelectedReport(fetchedReports[0])
         }
@@ -196,8 +193,10 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* NOUVEAU : Visualiseur 3D PINN Sécurisé */}
-      {latestAnalysis && latestAnalysis.results && (latestAnalysis.results.predictions3d || latestAnalysis.results.predictions_list) && (
+      {/* Visualiseur 3D PINN sécurisé */}
+      {latestAnalysis && latestAnalysis.results && 
+       Array.isArray(latestAnalysis.results.predictions3d) && 
+       latestAnalysis.results.predictions3d.length > 0 && (
         <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-[32px] p-8">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <Activity className="w-5 h-5 text-blue-500" />
@@ -205,7 +204,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           </h2>
           <div className="rounded-2xl overflow-hidden bg-black/20 border border-white/5">
             <PINN3DVisualizer 
-              predictions={latestAnalysis.results.predictions3d || latestAnalysis.results.predictions_list} 
+              predictions={latestAnalysis.results.predictions3d} 
               title={`Simulation PINN - ${latestAnalysis.title || 'H2 Pipeline'}`}
             />
           </div>
