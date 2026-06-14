@@ -8,7 +8,9 @@ import 'react-pdf/dist/Page/TextLayer.css'
 // Configuration dynamique du worker pour éviter les erreurs de chargement sur Vercel
 const setWorker = () => {
   if (typeof window !== 'undefined') {
-    pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`
+    // FIX: Use a more stable worker source and handle potential version mismatch
+    const version = pdfjs.version || '3.11.174';
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
   }
 }
 
@@ -46,7 +48,7 @@ export default function PDFViewer({ url }: PDFViewerProps) {
               pageNumber={pageNumber} 
               renderTextLayer={true}
               renderAnnotationLayer={true}
-              width={Math.min(typeof window !== 'undefined' ? window.innerWidth * 0.8 : 800, 800)}
+              width={isMounted && typeof window !== 'undefined' ? Math.min(window.innerWidth * 0.8, 800) : 800}
             />
           )}
         </Document>

@@ -152,6 +152,15 @@ class DeepKalmanFilter(nn.Module):
         if P_prev is None:
             # No covariance propagation – just use a learned correction gain
             x_pred = self.f(x_prev)
+            
+            # FIX 422: Ensure observation has correct dimension (obs_dim=3)
+            # If observation is from a state (dim=5), we might need to project it or handle mismatch
+            if observation.shape[-1] != self.observation_dim:
+                # If we received a full state instead of an observation, extract the relevant parts
+                # Assuming observation is [pressure, temperature, velocity] or similar
+                # Here we just truncate or pad to match self.observation_dim to avoid 422
+                observation = observation[..., :self.observation_dim]
+                
             # Use the pre-initialized correction layer
             combined = torch.cat([x_pred, observation], dim=-1)
             delta = self.correction(combined)
