@@ -1,16 +1,9 @@
 // supabase/functions/verify-physics-logic/index.ts
-// Combine l'Edge Function et la génération PDF
-// Déploiement : supabase functions deploy verify-physics-logic
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.22.4";
 import jsPDF from "https://esm.sh/jspdf@2.5.1?bundle";
 import autoTable from "https://esm.sh/jspdf-autotable";
-
-// ============================================================================
-// 1. Configuration & validation d'environnement
-// ============================================================================
 
 const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
@@ -24,10 +17,6 @@ const envSchema = z.object({
 });
 
 const env = envSchema.parse(Deno.env.toObject());
-
-// ============================================================================
-// 2. Zod schemas (validation stricte)
-// ============================================================================
 
 const PhysicalParametersSchema = z.object({
   pressure: z.number().positive().optional().nullable(),
@@ -55,24 +44,6 @@ const VerificationRequestSchema = z.object({
   transcription: z.string().min(1).max(10000),
   context: z.string().default("hydrogen_storage"),
 });
-
-const PredictionResponseSchema = z.object({
-  pressure: z.number(),
-  velocity_u: z.number(),
-  velocity_v: z.number(),
-  velocity_w: z.number(),
-  temperature: z.number(),
-  density: z.number(),
-  time: z.number(),
-  x: z.number(),
-  y: z.number(),
-  z: z.number(),
-  timestamp: z.string(),
-});
-
-// ============================================================================
-// 3. Helpers : logging, retry, circuit breaker, cache
-// ============================================================================
 
 const log = (level: string, msg: string, meta?: Record<string, unknown>) => {
   const levels = { debug:0, info:1, warn:2, error:3 };
@@ -140,13 +111,10 @@ class InMemoryCache {
     this.store.set(key, { value, expires: Date.now() + ttlSec * 1000 });
   }
 }
+
 const cache = new InMemoryCache();
 const openAICircuit = new CircuitBreaker();
 const backendCircuit = new CircuitBreaker();
-
-// ============================================================================
-// 4. Services externes (OpenAI, backend)
-// ============================================================================
 
 async function extractPhysicalParameters(transcription: string): Promise<z.infer<typeof PhysicalParametersSchema>> {
   return await withRetry(async () => {
@@ -217,16 +185,22 @@ async function callBackendValidate3d(params: any): Promise<any> {
   }, "backend-validate");
 }
 
+function toFiniteNumber(v: unknown, fallback: number): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 async function callBackendAssimilate(currentState: number[], observation: number[]): Promise<any> {
   return await withRetry(async () => {
     return await backendCircuit.call(async () => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
       try {
+        const body = JSON.stringify({ current_state: currentState, observation });
         const response = await fetch(`${env.H2_INFERENCE_API_URL}/v2/assimilate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ current_state: currentState, observation }),
+          body,
           signal: controller.signal,
         });
         clearTimeout(timeout);
@@ -243,10 +217,6 @@ async function callBackendAssimilate(currentState: number[], observation: number
 function simpleAssimilation(current: number[], observation: number[], gain = 0.7): number[] {
   return current.map((c, i) => c + gain * (observation[i] - c));
 }
-
-// ============================================================================
-// 5. Générateur de PDF (intégré)
-// ============================================================================
 
 async function generateAnalysisReport(data: {
   analysisId: string;
@@ -266,7 +236,6 @@ async function generateAnalysisReport(data: {
   doc.text(`ID Analyse: ${data.analysisId}`, 20, 40);
   doc.text(`Date: ${new Date().toLocaleString()}`, 20, 47);
 
-  // 1. Paramètres extraits
   doc.setFontSize(16);
   doc.setTextColor(0);
   doc.text("1. Paramètres Physiques Extraits (GPT-4o)", 20, 65);
@@ -282,7 +251,6 @@ async function generateAnalysisReport(data: {
     }
   });
 
-  // 2. Score de crédibilité
   y += 10;
   doc.setFontSize(16);
   doc.text("2. Évaluation de la Crédibilité Physique", 20, y);
@@ -294,7 +262,6 @@ async function generateAnalysisReport(data: {
   else doc.setTextColor(204, 0, 0);
   doc.text(`${score}%`, 20, y + 10);
 
-  // 3. Anomalies
   doc.setTextColor(0);
   y += 30;
   doc.setFontSize(16);
@@ -318,7 +285,6 @@ async function generateAnalysisReport(data: {
     y += 10;
   }
 
-  // 4. Résidus de conservation (tableau)
   y += 15;
   doc.setFontSize(16);
   doc.text("4. Résidus de Conservation (Navier-Stokes)", 20, y);
@@ -339,7 +305,6 @@ async function generateAnalysisReport(data: {
     y += 10;
   }
 
-  // 5. Champs 3D
   doc.setFontSize(16);
   doc.text("5. Résumé des Champs de Simulation 3D", 20, y);
   doc.setFontSize(10);
@@ -347,10 +312,6 @@ async function generateAnalysisReport(data: {
 
   return doc.output("arraybuffer");
 }
-
-// ============================================================================
-// 6. Score de crédibilité (logique métrique)
-// ============================================================================
 
 function calculateCredibilityScore(
   extractedParams: z.infer<typeof PhysicalParametersSchema>,
@@ -360,7 +321,6 @@ function calculateCredibilityScore(
   let score = 100;
   const anomalies: string[] = [];
 
-  // Thermodynamique (Van't Hoff)
   if (extractedParams.pressure && extractedParams.temperature && extractedParams.equilibrium_pressure && extractedParams.enthalpy_delta_h) {
     const T = extractedParams.temperature;
     const R = 8.314;
@@ -378,7 +338,6 @@ function calculateCredibilityScore(
     }
   }
 
-  // Correction assimilation
   if (assimilationResult?.assimilated_state && predictions3d.length > 0) {
     const init = [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u];
     let [p_assimilated, t_assimilated, v_assimilated] = assimilationResult.assimilated_state;
@@ -405,7 +364,7 @@ function calculateCredibilityScore(
       const velocityQuality = 1.0 - Math.abs(correctedVelocity) / 2.0;
       let physicalScore = (pressureQuality + velocityQuality) / 2.0 * 100.0;
       physicalScore = Math.max(0, Math.min(100, physicalScore));
-      score = physicalScore; // Use dynamic score instead of fixed 92.5
+      score = physicalScore;
 
       if (avgCorrection * 100 > 50) {
         anomalies.push("High Kalman Filter correction required")
@@ -417,13 +376,8 @@ function calculateCredibilityScore(
     }
   }
 
-  // Intégration des métriques enrichies (Point 5 du rapport)
-  // On simule ici l'extraction des métriques PVT et CFD si disponibles dans les résultats de simulation
-  const pvtCoherence = 0.95 // Valeur par défaut haute
-  const cfdStability = 0.88 // Valeur par défaut haute
-  
-  // Pondération : 30% PVT, 40% CFD, 30% Physique de base
-  // Le score est maintenant purement dynamique basé sur la validation physique réelle
+  const pvtCoherence = 0.95
+  const cfdStability = 0.88
   const basePhysicScore = score
   score = (basePhysicScore * 0.4) + (pvtCoherence * 100 * 0.3) + (cfdStability * 100 * 0.3)
 
@@ -434,10 +388,6 @@ function calculateCredibilityScore(
 
   return { score: Math.max(0, Math.min(100, score)), anomalies };
 }
-
-// ============================================================================
-// 7. Authentification
-// ============================================================================
 
 async function verifyAuth(req: Request): Promise<{ userId: string }> {
   const authHeader = req.headers.get("Authorization");
@@ -450,10 +400,6 @@ async function verifyAuth(req: Request): Promise<{ userId: string }> {
   if (error || !user) throw new Error("Invalid token");
   return { userId: user.id };
 }
-
-// ============================================================================
-// 8. Handler principal
-// ============================================================================
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -482,7 +428,6 @@ serve(async (req: Request) => {
     let physicalMetrics: any = null;
     let assimilationResult: any = null;
 
-    // Appel au backend pour la validation 3D
     try {
       const backendResult = await callBackendValidate3d({
         pressure: extractedParams.pressure ?? 101325,
@@ -493,13 +438,10 @@ serve(async (req: Request) => {
         y: extractedParams.y ?? 0.5,
         z: extractedParams.z ?? 0.5,
       });
-      // Correction : s'assurer que predictions3d contient le tableau de profil
       predictions3d = backendResult.predictions3d || [];
-      // Correction : Mapper physical_metrics si présent ou utiliser les residuals directs
       physicalMetrics = backendResult.physical_metrics || { residuals: backendResult.residuals };
     } catch (err) {
       log("error", "Failed to fetch 3D validation from backend, using fallback", { error: err.message });
-      // Fallback : générer des prédictions vides
       predictions3d = [];
       physicalMetrics = null;
     }
@@ -507,18 +449,32 @@ serve(async (req: Request) => {
     const initialState = predictions3d[0]
       ? [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u]
       : [extractedParams.pressure ?? 101325, extractedParams.temperature ?? 293.15, extractedParams.velocity ?? 0];
-    const observation = [
-      extractedParams.pressure ?? initialState[0],
-      extractedParams.temperature ?? initialState[1],
-      extractedParams.velocity ?? initialState[2],
-    ];
 
-    // Assimilation
     try {
-      assimilationResult = await callBackendAssimilate(initialState, observation);
+      const initialStateSafe: number[] = [
+        toFiniteNumber(initialState[0], 101325),
+        toFiniteNumber(initialState[1], 293.15),
+        toFiniteNumber(initialState[2], 0),
+      ];
+      const observationSafe: number[] = [
+        toFiniteNumber(extractedParams.pressure ?? initialStateSafe[0], initialStateSafe[0]),
+        toFiniteNumber(extractedParams.temperature ?? initialStateSafe[1], initialStateSafe[1]),
+        toFiniteNumber(extractedParams.velocity ?? initialStateSafe[2], initialStateSafe[2]),
+      ];
+      assimilationResult = await callBackendAssimilate(initialStateSafe, observationSafe);
     } catch (err) {
       log("warn", "Assimilation failed, using simple Kalman fallback", { error: err.message });
-      const assimilated = simpleAssimilation(initialState, observation, 0.6);
+      const currentSafe: number[] = [
+        toFiniteNumber(initialState[0], 101325),
+        toFiniteNumber(initialState[1], 293.15),
+        toFiniteNumber(initialState[2], 0),
+      ];
+      const obsSafe: number[] = [
+        toFiniteNumber(extractedParams.pressure ?? currentSafe[0], currentSafe[0]),
+        toFiniteNumber(extractedParams.temperature ?? currentSafe[1], currentSafe[1]),
+        toFiniteNumber(extractedParams.velocity ?? currentSafe[2], currentSafe[2]),
+      ];
+      const assimilated = simpleAssimilation(currentSafe, obsSafe, 0.6);
       assimilationResult = { assimilated_state: assimilated, timestamp: new Date().toISOString() };
     }
 
@@ -545,7 +501,6 @@ serve(async (req: Request) => {
       }).eq("id", analysisId),
     ]);
 
-    // Génération PDF en arrière-plan (non bloquante)
     (async () => {
       try {
         const pdfBuffer = await generateAnalysisReport({
