@@ -40,10 +40,13 @@ export default function SimulationsPage() {
         const projectsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects`)
         if (!projectsRes.ok) throw new Error(`HTTP ${projectsRes.status}`)
         const projectsData = await projectsRes.json()
-        setProjects(Array.isArray(projectsData) ? projectsData : [])
+        const sortedProjects = Array.isArray(projectsData) 
+          ? projectsData.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          : []
+        setProjects(sortedProjects)
         
-        if (projectsData.length > 0) {
-          setSelectedProject(projectsData[0])
+        if (sortedProjects.length > 0) {
+          setSelectedProject(sortedProjects[0])
         }
       } catch (err) {
         console.error("Error fetching projects:", err)
