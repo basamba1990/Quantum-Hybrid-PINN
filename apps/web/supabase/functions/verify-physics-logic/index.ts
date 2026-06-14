@@ -313,6 +313,9 @@ async function generateAnalysisReport(data: {
   return doc.output("arraybuffer");
 }
 
+// ============================================================================
+// FONCTION DE CALCUL DU SCORE – VERSION CORRIGÉE (dynamique)
+// ============================================================================
 function calculateCredibilityScore(
   extractedParams: z.infer<typeof PhysicalParametersSchema>,
   predictions3d: any[],
@@ -321,6 +324,7 @@ function calculateCredibilityScore(
   let score = 100;
   const anomalies: string[] = [];
 
+  // 1. Vérification thermodynamique (Van't Hoff)
   if (extractedParams.pressure && extractedParams.temperature && extractedParams.equilibrium_pressure && extractedParams.enthalpy_delta_h) {
     const T = extractedParams.temperature;
     const R = 8.314;
@@ -338,6 +342,7 @@ function calculateCredibilityScore(
     }
   }
 
+  // 2. Assimilation et correction Kalman
   if (assimilationResult?.assimilated_state && predictions3d.length > 0) {
     const init = [predictions3d[0].pressure, predictions3d[0].temperature, predictions3d[0].velocity_u];
     let [p_assimilated, t_assimilated, v_assimilated] = assimilationResult.assimilated_state;
@@ -367,19 +372,32 @@ function calculateCredibilityScore(
       score = physicalScore;
 
       if (avgCorrection * 100 > 50) {
-        anomalies.push("High Kalman Filter correction required")
-        score -= 10
+        anomalies.push("High Kalman Filter correction required");
+        score -= 10;
       } else if (avgCorrection * 100 > 20) {
-        anomalies.push("Moderate Kalman Filter correction")
-        score -= 5
+        anomalies.push("Moderate Kalman Filter correction");
+        score -= 5;
       }
     }
   }
 
-  const pvtCoherence = 0.95
-  const cfdStability = 0.88
-  const basePhysicScore = score
-  score = (basePhysicScore * 0.4) + (pvtCoherence * 100 * 0.3) + (cfdStability * 100 * 0.3)
+  // 3. Calcul dynamique de la cohérence à partir des résidus (REMPLACE LES CONSTANTES 0.95 / 0.88)
+  let pvtCoherence = 0.5;
+  let cfdStability = 0.5;
+  if (assimilationResult?.residuals) {
+    const cont = assimilationResult.residuals.continuity || 1e-3;
+    const mom = assimilationResult.residuals.momentum || 1e-3;
+    pvtCoherence = Math.max(0, 1 - Math.log10(1 + cont));
+    cfdStability = Math.max(0, 1 - Math.log10(1 + mom));
+  } else if (predictions3d.length > 0 && predictions3d[0].residuals) {
+    const cont = predictions3d[0].residuals.continuity || 1e-3;
+    const mom = predictions3d[0].residuals.momentum || 1e-3;
+    pvtCoherence = Math.max(0, 1 - Math.log10(1 + cont));
+    cfdStability = Math.max(0, 1 - Math.log10(1 + mom));
+  }
+
+  const basePhysicScore = score;
+  score = (basePhysicScore * 0.4) + (pvtCoherence * 100 * 0.3) + (cfdStability * 100 * 0.3);
 
   if (extractedParams.velocity && extractedParams.velocity > 500) {
     anomalies.push(`Velocity ${extractedParams.velocity.toFixed(1)} m/s exceeds realistic limit`);
