@@ -54,12 +54,12 @@ class PINN3DNavierStokes(nn.Module):
                 inp = self.dropouts[i](inp)
         out = self.linears[-1](inp)
 
-        # Dénormalisation des sorties
-        rho = out[..., 0:1] * RHO_SCALE + 0.1
-        u = out[..., 1:2] * U_SCALE
-        v = out[..., 2:3] * U_SCALE
-        w = out[..., 3:4] * U_SCALE
-        T = out[..., 4:5] * TEMP_SCALE + 200.0
+        # Dénormalisation des sorties (centrage pour éviter des dérivées nulles)
+        rho = (out[..., 0:1] + 1) * RHO_SCALE / 2 + 0.1
+        u = (out[..., 1:2] + 1) * U_SCALE / 2
+        v = (out[..., 2:3] + 1) * U_SCALE / 2
+        w = (out[..., 3:4] + 1) * U_SCALE / 2
+        T = (out[..., 4:5] + 1) * TEMP_SCALE / 2 + 200.0
         return rho, u, v, w, T
 
     def _safe_grad(self, y, x, create_graph=True):
