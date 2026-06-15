@@ -65,7 +65,7 @@ class PINN3DNavierStokes(nn.Module):
         if not z.requires_grad:
             z.requires_grad_(True)
 
-        # Cloner ET activer les gradients pour les sorties
+        # Cloner ET activer les gradients pour les sorties (Correction RuntimeError)
         rho = rho.clone().requires_grad_(True)
         u = u.clone().requires_grad_(True)
         v = v.clone().requires_grad_(True)
