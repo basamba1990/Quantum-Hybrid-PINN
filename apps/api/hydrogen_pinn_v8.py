@@ -63,7 +63,6 @@ class HydrogenPINNV8:
         self.device = get_device()
         self.fluid_type = fluid_type
         self.rock_type = rock_type
-        
         if rock_type:
             self.pinn_model = RockPINN3D(layers, rock_type=rock_type).to(self.device)
         else:
@@ -201,20 +200,17 @@ class HydrogenPINNV8:
             assimilated_state = self.dkl_model.assimilate_batch(state_tensor, obs_tensor)
         return assimilated_state.squeeze().tolist()
 
-    # =============== ENTRAÎNEMENT AVEC NORMALISATION ET ADAPTATION ===============
+    # ========== ENTRAÎNEMENT AVEC ÉQUILIBRAGE ET ÉCHANTILLONNAGE ADAPTATIF ==========
     def train_pinn(self, epochs: int = 5000, learning_rate: float = 1e-3,
                    N_pde: int = 5000, adapt_every: int = 500,
                    n_refine: int = 500, loss_weights: List[float] = None) -> Dict[str, List[float]]:
-        """
-        Entraînement avec résidus normalisés, échantillonnage adaptatif et équilibrage de pertes.
-        """
         if loss_weights is None:
             loss_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
         self.pinn_model.train()
         optimizer = torch.optim.Adam(self.pinn_model.parameters(), lr=learning_rate)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-        # Échantillons initiaux
+        # Points de collocation initiaux
         t_pde = (torch.rand(N_pde, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
         x_pde = (torch.rand(N_pde, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
         y_pde = (torch.rand(N_pde, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
@@ -228,10 +224,9 @@ class HydrogenPINNV8:
             optimizer.zero_grad()
             rho_pred, u_pred, v_pred, w_pred, T_pred = self.pinn_model(t_pde, x_pde, y_pde, z_pde)
 
-            # Résidus normalisés (retournés par compute_residuals)
+            # Résidus adimensionnés
             mass, mom_x, mom_y, mom_z, energy = self.pinn_model.compute_residuals(
-                t_pde, x_pde, y_pde, z_pde, rho_pred, u_pred, v_pred, w_pred, T_pred
-            )
+                t_pde, x_pde, y_pde, z_pde, rho_pred, u_pred, v_pred, w_pred, T_pred)
             loss_mass = (mass**2).mean()
             loss_mom_x = (mom_x**2).mean()
             loss_mom_y = (mom_y**2).mean()
@@ -249,7 +244,6 @@ class HydrogenPINNV8:
                             adaptive_weights[3] * loss_mom_z +
                             adaptive_weights[4] * loss_energy)
             total_loss = weighted_pde + eos_loss + 0.1 * loss_thermo
-
             total_loss.backward()
             optimizer.step()
             scheduler.step()
@@ -266,35 +260,29 @@ class HydrogenPINNV8:
                 inv_mean = 1.0 / mean_losses
                 new_weights = inv_mean / inv_mean.mean()
                 adaptive_weights = torch.tensor(new_weights, device=self.device, dtype=torch.float32)
-                logger.info(f"Epoch {epoch}: updated loss weights = {new_weights}")
+                print(f"Epoch {epoch}: updated weights = {new_weights}")
 
-            # Échantillonnage adaptatif (RAR‑D)
+            # Échantillonnage adaptatif (RAR‑D) – SANS torch.no_grad()
             if (epoch + 1) % adapt_every == 0:
                 N_candidate = 5000
-                t_cand = torch.rand(N_candidate, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN
-                x_cand = torch.rand(N_candidate, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN
-                y_cand = torch.rand(N_candidate, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN
-                z_cand = torch.rand(N_candidate, 1, device=self.device) * (Z_MAX - Z_MIN) + Z_MIN
-                t_cand.requires_grad_(True)
-                x_cand.requires_grad_(True)
-                y_cand.requires_grad_(True)
-                z_cand.requires_grad_(True)
+                t_cand = (torch.rand(N_candidate, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
+                x_cand = (torch.rand(N_candidate, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
+                y_cand = (torch.rand(N_candidate, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
+                z_cand = (torch.rand(N_candidate, 1, device=self.device) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
 
-                with torch.no_grad():
-                    rho_c, u_c, v_c, w_c, T_c = self.pinn_model(t_cand, x_cand, y_cand, z_cand)
-                    mass_c, mom_x_c, mom_y_c, mom_z_c, energy_c = self.pinn_model.compute_residuals(
-                        t_cand, x_cand, y_cand, z_cand, rho_c, u_c, v_c, w_c, T_c
-                    )
-                    residual_norm = (mass_c**2 + mom_x_c**2 + mom_y_c**2 + mom_z_c**2 + energy_c**2).squeeze()
+                rho_c, u_c, v_c, w_c, T_c = self.pinn_model(t_cand, x_cand, y_cand, z_cand)
+                mass_c, mom_x_c, mom_y_c, mom_z_c, energy_c = self.pinn_model.compute_residuals(
+                    t_cand, x_cand, y_cand, z_cand, rho_c, u_c, v_c, w_c, T_c)
+                residual_norm = (mass_c**2 + mom_x_c**2 + mom_y_c**2 + mom_z_c**2 + energy_c**2).squeeze()
                 top_indices = torch.topk(residual_norm, n_refine).indices
                 t_pde = torch.cat([t_pde, t_cand[top_indices]])
                 x_pde = torch.cat([x_pde, x_cand[top_indices]])
                 y_pde = torch.cat([y_pde, y_cand[top_indices]])
                 z_pde = torch.cat([z_pde, z_cand[top_indices]])
                 history["adapt_count"] = len(t_pde)
-                logger.info(f"Epoch {epoch+1}: refined collocation points -> total {len(t_pde)}")
+                print(f"Epoch {epoch+1}: refined collocation points -> total {len(t_pde)}")
 
             if (epoch + 1) % 500 == 0:
-                print(f"Epoch {epoch + 1}/{epochs}, Loss: {total_loss.item():.6e}, Weights: {adaptive_weights.cpu().numpy()}")
+                print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss.item():.6e}, Weights: {adaptive_weights.cpu().numpy()}")
 
         return history
