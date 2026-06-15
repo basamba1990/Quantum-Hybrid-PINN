@@ -7,7 +7,6 @@ from pathlib import Path
 import sys
 import os
 
-# Ajout du chemin apps/api
 def add_api_to_path():
     current = Path(__file__).resolve()
     for parent in current.parents:
@@ -32,37 +31,48 @@ try:
 except ImportError:
     sys.path.append('/content/Quantum-Hybrid-PINN/apps/api')
     from hydrogen_pinn_v8 import HydrogenPINNV8
-from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
 
-def train_pinn_model(epochs: int, learning_rate: float, N_pde: int, model_output_path: str, layers: list = None):
+def train_pinn_model(epochs: int, learning_rate: float, N_pde: int, adapt_every: int,
+                     n_refine: int, model_output_path: str, layers: list = None):
     mlflow.set_experiment("PINN_Training")
     with mlflow.start_run():
         mlflow.log_params({
             "epochs": epochs,
             "learning_rate": learning_rate,
             "N_pde": N_pde,
+            "adapt_every": adapt_every,
+            "n_refine": n_refine,
             "layers": str(layers)
         })
 
         pinn_v8 = HydrogenPINNV8(layers=layers or [4, 128, 128, 128, 5])
-        history = pinn_v8.train_pinn(epochs=epochs, learning_rate=learning_rate, N_pde=N_pde)
+        history = pinn_v8.train_pinn(
+            epochs=epochs,
+            learning_rate=learning_rate,
+            N_pde=N_pde,
+            adapt_every=adapt_every,
+            n_refine=n_refine
+        )
 
         for epoch, loss_val in enumerate(history["loss"]):
             mlflow.log_metric("total_loss", loss_val, step=epoch)
+        mlflow.log_metric("final_loss", history["loss"][-1])
+        mlflow.log_metric("adapt_count", history["adapt_count"])
 
         torch.save(pinn_v8.pinn_model.state_dict(), model_output_path)
         print(f"PINN model saved to {model_output_path}")
 
-        metrics = {"final_loss": history["loss"][-1]}
         Path("metrics").mkdir(parents=True, exist_ok=True)
         with open("metrics/pinn_metrics.json", "w") as f:
-            json.dump(metrics, f)
+            json.dump({"final_loss": history["loss"][-1], "adapt_count": history["adapt_count"]}, f)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train PINN model.")
+    parser = argparse.ArgumentParser(description="Train PINN model with adaptive sampling and loss balancing.")
     parser.add_argument("--epochs", type=int, default=5000)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--N_pde", type=int, default=5000)
+    parser.add_argument("--adapt_every", type=int, default=500)
+    parser.add_argument("--n_refine", type=int, default=500)
     parser.add_argument("--model_output_path", type=str, default="models/pinn_model.pt")
     parser.add_argument("--layers", type=str, default="[4, 128, 128, 128, 5]")
     args = parser.parse_args()
@@ -77,6 +87,8 @@ if __name__ == "__main__":
         epochs=args.epochs,
         learning_rate=args.learning_rate,
         N_pde=args.N_pde,
+        adapt_every=args.adapt_every,
+        n_refine=args.n_refine,
         model_output_path=args.model_output_path,
         layers=layers
     )
