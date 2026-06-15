@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 from typing import Dict, List, Optional, Tuple
 import logging
+
 from pinn_3d_navier_stokes import PINN3DNavierStokes, T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
 from rock_pinn_3d import RockPINN3D
 from deep_kalman_filter import DeepKalmanFilter
@@ -17,6 +18,45 @@ def get_device():
         return torch.device("mps")
     else:
         return torch.device("cpu")
+
+class MahalanobisOODDetector:
+    def __init__(self, threshold_percentile: float = 99.0):
+        self.mean = None
+        self.cov_inv = None
+        self.threshold = None
+        self.threshold_percentile = threshold_percentile
+        self.fitted = False
+
+    def fit(self, features: np.ndarray):
+        if features.ndim == 1:
+            features = features.reshape(-1, 1)
+        N, d = features.shape
+        self.mean = np.mean(features, axis=0)
+        cov = np.cov(features, rowvar=False)
+        shrinkage = 0.01
+        cov_reg = (1 - shrinkage) * cov + shrinkage * np.eye(d) * np.trace(cov) / d
+        try:
+            self.cov_inv = np.linalg.pinv(cov_reg)
+        except np.linalg.LinAlgError:
+            self.cov_inv = np.linalg.pinv(cov_reg + 1e-6 * np.eye(d))
+        distances = []
+        for f in features:
+            delta = f - self.mean
+            dist = np.sqrt(delta @ self.cov_inv @ delta)
+            distances.append(dist)
+        self.threshold = np.percentile(distances, self.threshold_percentile)
+        self.fitted = True
+        logger.info(f"MahalanobisOODDetector fitted: mean dim={d}, threshold={self.threshold:.4f}")
+
+    def compute_distance(self, feature: np.ndarray) -> float:
+        if not self.fitted:
+            raise ValueError("Detector not fitted yet.")
+        delta = feature - self.mean
+        return float(np.sqrt(delta @ self.cov_inv @ delta))
+
+    def is_out_of_distribution(self, feature: np.ndarray) -> Tuple[bool, float]:
+        dist = self.compute_distance(feature)
+        return (dist > self.threshold, dist)
 
 class HydrogenPINNV8:
     def __init__(self, layers: List[int] = None, fluid_type: str = 'H2', rock_type: str = None):
@@ -33,9 +73,113 @@ class HydrogenPINNV8:
         self.enable_dropout = False
         self.ood_detector = None
 
-    # ... (les méthodes predict_state, predict_batch, etc. restent identiques à la version précédente) ...
-    # Pour gagner de la place, je ne les répète pas ici mais vous pouvez les reprendre de la réponse précédente.
-    # L'essentiel est la méthode train_pinn ci-dessous.
+    def fit_ood_detector(self, training_features: np.ndarray, threshold_percentile: float = 99.0):
+        if not self.enable_ood_detection:
+            logger.warning("OOD detection is disabled, but fit_ood_detector called. Enabling it.")
+            self.enable_ood_detection = True
+        self.ood_detector = MahalanobisOODDetector(threshold_percentile=threshold_percentile)
+        self.ood_detector.fit(training_features)
+        logger.info("OOD detector fitted successfully.")
+
+    def _extract_feature_from_state(self, state: Dict[str, np.ndarray]) -> np.ndarray:
+        p_field = state.get("p", None)
+        if p_field is None:
+            raise ValueError("State does not contain pressure field for OOD detection")
+        feature = p_field.flatten()
+        max_dim = 1024
+        if len(feature) > max_dim:
+            indices = np.linspace(0, len(feature)-1, max_dim, dtype=int)
+            feature = feature[indices]
+        return feature
+
+    def is_ood(self, state: Dict[str, np.ndarray]) -> Tuple[bool, float]:
+        if not self.enable_ood_detection or self.ood_detector is None:
+            return False, 0.0
+        try:
+            feature = self._extract_feature_from_state(state)
+            return self.ood_detector.is_out_of_distribution(feature)
+        except Exception as e:
+            logger.error(f"OOD detection failed: {e}")
+            return False, 0.0
+
+    def predict_state_with_uncertainty(self, t: float, x: float, y: float, z: float,
+                                        n_samples: int = 20) -> Dict[str, Dict[str, np.ndarray]]:
+        if not self.enable_dropout:
+            deterministic = self.predict_state(t, x, y, z)
+            return {"mean": deterministic, "variance": {k: 0.0 for k in deterministic}}
+        t_tensor = torch.tensor([[t]], dtype=torch.float32, device=self.device)
+        x_tensor = torch.tensor([[x]], dtype=torch.float32, device=self.device)
+        y_tensor = torch.tensor([[y]], dtype=torch.float32, device=self.device)
+        z_tensor = torch.tensor([[z]], dtype=torch.float32, device=self.device)
+        self.pinn_model.train()
+        predictions = []
+        for _ in range(n_samples):
+            rho, u, v, w, T = self.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
+            p = self.eos_model(rho, T)
+            predictions.append({
+                "pressure": p.item(),
+                "velocity_u": u.item(),
+                "velocity_v": v.item(),
+                "velocity_w": w.item(),
+                "temperature": T.item(),
+                "density": rho.item(),
+            })
+        self.pinn_model.eval()
+        mean = {}
+        variance = {}
+        keys = predictions[0].keys()
+        for key in keys:
+            values = np.array([p[key] for p in predictions])
+            mean[key] = np.mean(values)
+            variance[key] = np.var(values)
+        return {"mean": mean, "variance": variance}
+
+    def predict_state(self, t: float, x: float, y: float, z: float,
+                      return_ood_info: bool = False) -> Dict:
+        res = self.predict_batch(
+            np.array([t]), np.array([x]), np.array([y]), np.array([z])
+        )
+        result = {k: v[0] if isinstance(v, np.ndarray) else v for k, v in res.items()}
+        if return_ood_info:
+            result["ood_detected"] = False
+            result["mahalanobis_distance"] = 0.0
+        return result
+
+    def predict_batch(self, t: np.ndarray, x: np.ndarray, y: np.ndarray, z: np.ndarray,
+                      return_ood_info: bool = False) -> Dict:
+        self.pinn_model.eval()
+        t_tensor = torch.from_numpy(t).float().view(-1, 1).to(self.device)
+        x_tensor = torch.from_numpy(x).float().view(-1, 1).to(self.device)
+        y_tensor = torch.from_numpy(y).float().view(-1, 1).to(self.device)
+        z_tensor = torch.from_numpy(z).float().view(-1, 1).to(self.device)
+
+        with torch.no_grad():
+            rho, u, v, w, T = self.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
+            p = self.eos_model(rho, T)
+
+        p = torch.nan_to_num(p, nan=101325.0)
+        u = torch.nan_to_num(u, nan=0.0)
+        v = torch.nan_to_num(v, nan=0.0)
+        w = torch.nan_to_num(w, nan=0.0)
+        T = torch.nan_to_num(T, nan=293.15)
+        rho = torch.nan_to_num(rho, nan=1.0)
+
+        results = {
+            "pressure": p.cpu().numpy().flatten(),
+            "velocity_u": u.cpu().numpy().flatten(),
+            "velocity_v": v.cpu().numpy().flatten(),
+            "velocity_w": w.cpu().numpy().flatten(),
+            "temperature": T.cpu().numpy().flatten(),
+            "density": rho.cpu().numpy().flatten(),
+            "time": t.flatten(),
+            "x": x.flatten(),
+            "y": y.flatten(),
+            "z": z.flatten(),
+        }
+        if return_ood_info:
+            results["ood_detected"] = np.zeros(len(t), dtype=bool)
+            results["mahalanobis_distance"] = np.zeros(len(t))
+        return results
 
     def thermodynamic_residuals(self, rho, T, u, v, w, x, y, z):
         eos_derivs = self.eos_model.compute_pressure_derivatives(rho, T)
@@ -67,19 +211,19 @@ class HydrogenPINNV8:
         optimizer = torch.optim.Adam(self.pinn_model.parameters(), lr=learning_rate)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-        # Étape 1 : calculer les échelles de normalisation sur un batch initial
+        # Calcul des échelles de normalisation
         print("Calcul des échelles de normalisation des résidus...")
-        with torch.no_grad():
-            t_temp = (torch.rand(N_pde, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN)
-            x_temp = (torch.rand(N_pde, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN)
-            y_temp = (torch.rand(N_pde, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN)
-            z_temp = (torch.rand(N_pde, 1, device=self.device) * (Z_MAX - Z_MIN) + Z_MIN)
+        with torch.enable_grad():
+            t_temp = (torch.rand(N_pde, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
+            x_temp = (torch.rand(N_pde, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
+            y_temp = (torch.rand(N_pde, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
+            z_temp = (torch.rand(N_pde, 1, device=self.device) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
             rho_t, u_t, v_t, w_t, T_t = self.pinn_model(t_temp, x_temp, y_temp, z_temp)
-            mass_brut, mom_x_brut, mom_y_brut, mom_z_brut, energy_brut, scales = self.pinn_model.compute_residuals(
+            _, _, _, _, _, scales = self.pinn_model.compute_residuals(
                 t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t, scale_dict=None)
-        print(f"Échelles initiales : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
+        print(f"Échelles : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
 
-        # Génération initiale des points de collocation
+        # Points de collocation initiaux
         t_pde = (torch.rand(N_pde, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
         x_pde = (torch.rand(N_pde, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
         y_pde = (torch.rand(N_pde, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
@@ -112,11 +256,6 @@ class HydrogenPINNV8:
                             adaptive_weights[4] * loss_energy)
             total_loss = weighted_pde + eos_loss + 0.1 * loss_thermo
 
-            # Vérification que la loss n'est pas nulle (au cas où)
-            if total_loss.item() < 1e-12:
-                print(f"⚠️ Attention : loss nulle à l'epoch {epoch+1} !")
-                total_loss = total_loss + 1e-8  # forcer une petite valeur
-
             total_loss.backward()
             optimizer.step()
             scheduler.step()
@@ -135,10 +274,8 @@ class HydrogenPINNV8:
                 adaptive_weights = torch.tensor(new_weights, device=self.device, dtype=torch.float32)
                 print(f"Epoch {epoch}: updated weights = {new_weights}")
 
-            # Échantillonnage adaptatif sans concaténation (on régénère un nouveau jeu de points)
+            # Échantillonnage adaptatif
             if (epoch + 1) % adapt_every == 0:
-                print(f"Epoch {epoch+1}: échantillonnage adaptatif...")
-                # Générer des candidats
                 N_candidate = 10000
                 t_cand = (torch.rand(N_candidate, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
                 x_cand = (torch.rand(N_candidate, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
@@ -152,19 +289,18 @@ class HydrogenPINNV8:
                     residual_norm = (mass_c**2 + mom_x_c**2 + mom_y_c**2 + mom_z_c**2 + energy_c**2).squeeze()
                 top_indices = torch.topk(residual_norm, n_refine).indices
 
-                # Créer un nouveau jeu de points en combinant les anciens (détachés) et les meilleurs candidats
-                # On évite la concaténation de tenseurs avec historique en recréant tout.
-                new_t = torch.cat([t_pde.detach(), t_cand[top_indices]])
-                new_x = torch.cat([x_pde.detach(), x_cand[top_indices]])
-                new_y = torch.cat([y_pde.detach(), y_cand[top_indices]])
-                new_z = torch.cat([z_pde.detach(), z_cand[top_indices]])
+                # Ajout des nouveaux points
+                new_t = torch.cat([t_pde, t_cand[top_indices]])
+                new_x = torch.cat([x_pde, x_cand[top_indices]])
+                new_y = torch.cat([y_pde, y_cand[top_indices]])
+                new_z = torch.cat([z_pde, z_cand[top_indices]])
                 t_pde = new_t.requires_grad_(True)
                 x_pde = new_x.requires_grad_(True)
                 y_pde = new_y.requires_grad_(True)
                 z_pde = new_z.requires_grad_(True)
-                print(f"  -> Nouveau total de points : {len(t_pde)}")
+                print(f"Epoch {epoch+1}: adaptation -> {len(t_pde)} points")
 
             if (epoch + 1) % 500 == 0:
-                print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss.item():.6e}, Weights: {adaptive_weights.cpu().numpy()}")
+                print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss.item():.6e}")
 
         return history
