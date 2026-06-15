@@ -57,7 +57,6 @@ class PINN3DNavierStokes(nn.Module):
         return grads[0]
 
     def compute_residuals(self, t, x, y, z, rho, u, v, w, T):
-        # Recréer les tenseurs avec requires_grad
         t = t.clone().detach().requires_grad_(True)
         x = x.clone().detach().requires_grad_(True)
         y = y.clone().detach().requires_grad_(True)
@@ -68,7 +67,7 @@ class PINN3DNavierStokes(nn.Module):
         w = w.clone().detach().requires_grad_(True)
         T = T.clone().detach().requires_grad_(True)
 
-        # Premières dérivées
+        # First derivatives
         rho_t = self._safe_grad(rho, t)
         rho_x = self._safe_grad(rho, x)
         rho_y = self._safe_grad(rho, y)
@@ -94,7 +93,7 @@ class PINN3DNavierStokes(nn.Module):
         T_y = self._safe_grad(T, y)
         T_z = self._safe_grad(T, z)
 
-        # Secondes dérivées
+        # Second derivatives
         u_xx = self._safe_grad(u_x, x)
         u_yy = self._safe_grad(u_y, y)
         u_zz = self._safe_grad(u_z, z)
@@ -111,21 +110,14 @@ class PINN3DNavierStokes(nn.Module):
         T_yy = self._safe_grad(T_y, y)
         T_zz = self._safe_grad(T_z, z)
 
-        # Pression via EOS
         p = get_eos(self.fluid_type, rho, T)
         p_x = self._safe_grad(p, x)
         p_y = self._safe_grad(p, y)
         p_z = self._safe_grad(p, z)
 
-        # Équation de continuité
         mass_res = rho_t + (rho_x * u + rho * u_x) + (rho_y * v + rho * v_y) + (rho_z * w + rho * w_z)
 
-        # Si le résidu est nul (modèle non entraîné), on injecte une petite valeur réaliste
-        if torch.allclose(mass_res, torch.zeros_like(mass_res), atol=1e-6):
-            mass_res = torch.randn_like(mass_res) * 1e-4
-
         mu = self.config['mu']
-
         momentum_x_res = rho * (u_t + u * u_x + v * u_y + w * u_z) + p_x - mu * (u_xx + u_yy + u_zz)
         momentum_y_res = rho * (v_t + u * v_x + v * v_y + w * v_z) + p_y - mu * (v_xx + v_yy + v_zz)
         momentum_z_res = rho * (w_t + u * w_x + v * w_y + w * w_z) + p_z - mu * (w_xx + w_yy + w_zz)
@@ -134,7 +126,6 @@ class PINN3DNavierStokes(nn.Module):
         k_therm = self.config['k']
         dissipation = mu * (2 * (u_x**2 + v_y**2 + w_z**2) +
                            (u_y + v_x)**2 + (u_z + w_x)**2 + (v_z + w_y)**2)
-
         source_term = 0.0
         if self.config.get('kinetics') == 'temkin_pyzhev':
             Ea = self.config['Ea']
@@ -147,18 +138,12 @@ class PINN3DNavierStokes(nn.Module):
         energy_res = (rho * Cp * (T_t + u * T_x + v * T_y + w * T_z) -
                       k_therm * (T_xx + T_yy + T_zz) - dissipation - source_term - work_pressure)
 
-        # Forcer des résidus non nuls si nécessaire
-        for res in [momentum_x_res, momentum_y_res, momentum_z_res, energy_res]:
-            if torch.allclose(res, torch.zeros_like(res), atol=1e-6):
-                res.add_(torch.randn_like(res) * 1e-4)
-
         return mass_res, momentum_x_res, momentum_y_res, momentum_z_res, energy_res
 
     def loss(self, t_pde, x_pde, y_pde, z_pde, t_bc=None, x_bc=None, y_bc=None, z_bc=None, u_bc_target=None):
         rho, u, v, w, T = self.forward(t_pde, x_pde, y_pde, z_pde)
         mass, mom_x, mom_y, mom_z, energy = self.compute_residuals(t_pde, x_pde, y_pde, z_pde, rho, u, v, w, T)
         pde_loss = (mass**2).mean() + (mom_x**2).mean() + (mom_y**2).mean() + (mom_z**2).mean() + (energy**2).mean()
-
         bc_loss = torch.tensor(0.0, device=t_pde.device)
         if t_bc is not None:
             _, u_bc, v_bc, w_bc, _ = self.forward(t_bc, x_bc, y_bc, z_bc)
