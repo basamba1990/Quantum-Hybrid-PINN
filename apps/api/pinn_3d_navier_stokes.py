@@ -24,14 +24,12 @@ class PINN3DNavierStokes(nn.Module):
         self.linears = nn.ModuleList()
         for i in range(len(layers) - 1):
             linear = nn.Linear(layers[i], layers[i + 1])
-            # Initialisation avec une variance plus grande (évite les dérivées nulles)
             nn.init.xavier_uniform_(linear.weight, gain=0.5)
             nn.init.zeros_(linear.bias)
             self.linears.append(linear)
         self.dropouts = nn.ModuleList([nn.Dropout(dropout_rate) for _ in range(len(layers)-2)]) if enable_dropout else None
 
     def forward(self, t, x, y, z):
-        # Normalisation des entrées
         t_norm = (t - T_MIN) / (T_MAX - T_MIN)
         x_norm = (x - X_MIN) / (X_MAX - X_MIN)
         y_norm = (y - Y_MIN) / (Y_MAX - Y_MIN)
@@ -44,7 +42,6 @@ class PINN3DNavierStokes(nn.Module):
                 inp = self.dropouts[i](inp)
         out = self.linears[-1](inp)
 
-        # Dénormalisation avec centrage (variations non nulles)
         rho = (out[..., 0:1] + 1) * RHO_SCALE / 2 + 0.1
         u = (out[..., 1:2] + 1) * U_SCALE / 2
         v = (out[..., 2:3] + 1) * U_SCALE / 2
@@ -53,6 +50,7 @@ class PINN3DNavierStokes(nn.Module):
         return rho, u, v, w, T
 
     def _safe_grad(self, y, x, create_graph=True):
+        """Calcule dy/dx, retourne zéro si le gradient est None."""
         grads = torch.autograd.grad(y.sum(), x, create_graph=create_graph, allow_unused=True)
         if grads[0] is None:
             return torch.zeros_like(x, requires_grad=create_graph)
@@ -60,18 +58,25 @@ class PINN3DNavierStokes(nn.Module):
 
     def compute_residuals(self, t, x, y, z, rho, u, v, w, T, scale_dict=None):
         """
-        Calcule les résidus bruts (non normalisés) et retourne également des échelles de normalisation.
-        Si scale_dict est fourni, normalise les résidus.
+        Calcule les résidus bruts ou normalisés.
+        Les tenseurs d'entrée doivent avoir requires_grad=True.
         """
-        t = t.clone().detach().requires_grad_(True)
-        x = x.clone().detach().requires_grad_(True)
-        y = y.clone().detach().requires_grad_(True)
-        z = z.clone().detach().requires_grad_(True)
-        rho = rho.clone().detach().requires_grad_(True)
-        u = u.clone().detach().requires_grad_(True)
-        v = v.clone().detach().requires_grad_(True)
-        w = w.clone().detach().requires_grad_(True)
-        T = T.clone().detach().requires_grad_(True)
+        # S'assurer que les entrées demandent des gradients
+        if not t.requires_grad:
+            t.requires_grad_(True)
+        if not x.requires_grad:
+            x.requires_grad_(True)
+        if not y.requires_grad:
+            y.requires_grad_(True)
+        if not z.requires_grad:
+            z.requires_grad_(True)
+
+        # Clone sans detach pour préserver le graphe
+        rho = rho.clone()
+        u = u.clone()
+        v = v.clone()
+        w = w.clone()
+        T = T.clone()
 
         # Dérivées premières
         rho_t = self._safe_grad(rho, t)
@@ -127,12 +132,14 @@ class PINN3DNavierStokes(nn.Module):
 
         Cp = self.config['Cp']
         k_therm = self.config['k']
-        dissipation = mu * (2*(u_x**2+v_y**2+w_z**2) + (u_y+v_x)**2 + (u_z+w_x)**2 + (v_z+w_y)**2)
-        work_pressure = -(p_x*u + p_y*v + p_z*w) - p*(u_x+v_y+w_z)
-        energy = (rho*Cp*(T_t + u*T_x + v*T_y + w*T_z) - k_therm*(T_xx+T_yy+T_zz) - dissipation - work_pressure)
+        dissipation = mu * (2 * (u_x**2 + v_y**2 + w_z**2) +
+                           (u_y + v_x)**2 + (u_z + w_x)**2 + (v_z + w_y)**2)
+        work_pressure = -(p_x * u + p_y * v + p_z * w) - p * (u_x + v_y + w_z)
+        energy = (rho * Cp * (T_t + u * T_x + v * T_y + w * T_z) -
+                  k_therm * (T_xx + T_yy + T_zz) - dissipation - work_pressure)
 
         if scale_dict is None:
-            # Retourne les résidus bruts et les échelles pour normalisation ultérieure
+            # Calcul des échelles de normalisation (écarts types)
             scales = {
                 'mass': torch.std(mass).item() + 1e-6,
                 'mom': torch.std(mom_x).item() + 1e-6,
@@ -140,7 +147,7 @@ class PINN3DNavierStokes(nn.Module):
             }
             return mass, mom_x, mom_y, mom_z, energy, scales
         else:
-            # Normalisation avec les échelles fournies
+            # Normalisation
             mass = mass / scale_dict['mass']
             mom_x = mom_x / scale_dict['mom']
             mom_y = mom_y / scale_dict['mom']
