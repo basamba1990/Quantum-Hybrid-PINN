@@ -3,7 +3,6 @@ import torch.nn as nn
 import numpy as np
 from fluid_properties import FLUID_CONFIGS, get_eos
 
-# Domaines physiques
 T_MIN, T_MAX = 0.0, 3600.0
 X_MIN, X_MAX = 0.0, 100000.0
 Y_MIN, Y_MAX = -0.25, 0.25
@@ -50,17 +49,12 @@ class PINN3DNavierStokes(nn.Module):
         return rho, u, v, w, T
 
     def _safe_grad(self, y, x, create_graph=True):
-        """Calcule dy/dx, retourne zéro si le gradient est None."""
         grads = torch.autograd.grad(y.sum(), x, create_graph=create_graph, allow_unused=True)
         if grads[0] is None:
             return torch.zeros_like(x, requires_grad=create_graph)
         return grads[0]
 
     def compute_residuals(self, t, x, y, z, rho, u, v, w, T, scale_dict=None):
-        """
-        Calcule les résidus bruts ou normalisés.
-        Les tenseurs d'entrée doivent avoir requires_grad=True.
-        """
         # S'assurer que les entrées demandent des gradients
         if not t.requires_grad:
             t.requires_grad_(True)
@@ -71,14 +65,14 @@ class PINN3DNavierStokes(nn.Module):
         if not z.requires_grad:
             z.requires_grad_(True)
 
-        # Clone sans detach pour préserver le graphe
-        rho = rho.clone()
-        u = u.clone()
-        v = v.clone()
-        w = w.clone()
-        T = T.clone()
+        # Cloner ET activer les gradients pour les sorties
+        rho = rho.clone().requires_grad_(True)
+        u = u.clone().requires_grad_(True)
+        v = v.clone().requires_grad_(True)
+        w = w.clone().requires_grad_(True)
+        T = T.clone().requires_grad_(True)
 
-        # Dérivées premières
+        # Premières dérivées
         rho_t = self._safe_grad(rho, t)
         rho_x = self._safe_grad(rho, x)
         rho_y = self._safe_grad(rho, y)
@@ -108,12 +102,15 @@ class PINN3DNavierStokes(nn.Module):
         u_xx = self._safe_grad(u_x, x)
         u_yy = self._safe_grad(u_y, y)
         u_zz = self._safe_grad(u_z, z)
+
         v_xx = self._safe_grad(v_x, x)
         v_yy = self._safe_grad(v_y, y)
         v_zz = self._safe_grad(v_z, z)
+
         w_xx = self._safe_grad(w_x, x)
         w_yy = self._safe_grad(w_y, y)
         w_zz = self._safe_grad(w_z, z)
+
         T_xx = self._safe_grad(T_x, x)
         T_yy = self._safe_grad(T_y, y)
         T_zz = self._safe_grad(T_z, z)
@@ -139,7 +136,6 @@ class PINN3DNavierStokes(nn.Module):
                   k_therm * (T_xx + T_yy + T_zz) - dissipation - work_pressure)
 
         if scale_dict is None:
-            # Calcul des échelles de normalisation (écarts types)
             scales = {
                 'mass': torch.std(mass).item() + 1e-6,
                 'mom': torch.std(mom_x).item() + 1e-6,
@@ -147,7 +143,6 @@ class PINN3DNavierStokes(nn.Module):
             }
             return mass, mom_x, mom_y, mom_z, energy, scales
         else:
-            # Normalisation
             mass = mass / scale_dict['mass']
             mom_x = mom_x / scale_dict['mom']
             mom_y = mom_y / scale_dict['mom']
