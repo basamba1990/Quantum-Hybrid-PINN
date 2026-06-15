@@ -18,7 +18,6 @@ def add_api_to_path():
         if 'hydrogen_pinn_v8.py' in files and root.endswith(os.path.join('apps', 'api')):
             sys.path.append(root)
             return True
-    # Fallback for Google Colab typical path
     potential_api = Path('/content/Quantum-Hybrid-PINN/apps/api')
     if potential_api.exists():
         sys.path.append(str(potential_api))
@@ -59,24 +58,23 @@ def train_pinn_model(epochs: int, learning_rate: float, N_pde: int,
         for epoch, loss_val in enumerate(history["loss"]):
             mlflow.log_metric("total_loss", loss_val, step=epoch)
         mlflow.log_metric("final_loss", history["loss"][-1])
-        mlflow.log_metric("adapt_count", history["adapt_count"])
 
         torch.save(pinn_v8.pinn_model.state_dict(), model_output_path)
         print(f"PINN model saved to {model_output_path}")
 
         Path("metrics").mkdir(parents=True, exist_ok=True)
         with open("metrics/pinn_metrics.json", "w") as f:
-            json.dump({"final_loss": history["loss"][-1], "adapt_count": history["adapt_count"]}, f)
+            json.dump({"final_loss": history["loss"][-1]}, f)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train PINN model with adaptive sampling and loss balancing.")
+    parser = argparse.ArgumentParser()
     parser.add_argument("--epochs", type=int, default=5000)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--N_pde", type=int, default=5000)
     parser.add_argument("--adapt_every", type=int, default=500)
     parser.add_argument("--n_refine", type=int, default=500)
     parser.add_argument("--model_output_path", type=str, default="models/pinn_model.pt")
-    parser.add_argument("--layers", type=str, default="[4, 128, 128, 128, 5]")
+    parser.add_argument("--layers", type=str, default="[4,128,128,128,5]")
     args = parser.parse_args()
 
     try:
