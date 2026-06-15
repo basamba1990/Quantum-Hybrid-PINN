@@ -201,15 +201,12 @@ class HydrogenPINNV8:
             assimilated_state = self.dkl_model.assimilate_batch(state_tensor, obs_tensor)
         return assimilated_state.squeeze().tolist()
 
-    # =============== ENTRAÎNEMENT AVEC ADAPTATIVITÉ ===============
+    # =============== ENTRAÎNEMENT AVEC NORMALISATION ET ADAPTATION ===============
     def train_pinn(self, epochs: int = 5000, learning_rate: float = 1e-3,
                    N_pde: int = 5000, adapt_every: int = 500,
                    n_refine: int = 500, loss_weights: List[float] = None) -> Dict[str, List[float]]:
         """
-        Entraînement avec échantillonnage adaptatif (RAR-D) et équilibrage adaptatif des pertes.
-        - adapt_every : tous les combien d'epochs on raffine l'échantillonnage.
-        - n_refine : nombre de nouveaux points à ajouter à chaque raffinement.
-        - loss_weights : poids initiaux pour (mass, mom_x, mom_y, mom_z, energy). Si None, tous à 1.0.
+        Entraînement avec résidus normalisés, échantillonnage adaptatif et équilibrage de pertes.
         """
         if loss_weights is None:
             loss_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
@@ -217,24 +214,21 @@ class HydrogenPINNV8:
         optimizer = torch.optim.Adam(self.pinn_model.parameters(), lr=learning_rate)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-        # Échantillons de collocation initiaux
+        # Échantillons initiaux
         t_pde = (torch.rand(N_pde, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
         x_pde = (torch.rand(N_pde, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
         y_pde = (torch.rand(N_pde, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
         z_pde = (torch.rand(N_pde, 1, device=self.device) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
 
-        # Stockage des meilleurs poids loss (mise à jour adaptative)
         adaptive_weights = torch.tensor(loss_weights, device=self.device, requires_grad=False)
-        # Pour lissage des résidus moyens
         loss_components_history = []
-
-        history = {"loss": [], "adapt_count": 0}
+        history = {"loss": [], "adapt_count": N_pde}
 
         for epoch in range(epochs):
             optimizer.zero_grad()
             rho_pred, u_pred, v_pred, w_pred, T_pred = self.pinn_model(t_pde, x_pde, y_pde, z_pde)
 
-            # Calcul des résidus individuels
+            # Résidus normalisés (retournés par compute_residuals)
             mass, mom_x, mom_y, mom_z, energy = self.pinn_model.compute_residuals(
                 t_pde, x_pde, y_pde, z_pde, rho_pred, u_pred, v_pred, w_pred, T_pred
             )
@@ -244,12 +238,11 @@ class HydrogenPINNV8:
             loss_mom_z = (mom_z**2).mean()
             loss_energy = (energy**2).mean()
 
-            # Perte EOS + thermo
+            # Pertes supplémentaires
             eos_loss = integrate_eos_in_pinn_loss(self.eos_model, rho_pred, T_pred, weight=1.0)
             thermo_res = self.thermodynamic_residuals(rho_pred, T_pred, u_pred, v_pred, w_pred, x_pde, y_pde, z_pde)
             loss_thermo = torch.mean(thermo_res**2)
 
-            # Application des poids adaptatifs (actuellement fixes, mais on va les mettre à jour)
             weighted_pde = (adaptive_weights[0] * loss_mass +
                             adaptive_weights[1] * loss_mom_x +
                             adaptive_weights[2] * loss_mom_y +
@@ -262,28 +255,21 @@ class HydrogenPINNV8:
             scheduler.step()
 
             history["loss"].append(total_loss.item())
-
-            # Enregistrement des composantes pour équilibrage
             loss_components_history.append([loss_mass.item(), loss_mom_x.item(), loss_mom_y.item(),
                                             loss_mom_z.item(), loss_energy.item()])
 
             # Mise à jour des poids adaptatifs tous les 100 epochs
             if epoch % 100 == 0 and epoch > 0:
-                # Calcul des moyennes des composantes sur les 100 dernières itérations
                 recent = np.array(loss_components_history[-100:])
                 mean_losses = recent.mean(axis=0)
-                # Éviter division par zéro
                 mean_losses = np.maximum(mean_losses, 1e-8)
-                # Nouveaux poids : normaliser pour que la moyenne soit 1 (ou garder dynamique)
-                # On inverse proportionnellement aux pertes pour équilibrer
                 inv_mean = 1.0 / mean_losses
                 new_weights = inv_mean / inv_mean.mean()
                 adaptive_weights = torch.tensor(new_weights, device=self.device, dtype=torch.float32)
                 logger.info(f"Epoch {epoch}: updated loss weights = {new_weights}")
 
-            # Échantillonnage adaptatif (RAR-D) : ajout de points avec les plus grands résidus
+            # Échantillonnage adaptatif (RAR‑D)
             if (epoch + 1) % adapt_every == 0:
-                # Générer un grand nombre de points candidats
                 N_candidate = 5000
                 t_cand = torch.rand(N_candidate, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN
                 x_cand = torch.rand(N_candidate, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN
@@ -299,16 +285,12 @@ class HydrogenPINNV8:
                     mass_c, mom_x_c, mom_y_c, mom_z_c, energy_c = self.pinn_model.compute_residuals(
                         t_cand, x_cand, y_cand, z_cand, rho_c, u_c, v_c, w_c, T_c
                     )
-                    # Résidu composite (somme des carrés)
                     residual_norm = (mass_c**2 + mom_x_c**2 + mom_y_c**2 + mom_z_c**2 + energy_c**2).squeeze()
-                # Sélection des points avec les plus grands résidus
                 top_indices = torch.topk(residual_norm, n_refine).indices
-                # Ajouter ces points aux ensembles de collocation
                 t_pde = torch.cat([t_pde, t_cand[top_indices]])
                 x_pde = torch.cat([x_pde, x_cand[top_indices]])
                 y_pde = torch.cat([y_pde, y_cand[top_indices]])
                 z_pde = torch.cat([z_pde, z_cand[top_indices]])
-
                 history["adapt_count"] = len(t_pde)
                 logger.info(f"Epoch {epoch+1}: refined collocation points -> total {len(t_pde)}")
 
