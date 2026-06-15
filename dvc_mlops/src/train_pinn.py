@@ -18,7 +18,8 @@ def add_api_to_path():
         if 'hydrogen_pinn_v8.py' in files and root.endswith(os.path.join('apps', 'api')):
             sys.path.append(root)
             return True
-    potential_api = current.parents[2] / 'apps' / 'api'
+    # Fallback for Google Colab typical path
+    potential_api = Path('/content/Quantum-Hybrid-PINN/apps/api')
     if potential_api.exists():
         sys.path.append(str(potential_api))
         return True
@@ -29,11 +30,12 @@ add_api_to_path()
 try:
     from hydrogen_pinn_v8 import HydrogenPINNV8
 except ImportError:
-    sys.path.append('/content/Quantum-Hybrid-PINN/apps/api')
-    from hydrogen_pinn_v8 import HydrogenPINNV8
+    print("Erreur: impossible d'importer HydrogenPINNV8. Vérifiez le chemin d'accès.")
+    sys.exit(1)
 
-def train_pinn_model(epochs: int, learning_rate: float, N_pde: int, adapt_every: int,
-                     n_refine: int, model_output_path: str, layers: list = None):
+def train_pinn_model(epochs: int, learning_rate: float, N_pde: int,
+                     adapt_every: int, n_refine: int,
+                     model_output_path: str, layers: list = None):
     mlflow.set_experiment("PINN_Training")
     with mlflow.start_run():
         mlflow.log_params({
@@ -76,7 +78,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_output_path", type=str, default="models/pinn_model.pt")
     parser.add_argument("--layers", type=str, default="[4, 128, 128, 128, 5]")
     args = parser.parse_args()
-    
+
     try:
         layers = json.loads(args.layers)
     except:
