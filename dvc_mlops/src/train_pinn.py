@@ -59,6 +59,7 @@ def train_pinn_model(epochs: int, learning_rate: float, N_pde: int,
             mlflow.log_metric("total_loss", loss_val, step=epoch)
         mlflow.log_metric("final_loss", history["loss"][-1])
 
+        Path(model_output_path).parent.mkdir(parents=True, exist_ok=True)
         torch.save(pinn_v8.pinn_model.state_dict(), model_output_path)
         print(f"PINN model saved to {model_output_path}")
 
@@ -82,7 +83,6 @@ if __name__ == "__main__":
     except:
         layers = [4, 128, 128, 128, 5]
 
-    Path("models").mkdir(parents=True, exist_ok=True)
     train_pinn_model(
         epochs=args.epochs,
         learning_rate=args.learning_rate,
