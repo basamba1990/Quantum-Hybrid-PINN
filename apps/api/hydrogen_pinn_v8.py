@@ -200,7 +200,7 @@ class HydrogenPINNV8:
             assimilated_state = self.dkl_model.assimilate_batch(state_tensor, obs_tensor)
         return assimilated_state.squeeze().tolist()
 
-    # ==================== ENTRAÎNEMENT CORRIGÉ ====================
+    # ==================== ENTRAÎNEMENT CORRIGÉ (plus de double backward) ====================
     def train_pinn(self, epochs: int = 5000, learning_rate: float = 1e-3,
                    N_pde: int = 5000, adapt_every: int = 500,
                    n_refine: int = 500, loss_weights: List[float] = None) -> Dict[str, List[float]]:
@@ -223,7 +223,7 @@ class HydrogenPINNV8:
                 t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t, scale_dict=None)
         print(f"Échelles : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
 
-        # Points de collocation initiaux
+        # Points de collocation initiaux (avec requires_grad)
         t_pde = (torch.rand(N_pde, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
         x_pde = (torch.rand(N_pde, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
         y_pde = (torch.rand(N_pde, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
@@ -274,7 +274,7 @@ class HydrogenPINNV8:
                 adaptive_weights = torch.tensor(new_weights, device=self.device, dtype=torch.float32)
                 print(f"Epoch {epoch}: updated weights = {new_weights}")
 
-            # Échantillonnage adaptatif
+            # Échantillonnage adaptatif (SANS conserver le graphe)
             if (epoch + 1) % adapt_every == 0:
                 N_candidate = 10000
                 t_cand = (torch.rand(N_candidate, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
@@ -286,19 +286,26 @@ class HydrogenPINNV8:
                     rho_c, u_c, v_c, w_c, T_c = self.pinn_model(t_cand, x_cand, y_cand, z_cand)
                     mass_c, mom_x_c, mom_y_c, mom_z_c, energy_c = self.pinn_model.compute_residuals(
                         t_cand, x_cand, y_cand, z_cand, rho_c, u_c, v_c, w_c, T_c, scale_dict=scales)
-                    # On détache pour ne pas accumuler de graphe inutilement après calcul du résidu
                     residual_norm = (mass_c**2 + mom_x_c**2 + mom_y_c**2 + mom_z_c**2 + energy_c**2).detach().squeeze()
                 top_indices = torch.topk(residual_norm, n_refine).indices
 
-                # Ajout des nouveaux points
-                new_t = torch.cat([t_pde, t_cand[top_indices]])
-                new_x = torch.cat([x_pde, x_cand[top_indices]])
-                new_y = torch.cat([y_pde, y_cand[top_indices]])
-                new_z = torch.cat([z_pde, z_cand[top_indices]])
+                # IMPORTANT : on détache les anciens points pour éviter de garder l'historique
+                t_old = t_pde.detach()
+                x_old = x_pde.detach()
+                y_old = y_pde.detach()
+                z_old = z_pde.detach()
+
+                # On construit un nouveau tenseur sans historique
+                new_t = torch.cat([t_old, t_cand[top_indices].detach()])
+                new_x = torch.cat([x_old, x_cand[top_indices].detach()])
+                new_y = torch.cat([y_old, y_cand[top_indices].detach()])
+                new_z = torch.cat([z_old, z_cand[top_indices].detach()])
+
                 t_pde = new_t.requires_grad_(True)
                 x_pde = new_x.requires_grad_(True)
                 y_pde = new_y.requires_grad_(True)
                 z_pde = new_z.requires_grad_(True)
+
                 print(f"Epoch {epoch+1}: adaptation -> {len(t_pde)} points")
 
             if (epoch + 1) % 500 == 0:
