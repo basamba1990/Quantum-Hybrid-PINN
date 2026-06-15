@@ -282,11 +282,12 @@ class HydrogenPINNV8:
                 y_cand = (torch.rand(N_candidate, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
                 z_cand = (torch.rand(N_candidate, 1, device=self.device) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
 
-                with torch.no_grad():
+                with torch.enable_grad():
                     rho_c, u_c, v_c, w_c, T_c = self.pinn_model(t_cand, x_cand, y_cand, z_cand)
                     mass_c, mom_x_c, mom_y_c, mom_z_c, energy_c = self.pinn_model.compute_residuals(
                         t_cand, x_cand, y_cand, z_cand, rho_c, u_c, v_c, w_c, T_c, scale_dict=scales)
-                    residual_norm = (mass_c**2 + mom_x_c**2 + mom_y_c**2 + mom_z_c**2 + energy_c**2).squeeze()
+                    # On détache pour ne pas accumuler de graphe inutilement après calcul du résidu
+                    residual_norm = (mass_c**2 + mom_x_c**2 + mom_y_c**2 + mom_z_c**2 + energy_c**2).detach().squeeze()
                 top_indices = torch.topk(residual_norm, n_refine).indices
 
                 # Ajout des nouveaux points
