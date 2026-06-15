@@ -224,7 +224,6 @@ class HydrogenPINNV8:
             optimizer.zero_grad()
             rho_pred, u_pred, v_pred, w_pred, T_pred = self.pinn_model(t_pde, x_pde, y_pde, z_pde)
 
-            # Résidus adimensionnés
             mass, mom_x, mom_y, mom_z, energy = self.pinn_model.compute_residuals(
                 t_pde, x_pde, y_pde, z_pde, rho_pred, u_pred, v_pred, w_pred, T_pred)
             loss_mass = (mass**2).mean()
@@ -233,7 +232,6 @@ class HydrogenPINNV8:
             loss_mom_z = (mom_z**2).mean()
             loss_energy = (energy**2).mean()
 
-            # Pertes supplémentaires
             eos_loss = integrate_eos_in_pinn_loss(self.eos_model, rho_pred, T_pred, weight=1.0)
             thermo_res = self.thermodynamic_residuals(rho_pred, T_pred, u_pred, v_pred, w_pred, x_pde, y_pde, z_pde)
             loss_thermo = torch.mean(thermo_res**2)
@@ -244,6 +242,7 @@ class HydrogenPINNV8:
                             adaptive_weights[3] * loss_mom_z +
                             adaptive_weights[4] * loss_energy)
             total_loss = weighted_pde + eos_loss + 0.1 * loss_thermo
+
             total_loss.backward()
             optimizer.step()
             scheduler.step()
@@ -252,7 +251,7 @@ class HydrogenPINNV8:
             loss_components_history.append([loss_mass.item(), loss_mom_x.item(), loss_mom_y.item(),
                                             loss_mom_z.item(), loss_energy.item()])
 
-            # Mise à jour des poids adaptatifs tous les 100 epochs
+            # Mise à jour des poids adaptatifs
             if epoch % 100 == 0 and epoch > 0:
                 recent = np.array(loss_components_history[-100:])
                 mean_losses = recent.mean(axis=0)
@@ -262,7 +261,7 @@ class HydrogenPINNV8:
                 adaptive_weights = torch.tensor(new_weights, device=self.device, dtype=torch.float32)
                 print(f"Epoch {epoch}: updated weights = {new_weights}")
 
-            # Échantillonnage adaptatif (RAR‑D) – SANS torch.no_grad()
+            # Échantillonnage adaptatif avec détachement
             if (epoch + 1) % adapt_every == 0:
                 N_candidate = 5000
                 t_cand = (torch.rand(N_candidate, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
@@ -275,10 +274,17 @@ class HydrogenPINNV8:
                     t_cand, x_cand, y_cand, z_cand, rho_c, u_c, v_c, w_c, T_c)
                 residual_norm = (mass_c**2 + mom_x_c**2 + mom_y_c**2 + mom_z_c**2 + energy_c**2).squeeze()
                 top_indices = torch.topk(residual_norm, n_refine).indices
-                t_pde = torch.cat([t_pde, t_cand[top_indices]])
-                x_pde = torch.cat([x_pde, x_cand[top_indices]])
-                y_pde = torch.cat([y_pde, y_cand[top_indices]])
-                z_pde = torch.cat([z_pde, z_cand[top_indices]])
+
+                # Détacher les anciens points pour éviter la double backward
+                t_pde = torch.cat([t_pde.detach(), t_cand[top_indices]])
+                x_pde = torch.cat([x_pde.detach(), x_cand[top_indices]])
+                y_pde = torch.cat([y_pde.detach(), y_cand[top_indices]])
+                z_pde = torch.cat([z_pde.detach(), z_cand[top_indices]])
+                t_pde.requires_grad_(True)
+                x_pde.requires_grad_(True)
+                y_pde.requires_grad_(True)
+                z_pde.requires_grad_(True)
+
                 history["adapt_count"] = len(t_pde)
                 print(f"Epoch {epoch+1}: refined collocation points -> total {len(t_pde)}")
 
