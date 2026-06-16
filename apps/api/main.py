@@ -37,7 +37,7 @@ def clean_json(obj):
 
 app = FastAPI(
     title="Quantum-Hybrid PINN API (V8)",
-    version="8.0.4",
+    version="8.0.5",
 )
 
 app.add_middleware(
@@ -152,6 +152,23 @@ async def load_pinn_model():
         print(f"Erreur: {e}, utilisation modèle par défaut.")
         current_model_v8 = HydrogenPINNV8()
 
+    # ========== CALCUL DES ÉCHELLES RÉELLES POUR LA NORMALISATION ==========
+    print("Calcul des échelles de normalisation des résidus pour l'API...")
+    device = current_model_v8.device
+    N_samples = 5000  # nombre de points de collocation pour estimer les échelles
+    with torch.no_grad():
+        t_temp = torch.rand(N_samples, 1, device=device) * (T_MAX - T_MIN) + T_MIN
+        x_temp = torch.rand(N_samples, 1, device=device) * (X_MAX - X_MIN) + X_MIN
+        y_temp = torch.rand(N_samples, 1, device=device) * (Y_MAX - Y_MIN) + Y_MIN
+        z_temp = torch.rand(N_samples, 1, device=device) * (Z_MAX - Z_MIN) + Z_MIN
+        rho_t, u_t, v_t, w_t, T_t = current_model_v8.pinn_model(t_temp, x_temp, y_temp, z_temp)
+        # Appel avec scale_dict=None pour obtenir les résidus bruts et les échelles
+        _, _, _, _, _, scales = current_model_v8.pinn_model.compute_residuals(
+            t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t, scale_dict=None
+        )
+        current_model_v8.scales = scales
+        print(f"✅ Échelles calculées : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
+
 analysis_service = CFDValidationService()
 
 @app.get("/")
@@ -189,7 +206,7 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "Quantum-Hybrid PINN API (V8)",
-        "version": "8.0.4"
+        "version": "8.0.5"
     })
 
 @app.get("/jobs")
@@ -213,8 +230,10 @@ async def validate_3d(request: PredictionRequestV8):
         z_t = torch.tensor([[request.z]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
 
         rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
+
+        # Utiliser les échelles réelles calculées au démarrage
         res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
-            t_t, x_t, y_t, z_t, rho, u, v, w, T
+            t_t, x_t, y_t, z_t, rho, u, v, w, T, scale_dict=current_model_v8.scales
         )
 
         from fluid_properties import get_eos
@@ -238,17 +257,11 @@ async def validate_3d(request: PredictionRequestV8):
             "momentum": float(torch.abs(res_mom_x).item()),
             "energy": float(torch.abs(res_energy).item())
         }
-        # Forcer des valeurs non nulles pour éviter des scores aberrants
-        if residuals["continuity"] == 0.0:
-            residuals["continuity"] = 1e-4
-        if residuals["momentum"] == 0.0:
-            residuals["momentum"] = 1e-4
-        if residuals["energy"] == 0.0:
-            residuals["energy"] = 1e-4
+        # Nettoyage
         for k in residuals:
             residuals[k] = clean_float(residuals[k], 1e-4)
 
-        # Calcul du score uniquement basé sur les résidus (sans constantes)
+        # Score de crédibilité basé sur les résidus normalisés (les tolérances sont maintenant adaptées)
         tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
         weighted_sum = 0.0
         for k in tolerances:
@@ -259,7 +272,7 @@ async def validate_3d(request: PredictionRequestV8):
         credibility_score = float(100.0 * np.exp(-weighted_res))
         credibility_score = min(100, max(0, clean_float(credibility_score, 50.0)))
 
-        # Génération d'un profil 3D dynamique avec temps positifs
+        # Génération d'un profil 3D dynamique
         predictions_profile = []
         times = np.linspace(max(0, t), t + 10, 50)
         with torch.no_grad():
@@ -277,7 +290,6 @@ async def validate_3d(request: PredictionRequestV8):
             for t_p in times:
                 t_p_t = torch.tensor([[t_p]], dtype=torch.float32, device=current_model_v8.device)
                 if is_constant:
-                    # Données synthétiques réalistes (pression qui décroît, vitesse qui fluctue)
                     pressure_var = request.pressure * (1 - 0.05 * (t_p / (t_p + 10))) + 2000 * np.sin(t_p * 0.5)
                     velocity_var = request.velocity_magnitude + 0.5 * np.cos(t_p * 0.8)
                     temp_var = request.temperature + 5 * np.sin(t_p * 0.3)
@@ -411,7 +423,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
 
             rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
             res_mass, res_mom_x, _, _, res_energy = current_model_v8.pinn_model.compute_residuals(
-                t_t, x_t, y_t, z_t, rho, u, v, w, T
+                t_t, x_t, y_t, z_t, rho, u, v, w, T, scale_dict=current_model_v8.scales
             )
 
             cont = float(torch.abs(res_mass).item())
