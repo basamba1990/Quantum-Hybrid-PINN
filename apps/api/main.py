@@ -14,7 +14,6 @@ try:
     from deep_kalman_filter import DeepKalmanFilter
     from cfd_validation_service import CFDValidationService
     from scenario_engines import SCENARIO_ENGINES
-    # Importer les constantes de domaine pour le calcul des échelles
     from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
 except ImportError:
     from .hydrogen_pinn_v8 import HydrogenPINNV8, get_device
@@ -40,7 +39,7 @@ def clean_json(obj):
 
 app = FastAPI(
     title="Quantum-Hybrid PINN API (V8)",
-    version="8.0.5",
+    version="8.0.6",
 )
 
 app.add_middleware(
@@ -53,6 +52,7 @@ app.add_middleware(
 
 jobs_store = {}
 
+# ==================== MODÈLES PYDANTIC ====================
 class SimulationRequest(BaseModel):
     project_id: str = "default_project"
     job_name: str = "H2_Pipeline_Simulation"
@@ -103,6 +103,7 @@ class AssimilationResponseV8(BaseModel):
     assimilated_state: List[float]
     timestamp: str
 
+# ==================== SUPABASE ====================
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "pinn-models")
@@ -155,25 +156,26 @@ async def load_pinn_model():
         print(f"Erreur: {e}, utilisation modèle par défaut.")
         current_model_v8 = HydrogenPINNV8()
 
-    # ========== CALCUL DES ÉCHELLES RÉELLES POUR LA NORMALISATION ==========
+    # ========== CALCUL DES ÉCHELLES AVEC CONTEXTE DE GRADIENT ==========
     print("Calcul des échelles de normalisation des résidus pour l'API...")
     device = current_model_v8.device
-    N_samples = 5000  # nombre de points de collocation pour estimer les échelles
-    with torch.no_grad():
-        t_temp = torch.rand(N_samples, 1, device=device) * (T_MAX - T_MIN) + T_MIN
-        x_temp = torch.rand(N_samples, 1, device=device) * (X_MAX - X_MIN) + X_MIN
-        y_temp = torch.rand(N_samples, 1, device=device) * (Y_MAX - Y_MIN) + Y_MIN
-        z_temp = torch.rand(N_samples, 1, device=device) * (Z_MAX - Z_MIN) + Z_MIN
+    N_samples = 5000
+    # Utiliser torch.enable_grad() pour activer le calcul des gradients
+    # (car nous avons besoin de gradients pour compute_residuals)
+    with torch.enable_grad():
+        t_temp = (torch.rand(N_samples, 1, device=device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
+        x_temp = (torch.rand(N_samples, 1, device=device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
+        y_temp = (torch.rand(N_samples, 1, device=device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
+        z_temp = (torch.rand(N_samples, 1, device=device) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
         rho_t, u_t, v_t, w_t, T_t = current_model_v8.pinn_model(t_temp, x_temp, y_temp, z_temp)
-        # Appel avec scale_dict=None pour obtenir les résidus bruts et les échelles
+        # Appel avec scale_dict=None pour obtenir les résidus bruts + échelles
         _, _, _, _, _, scales = current_model_v8.pinn_model.compute_residuals(
             t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t, scale_dict=None
         )
         current_model_v8.scales = scales
         print(f"✅ Échelles calculées : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
 
-analysis_service = CFDValidationService()
-
+# ==================== ENDPOINTS ====================
 @app.get("/")
 async def root():
     return clean_json({
@@ -209,7 +211,7 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "Quantum-Hybrid PINN API (V8)",
-        "version": "8.0.5"
+        "version": "8.0.6"
     })
 
 @app.get("/jobs")
@@ -260,11 +262,9 @@ async def validate_3d(request: PredictionRequestV8):
             "momentum": float(torch.abs(res_mom_x).item()),
             "energy": float(torch.abs(res_energy).item())
         }
-        # Nettoyage
         for k in residuals:
             residuals[k] = clean_float(residuals[k], 1e-4)
 
-        # Score de crédibilité basé sur les résidus normalisés
         tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
         weighted_sum = 0.0
         for k in tolerances:
@@ -275,11 +275,10 @@ async def validate_3d(request: PredictionRequestV8):
         credibility_score = float(100.0 * np.exp(-weighted_res))
         credibility_score = min(100, max(0, clean_float(credibility_score, 50.0)))
 
-        # Génération d'un profil 3D dynamique
+        # Profil 3D
         predictions_profile = []
         times = np.linspace(max(0, t), t + 10, 50)
         with torch.no_grad():
-            # Détection de modèle constant
             rho0, u0, v0, w0, T0 = current_model_v8.pinn_model(
                 torch.tensor([[0.0]], device=current_model_v8.device),
                 x_t, y_t, z_t
@@ -450,7 +449,6 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             }
             history.append(step_data)
 
-        # Profil 3D
         x_profile = np.linspace(0, L_phys, 20)
         predictions_list = []
         fixed_time = t_val
