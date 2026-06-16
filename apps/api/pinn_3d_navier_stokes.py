@@ -55,7 +55,11 @@ class PINN3DNavierStokes(nn.Module):
         return grads[0]
 
     def compute_residuals(self, t, x, y, z, rho, u, v, w, T, scale_dict=None):
-        # S'assurer que les entrées demandent des gradients
+        """
+        Calcule les résidus de Navier-Stokes.
+        Si scale_dict est fourni : normalise les résidus et retourne 5 valeurs.
+        Si scale_dict est None : retourne les résidus bruts + un dictionnaire d'échelles (6 valeurs).
+        """
         if not t.requires_grad:
             t.requires_grad_(True)
         if not x.requires_grad:
@@ -65,7 +69,6 @@ class PINN3DNavierStokes(nn.Module):
         if not z.requires_grad:
             z.requires_grad_(True)
 
-        # Cloner ET activer les gradients pour les sorties (Correction RuntimeError)
         rho = rho.clone().requires_grad_(True)
         u = u.clone().requires_grad_(True)
         v = v.clone().requires_grad_(True)
@@ -102,15 +105,12 @@ class PINN3DNavierStokes(nn.Module):
         u_xx = self._safe_grad(u_x, x)
         u_yy = self._safe_grad(u_y, y)
         u_zz = self._safe_grad(u_z, z)
-
         v_xx = self._safe_grad(v_x, x)
         v_yy = self._safe_grad(v_y, y)
         v_zz = self._safe_grad(v_z, z)
-
         w_xx = self._safe_grad(w_x, x)
         w_yy = self._safe_grad(w_y, y)
         w_zz = self._safe_grad(w_z, z)
-
         T_xx = self._safe_grad(T_x, x)
         T_yy = self._safe_grad(T_y, y)
         T_zz = self._safe_grad(T_z, z)
@@ -120,7 +120,7 @@ class PINN3DNavierStokes(nn.Module):
         p_y = self._safe_grad(p, y)
         p_z = self._safe_grad(p, z)
 
-        # Résidus bruts
+        # Résidus physiques (unités absolues)
         mass = rho_t + (rho_x * u + rho * u_x) + (rho_y * v + rho * v_y) + (rho_z * w + rho * w_z)
         mu = self.config['mu']
         mom_x = rho * (u_t + u * u_x + v * u_y + w * u_z) + p_x - mu * (u_xx + u_yy + u_zz)
@@ -135,20 +135,26 @@ class PINN3DNavierStokes(nn.Module):
         energy = (rho * Cp * (T_t + u * T_x + v * T_y + w * T_z) -
                   k_therm * (T_xx + T_yy + T_zz) - dissipation - work_pressure)
 
-        if scale_dict is None:
-            scales = {
-                'mass': torch.std(mass).item() + 1e-6,
-                'mom': torch.std(mom_x).item() + 1e-6,
-                'energy': torch.std(energy).item() + 1e-6
-            }
-            return mass, mom_x, mom_y, mom_z, energy, scales
-        else:
+        if scale_dict is not None:
+            # Normalisation avec les échelles fournies
             mass = mass / scale_dict['mass']
             mom_x = mom_x / scale_dict['mom']
             mom_y = mom_y / scale_dict['mom']
             mom_z = mom_z / scale_dict['mom']
             energy = energy / scale_dict['energy']
             return mass, mom_x, mom_y, mom_z, energy
+        else:
+            # Calcul des échelles (écarts-types) et retour des résidus bruts + échelles
+            # Éviter le warning std() sur tenseur vide
+            if mass.numel() == 0:
+                scales = {'mass': 1.0, 'mom': 1.0, 'energy': 1.0}
+            else:
+                scales = {
+                    'mass': torch.std(mass).item() + 1e-6,
+                    'mom': torch.std(mom_x).item() + 1e-6,
+                    'energy': torch.std(energy).item() + 1e-6
+                }
+            return mass, mom_x, mom_y, mom_z, energy, scales
 
     def loss(self, t_pde, x_pde, y_pde, z_pde, scale_dict):
         rho, u, v, w, T = self.forward(t_pde, x_pde, y_pde, z_pde)
