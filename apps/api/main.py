@@ -157,30 +157,29 @@ async def load_pinn_model():
         print(f"Erreur: {e}, utilisation modèle par défaut.")
         current_model_v8 = HydrogenPINNV8()
 
-    # ========== CALCUL DES ÉCHELLES AVEC MÉMOIRE RÉDUITE ==========
-    print("Calcul des échelles de normalisation des résidus pour l'API (mode mémoire optimisé)...")
+    # ========== CALCUL DES ÉCHELLES AVEC GRADIENTS ACTIVÉS ==========
+    print("Calcul des échelles de normalisation des résidus pour l'API (mode gradients activés)...")
     device = current_model_v8.device
-    N_samples = 1000  # Réduit de 5000 à 1000 pour économiser la RAM
-    # Utiliser inference_mode pour éviter de stocker les gradients (réduit la mémoire)
-    with torch.inference_mode():
-        t_temp = torch.rand(N_samples, 1, device=device) * (T_MAX - T_MIN) + T_MIN
-        x_temp = torch.rand(N_samples, 1, device=device) * (X_MAX - X_MIN) + X_MIN
-        y_temp = torch.rand(N_samples, 1, device=device) * (Y_MAX - Y_MIN) + Y_MIN
-        z_temp = torch.rand(N_samples, 1, device=device) * (Z_MAX - Z_MIN) + Z_MIN
+    N_samples = 1000  # Réduit pour économiser la RAM
+    # On utilise torch.enable_grad() pour permettre le calcul des gradients
+    with torch.enable_grad():
+        t_temp = (torch.rand(N_samples, 1, device=device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
+        x_temp = (torch.rand(N_samples, 1, device=device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
+        y_temp = (torch.rand(N_samples, 1, device=device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
+        z_temp = (torch.rand(N_samples, 1, device=device) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
         rho_t, u_t, v_t, w_t, T_t = current_model_v8.pinn_model(t_temp, x_temp, y_temp, z_temp)
-        # Appel avec scale_dict=None pour obtenir les résidus bruts et les échelles
-        # Note: on utilise compute_residuals sans gradients (car inference_mode)
-        # On passe scale_dict=None pour qu'elle retourne les résidus + échelles
         _, _, _, _, _, scales = current_model_v8.pinn_model.compute_residuals(
             t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t, scale_dict=None
         )
         current_model_v8.scales = scales
         print(f"✅ Échelles calculées : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
-    # Nettoyer la mémoire après le calcul
+    # Nettoyage mémoire
     del t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
+
+analysis_service = CFDValidationService()
 
 # ==================== ENDPOINTS ====================
 @app.get("/")
@@ -246,8 +245,6 @@ async def validate_3d(request: PredictionRequestV8):
             rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
 
             # Utiliser les échelles réelles calculées au démarrage
-            # Note: on appelle compute_residuals avec scale_dict, mais en inference_mode
-            # Cela ne calcule pas les gradients, donc moins de mémoire
             res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
                 t_t, x_t, y_t, z_t, rho, u, v, w, T, scale_dict=current_model_v8.scales
             )
@@ -286,10 +283,9 @@ async def validate_3d(request: PredictionRequestV8):
             credibility_score = float(100.0 * np.exp(-weighted_res))
             credibility_score = min(100, max(0, clean_float(credibility_score, 50.0)))
 
-            # Profil 3D (réduit à 30 points pour économiser la mémoire)
+            # Profil 3D (réduit à 30 points)
             predictions_profile = []
             times = np.linspace(max(0, t), t + 10, 30)
-            # Détection de modèle constant
             rho0, u0, v0, w0, T0 = current_model_v8.pinn_model(
                 torch.tensor([[0.0]], device=current_model_v8.device),
                 x_t, y_t, z_t
@@ -462,12 +458,12 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                 history.append(step_data)
 
             # Profil 3D (réduit)
-            x_profile = np.linspace(0, L_phys, 10)  # réduit de 20 à 10
+            x_profile = np.linspace(0, L_phys, 10)
             predictions_list = []
             fixed_time = t_val
             for x_pos in x_profile:
-                for r in np.linspace(0, D_phys/2, 2):  # réduit
-                    for theta in np.linspace(0, 2*np.pi, 4):  # réduit
+                for r in np.linspace(0, D_phys/2, 2):
+                    for theta in np.linspace(0, 2*np.pi, 4):
                         y_pos = r * np.cos(theta)
                         z_pos = r * np.sin(theta)
                         t_p = torch.tensor([[fixed_time]], dtype=torch.float32, device=current_model_v8.device)
