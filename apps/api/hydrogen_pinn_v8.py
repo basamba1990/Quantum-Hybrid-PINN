@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 from typing import Dict, List, Optional, Tuple
 import logging
+import gc
 
 from pinn_3d_navier_stokes import PINN3DNavierStokes, T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
 from rock_pinn_3d import RockPINN3D
@@ -145,17 +146,25 @@ class HydrogenPINNV8:
             result["mahalanobis_distance"] = 0.0
         return result
 
+    # ========== INFÉRENCE AVEC MEMOIRE RÉDUITE ==========
     def predict_batch(self, t: np.ndarray, x: np.ndarray, y: np.ndarray, z: np.ndarray,
                       return_ood_info: bool = False) -> Dict:
+        """
+        Prédiction batch avec inference_mode pour réduire l'empreinte mémoire.
+        """
         self.pinn_model.eval()
         t_tensor = torch.from_numpy(t).float().view(-1, 1).to(self.device)
         x_tensor = torch.from_numpy(x).float().view(-1, 1).to(self.device)
         y_tensor = torch.from_numpy(y).float().view(-1, 1).to(self.device)
         z_tensor = torch.from_numpy(z).float().view(-1, 1).to(self.device)
 
-        with torch.no_grad():
+        # Utiliser inference_mode pour désactiver les gradients et réduire la mémoire
+        with torch.inference_mode():
             rho, u, v, w, T = self.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
             p = self.eos_model(rho, T)
+
+        # Nettoyer les tenseurs pour libérer la mémoire
+        del t_tensor, x_tensor, y_tensor, z_tensor
 
         p = torch.nan_to_num(p, nan=101325.0)
         u = torch.nan_to_num(u, nan=0.0)
@@ -179,6 +188,11 @@ class HydrogenPINNV8:
         if return_ood_info:
             results["ood_detected"] = np.zeros(len(t), dtype=bool)
             results["mahalanobis_distance"] = np.zeros(len(t))
+
+        # Libérer la mémoire GPU si utilisée
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
         return results
 
     def thermodynamic_residuals(self, rho, T, u, v, w, x, y, z):
@@ -193,17 +207,24 @@ class HydrogenPINNV8:
         return mach_residual
 
     def assimilate_data(self, current_state: List[float], observation: List[float]) -> List[float]:
+        """
+        Assimilation avec inference_mode pour réduire la mémoire.
+        """
         self.dkl_model.eval()
-        with torch.no_grad():
+        with torch.inference_mode():
             state_tensor = torch.tensor([current_state], dtype=torch.float32, device=self.device)
             obs_tensor = torch.tensor([observation], dtype=torch.float32, device=self.device)
             assimilated_state = self.dkl_model.assimilate_batch(state_tensor, obs_tensor)
         return assimilated_state.squeeze().tolist()
 
-    # ==================== ENTRAÎNEMENT CORRIGÉ (plus de double backward) ====================
+    # ========== ENTRAÎNEMENT ==========
     def train_pinn(self, epochs: int = 5000, learning_rate: float = 1e-3,
                    N_pde: int = 5000, adapt_every: int = 500,
                    n_refine: int = 500, loss_weights: List[float] = None) -> Dict[str, List[float]]:
+        """
+        Entraînement du modèle (à utiliser sur Colab avec GPU).
+        Pour réduire la mémoire sur Render, privilégier l'inférence (predict_batch, assimilate_data).
+        """
         if loss_weights is None:
             loss_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
 
@@ -223,7 +244,7 @@ class HydrogenPINNV8:
                 t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t, scale_dict=None)
         print(f"Échelles : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
 
-        # Points de collocation initiaux (avec requires_grad)
+        # Points de collocation initiaux
         t_pde = (torch.rand(N_pde, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
         x_pde = (torch.rand(N_pde, 1, device=self.device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
         y_pde = (torch.rand(N_pde, 1, device=self.device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
@@ -274,7 +295,7 @@ class HydrogenPINNV8:
                 adaptive_weights = torch.tensor(new_weights, device=self.device, dtype=torch.float32)
                 print(f"Epoch {epoch}: updated weights = {new_weights}")
 
-            # Échantillonnage adaptatif (SANS conserver le graphe)
+            # Échantillonnage adaptatif
             if (epoch + 1) % adapt_every == 0:
                 N_candidate = 10000
                 t_cand = (torch.rand(N_candidate, 1, device=self.device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
@@ -289,13 +310,12 @@ class HydrogenPINNV8:
                     residual_norm = (mass_c**2 + mom_x_c**2 + mom_y_c**2 + mom_z_c**2 + energy_c**2).detach().squeeze()
                 top_indices = torch.topk(residual_norm, n_refine).indices
 
-                # IMPORTANT : on détache les anciens points pour éviter de garder l'historique
+                # Détacher les anciens points pour éviter l'accumulation du graphe
                 t_old = t_pde.detach()
                 x_old = x_pde.detach()
                 y_old = y_pde.detach()
                 z_old = z_pde.detach()
 
-                # On construit un nouveau tenseur sans historique
                 new_t = torch.cat([t_old, t_cand[top_indices].detach()])
                 new_x = torch.cat([x_old, x_cand[top_indices].detach()])
                 new_y = torch.cat([y_old, y_cand[top_indices].detach()])
@@ -305,6 +325,12 @@ class HydrogenPINNV8:
                 x_pde = new_x.requires_grad_(True)
                 y_pde = new_y.requires_grad_(True)
                 z_pde = new_z.requires_grad_(True)
+
+                # Nettoyer les tenseurs candidats pour libérer la mémoire
+                del t_cand, x_cand, y_cand, z_cand, rho_c, u_c, v_c, w_c, T_c, mass_c, mom_x_c, mom_y_c, mom_z_c, energy_c, residual_norm
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                gc.collect()
 
                 print(f"Epoch {epoch+1}: adaptation -> {len(t_pde)} points")
 
