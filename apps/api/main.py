@@ -14,11 +14,14 @@ try:
     from deep_kalman_filter import DeepKalmanFilter
     from cfd_validation_service import CFDValidationService
     from scenario_engines import SCENARIO_ENGINES
+    # Importer les constantes de domaine pour le calcul des échelles
+    from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
 except ImportError:
     from .hydrogen_pinn_v8 import HydrogenPINNV8, get_device
     from .deep_kalman_filter import DeepKalmanFilter
     from .cfd_validation_service import CFDValidationService
     from .scenario_engines import SCENARIO_ENGINES
+    from .pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
 
 def clean_float(value: float, fallback: float = 0.0) -> float:
     if not np.isfinite(value):
@@ -261,7 +264,7 @@ async def validate_3d(request: PredictionRequestV8):
         for k in residuals:
             residuals[k] = clean_float(residuals[k], 1e-4)
 
-        # Score de crédibilité basé sur les résidus normalisés (les tolérances sont maintenant adaptées)
+        # Score de crédibilité basé sur les résidus normalisés
         tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
         weighted_sum = 0.0
         for k in tolerances:
