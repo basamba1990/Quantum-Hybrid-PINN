@@ -3,7 +3,6 @@ import torch.nn as nn
 import numpy as np
 from fluid_properties import FLUID_CONFIGS, get_eos
 
-# Domaines et échelles de normalisation
 T_MIN, T_MAX = 0.0, 3600.0
 X_MIN, X_MAX = 0.0, 100000.0
 Y_MIN, Y_MAX = -0.25, 0.25
@@ -13,15 +12,11 @@ TEMP_SCALE = 400.0
 RHO_SCALE = 100.0
 
 class PINN3DNavierStokes(nn.Module):
-    """
-    PINN 3D pour Navier-Stokes compressible avec multi-fluide.
-    La taille du réseau peut être réduite via le paramètre `layers`
-    (ex: [4, 64, 64, 64, 5] pour un modèle léger).
-    """
     def __init__(self, layers=None, fluid_type='H2', dropout_rate=0.1, enable_dropout=False):
         super().__init__()
+        # Architecture par défaut réduite à 64 neurones (correspond au modèle entraîné)
         if layers is None:
-            layers = [4, 128, 128, 128, 5]   # Taille par défaut (peut être réduite)
+            layers = [4, 64, 64, 64, 5]   # <--- MODIFIÉ
         self.fluid_type = fluid_type
         self.config = FLUID_CONFIGS.get(fluid_type, FLUID_CONFIGS['H2'])
         self.enable_dropout = enable_dropout
@@ -35,7 +30,6 @@ class PINN3DNavierStokes(nn.Module):
         self.dropouts = nn.ModuleList([nn.Dropout(dropout_rate) for _ in range(len(layers)-2)]) if enable_dropout else None
 
     def forward(self, t, x, y, z):
-        # Normalisation des entrées dans [0,1]
         t_norm = (t - T_MIN) / (T_MAX - T_MIN)
         x_norm = (x - X_MIN) / (X_MAX - X_MIN)
         y_norm = (y - Y_MIN) / (Y_MAX - Y_MIN)
@@ -48,7 +42,6 @@ class PINN3DNavierStokes(nn.Module):
                 inp = self.dropouts[i](inp)
         out = self.linears[-1](inp)
 
-        # Dénormalisation des sorties
         rho = (out[..., 0:1] + 1) * RHO_SCALE / 2 + 0.1
         u = (out[..., 1:2] + 1) * U_SCALE / 2
         v = (out[..., 2:3] + 1) * U_SCALE / 2
@@ -57,18 +50,12 @@ class PINN3DNavierStokes(nn.Module):
         return rho, u, v, w, T
 
     def _safe_grad(self, y, x, create_graph=True):
-        """Calcule dy/dx, retourne zéro si le gradient est None."""
         grads = torch.autograd.grad(y.sum(), x, create_graph=create_graph, allow_unused=True)
         if grads[0] is None:
             return torch.zeros_like(x, requires_grad=create_graph)
         return grads[0]
 
     def compute_residuals(self, t, x, y, z, rho, u, v, w, T, scale_dict=None):
-        """
-        Calcule les résidus de Navier-Stokes.
-        - Si scale_dict est fourni : normalise les résidus et retourne 5 valeurs.
-        - Si scale_dict est None : retourne les résidus bruts + un dictionnaire d'échelles (6 valeurs).
-        """
         if not t.requires_grad:
             t.requires_grad_(True)
         if not x.requires_grad:
@@ -129,7 +116,6 @@ class PINN3DNavierStokes(nn.Module):
         p_y = self._safe_grad(p, y)
         p_z = self._safe_grad(p, z)
 
-        # Résidus physiques (unités absolues)
         mass = rho_t + (rho_x * u + rho * u_x) + (rho_y * v + rho * v_y) + (rho_z * w + rho * w_z)
         mu = self.config['mu']
         mom_x = rho * (u_t + u * u_x + v * u_y + w * u_z) + p_x - mu * (u_xx + u_yy + u_zz)
@@ -145,7 +131,6 @@ class PINN3DNavierStokes(nn.Module):
                   k_therm * (T_xx + T_yy + T_zz) - dissipation - work_pressure)
 
         if scale_dict is not None:
-            # Normalisation avec les échelles fournies
             mass = mass / scale_dict['mass']
             mom_x = mom_x / scale_dict['mom']
             mom_y = mom_y / scale_dict['mom']
@@ -153,7 +138,6 @@ class PINN3DNavierStokes(nn.Module):
             energy = energy / scale_dict['energy']
             return mass, mom_x, mom_y, mom_z, energy
         else:
-            # Calcul des échelles (écarts-types) et retour des résidus bruts + échelles
             if mass.numel() == 0:
                 scales = {'mass': 1.0, 'mom': 1.0, 'energy': 1.0}
             else:
