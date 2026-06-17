@@ -338,7 +338,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
                 <span className="flex items-center gap-2">
                   <MapPin className="w-3 h-3" /> Localisation: {config.scenarioInputs.portLocation || 'Offshore / Site'}
                 </span>
-                <span>Score de Crédibilité: {selectedJob.results?.credibilityScore ?? 0}%</span>
+                <span>Score de Crédibilité: {selectedJob.results?.credibilityScore ?? selectedJob.results?.credibility_score ?? 0}%</span>
               </div>
               <div className="bg-black/50 rounded-xl p-4 font-mono text-[10px] text-emerald-500/80 border border-emerald-500/10 h-32 overflow-y-auto">
                 <p className="mb-2 text-slate-500">--- DÉBUT LOG SIMULATION PINN V8 ---</p>
