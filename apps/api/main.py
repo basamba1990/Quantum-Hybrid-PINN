@@ -40,7 +40,7 @@ def clean_json(obj):
 
 app = FastAPI(
     title="Quantum-Hybrid PINN API (V8)",
-    version="8.0.7",
+    version="8.0.8",
 )
 
 app.add_middleware(
@@ -160,8 +160,7 @@ async def load_pinn_model():
     # ========== CALCUL DES ÉCHELLES AVEC GRADIENTS ACTIVÉS ==========
     print("Calcul des échelles de normalisation des résidus pour l'API (mode gradients activés)...")
     device = current_model_v8.device
-    N_samples = 1000  # Réduit pour économiser la RAM
-    # On utilise torch.enable_grad() pour permettre le calcul des gradients
+    N_samples = 1000
     with torch.enable_grad():
         t_temp = (torch.rand(N_samples, 1, device=device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
         x_temp = (torch.rand(N_samples, 1, device=device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
@@ -173,7 +172,6 @@ async def load_pinn_model():
         )
         current_model_v8.scales = scales
         print(f"✅ Échelles calculées : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
-    # Nettoyage mémoire
     del t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t
     gc.collect()
     if torch.cuda.is_available():
@@ -217,7 +215,7 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "Quantum-Hybrid PINN API (V8)",
-        "version": "8.0.7"
+        "version": "8.0.8"
     })
 
 @app.get("/jobs")
@@ -235,57 +233,61 @@ async def get_job_status(job_id: str):
 async def validate_3d(request: PredictionRequestV8):
     try:
         t = request.time if request.time is not None else 0.0
-        # Utiliser inference_mode pour les prédictions (pas de gradients)
-        with torch.inference_mode():
-            t_t = torch.tensor([[t]], dtype=torch.float32, device=current_model_v8.device)
-            x_t = torch.tensor([[request.x]], dtype=torch.float32, device=current_model_v8.device)
-            y_t = torch.tensor([[request.y]], dtype=torch.float32, device=current_model_v8.device)
-            z_t = torch.tensor([[request.z]], dtype=torch.float32, device=current_model_v8.device)
+        # Création des tenseurs avec requires_grad pour le calcul des résidus
+        t_t = torch.tensor([[t]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+        x_t = torch.tensor([[request.x]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+        y_t = torch.tensor([[request.y]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+        z_t = torch.tensor([[request.z]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
 
+        # Prédiction sans gradients (économie de mémoire)
+        with torch.no_grad():
             rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
 
-            # Utiliser les échelles réelles calculées au démarrage
-            res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
-                t_t, x_t, y_t, z_t, rho, u, v, w, T, scale_dict=current_model_v8.scales
-            )
+        # Calcul des résidus avec gradients activés (hors de tout contexte no_grad)
+        # Les tenseurs rho, u, ... sont des feuilles sans graphe, mais compute_residuals
+        # les clone avec requires_grad_(True) à l'intérieur.
+        res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
+            t_t, x_t, y_t, z_t, rho, u, v, w, T, scale_dict=current_model_v8.scales
+        )
 
-            from fluid_properties import get_eos
-            p_t = get_eos(current_model_v8.fluid_type, rho, T)
+        from fluid_properties import get_eos
+        p_t = get_eos(current_model_v8.fluid_type, rho, T)
 
-            result = {
-                "pressure": float(p_t.item()) if p_t is not None else request.pressure,
-                "velocity_u": float(u.item()),
-                "velocity_v": float(v.item()),
-                "velocity_w": float(w.item()),
-                "temperature": float(T.item()),
-                "density": float(rho.item()),
-                "time": t,
-                "x": request.x,
-                "y": request.y,
-                "z": request.z
-            }
+        result = {
+            "pressure": float(p_t.item()) if p_t is not None else request.pressure,
+            "velocity_u": float(u.item()),
+            "velocity_v": float(v.item()),
+            "velocity_w": float(w.item()),
+            "temperature": float(T.item()),
+            "density": float(rho.item()),
+            "time": t,
+            "x": request.x,
+            "y": request.y,
+            "z": request.z
+        }
 
-            residuals = {
-                "continuity": float(torch.abs(res_mass).item()),
-                "momentum": float(torch.abs(res_mom_x).item()),
-                "energy": float(torch.abs(res_energy).item())
-            }
-            for k in residuals:
-                residuals[k] = clean_float(residuals[k], 1e-4)
+        residuals = {
+            "continuity": float(torch.abs(res_mass).item()),
+            "momentum": float(torch.abs(res_mom_x).item()),
+            "energy": float(torch.abs(res_energy).item())
+        }
+        for k in residuals:
+            residuals[k] = clean_float(residuals[k], 1e-4)
 
-            tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
-            weighted_sum = 0.0
-            for k in tolerances:
-                val = residuals[k]
-                tol = tolerances[k]
-                weighted_sum += val / tol if tol != 0 else val
-            weighted_res = weighted_sum / len(tolerances)
-            credibility_score = float(100.0 * np.exp(-weighted_res))
-            credibility_score = min(100, max(0, clean_float(credibility_score, 50.0)))
+        tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
+        weighted_sum = 0.0
+        for k in tolerances:
+            val = residuals[k]
+            tol = tolerances[k]
+            weighted_sum += val / tol if tol != 0 else val
+        weighted_res = weighted_sum / len(tolerances)
+        credibility_score = float(100.0 * np.exp(-weighted_res))
+        credibility_score = min(100, max(0, clean_float(credibility_score, 50.0)))
 
-            # Profil 3D (réduit à 30 points)
-            predictions_profile = []
-            times = np.linspace(max(0, t), t + 10, 30)
+        # Génération du profil 3D (sans gradients)
+        predictions_profile = []
+        times = np.linspace(max(0, t), t + 10, 30)
+        with torch.no_grad():
             rho0, u0, v0, w0, T0 = current_model_v8.pinn_model(
                 torch.tensor([[0.0]], device=current_model_v8.device),
                 x_t, y_t, z_t
@@ -419,7 +421,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
         P_phys = inputs.get('pressure', 80)
         T_phys = inputs.get('temperature', 300)
 
-        with torch.inference_mode():
+        with torch.no_grad():
             for i in range(num_steps):
                 t_val = i * L_phys / num_steps
                 x_val = L_phys / 2
@@ -457,7 +459,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                 }
                 history.append(step_data)
 
-            # Profil 3D (réduit)
+            # Profil 3D
             x_profile = np.linspace(0, L_phys, 10)
             predictions_list = []
             fixed_time = t_val
