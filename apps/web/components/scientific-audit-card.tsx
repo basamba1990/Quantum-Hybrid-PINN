@@ -65,7 +65,8 @@ export default function ScientificAuditCard({
     return { level: 'Critique', color: 'text-red-600' }
   }
 
-  const credibility = getCredibilityLevel(auditData.credibilityScore)
+  const score = auditData.credibilityScore ?? (auditData as any).credibility_score ?? 0;
+  const credibility = getCredibilityLevel(score)
 
   return (
     <div className="bg-white border-2 border-slate-200 rounded-xl shadow-lg overflow-hidden">
@@ -118,7 +119,7 @@ export default function ScientificAuditCard({
           <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
             <div className="text-sm text-slate-600 mb-2">Score de Crédibilité</div>
             <div className={`text-lg font-bold ${credibility.color}`}>
-              {auditData.credibilityScore.toFixed(1)}/100
+              {score.toFixed(1)}/100
             </div>
             <div className="text-xs text-slate-500 mt-1">{credibility.level}</div>
           </div>
@@ -131,19 +132,19 @@ export default function ScientificAuditCard({
               Indice de Faisabilité Technique (Modèle V8)
             </span>
             <span className="text-sm font-bold text-slate-800">
-              {auditData.credibilityScore.toFixed(1)}%
+              {score.toFixed(1)}%
             </span>
           </div>
           <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-1000 ${
-                auditData.credibilityScore >= 80
+                score >= 80
                   ? 'bg-green-500'
-                  : auditData.credibilityScore >= 60
+                  : score >= 60
                     ? 'bg-amber-500'
                     : 'bg-red-500'
-              }`}
-              style={{ width: `${auditData.credibilityScore}%` }}
+              }
+              style={{ width: `${score}%` }}
             />
           </div>
         </div>

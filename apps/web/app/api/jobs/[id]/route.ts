@@ -27,7 +27,10 @@ export async function GET(
       name: job.name,
       status: job.status,
       createdAt: job.created_at,
-      results: job.results,
+      results: {
+        ...job.results,
+        credibilityScore: job.results?.credibility_score ?? job.results?.credibilityScore
+      },
       errorMessage: job.errorMessage || job.error_message
     };
     
