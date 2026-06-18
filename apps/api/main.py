@@ -507,6 +507,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             "mlTime": num_steps * 0.008,
             "residuals": clean_json(final_residuals),
             "residual_history": clean_json(history),
+            "credibility_score": credibility_score,
             "credibilityScore": credibility_score,
             "predictions3d": clean_json(predictions_list),
             "scenario_outputs": clean_json(scenario_outputs)
