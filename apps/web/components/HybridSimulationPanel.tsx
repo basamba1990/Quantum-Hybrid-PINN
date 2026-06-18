@@ -22,7 +22,8 @@ interface JobStatus {
     mlTime: number;
     residuals: Record<string, number>;
     log: string;
-    credibilityScore?: number;
+    credibilityScore?: number;      // camelCase (frontend)
+    credibility_score?: number;     // snake_case (backend)
     scenario_outputs?: Record<string, any>;
     predictions3d?: any[];
     residual_history?: any[];
@@ -48,7 +49,6 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
 
   const currentScenario = INDUSTRIAL_SCENARIOS[scenarioType];
 
-  // Initialisation des valeurs par défaut des inputs
   useEffect(() => {
     const defaultInputs = currentScenario.inputs.reduce((acc, input) => ({
       ...acc, [input.name]: input.defaultValue
@@ -56,7 +56,6 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     setConfig(prev => ({ ...prev, scenarioInputs: defaultInputs }));
   }, [scenarioType]);
 
-  // Récupération de la liste des jobs (affichage historique)
   const fetchJobs = async () => {
     try {
       const res = await fetch('/api/jobs');
@@ -69,7 +68,6 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     }
   };
 
-  // Polling dédié pour un job spécifique (récupération des résultats réels du backend)
   const startPollingForJob = (jobId: string) => {
     if (pollingRef.current) clearInterval(pollingRef.current);
     pollingRef.current = setInterval(async () => {
@@ -77,7 +75,6 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         const res = await fetch(`/api/jobs/${jobId}`);
         
         if (!res.ok) {
-          // Erreur réelle du backend - ne pas simuler
           const errorData = await res.json().catch(() => ({}));
           setSelectedJob(prev => prev ? { 
             ...prev, 
@@ -91,7 +88,6 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         
         const jobData = await res.json();
         
-        // Vérification de la structure des données reçues
         if (!jobData || !jobData.jobId) {
           console.error('Invalid job data received:', jobData);
           return;
@@ -99,40 +95,35 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
 
         setSelectedJob(jobData);
         
-        // Arrêter le polling si le job est terminé ou en échec
         if (jobData.status === 'completed' || jobData.status === 'failed') {
           if (pollingRef.current) clearInterval(pollingRef.current);
           pollingRef.current = null;
-          // Si la simulation est complétée, créer une analyse PINN automatiquement
           if (jobData.status === 'completed' && projectId) {
             await createAnalysisFromHybridResults(jobData, projectId);
           }
-          // Rafraîchir la liste des jobs pour l'historique
           fetchJobs();
         }
       } catch (err) {
         console.error('Polling error:', err);
         setError(`Erreur lors du polling du job ${jobId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
       }
-    }, 2000); // toutes les 2 secondes
+    }, 2000);
   };
 
-
-  // Création d'une analyse PINN à partir des résultats hybrides
   const createAnalysisFromHybridResults = async (jobData: JobStatus, projectId: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Transformer les résultats hybrides en format d'analyse PINN
+      const score = jobData.results?.credibilityScore ?? jobData.results?.credibility_score ?? 0;
+
       const analysisData = {
         project_id: projectId,
         name: `Analyse Hybride - ${jobData.name}`,
         title: `Analyse Hybride - ${jobData.name}`,
         status: 'completed',
-        credibility_score: jobData.results?.credibilityScore || 0,
+        credibility_score: score,
         results: {
-          // Utiliser les prédictions réelles générées par le backend
           predictions3d: jobData.results?.predictions3d || [],
           residual_history: jobData.results?.residual_history || [],
           physical_metrics: {
@@ -155,14 +146,12 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     }
   };
 
-    // Nettoyage du polling au démontage du composant
   useEffect(() => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
     };
   }, []);
 
-  // Lancement d'une nouvelle simulation
   const handleRunSimulation = async () => {
     setLoading(true);
     setError(null);
@@ -192,7 +181,6 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
       }
       
       const newJobId = data.job_id;
-      // Création d'un objet job temporaire en attendant les détails
       const tempJob: JobStatus = {
         jobId: newJobId,
         name: config.jobName,
@@ -200,9 +188,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         createdAt: new Date().toISOString(),
       };
       setSelectedJob(tempJob);
-      // Lancer le polling pour ce job
       startPollingForJob(newJobId);
-      // Rafraîchir la liste des jobs
       fetchJobs();
     } catch (err: any) {
       setError(err.message);
@@ -212,9 +198,13 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     }
   };
 
+  // Helper pour récupérer le score (supporte les deux conventions)
+  const getCredibilityScore = (results?: JobStatus['results']) => {
+    return results?.credibilityScore ?? results?.credibility_score ?? 0;
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-4">
-      {/* Panneau de configuration */}
       <Card className="lg:col-span-1 border-t-4 border-t-blue-500 shadow-xl bg-slate-900/50 backdrop-blur-sm text-white">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -289,7 +279,6 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         </CardContent>
       </Card>
 
-      {/* Tableau de bord des résultats */}
       <Card className="lg:col-span-2 bg-slate-950 border-slate-800 text-white overflow-hidden shadow-2xl">
         <CardHeader className="border-b border-slate-800 bg-slate-900/50">
           <div className="flex justify-between items-center">
@@ -338,7 +327,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
                 <span className="flex items-center gap-2">
                   <MapPin className="w-3 h-3" /> Localisation: {config.scenarioInputs.portLocation || 'Offshore / Site'}
                 </span>
-                <span>Score de Crédibilité: {selectedJob.results?.credibilityScore ?? selectedJob.results?.credibility_score ?? 0}%</span>
+                <span>Score de Crédibilité: {getCredibilityScore(selectedJob.results)}%</span>
               </div>
               <div className="bg-black/50 rounded-xl p-4 font-mono text-[10px] text-emerald-500/80 border border-emerald-500/10 h-32 overflow-y-auto">
                 <p className="mb-2 text-slate-500">--- DÉBUT LOG SIMULATION PINN V8 ---</p>
