@@ -58,6 +58,14 @@ interface HybridResults {
   residuals: ResidualData[];
   fieldComparisons: FieldComparison[];
   accelerationFactor: number;
+  convergence_status?: string;
+  confidenceMetrics?: {
+    model_confidence: number;
+    uncertainty_range: [number, number];
+    anomaly_z_score: number;
+    ood_detected: boolean;
+    physics_violations: number;
+  };
 }
 
 export function HybridResultsVisualizationEnhanced({ results }: { results?: HybridResults }) {
@@ -136,12 +144,13 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
         </CardHeader>
         <CardContent>
           <Tabs value={comparisonMode} onValueChange={(v) => setComparisonMode(v as any)}>
-            <TabsList className="grid w-full grid-cols-4">
+	            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="residuals">Residuals</TabsTrigger>
               <TabsTrigger value="fields">Field Comparison</TabsTrigger>
               <TabsTrigger value="performance">Performance</TabsTrigger>
-              <TabsTrigger value="advanced">Advanced Physics</TabsTrigger>
-            </TabsList>
+	              <TabsTrigger value="advanced">Advanced Physics</TabsTrigger>
+	              <TabsTrigger value="confidence">Confidence & Reliability</TabsTrigger>
+	            </TabsList>
 
             {/* Residuals Tab */}
             <TabsContent value="residuals" className="space-y-4 mt-4">
@@ -283,7 +292,63 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
             </TabsContent>
 
             {/* Performance Tab */}
-            <TabsContent value="performance" className="space-y-4 mt-4">
+	            {/* Confidence Tab */}
+	            <TabsContent value="confidence" className="space-y-6 mt-4">
+	              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+	                <Card className="bg-slate-900 border-purple-500/20 text-white">
+	                  <CardHeader>
+	                    <CardTitle className="text-sm font-bold text-purple-400 uppercase">Reliability Indicators</CardTitle>
+	                  </CardHeader>
+	                  <CardContent className="space-y-4">
+	                    <div className="flex justify-between items-center">
+	                      <span className="text-slate-400 text-sm">Model Confidence</span>
+	                      <span className="text-xl font-black text-purple-300">
+	                        {results.confidenceMetrics ? (results.confidenceMetrics.model_confidence * 100).toFixed(1) : '--'}%
+	                      </span>
+	                    </div>
+	                    <div className="flex justify-between items-center">
+	                      <span className="text-slate-400 text-sm">Anomaly Z-Score</span>
+	                      <span className="text-xl font-black text-amber-400">
+	                        {results.confidenceMetrics ? results.confidenceMetrics.anomaly_z_score.toFixed(2) : '--'}
+	                      </span>
+	                    </div>
+	                    <div className="flex justify-between items-center">
+	                      <span className="text-slate-400 text-sm">Convergence Status</span>
+	                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40">
+	                        {results.convergence_status?.toUpperCase() || 'STABLE'}
+	                      </Badge>
+	                    </div>
+	                  </CardContent>
+	                </Card>
+	                
+	                <Card className="bg-slate-900 border-purple-500/20 text-white">
+	                  <CardHeader>
+	                    <CardTitle className="text-sm font-bold text-purple-400 uppercase">Physics Validation</CardTitle>
+	                  </CardHeader>
+	                  <CardContent className="space-y-4">
+	                    <div className="flex justify-between items-center">
+	                      <span className="text-slate-400 text-sm">Physics Violations</span>
+	                      <span className={`text-xl font-black ${results.confidenceMetrics?.physics_violations === 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+	                        {results.confidenceMetrics?.physics_violations ?? 0}
+	                      </span>
+	                    </div>
+	                    <div className="flex justify-between items-center">
+	                      <span className="text-slate-400 text-sm">OOD (Out of Distribution)</span>
+	                      <span className={`text-sm font-bold ${results.confidenceMetrics?.ood_detected ? 'text-red-400' : 'text-emerald-400'}`}>
+	                        {results.confidenceMetrics?.ood_detected ? 'DETECTED' : 'NOT DETECTED'}
+	                      </span>
+	                    </div>
+	                    <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+	                      <p className="text-[10px] text-purple-300 leading-relaxed italic">
+	                        V8 certified analysis uses Deep Kalman Filter to synchronize predictions with conservation laws.
+	                      </p>
+	                    </div>
+	                  </CardContent>
+	                </Card>
+	              </div>
+	            </TabsContent>
+
+	            <TabsContent value="performance" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <Card>
                   <CardContent className="pt-6">
