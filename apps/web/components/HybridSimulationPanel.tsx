@@ -22,8 +22,8 @@ interface JobStatus {
     mlTime: number;
     residuals: Record<string, number>;
     log: string;
-    credibilityScore?: number;      // camelCase (frontend)
-    credibility_score?: number;     // snake_case (backend)
+    credibilityScore?: number;
+    credibility_score?: number;  // ✅ ajout pour support backend
     scenario_outputs?: Record<string, any>;
     predictions3d?: any[];
     residual_history?: any[];
@@ -198,7 +198,6 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     }
   };
 
-  // Helper pour récupérer le score (supporte les deux conventions)
   const getCredibilityScore = (results?: JobStatus['results']) => {
     return results?.credibilityScore ?? results?.credibility_score ?? 0;
   };
