@@ -227,7 +227,9 @@ export default function ScientificAuditCard({
             Paramètres Physiques Extraits
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {Object.entries(auditData.extractedData).map(([key, value]) => (
+            {Object.entries(auditData.extractedData)
+              .filter(([key]) => !['x', 'y', 'z'].includes(key)) // ✅ Masquer les coordonnées statiques 0.5
+              .map(([key, value]) => (
               <div key={key} className="bg-slate-50 rounded p-3 border border-slate-200">
                 <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">
                   {key.replace(/_/g, ' ')}
