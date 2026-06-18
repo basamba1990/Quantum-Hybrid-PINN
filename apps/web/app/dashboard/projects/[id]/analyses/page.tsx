@@ -52,7 +52,9 @@ export default function AnalysesPage() {
             </thead>
             <tbody>
               {analyses.map((a) => {
-                const score = (a as any).credibility_score ?? 0
+                // ✅ Correction: Recherche approfondie du score dans l'objet d'analyse ou ses résultats
+                const results = typeof a.results === 'string' ? (function() { try { return JSON.parse(a.results); } catch(e) { return {}; } })() : (a.results || {});
+                const score = (a as any).credibility_score ?? (a as any).credibilityScore ?? results.credibility_score ?? results.credibilityScore ?? 0;
                 const scoreColor = score >= 80 ? 'text-green-600' : score >= 60 ? 'text-amber-600' : 'text-red-600'
                 return (
                   <tr key={a.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
