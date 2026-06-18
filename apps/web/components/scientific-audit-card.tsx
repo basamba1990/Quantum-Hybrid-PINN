@@ -11,7 +11,6 @@ import {
   Activity
 } from 'lucide-react'
 import PINN3DVisualizer from './pinn-3d-visualizer'
-// ✅ Importer le type partagé
 import type { Prediction3D } from '@/types'
 
 interface ConfidenceMetrics {
@@ -34,7 +33,7 @@ interface AuditData {
     velocity: number
     temperature: number
   }>
-  predictions3d?: Prediction3D[] // ✅ Utilise le type global avec timestamp
+  predictions3d?: Prediction3D[]
   confidenceMetrics?: ConfidenceMetrics;
   assimilation?: {
     initial_state: number[]
@@ -125,7 +124,7 @@ export default function ScientificAuditCard({
           </div>
         </div>
 
-        {/* Credibility Bar */}
+        {/* Credibility Bar – CORRECTED */}
         <div>
           <div className="flex justify-between mb-2">
             <span className="text-sm font-semibold text-slate-700">
@@ -143,7 +142,7 @@ export default function ScientificAuditCard({
                   : score >= 60
                     ? 'bg-amber-500'
                     : 'bg-red-500'
-              }
+              }`}
               style={{ width: `${score}%` }}
             />
           </div>
@@ -168,41 +167,40 @@ export default function ScientificAuditCard({
               <div className="space-y-4">
                 <PINN3DVisualizer predictions={auditData.predictions3d} />
                 
-                {/* Data Assimilation Info */}
-                {/* Confidence Metrics Info */}
-        {auditData.confidenceMetrics && (
-          <div className="border-t pt-4">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-purple-600" />
-              Métriques de Confiance et Fiabilité
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-slate-50 rounded p-3 border border-slate-200">
-                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Confiance du Modèle</div>
-                <div className="text-sm font-bold text-slate-800">{(auditData.confidenceMetrics.model_confidence * 100).toFixed(1)}%</div>
-              </div>
-              <div className="bg-slate-50 rounded p-3 border border-slate-200">
-                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Plage d'Incertitude</div>
-                <div className="text-sm font-bold text-slate-800">[{auditData.confidenceMetrics.uncertainty_range[0].toFixed(2)}, {auditData.confidenceMetrics.uncertainty_range[1].toFixed(2)}]</div>
-              </div>
-              <div className="bg-slate-50 rounded p-3 border border-slate-200">
-                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Z-Score Anomalie</div>
-                <div className="text-sm font-bold text-slate-800">{auditData.confidenceMetrics.anomaly_z_score.toFixed(2)}</div>
-              </div>
-              <div className="bg-slate-50 rounded p-3 border border-slate-200">
-                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">OOD Détecté</div>
-                <div className={`text-sm font-bold ${auditData.confidenceMetrics.ood_detected ? 'text-red-600' : 'text-green-600'}`}>{auditData.confidenceMetrics.ood_detected ? 'Oui' : 'Non'}</div>
-              </div>
-              <div className="bg-slate-50 rounded p-3 border border-slate-200">
-                <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Violations Physiques</div>
-                <div className={`text-sm font-bold ${auditData.confidenceMetrics.physics_violations > 0 ? 'text-red-600' : 'text-green-600'}`}>{auditData.confidenceMetrics.physics_violations}</div>
-              </div>
-            </div>
-          </div>
-        )}
+                {/* Confidence Metrics */}
+                {auditData.confidenceMetrics && (
+                  <div className="border-t pt-4">
+                    <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-purple-600" />
+                      Métriques de Confiance et Fiabilité
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                        <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Confiance du Modèle</div>
+                        <div className="text-sm font-bold text-slate-800">{(auditData.confidenceMetrics.model_confidence * 100).toFixed(1)}%</div>
+                      </div>
+                      <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                        <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Plage d'Incertitude</div>
+                        <div className="text-sm font-bold text-slate-800">[{auditData.confidenceMetrics.uncertainty_range[0].toFixed(2)}, {auditData.confidenceMetrics.uncertainty_range[1].toFixed(2)}]</div>
+                      </div>
+                      <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                        <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Z-Score Anomalie</div>
+                        <div className="text-sm font-bold text-slate-800">{auditData.confidenceMetrics.anomaly_z_score.toFixed(2)}</div>
+                      </div>
+                      <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                        <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">OOD Détecté</div>
+                        <div className={`text-sm font-bold ${auditData.confidenceMetrics.ood_detected ? 'text-red-600' : 'text-green-600'}`}>{auditData.confidenceMetrics.ood_detected ? 'Oui' : 'Non'}</div>
+                      </div>
+                      <div className="bg-slate-50 rounded p-3 border border-slate-200">
+                        <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Violations Physiques</div>
+                        <div className={`text-sm font-bold ${auditData.confidenceMetrics.physics_violations > 0 ? 'text-red-600' : 'text-green-600'}`}>{auditData.confidenceMetrics.physics_violations}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-        {/* Data Assimilation Info */}
-        {auditData.assimilation && (
+                {/* Data Assimilation */}
+                {auditData.assimilation && (
                   <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3">
                     <h4 className="text-xs font-bold text-indigo-800 mb-2 flex items-center gap-1">
                       <Activity className="w-3 h-3" />
@@ -219,7 +217,7 @@ export default function ScientificAuditCard({
           </div>
         )}
 
-        {/* Extracted Data Section */}
+        {/* Extracted Data */}
         <div className="border-t pt-4">
           <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
             <Zap className="w-4 h-4 text-amber-500" />
@@ -233,7 +231,7 @@ export default function ScientificAuditCard({
                 </div>
                 <div className="text-sm font-bold text-slate-800">
                   {typeof value === 'number' ? (
-                    (value !== null && value !== undefined) ? (value > 1000 ? value.toExponential(2) : value.toFixed(2)) : 'N/A'
+                    value > 1000 ? value.toExponential(2) : value.toFixed(2)
                   ) : value}
                 </div>
               </div>
@@ -241,7 +239,7 @@ export default function ScientificAuditCard({
           </div>
         </div>
 
-        {/* Anomalies Section */}
+        {/* Anomalies */}
         {auditData.anomalies.length > 0 && (
           <div className="border-t pt-4">
             <button
@@ -279,7 +277,7 @@ export default function ScientificAuditCard({
           </div>
         )}
 
-        {/* Action Buttons */}
+        {/* Buttons */}
         <div className="border-t pt-4 flex flex-col sm:flex-row gap-3">
           <button
             onClick={onDownloadReport}
