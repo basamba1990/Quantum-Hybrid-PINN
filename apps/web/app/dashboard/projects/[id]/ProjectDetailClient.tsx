@@ -81,8 +81,9 @@ export default function ProjectDetailClient({ id }: { id: string }) {
              processedAnalysis.results.predictions3d = [];
           }
           
-          // ✅ Récupération explicite du score de crédibilité
-          processedAnalysis.credibility_score = analysisData.credibility_score || 0;
+          // ✅ Récupération explicite du score de crédibilité avec fallbacks multiples
+          const results = processedAnalysis.results || {};
+          processedAnalysis.credibility_score = analysisData.credibility_score ?? results.credibility_score ?? results.credibilityScore ?? 0;
           processedAnalysis.credibilityScore = processedAnalysis.credibility_score; // alias pour compatibilité
           
           setLatestAnalysis(processedAnalysis);
@@ -164,7 +165,10 @@ export default function ProjectDetailClient({ id }: { id: string }) {
             <div className="flex items-center gap-6 pt-2">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-gray-500" />
-                <span className="text-xs text-gray-500">Initialisé le {project.created_at ? format(new Date(project.created_at), 'dd MMMM yyyy') : 'Date inconnue'}</span>
+                <span className="text-xs text-gray-500">Initialisé le {project.created_at ? (function() { 
+                  try { return format(new Date(project.created_at), 'dd MMMM yyyy'); } 
+                  catch(e) { return 'Date invalide'; }
+                })() : 'Date inconnue'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Database className="w-4 h-4 text-gray-500" />
@@ -258,7 +262,10 @@ export default function ProjectDetailClient({ id }: { id: string }) {
                         selectedReport?.id === report.id ? 'text-blue-400' : 'text-white group-hover:text-blue-400'
                       }`}>{report.name}</p>
                       <p className="text-[10px] font-mono text-gray-500 uppercase mt-1">
-                        {report.created_at ? format(new Date(report.created_at), 'dd.MM.yyyy HH:mm') : 'Date inconnue'}
+                        {report.created_at ? (function() {
+                          try { return format(new Date(report.created_at), 'dd.MM.yyyy HH:mm'); }
+                          catch(e) { return 'Date invalide'; }
+                        })() : 'Date inconnue'}
                       </p>
                     </div>
                     <ChevronRight className={`w-4 h-4 transition-colors ${

@@ -65,8 +65,9 @@ export default function ScientificAuditCard({
     return { level: 'Critique', color: 'text-red-600' }
   }
 
-  // ✅ Récupération du score avec fallback sur les deux conventions
-  const score = auditData.credibilityScore ?? auditData.credibility_score ?? 0;
+  // ✅ Récupération du score avec fallback sur les deux conventions et vérification du type
+  const scoreRaw = auditData.credibilityScore ?? auditData.credibility_score ?? 0;
+  const score = typeof scoreRaw === 'number' ? scoreRaw : parseFloat(scoreRaw) || 0;
   const credibility = getCredibilityLevel(score)
 
   return (
