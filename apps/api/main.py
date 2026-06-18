@@ -40,7 +40,7 @@ def clean_json(obj):
 
 app = FastAPI(
     title="Quantum-Hybrid PINN API (V8)",
-    version="8.0.8",
+    version="8.0.9",
 )
 
 app.add_middleware(
@@ -215,7 +215,7 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "Quantum-Hybrid PINN API (V8)",
-        "version": "8.0.8"
+        "version": "8.0.9"
     })
 
 @app.get("/jobs")
@@ -239,13 +239,10 @@ async def validate_3d(request: PredictionRequestV8):
         y_t = torch.tensor([[request.y]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
         z_t = torch.tensor([[request.z]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
 
-        # Prédiction sans gradients (économie de mémoire)
-        with torch.no_grad():
-            rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
+        # ✅ Appel du modèle SANS no_grad pour conserver le graphe
+        rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
 
-        # Calcul des résidus avec gradients activés (hors de tout contexte no_grad)
-        # Les tenseurs rho, u, ... sont des feuilles sans graphe, mais compute_residuals
-        # les clone avec requires_grad_(True) à l'intérieur.
+        # Calcul des résidus avec gradients activés
         res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
             t_t, x_t, y_t, z_t, rho, u, v, w, T, scale_dict=current_model_v8.scales
         )
@@ -271,8 +268,11 @@ async def validate_3d(request: PredictionRequestV8):
             "momentum": float(torch.abs(res_mom_x).item()),
             "energy": float(torch.abs(res_energy).item())
         }
+        # Fallback si les résidus sont nuls (modèle non entraîné)
         for k in residuals:
-            residuals[k] = clean_float(residuals[k], 1e-4)
+            if residuals[k] == 0.0:
+                residuals[k] = 1e-6
+            residuals[k] = clean_float(residuals[k], 1e-6)
 
         tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
         weighted_sum = 0.0
@@ -284,7 +284,7 @@ async def validate_3d(request: PredictionRequestV8):
         credibility_score = float(100.0 * np.exp(-weighted_res))
         credibility_score = min(100, max(0, clean_float(credibility_score, 50.0)))
 
-        # Génération du profil 3D (sans gradients)
+        # Génération du profil 3D (avec no_grad pour économiser la mémoire)
         predictions_profile = []
         times = np.linspace(max(0, t), t + 10, 30)
         with torch.no_grad():
@@ -421,35 +421,35 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
         P_phys = inputs.get('pressure', 80)
         T_phys = inputs.get('temperature', 300)
 
-        with torch.no_grad():
+        # ✅ Utiliser torch.enable_grad() pour avoir des résidus non nuls
+        with torch.enable_grad():
             for i in range(num_steps):
                 t_val = i * L_phys / num_steps
                 x_val = L_phys / 2
                 y_val = D_phys / 2
                 z_val = D_phys / 2
 
-                t_t = torch.tensor([[t_val]], dtype=torch.float32, device=current_model_v8.device)
-                x_t = torch.tensor([[x_val]], dtype=torch.float32, device=current_model_v8.device)
-                y_t = torch.tensor([[y_val]], dtype=torch.float32, device=current_model_v8.device)
-                z_t = torch.tensor([[z_val]], dtype=torch.float32, device=current_model_v8.device)
+                t_t = torch.tensor([[t_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+                x_t = torch.tensor([[x_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+                y_t = torch.tensor([[y_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+                z_t = torch.tensor([[z_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
 
                 rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
                 res_mass, res_mom_x, _, _, res_energy = current_model_v8.pinn_model.compute_residuals(
                     t_t, x_t, y_t, z_t, rho, u, v, w, T, scale_dict=current_model_v8.scales
                 )
 
-                # Vrai calcul des résidus à chaque étape (Industriel)
-                decay = np.exp(-i / (num_steps / 2))
-                cont = float(torch.abs(res_mass).item()) * (0.1 + 0.9 * decay)
-                mom = float(torch.abs(res_mom_x).item()) * (0.1 + 0.9 * decay)
-                ene = float(torch.abs(res_energy).item()) * (0.1 + 0.9 * decay)
-                
+                cont = float(torch.abs(res_mass).item())
+                mom = float(torch.abs(res_mom_x).item())
+                ene = float(torch.abs(res_energy).item())
                 cont = clean_float(cont, 1e-6)
                 mom = clean_float(mom, 1e-6)
                 ene = clean_float(ene, 1e-6)
+                if cont == 0.0: cont = 1e-6
+                if mom == 0.0: mom = 1e-6
+                if ene == 0.0: ene = 1e-6
 
-                # Incertitude basée sur la variance locale (simulée ici pour la démo industrielle)
-                uncert = cont * 0.2
+                uncert = cont * 0.5
                 step_data = {
                     "step": i,
                     "continuity": cont,
@@ -460,10 +460,11 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                 }
                 history.append(step_data)
 
-            # Profil 3D
-            x_profile = np.linspace(0, L_phys, 10)
-            predictions_list = []
-            fixed_time = t_val
+        # Profil 3D (avec no_grad pour économiser la mémoire)
+        x_profile = np.linspace(0, L_phys, 10)
+        predictions_list = []
+        fixed_time = t_val
+        with torch.no_grad():
             for x_pos in x_profile:
                 for r in np.linspace(0, D_phys/2, 2):
                     for theta in np.linspace(0, 2*np.pi, 4):
@@ -477,11 +478,6 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                         p_drop_total = scenario_outputs.get('pressureDrop', 0) * 1e5
                         local_p = P_phys * 1e5 - (x_pos / L_phys) * p_drop_total + (rho_p.item() - 0.5) * 1e3
                         local_p = clean_float(local_p)
-                        # Métriques industrielles additionnelles
-                        velocity_mag = float(torch.sqrt(u_p**2 + v_p**2 + w_p**2).item())
-                        stress = float(local_p * 0.05 + velocity_mag * 10) # Exemple de contrainte
-                        turbulence = float(velocity_mag * 0.1 * (1 + 0.2 * np.random.randn()))
-                        
                         predictions_list.append({
                             "time": fixed_time,
                             "x": float(x_pos),
@@ -490,10 +486,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                             "pressure": local_p,
                             "velocity_u": float(u_p.item() * scenario_outputs.get('velocity', 1.0)),
                             "temperature": float(T_p.item() * (T_phys / 293.15)),
-                            "density": float(rho_p.item() * (P_phys / 80.0)),
-                            "stress": clean_float(stress),
-                            "turbulence": clean_float(turbulence),
-                            "uncertainty": clean_float(cont * 0.1)
+                            "density": float(rho_p.item() * (P_phys / 80.0))
                         })
 
         final_residuals = history[-1]
@@ -501,21 +494,12 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
         weighted_sum = 0.0
         for k in tolerances:
             val = final_residuals.get(k, 0.0)
-            if val == 0.0: val = 1e-4
+            if val == 0.0: val = 1e-6
             tol = tolerances[k]
             weighted_sum += val / tol if tol != 0 else val
         weighted_res = weighted_sum / len(tolerances)
         credibility_score = float(100.0 * np.exp(-weighted_res))
         credibility_score = clean_float(credibility_score, 50.0)
-
-        # Métriques de confiance industrielles
-        confidence_metrics = {
-            "model_confidence": float(np.exp(-weighted_res)),
-            "uncertainty_range": [float(weighted_res * 0.8), float(weighted_res * 1.2)],
-            "anomaly_z_score": float(np.random.rayleigh(0.5)),
-            "ood_detected": False,
-            "physics_violations": 0
-        }
 
         final_result = {
             "iteration": num_steps,
@@ -525,9 +509,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             "residual_history": clean_json(history),
             "credibilityScore": credibility_score,
             "predictions3d": clean_json(predictions_list),
-            "scenario_outputs": clean_json(scenario_outputs),
-            "confidenceMetrics": clean_json(confidence_metrics),
-            "convergence_status": "stable" if weighted_res < 1.0 else "converging"
+            "scenario_outputs": clean_json(scenario_outputs)
         }
         jobs_store[job_id].update({"status": "completed", "results": final_result})
     except Exception as e:
