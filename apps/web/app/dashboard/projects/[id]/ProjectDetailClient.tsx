@@ -81,6 +81,10 @@ export default function ProjectDetailClient({ id }: { id: string }) {
              processedAnalysis.results.predictions3d = [];
           }
           
+          // ✅ Récupération explicite du score de crédibilité
+          processedAnalysis.credibility_score = analysisData.credibility_score || 0;
+          processedAnalysis.credibilityScore = processedAnalysis.credibility_score; // alias pour compatibilité
+          
           setLatestAnalysis(processedAnalysis);
         }
         
