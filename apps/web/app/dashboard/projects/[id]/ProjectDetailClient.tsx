@@ -298,8 +298,10 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           
           <div className="relative rounded-[32px] border border-white/10 bg-black/40 overflow-hidden min-h-[600px] flex flex-col items-center justify-center">
             {selectedReport && selectedReport.file_url ? (
-              <div className="w-full h-full p-4">
-                <PDFViewer url={selectedReport.file_url} />
+              <div className="w-full h-full p-4 flex flex-col items-center justify-center">
+                <div className="w-full h-full bg-white/5 rounded-lg overflow-auto">
+                  <PDFViewer url={selectedReport.file_url} />
+                </div>
               </div>
             ) : (
               <div className="text-center p-12 space-y-6">
