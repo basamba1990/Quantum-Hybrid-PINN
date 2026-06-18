@@ -233,19 +233,31 @@ async def get_job_status(job_id: str):
 async def validate_3d(request: PredictionRequestV8):
     try:
         t = request.time if request.time is not None else 0.0
-        # Création des tenseurs avec requires_grad pour le calcul des résidus
-        t_t = torch.tensor([[t]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-        x_t = torch.tensor([[request.x]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-        y_t = torch.tensor([[request.y]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-        z_t = torch.tensor([[request.z]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+        
+        # ✅ SCAN SPATIAL INDUSTRIEL (au lieu d'un point fixe 0.5)
+        # On échantillonne plusieurs points pour une validation robuste
+        N_points = 10
+        x_samples = torch.linspace(X_MIN, X_MAX, N_points, device=current_model_v8.device).view(-1, 1).requires_grad_(True)
+        y_samples = torch.full((N_points, 1), request.y, device=current_model_v8.device).requires_grad_(True)
+        z_samples = torch.full((N_points, 1), request.z, device=current_model_v8.device).requires_grad_(True)
+        t_samples = torch.full((N_points, 1), t, device=current_model_v8.device).requires_grad_(True)
 
-        # ✅ Appel du modèle SANS no_grad pour conserver le graphe
-        rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
+        # ✅ Inférence sur le scan spatial
+        rho_s, u_s, v_s, w_s, T_s = current_model_v8.pinn_model(t_samples, x_samples, y_samples, z_samples)
 
-        # Calcul des résidus avec gradients activés
+        # Calcul des résidus sur tout le scan
         res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
-            t_t, x_t, y_t, z_t, rho, u, v, w, T, scale_dict=current_model_v8.scales
+            t_samples, x_samples, y_samples, z_samples, rho_s, u_s, v_s, w_s, T_s, scale_dict=current_model_v8.scales
         )
+        
+        # Moyenne des résidus pour un score global plus juste
+        res_mass_avg = torch.abs(res_mass).mean()
+        res_mom_avg = torch.sqrt(res_mom_x**2 + res_mom_y**2 + res_mom_z**2).mean()
+        res_energy_avg = torch.abs(res_energy).mean()
+
+        # Point de retour (le centre du scan pour la compatibilité)
+        idx_center = N_points // 2
+        rho, u, v, w, T = rho_s[idx_center:idx_center+1], u_s[idx_center:idx_center+1], v_s[idx_center:idx_center+1], w_s[idx_center:idx_center+1], T_s[idx_center:idx_center+1]
 
         from fluid_properties import get_eos
         p_t = get_eos(current_model_v8.fluid_type, rho, T)
@@ -264,9 +276,9 @@ async def validate_3d(request: PredictionRequestV8):
         }
 
         residuals = {
-            "continuity": float(torch.abs(res_mass).item()),
-            "momentum": float(torch.abs(res_mom_x).item()),
-            "energy": float(torch.abs(res_energy).item())
+            "continuity": float(res_mass_avg.item()),
+            "momentum": float(res_mom_avg.item()),
+            "energy": float(res_energy_avg.item())
         }
         # Fallback si les résidus sont nuls (modèle non entraîné)
         for k in residuals:

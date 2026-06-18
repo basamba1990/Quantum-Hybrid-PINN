@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Project, Report } from '@/types'
@@ -30,6 +30,20 @@ export default function ProjectDetailClient({ id }: { id: string }) {
   const [latestAnalysis, setLatestAnalysis] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
+
+  // ✅ Sécurisation du parsing des résultats
+  const results = useMemo(() => {
+    if (!latestAnalysis?.results) return {};
+    if (typeof latestAnalysis.results === 'string') {
+      try { return JSON.parse(latestAnalysis.results); }
+      catch (e) { console.error("Failed to parse results:", e); return {}; }
+    }
+    return latestAnalysis.results;
+  }, [latestAnalysis?.results]);
+
+  const predictions3d = useMemo(() => {
+    return Array.isArray(results?.predictions3d) ? results.predictions3d : [];
+  }, [results]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -202,9 +216,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
       </div>
 
       {/* Visualiseur 3D PINN sécurisé */}
-      {latestAnalysis && latestAnalysis.results && 
-       Array.isArray(latestAnalysis.results.predictions3d) && 
-       latestAnalysis.results.predictions3d.length > 0 && (
+      {latestAnalysis && predictions3d.length > 0 && (
         <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-[32px] p-8">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <Activity className="w-5 h-5 text-blue-500" />
@@ -212,7 +224,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           </h2>
           <div className="rounded-2xl overflow-hidden bg-black/20 border border-white/5">
             <PINN3DVisualizer 
-              predictions={latestAnalysis.results.predictions3d} 
+              predictions={predictions3d} 
               title={`Simulation PINN - ${latestAnalysis.title || 'H2 Pipeline'}`}
             />
           </div>
