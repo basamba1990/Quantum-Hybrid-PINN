@@ -292,10 +292,10 @@ export default function SimulationsPage() {
                 <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Info className="h-5 w-5 text-blue-400" /> Détails de l'Analyse</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-white/5"><span className="text-gray-400">Score Crédibilité</span><span className={`font-mono font-bold ${(function() {
-                        const score = selectedAnalysis?.credibility_score ?? selectedAnalysis?.results?.credibility_score ?? selectedAnalysis?.results?.credibilityScore ?? 0;
+                        const score = selectedAnalysis?.credibility_score ?? selectedAnalysis?.credibilityScore ?? selectedAnalysis?.results?.credibility_score ?? selectedAnalysis?.results?.credibilityScore ?? 0;
                         return score > 80 ? 'text-emerald-400' : 'text-yellow-400';
                       })()}`}>{ (function() {
-                        const score = selectedAnalysis?.credibility_score ?? selectedAnalysis?.results?.credibility_score ?? selectedAnalysis?.results?.credibilityScore;
+                        const score = selectedAnalysis?.credibility_score ?? selectedAnalysis?.credibilityScore ?? selectedAnalysis?.results?.credibility_score ?? selectedAnalysis?.results?.credibilityScore;
                         return score !== undefined ? `${Number(score).toFixed(1)}%` : '--';
                       })() }</span></div>
                   <div className="flex justify-between items-center py-2 border-b border-white/5"><span className="text-gray-400">Statut PINN</span><span className="font-mono text-blue-400 uppercase text-xs">{selectedAnalysis?.status || 'N/A'}</span></div>

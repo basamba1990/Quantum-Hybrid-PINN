@@ -51,8 +51,12 @@ export default function AnalysisDetailPage() {
           }
         }
 
+        // ✅ Correction: Assurer que le score est récupéré même s'il est dans results
+        const score = data.credibility_score ?? results?.credibility_score ?? results?.credibilityScore ?? 0;
+        
         setAnalysis({
           ...data,
+          credibility_score: score,
           results: results || {}
         })
       } catch (err: any) {
@@ -111,10 +115,13 @@ export default function AnalysisDetailPage() {
             <ArrowLeft className="w-4 h-4" /> Retour aux analyses
           </Link>
           <h1 className="text-4xl font-bold text-gray-900">{analysis.title}</h1>
-          <p className="text-gray-600 mt-2">
-            <Activity className="w-4 h-4 inline mr-2" />
-            Créée le {format(new Date(analysis.created_at), 'dd MMMM yyyy à HH:mm')}
-          </p>
+	          <p className="text-gray-600 mt-2">
+	            <Activity className="w-4 h-4 inline mr-2" />
+	            Créée le {analysis.created_at ? (function() {
+                  try { return format(new Date(analysis.created_at), 'dd MMMM yyyy à HH:mm'); }
+                  catch(e) { return 'Date invalide'; }
+                })() : 'Date inconnue'}
+	          </p>
         </div>
         <div className="text-right">
           <div className="text-5xl font-black text-blue-600">{analysis.credibility_score.toFixed(1)}</div>
