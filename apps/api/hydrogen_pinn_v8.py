@@ -147,6 +147,34 @@ class HydrogenPINNV8:
         return result
 
     # ========== INFÉRENCE AVEC MEMOIRE RÉDUITE ==========
+    def calculate_residuals(self, t: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """
+        Calcule les vrais résidus physiques de Navier-Stokes en utilisant les gradients automatiques.
+        """
+        self.pinn_model.eval()
+        # S'assurer que les gradients sont activés pour le calcul des résidus
+        with torch.enable_grad():
+            # Cloner et activer les gradients sur les entrées si nécessaire
+            t_t = t.clone().detach().requires_grad_(True).to(self.device)
+            x_t = x.clone().detach().requires_grad_(True).to(self.device)
+            y_t = y.clone().detach().requires_grad_(True).to(self.device)
+            z_t = z.clone().detach().requires_grad_(True).to(self.device)
+            
+            rho, u, v, w, T = self.pinn_model(t_t, x_t, y_t, z_t)
+            
+            # Utiliser la méthode du modèle pour calculer les résidus
+            mass, mom_x, mom_y, mom_z, energy = self.pinn_model.compute_residuals(
+                t_t, x_t, y_t, z_t, rho, u, v, w, T, scale_dict=getattr(self, 'scales', None)
+            )
+            
+            return {
+                "continuity": torch.abs(mass).detach(),
+                "momentum_x": torch.abs(mom_x).detach(),
+                "momentum_y": torch.abs(mom_y).detach(),
+                "momentum_z": torch.abs(mom_z).detach(),
+                "energy": torch.abs(energy).detach()
+            }
+
     def predict_batch(self, t: np.ndarray, x: np.ndarray, y: np.ndarray, z: np.ndarray,
                       return_ood_info: bool = False) -> Dict:
         """

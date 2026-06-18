@@ -447,8 +447,8 @@ async def get_boundary_layer(request: BoundaryLayerRequest):
         predictions = current_model_v8.predict_batch(t_tensor, x_tensor, y_coords, z_tensor)
         
         # Extraire la vitesse u et calculer y_plus (simplifié)
-        velocity_u = predictions["velocity_u"].cpu().numpy()
-        y_np = y_coords.cpu().numpy().flatten()
+        velocity_u = predictions["velocity_u"]
+        y_np = y_coords.numpy().flatten()
 
         # Calcul de y_plus (simplifié, devrait être basé sur des paramètres physiques réels)
         u_tau = 0.05 # Vitesse de frottement (exemple)
@@ -484,8 +484,7 @@ async def get_residuals_map(request: ResidualMapRequest):
             t_tensor = torch.full(X.shape, request.time, dtype=torch.float32)
             z_tensor = torch.full(X.shape, request.coord, dtype=torch.float32)
             
-            predictions = current_model_v8.predict_batch(t_tensor.flatten(), X.flatten(), Y.flatten(), z_tensor.flatten())
-            residuals = current_model_v8.calculate_residuals(predictions, t_tensor.flatten(), X.flatten(), Y.flatten(), z_tensor.flatten())
+            residuals = current_model_v8.calculate_residuals(t_tensor.flatten(), X.flatten(), Y.flatten(), z_tensor.flatten())
             res_map = residuals["continuity"].reshape(grid_size, grid_size).cpu().numpy()
         elif request.plane == "xz":
             x_coords = torch.linspace(0, 1, grid_size, dtype=torch.float32)
@@ -494,8 +493,7 @@ async def get_residuals_map(request: ResidualMapRequest):
             t_tensor = torch.full(X.shape, request.time, dtype=torch.float32)
             y_tensor = torch.full(X.shape, request.coord, dtype=torch.float32)
 
-            predictions = current_model_v8.predict_batch(t_tensor.flatten(), X.flatten(), y_tensor.flatten(), Z.flatten())
-            residuals = current_model_v8.calculate_residuals(predictions, t_tensor.flatten(), X.flatten(), y_tensor.flatten(), Z.flatten())
+            residuals = current_model_v8.calculate_residuals(t_tensor.flatten(), X.flatten(), y_tensor.flatten(), Z.flatten())
             res_map = residuals["continuity"].reshape(grid_size, grid_size).cpu().numpy()
         elif request.plane == "yz":
             y_coords = torch.linspace(0, 1, grid_size, dtype=torch.float32)
@@ -504,8 +502,7 @@ async def get_residuals_map(request: ResidualMapRequest):
             t_tensor = torch.full(Y.shape, request.time, dtype=torch.float32)
             x_tensor = torch.full(Y.shape, request.coord, dtype=torch.float32)
 
-            predictions = current_model_v8.predict_batch(t_tensor.flatten(), x_tensor.flatten(), Y.flatten(), Z.flatten())
-            residuals = current_model_v8.calculate_residuals(predictions, t_tensor.flatten(), x_tensor.flatten(), Y.flatten(), Z.flatten())
+            residuals = current_model_v8.calculate_residuals(t_tensor.flatten(), x_tensor.flatten(), Y.flatten(), Z.flatten())
             res_map = residuals["continuity"].reshape(grid_size, grid_size).cpu().numpy()
         else:
             raise HTTPException(status_code=400, detail="Invalid plane specified. Must be 'xy', 'xz', or 'yz'.")
