@@ -105,35 +105,44 @@ class HydrogenPINNV8:
 
     def predict_state_with_uncertainty(self, t: float, x: float, y: float, z: float,
                                         n_samples: int = 20) -> Dict[str, Dict[str, np.ndarray]]:
-        if not self.enable_dropout:
-            deterministic = self.predict_state(t, x, y, z)
-            return {"mean": deterministic, "variance": {k: 0.0 for k in deterministic}}
+        """
+        Implémente le MC Dropout pour l'estimation de l'incertitude (Bayesian Approximation).
+        """
         t_tensor = torch.tensor([[t]], dtype=torch.float32, device=self.device)
         x_tensor = torch.tensor([[x]], dtype=torch.float32, device=self.device)
         y_tensor = torch.tensor([[y]], dtype=torch.float32, device=self.device)
         z_tensor = torch.tensor([[z]], dtype=torch.float32, device=self.device)
+        
+        # Forcer le mode train pour activer le dropout même en inférence
         self.pinn_model.train()
         predictions = []
-        for _ in range(n_samples):
-            rho, u, v, w, T = self.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
-            p = self.eos_model(rho, T)
-            predictions.append({
-                "pressure": p.item(),
-                "velocity_u": u.item(),
-                "velocity_v": v.item(),
-                "velocity_w": w.item(),
-                "temperature": T.item(),
-                "density": rho.item(),
-            })
+        
+        with torch.no_grad():
+            for _ in range(n_samples):
+                rho, u, v, w, T = self.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
+                p = self.eos_model(rho, T)
+                predictions.append({
+                    "pressure": p.item(),
+                    "velocity_u": u.item(),
+                    "velocity_v": v.item(),
+                    "velocity_w": w.item(),
+                    "temperature": T.item(),
+                    "density": rho.item(),
+                })
+        
         self.pinn_model.eval()
         mean = {}
         variance = {}
+        if not predictions:
+            return {"mean": {}, "variance": {}}
+            
         keys = predictions[0].keys()
         for key in keys:
             values = np.array([p[key] for p in predictions])
             mean[key] = np.mean(values)
             variance[key] = np.var(values)
-        return {"mean": mean, "variance": variance}
+            
+        return {"mean": mean, "uncertainty": variance}
 
     def predict_state(self, t: float, x: float, y: float, z: float,
                       return_ood_info: bool = False) -> Dict:

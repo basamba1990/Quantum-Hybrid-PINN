@@ -16,7 +16,7 @@ interface JobStatus {
   name: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
   createdAt: string;
-  results?: {
+    results?: {
     iteration: number;
     cfdTime: number;
     mlTime: number;
@@ -27,6 +27,7 @@ interface JobStatus {
     scenario_outputs?: Record<string, any>;
     predictions3d?: any[];
     residual_history?: any[];
+    uncertainty?: number; // ✅ Incertitude industrielle
   };
   errorMessage?: string;
 }
@@ -326,7 +327,10 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
                 <span className="flex items-center gap-2">
                   <MapPin className="w-3 h-3" /> Localisation: {config.scenarioInputs.portLocation || 'Offshore / Site'}
                 </span>
-                <span>Score de Crédibilité: {getCredibilityScore(selectedJob.results)}%</span>
+                <div className="flex gap-4">
+                  <span>Incertitude (MC Dropout): {selectedJob.results?.uncertainty ? (selectedJob.results.uncertainty * 100).toFixed(2) : '--'}%</span>
+                  <span>Score de Crédibilité: {getCredibilityScore(selectedJob.results)}%</span>
+                </div>
               </div>
               <div className="bg-black/50 rounded-xl p-4 font-mono text-[10px] text-emerald-500/80 border border-emerald-500/10 h-32 overflow-y-auto">
                 <p className="mb-2 text-slate-500">--- DÉBUT LOG SIMULATION PINN V8 ---</p>
