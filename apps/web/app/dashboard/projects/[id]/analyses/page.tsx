@@ -6,6 +6,7 @@ import { format } from 'date-fns'
 import Link from 'next/link'
 import ExportButton from '@/components/export-button'
 import { Analysis } from '@/types'
+import { Eye, ArrowRight } from 'lucide-react'
 
 export default function AnalysesPage() {
   const params = useParams()
@@ -29,7 +30,7 @@ export default function AnalysesPage() {
       <div className="mb-4">
         <Link
           href={`/dashboard/projects/${projectId}/analyses/new`}
-          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors font-medium"
         >
           Nouvelle analyse
         </Link>
@@ -38,26 +39,56 @@ export default function AnalysesPage() {
       {analyses.length === 0 ? (
         <p>Aucune analyse.</p>
       ) : (
-        <table className="min-w-full bg-white border">
-          <thead>
-            <tr>
-              <th className="px-4 py-2 border">Nom</th>
-              <th className="px-4 py-2 border">Statut</th>
-              <th className="px-4 py-2 border">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {analyses.map((a) => (
-              <tr key={a.id}>
-                <td className="px-4 py-2 border">{a.title || (a as any).name}</td>
-                <td className="px-4 py-2 border">{a.status}</td>
-                <td className="px-4 py-2 border">
-                  {format(new Date(a.created_at), 'dd/MM/yyyy HH:mm')}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Nom</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Statut</th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Score de Crédibilité</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {analyses.map((a) => {
+                const score = (a as any).credibility_score ?? 0
+                const scoreColor = score >= 80 ? 'text-green-600' : score >= 60 ? 'text-amber-600' : 'text-red-600'
+                return (
+                  <tr key={a.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">{a.title || (a as any).name}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        a.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        a.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {a.status}
+                      </span>
+                    </td>
+                    <td className={`px-4 py-3 text-center text-sm font-bold ${scoreColor}`}>
+                      {a.status === 'completed' ? `${score.toFixed(1)}/100` : '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {format(new Date(a.created_at), 'dd/MM/yyyy HH:mm')}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {a.status === 'completed' && (
+                        <Link
+                          href={`/dashboard/projects/${projectId}/analyses/${a.id}`}
+                          className="inline-flex items-center gap-2 px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors"
+                        >
+                          <Eye className="w-3 h-3" />
+                          Voir détails
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

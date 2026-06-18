@@ -22,6 +22,7 @@ export default function PDFViewer({ url }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
   const [isMounted, setIsMounted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setIsMounted(true)
@@ -30,9 +31,17 @@ export default function PDFViewer({ url }: PDFViewerProps) {
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
     setNumPages(numPages)
+    setError(null)
+  }
+
+  function onDocumentLoadError(error: any) {
+    console.error('PDF loading error:', error)
+    setError('Impossible de charger le PDF. Vérifiez l\'URL du fichier.')
   }
 
   if (!isMounted) return <div className="flex items-center justify-center h-64 text-gray-500">Chargement du visualiseur...</div>
+
+  if (error) return <div className="flex items-center justify-center h-64 text-red-400 text-center p-4">{error}</div>
 
   return (
     <div className="flex flex-col items-center gap-4 w-full overflow-hidden">
@@ -40,8 +49,9 @@ export default function PDFViewer({ url }: PDFViewerProps) {
         <Document 
           file={url} 
           onLoadSuccess={onDocumentLoadSuccess}
+          onError={onDocumentLoadError}
           loading={<div className="text-blue-400 animate-pulse">Chargement du document scientifique...</div>}
-          error={<div className="text-red-400">Erreur lors du chargement du PDF.</div>}
+          error={<div className="text-red-400 p-4 text-center">Erreur lors du chargement du PDF. Veuillez réessayer.</div>}
         >
           {isMounted && (
             <Page 
