@@ -29,16 +29,26 @@ export default function XPBDVisualizer({ predictions, title }: XPBDVisualizerPro
     let animationFrameId: number
     
     const render = () => {
-      gl.clearColor(0.02, 0.03, 0.06, 1.0)
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-      
-      // Logique de rendu simplifiée pour la visualisation 3D interactive
-      // (Basée sur les shaders de Fable 5 extraits précédemment)
-      
-      animationFrameId = requestAnimationFrame(render)
+      try {
+        gl.clearColor(0.02, 0.03, 0.06, 1.0)
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+        
+        // Logique de rendu simplifiée pour la visualisation 3D interactive
+        // (Basée sur les shaders de Fable 5 extraits précédemment)
+        
+        animationFrameId = requestAnimationFrame(render)
+      } catch (e) {
+        console.error("XPBD Render Loop Error:", e);
+        setError("Erreur lors du rendu 3D");
+      }
     }
 
-    render()
+    try {
+      render()
+    } catch (e) {
+      console.error("XPBD Initialization Error:", e);
+      setError("Erreur d'initialisation du moteur 3D");
+    }
 
     return () => {
       cancelAnimationFrame(animationFrameId)
