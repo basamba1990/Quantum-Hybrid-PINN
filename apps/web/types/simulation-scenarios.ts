@@ -4,7 +4,8 @@ export type ScenarioType =
   | 'PORT_ENERGY_OPTIMIZATION' 
   | 'PIPELINE_SAFETY' 
   | 'CRYOGENIC_TRANSPORT' 
-  | 'MINING_INDUSTRIAL_SIM';
+  | 'MINING_INDUSTRIAL_SIM'
+  | 'H2_COMPRESSION_STATION';
 
 export interface ScenarioConfig {
   id: ScenarioType;
@@ -146,6 +147,28 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
       { name: 'thermalComfort', label: 'Confort Thermique', unit: 'K' },
       { name: 'gasSafety', label: 'Sécurité Gaz', unit: '/100' },
       { name: 'fluidCirculation', label: 'Circulation Fluides', unit: 'm3/h' }
+    ]
+  },
+  H2_COMPRESSION_STATION: {
+    id: 'H2_COMPRESSION_STATION',
+    name: 'Station de Compression – H2',
+    description: 'Validation thermodynamique des compresseurs H2 : efficacité isentropique, bilan thermique et puissance.',
+    inputs: [
+      { name: 'pressure_in', label: 'Pression Entrée', type: 'number', unit: 'bar', defaultValue: 10 },
+      { name: 'pressure_out', label: 'Pression Sortie', type: 'number', unit: 'bar', defaultValue: 60 },
+      { name: 'temperature_in', label: 'Température Entrée', type: 'number', unit: 'K', defaultValue: 290 },
+      { name: 'temperature_out', label: 'Température Sortie', type: 'number', unit: 'K', defaultValue: 380 },
+      { name: 'flowRate', label: 'Débit Massique', type: 'number', unit: 'kg/s', defaultValue: 5 },
+      { name: 'power', label: 'Puissance Nominale', type: 'number', unit: 'MW', defaultValue: 2.5 },
+      { name: 'efficiency', label: 'Efficacité Polytropique', type: 'number', unit: '%', defaultValue: 85 }
+    ],
+    outputs: [
+      { name: 'compressionRatio', label: 'Rapport de Compression', unit: '' },
+      { name: 'isentropicEfficiency', label: 'Efficacité Isentropique', unit: '%' },
+      { name: 'powerActual', label: 'Puissance Réelle', unit: 'MW' },
+      { name: 'thermalDelta', label: 'Delta T', unit: 'K' },
+      { name: 'coherenceScore', label: 'Score de Cohérence', unit: '/100' },
+      { name: 'status', label: 'État Système', unit: '' }
     ]
   }
 };

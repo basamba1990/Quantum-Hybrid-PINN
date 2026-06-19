@@ -237,4 +237,53 @@ def run_rock_stress_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
         "stabilityScore": round(max(0, 100 - damage * 100), 1)
     }
 
+def run_compression_station_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Moteur industriel pour station de compression H2.
+    Vérifie le bilan thermodynamique et l'efficacité polytropique.
+    """
+    P_in = inputs.get('pressure_in', 10) * 1e5
+    P_out = inputs.get('pressure_out', 60) * 1e5
+    T_in = inputs.get('temperature_in', 290)
+    T_out = inputs.get('temperature_out', 380)
+    m_dot = inputs.get('flowRate', 5)
+    power_rated = inputs.get('power', 2.5) * 1e6 # Watts
+    eff_poly_rated = inputs.get('efficiency', 0.85)
+    
+    # Rapport de compression
+    r_c = P_out / P_in
+    
+    # Travail isentropique (H2 gamma=1.4)
+    gamma = 1.4
+    k = (gamma - 1) / gamma
+    T_out_isentropic = T_in * (r_c ** k)
+    
+    # Travail réel
+    W_real = CP_H2 * (T_out - T_in) * m_dot
+    W_isentropic = CP_H2 * (T_out_isentropic - T_in) * m_dot
+    
+    # Efficacité isentropique calculée
+    eff_isen_calc = W_isentropic / W_real if W_real > 0 else 0
+    
+    # Écart de puissance
+    power_diff = abs(W_real - power_rated) / power_rated if power_rated > 0 else 0
+    
+    # Score de cohérence physique
+    # 1. Bilan thermique (T_out doit être supérieur à T_in)
+    thermal_coherence = 1.0 if T_out > T_in else 0.0
+    # 2. Efficacité réaliste (0.5 < eff < 0.95)
+    eff_coherence = 1.0 if 0.4 < eff_isen_calc < 0.98 else 0.5
+    
+    overall_score = 100 * thermal_coherence * eff_coherence * (1 - min(0.5, power_diff))
+    
+    return {
+        "compressionRatio": round(r_c, 2),
+        "isentropicEfficiency": round(eff_isen_calc * 100, 1),
+        "powerActual": round(W_real / 1e6, 2),
+        "thermalDelta": round(T_out - T_in, 1),
+        "coherenceScore": round(overall_score, 1),
+        "status": "ANOMALIE" if overall_score < 60 else "NORMAL"
+    }
+
 SCENARIO_ENGINES["ROCK_ELAST_STRESS"] = run_rock_stress_scenario
+SCENARIO_ENGINES["H2_COMPRESSION_STATION"] = run_compression_station_scenario
