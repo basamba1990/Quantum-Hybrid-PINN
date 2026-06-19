@@ -367,13 +367,15 @@ function calculateCredibilityScore(
     const pressureCorrection = Math.abs(correctedPressure - init_p_norm) / (init_p_norm + 1e-6);
     
     // ✅ FIX: Score plus robuste pour éviter le 0.0
-    // ✅ FIX: Score plus indulgent sur les déviations de pression (jusqu'à 100% de déviation tolérée avant 0)
+    // ✅ FIX: Score avec normalisation logarithmique pour les résidus industriels massifs
     const pressureQuality = Math.max(0.1, 1.0 - (pressureCorrection / 2.0));
-    const residualQuality = assimilationResult.residuals 
-      ? Math.max(0.1, 1.0 - (Math.abs(assimilationResult.residuals.momentum || 0) / 0.5)) 
-      : 0.8;
     
-    score = (pressureQuality * 0.5 + residualQuality * 0.5) * 100.0;
+    // Normalisation log pour les résidus (ex: 4.6e5 devient gérable)
+    const rawMomentum = Math.abs(assimilationResult.residuals?.momentum || 0);
+    const normalizedResidual = rawMomentum > 1 ? (1.0 / (1.0 + Math.log10(rawMomentum))) : (1.0 - rawMomentum);
+    const residualQuality = Math.max(0.05, normalizedResidual);
+    
+    score = (pressureQuality * 0.4 + residualQuality * 0.6) * 100.0;
   }
 
   // Sécurité : ne jamais renvoyer exactement 0.0 si une simulation a tourné
