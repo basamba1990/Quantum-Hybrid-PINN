@@ -48,29 +48,36 @@ export default function PINN3DVisualizer({
   }
 
   const chartData = useMemo(() => {
-    if (!isMounted || !predictions || predictions.length === 0) return null;
+    if (!isMounted || !predictions || !Array.isArray(predictions) || predictions.length === 0) return null;
     
-    // Correction: Utiliser directement les coordonnées spatiales réelles fournies par le backend.
-    // La génération artificielle de points pour les séries uniques n'est plus nécessaire
-    // car le backend fournit maintenant une grille 3D.
-    const x = predictions.map((p) => p.x || 0)
-    const y = predictions.map((p) => p.y || 0)
-    const z = predictions.map((p) => p.z || 0)
-    const u = predictions.map((p) => p.velocity_u || 0)
-    const v = predictions.map((p) => p.velocity_v || 0)
-    const w = predictions.map((p) => p.velocity_w || 0)
+    try {
+      // Filtrer les points invalides (ex: coordonnées 0.5 si non pertinentes)
+      const validPoints = predictions.filter(p => p !== null && typeof p === 'object');
+      
+      if (validPoints.length === 0) return null;
 
-    return {
-      x, y, z,
-      pressure: predictions.map((p) => p.pressure || 0),
-      temperature: predictions.map((p) => p.temperature || 0),
-      density: predictions.map((p) => p.density || 0),
-      u, v, w,
-      velocityMagnitude: predictions.map(
-        (p) => Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2)
-      ),
+      const x = validPoints.map((p) => p.x ?? 0)
+      const y = validPoints.map((p) => p.y ?? 0)
+      const z = validPoints.map((p) => p.z ?? 0)
+      const u = validPoints.map((p) => p.velocity_u ?? 0)
+      const v = validPoints.map((p) => p.velocity_v ?? 0)
+      const w = validPoints.map((p) => p.velocity_w ?? 0)
+
+      return {
+        x, y, z,
+        pressure: validPoints.map((p) => p.pressure ?? 0),
+        temperature: validPoints.map((p) => p.temperature ?? 293.15),
+        density: validPoints.map((p) => p.density ?? 1.0),
+        u, v, w,
+        velocityMagnitude: validPoints.map(
+          (p) => Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2)
+        ),
+      }
+    } catch (err) {
+      console.error("Error parsing 3D data:", err);
+      return null;
     }
-  }, [predictions])
+  }, [isMounted, predictions])
 
   const baseLayout = useMemo(
     () => ({
