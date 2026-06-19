@@ -82,7 +82,13 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
         const blResponse = await fetch(`${API_BASE_URL}/v2/analysis/boundary-layer`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ simulation_id: simulationId, time, x: 0.5, z: 0.5 }),
+          body: JSON.stringify({ 
+            simulation_id: simulationId, 
+            time, 
+            // ✅ FIX: Utilisation de coordonnées relatives au domaine industriel réel
+            x: 0.5, 
+            z: 0.0 
+          }),
         });
         if (!blResponse.ok) {
           throw new Error(`Boundary layer API failed: ${blResponse.status}`);
@@ -107,7 +113,9 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
           body: JSON.stringify({ 
             simulation_id: simulationId, 
             time, 
-            x: 0.5, y: 0.5, z: 0.5,
+            // ✅ FIX: Activation du scan spatial industriel complet
+            scan_spatial: true,
+            n_points: 10,
             pressure: 101325, temperature: 293.15, density: 1.0, velocity_magnitude: 1.0
           }),
         });
