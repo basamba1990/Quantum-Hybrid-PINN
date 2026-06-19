@@ -83,6 +83,9 @@ class PredictionRequestV8(BaseModel):
     temperature: Optional[float] = 293.15
     density: Optional[float] = 1.0
     velocity_magnitude: Optional[float] = 0.5
+    diameter: Optional[float] = 0.5
+    project_id: Optional[str] = None
+    transcription: Optional[str] = None
 
 class PredictionResponseV8(BaseModel):
     pressure: float
@@ -333,10 +336,13 @@ async def validate_3d(request: PredictionRequestV8):
         
         # ✅ Peuplement des paramètres physiques extraits pour le rapport
         # On renvoie les valeurs moyennes sur le scan pour être "Truly Industrial"
+        d_val = getattr(request, 'diameter', 0.5)
+        if d_val is None: d_val = 0.5
+        
         result.update({
             "enthalpy": float(T.item() * 14.3),
             "entropy": float(np.log(T.item() + 1) * 2.1),
-            "mass_flow_rate": float(rho.item() * u.item() * (np.pi * (request.diameter/2)**2)),
+            "mass_flow_rate": float(rho.item() * u.item() * (np.pi * (d_val/2)**2)),
             "gravimetric_density": float(rho.item())
         })
 
