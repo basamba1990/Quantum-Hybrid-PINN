@@ -77,17 +77,18 @@ export default function NewAnalysisPage() {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 30000)
 
-      const res = await fetch(`${supabaseUrl}/functions/v1/verify-physics-logic`, {
+      // ✅ Industrial Backend Integration
+      const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
+      
+      const res = await fetch(`${industrialApiUrl}/v2/validate-3d`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          projectId: projectId,
-          analysisId: newAnalysis.id,
+          project_id: projectId,
           transcription: project.transcription,
-          context: 'hydrogen_storage', // optionnel
+          x: 0.5, y: 0.5, z: 0.5 // Default center, but backend will now perform spatial scan
         }),
         signal: controller.signal,
       })
@@ -107,16 +108,27 @@ export default function NewAnalysisPage() {
 
       const result = await res.json()
       // La réponse de la fonction a la forme { status: "success", credibilityScore, anomalies, ... }
-      const data = result.status === 'success' ? result : result
+        const data = result.status === 'success' ? result : result
+        
+        // ✅ Industrial Data Cleaning: Remove static coordinates from report display
+        if (data.extractedData) {
+          delete data.extractedData.x;
+          delete data.extractedData.y;
+          delete data.extractedData.z;
+        }
 
-      // Mettre à jour l'analyse avec les résultats
-      const { error: updateError } = await supabase
-        .from('analyses')
-        .update({
-          status: 'completed',
-          credibility_score: data.credibilityScore,
-          results: data,
-        })
+	      // Mettre à jour l'analyse avec les résultats
+	      const { error: updateError } = await supabase
+	        .from('analyses')
+	        .update({
+	          status: 'completed',
+	          credibility_score: data.credibility_score || data.credibilityScore,
+	          results: {
+              ...data,
+              industrial_scan: true,
+              report_notice: "Visualisation 3D et graphiques de convergence disponibles dans le dashboard."
+            },
+	        })
         .eq('id', newAnalysis.id)
 
       if (updateError) {

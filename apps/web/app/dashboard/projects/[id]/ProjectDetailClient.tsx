@@ -100,6 +100,13 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           processedAnalysis.credibility_score = analysisData.credibility_score ?? results.credibility_score ?? results.credibilityScore ?? 0;
           processedAnalysis.credibilityScore = processedAnalysis.credibility_score; // alias pour compatibilité
           
+          // Nettoyage des coordonnées statiques pour l'affichage industriel
+          if (results.extractedData) {
+            delete results.extractedData.x;
+            delete results.extractedData.y;
+            delete results.extractedData.z;
+          }
+          
           setLatestAnalysis(processedAnalysis);
         }
         
