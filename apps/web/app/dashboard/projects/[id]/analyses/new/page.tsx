@@ -80,6 +80,11 @@ export default function NewAnalysisPage() {
       // ✅ Industrial Backend Integration
       const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
       
+      // Extraction des paramètres numériques pour l'API industrielle
+      const transcription = project.transcription || "";
+      const diameterMatch = transcription.match(/diamètre\s*(?:intérieur)?\s*:\s*([\d.]+)/i);
+      const diameter = diameterMatch ? parseFloat(diameterMatch[1]) : 0.5;
+
       const res = await fetch(`${industrialApiUrl}/v2/validate-3d`, {
         method: 'POST',
         headers: {
@@ -87,7 +92,8 @@ export default function NewAnalysisPage() {
         },
         body: JSON.stringify({
           project_id: projectId,
-          transcription: project.transcription,
+          transcription: transcription,
+          diameter: diameter,
           x: 0.5, y: 0.5, z: 0.5 // Default center, but backend will now perform spatial scan
         }),
         signal: controller.signal,
