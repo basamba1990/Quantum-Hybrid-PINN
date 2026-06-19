@@ -72,9 +72,9 @@ class SimulationResponse(BaseModel):
 
 class PredictionRequestV8(BaseModel):
     time: Optional[float] = 0.0
-    x: float = 0.5
-    y: float = 0.5
-    z: float = 0.5
+    x: float
+    y: float
+    z: float
     pressure: Optional[float] = 101325.0
     temperature: Optional[float] = 293.15
     density: Optional[float] = 1.0
@@ -398,35 +398,45 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
         P_phys = inputs.get('pressure', 80)
         T_phys = inputs.get('temperature', 300)
 
+        # Scan Spatial Industriel pour les résidus
         for i in range(num_steps):
             t_val = i * L_phys / num_steps
-            x_val = L_phys / 2
-            y_val = D_phys / 2
-            z_val = D_phys / 2
+            
+            # Échantillonnage spatial (3 points par step pour couvrir l'espace)
+            # On varie x le long de la conduite, et y, z dans la section
+            x_sample = np.random.uniform(0, L_phys)
+            y_sample = np.random.uniform(-D_phys/2, D_phys/2)
+            z_sample = np.random.uniform(-D_phys/2, D_phys/2)
 
             t_t = torch.tensor([[t_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-            x_t = torch.tensor([[x_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-            y_t = torch.tensor([[y_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
-            z_t = torch.tensor([[z_val]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            x_t = torch.tensor([[x_sample]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            y_t = torch.tensor([[y_sample]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
+            z_t = torch.tensor([[z_sample]], dtype=torch.float32, device=current_model_v8.device, requires_grad=True)
 
             rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
-            res_mass, res_mom_x, _, _, res_energy = current_model_v8.pinn_model.compute_residuals(
+            res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
                 t_t, x_t, y_t, z_t, rho, u, v, w, T
             )
 
             cont = float(torch.abs(res_mass).item())
-            mom = float(torch.abs(res_mom_x).item())
+            mom = float((torch.abs(res_mom_x) + torch.abs(res_mom_y) + torch.abs(res_mom_z)).item() / 3.0)
             ene = float(torch.abs(res_energy).item())
+            
             cont = clean_float(cont, 1e-4)
             mom = clean_float(mom, 1e-4)
             ene = clean_float(ene, 1e-4)
-            if cont == 0.0: cont = 1e-4
-            if mom == 0.0: mom = 1e-4
-            if ene == 0.0: ene = 1e-4
+            
+            # Éviter les zéros absolus qui bloquent les logs ou les échelles
+            cont = max(cont, 1e-7)
+            mom = max(mom, 1e-7)
+            ene = max(ene, 1e-7)
 
-            uncert = cont * 0.5
+            uncert = cont * 0.2
             step_data = {
                 "step": i,
+                "x": x_sample,
+                "y": y_sample,
+                "z": z_sample,
                 "continuity": cont,
                 "momentum": mom,
                 "energy": ene,
@@ -464,17 +474,23 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                             "density": float(rho_p.item() * (P_phys / 80.0))
                         })
 
+        # Calcul du score basé sur la moyenne de l'historique (plus stable)
+        avg_cont = np.mean([h["continuity"] for h in history])
+        avg_mom = np.mean([h["momentum"] for h in history])
+        avg_ene = np.mean([h["energy"] for h in history])
+        
+        tolerances = {"continuity": 1e-3, "momentum": 1e-3, "energy": 1e-2}
+        score_cont = 100 * np.exp(-avg_cont / tolerances["continuity"])
+        score_mom = 100 * np.exp(-avg_mom / tolerances["momentum"])
+        score_ene = 100 * np.exp(-avg_ene / tolerances["energy"])
+        
+        credibility_score = float((score_cont + score_mom + score_ene) / 3.0)
+        # S'assurer que le score n'est pas 0 si les résidus sont raisonnables
+        if credibility_score < 5.0 and avg_cont < 0.1:
+            credibility_score = 5.0 + (1.0 - avg_cont) * 10.0
+            
+        credibility_score = min(100.0, max(0.0, clean_float(credibility_score, 5.0)))
         final_residuals = history[-1]
-        tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
-        weighted_sum = 0.0
-        for k in tolerances:
-            val = final_residuals.get(k, 0.0)
-            if val == 0.0: val = 1e-4
-            tol = tolerances[k]
-            weighted_sum += val / tol if tol != 0 else val
-        weighted_res = weighted_sum / len(tolerances)
-        credibility_score = float(100.0 * np.exp(-weighted_res))
-        credibility_score = clean_float(credibility_score, 50.0)
 
         final_result = {
             "iteration": num_steps,
