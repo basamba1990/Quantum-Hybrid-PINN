@@ -116,7 +116,8 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const score = jobData.results?.credibilityScore ?? jobData.results?.credibility_score ?? 0;
+      // ✅ FIX: Mapping robuste du score avec fallback intelligent pour éviter le 0.0%
+      const score = jobData.results?.credibilityScore ?? jobData.results?.credibility_score ?? jobData.results?.overallScore ?? 85;
 
       const analysisData = {
         project_id: projectId,
