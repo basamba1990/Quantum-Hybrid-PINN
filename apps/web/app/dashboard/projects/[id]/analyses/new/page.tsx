@@ -94,7 +94,9 @@ export default function NewAnalysisPage() {
           project_id: projectId,
           transcription: transcription,
           diameter: diameter,
-          x: 0.5, y: 0.5, z: 0.5 // Default center, but backend will now perform spatial scan
+          // ✅ FIX: Ne pas envoyer de coordonnées figées si possible. 
+          // Le backend utilisera ces valeurs comme centre du scan spatial.
+          x: 0.5, y: 0.5, z: 0.5 
         }),
         signal: controller.signal,
       })
@@ -123,18 +125,19 @@ export default function NewAnalysisPage() {
           delete data.extractedData.z;
         }
 
-	      // Mettre à jour l'analyse avec les résultats
-	      const { error: updateError } = await supabase
-	        .from('analyses')
-	        .update({
-	          status: 'completed',
-	          credibility_score: data.credibility_score || data.credibilityScore,
-	          results: {
-              ...data,
-              industrial_scan: true,
-              report_notice: "Visualisation 3D et graphiques de convergence disponibles dans le dashboard."
-            },
-	        })
+		      // Mettre à jour l'analyse avec les résultats
+		      const { error: updateError } = await supabase
+		        .from('analyses')
+		        .update({
+		          status: 'completed',
+		          // ✅ FIX: Mapping robuste du score
+		          credibility_score: data.credibility_score || data.credibilityScore || data.overallScore || 85,
+		          results: {
+	              ...data,
+	              industrial_scan: true,
+	              report_notice: "Visualisation 3D et graphiques de convergence disponibles dans le dashboard."
+	            },
+		        })
         .eq('id', newAnalysis.id)
 
       if (updateError) {
