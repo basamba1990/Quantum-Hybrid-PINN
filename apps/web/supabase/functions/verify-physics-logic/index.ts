@@ -412,10 +412,24 @@ serve(async (req) => {
     const extractedParams = await extractPhysicalParameters(transcription);
     log("debug", "Parameters extracted", { requestId, extractedParams });
 
-    const physicalMetrics = await callBackendValidate3d({
-      project_id: projectId,
-      ...extractedParams,
-    });
+    // ✅ FIX: Orchestration multi-scénarios intelligente
+    const scenario = extractedParams.scenario || context || 'pipeline';
+    let physicalMetrics;
+    
+    if (scenario === 'pipeline' || scenario === 'transport') {
+      physicalMetrics = await callBackendValidate3d({
+        project_id: projectId,
+        ...extractedParams,
+        scan_spatial: true,
+        n_points: 10
+      });
+    } else {
+      // Pour les autres scénarios (stockage, compression), on utilise la validation standard
+      physicalMetrics = await callBackendValidate3d({
+        project_id: projectId,
+        ...extractedParams,
+      });
+    }
 
     const predictions3d = physicalMetrics?.predictions3d || [];
     const initialState = predictions3d.length > 0 
