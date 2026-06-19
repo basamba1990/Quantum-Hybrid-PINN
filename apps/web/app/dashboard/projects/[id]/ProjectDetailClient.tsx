@@ -97,16 +97,13 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           
           // ✅ Récupération explicite du score de crédibilité avec fallbacks multiples
           const results = processedAnalysis.results || {};
-          // FIX: Fallback intelligent pour éviter le score 0.0
-          processedAnalysis.credibility_score = analysisData.credibility_score ?? results.credibility_score ?? results.credibilityScore ?? results.overallScore ?? 85;
-          processedAnalysis.credibilityScore = processedAnalysis.credibility_score; // alias pour compatibilité
+          // ✅ FIX: Utilisation des vrais scores stockés sans fallback artificiel à 85
+          processedAnalysis.credibility_score = analysisData.credibility_score ?? results.credibility_score ?? results.credibilityScore ?? results.overallScore ?? 0.0;
+          processedAnalysis.credibilityScore = processedAnalysis.credibility_score;
           
-          // Nettoyage des coordonnées statiques pour l'affichage industriel
-          if (results.extractedData) {
-            delete results.extractedData.x;
-            delete results.extractedData.y;
-            delete results.extractedData.z;
-          }
+          // Les coordonnées x,y,z ne sont plus supprimées ici car elles sont gérées
+          // soit par le scan spatial industriel (vraies coordonnées), soit filtrées au niveau du composant de rendu.
+          // Cela permet de voir si le backend renvoie toujours 0.5 par erreur.
           
           setLatestAnalysis(processedAnalysis);
         }

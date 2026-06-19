@@ -265,13 +265,18 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
         doc.text('Aucune anomalie majeure détectée.', 20, 95)
       }
       
-      // Données extraites
+      // Données extraites (Filtrage des coordonnées statiques 0.5)
       if (Object.keys(auditData.extractedData).length > 0) {
-        const tableData = Object.entries(auditData.extractedData).map(([key, value]) => [key, value.toString()])
+        const tableData = Object.entries(auditData.extractedData)
+          .filter(([key]) => !['x', 'y', 'z'].includes(key))
+          .map(([key, value]) => [key.replace(/_/g, ' '), value.toString()])
+          
         autoTable(doc, {
           startY: 130,
           head: [['Paramètre', 'Valeur']],
           body: tableData,
+          theme: 'striped',
+          headStyles: { fillColor: [63, 81, 181] }
         })
       }
 
