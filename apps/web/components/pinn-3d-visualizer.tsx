@@ -47,15 +47,9 @@ export default function PINN3DVisualizer({
     }, 100)
   }
 
-  if (!isMounted || !predictions || predictions.length === 0) {
-    return (
-      <div className="h-[400px] w-full flex items-center justify-center bg-slate-50 rounded-lg text-slate-400 border border-dashed">
-        En attente des données de prédiction...
-      </div>
-    )
-  }
-
   const chartData = useMemo(() => {
+    if (!isMounted || !predictions || predictions.length === 0) return null;
+    
     // Correction: Utiliser directement les coordonnées spatiales réelles fournies par le backend.
     // La génération artificielle de points pour les séries uniques n'est plus nécessaire
     // car le backend fournit maintenant une grille 3D.
@@ -112,6 +106,14 @@ export default function PINN3DVisualizer({
     ),
     [predictions]
   )
+
+  if (!isMounted || !predictions || predictions.length === 0 || !chartData) {
+    return (
+      <div className="h-[400px] w-full flex items-center justify-center bg-slate-50 rounded-lg text-slate-400 border border-dashed">
+        En attente des données de prédiction...
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">

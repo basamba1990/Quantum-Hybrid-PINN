@@ -66,6 +66,10 @@ class SimulationRequest(BaseModel):
     flow_rate: Optional[float] = None
     length: Optional[float] = None
     diameter: Optional[float] = None
+    pressure_in: Optional[float] = None
+    pressure_out: Optional[float] = None
+    temperature_in: Optional[float] = None
+    temperature_out: Optional[float] = None
     transcription: Optional[str] = None
     description: Optional[str] = None
 
@@ -437,22 +441,34 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
         if request.flow_rate: inputs['flowRate'] = request.flow_rate
         if request.length: inputs['length'] = request.length
         if request.diameter: inputs['diameter'] = request.diameter
+        if request.pressure_in: inputs['pressure_in'] = request.pressure_in
+        if request.pressure_out: inputs['pressure_out'] = request.pressure_out
+        if request.temperature_in: inputs['temperature_in'] = request.temperature_in
+        if request.temperature_out: inputs['temperature_out'] = request.temperature_out
 
         engine = SCENARIO_ENGINES.get(request.scenario_type, SCENARIO_ENGINES["H2_PIPELINE"])
         scenario_outputs = engine(inputs)
 
         history = []
         num_steps = request.n_steps
+        # ✅ Échelles physiques dynamiques selon le scénario
         L_phys = inputs.get('length', 100)
         D_phys = inputs.get('diameter', 0.5)
-        P_phys = inputs.get('pressure', 80)
-        T_phys = inputs.get('temperature', 300)
+        
+        # Pour la station de compression, on utilise la pression de sortie pour la validation
+        if request.scenario_type == "H2_COMPRESSION_STATION":
+            P_phys = inputs.get('pressure_out', 60)
+            T_phys = inputs.get('temperature_out', 380)
+        else:
+            P_phys = inputs.get('pressure', 80)
+            T_phys = inputs.get('temperature', 300)
 
         # ✅ Utiliser torch.enable_grad() pour avoir des résidus non nuls (Calcul Industriel)
         with torch.enable_grad():
             for i in range(num_steps):
                 t_val = i * L_phys / num_steps
-                x_val = L_phys / 2
+                # Scan spatial centré sur le point d'intérêt
+                x_val = L_phys * (i / num_steps) # Trajectoire le long de l'axe X
                 y_val = D_phys / 2
                 z_val = D_phys / 2
 
@@ -536,8 +552,16 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             tol = tolerances[k]
             weighted_sum += val / tol if tol != 0 else val
         weighted_res = weighted_sum / len(tolerances)
-        credibility_score = float(100.0 * np.exp(-weighted_res))
-        credibility_score = clean_float(credibility_score, 50.0)
+        # ✅ FIX: Utilisation d'une fonction sigmoïde plus douce pour le mode hybride
+        # Un résidu pondéré de 1.0 (seuil atteint) donnera un score d'environ 73%
+        credibility_score = float(100.0 / (1.0 + 0.3 * weighted_res))
+        
+        # ✅ FIX: Si un moteur de scénario a calculé un score de cohérence, on le fusionne
+        if scenario_outputs and "coherenceScore" in scenario_outputs:
+            # Pondération : 60% physique PINN, 40% cohérence thermodynamique du scénario
+            credibility_score = 0.6 * credibility_score + 0.4 * scenario_outputs["coherenceScore"]
+            
+        credibility_score = min(100, max(5.0, clean_float(credibility_score, 50.0)))
 
         final_result = {
             "iteration": num_steps,

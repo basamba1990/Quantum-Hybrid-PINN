@@ -50,6 +50,11 @@ export async function POST(req: NextRequest) {
       flow_rate: body.flow_rate !== undefined ? body.flow_rate : (scenarioInputs.flowRate !== undefined ? scenarioInputs.flowRate : null),
       length: body.length !== undefined ? body.length : (scenarioInputs.length !== undefined ? scenarioInputs.length : null),
       diameter: body.diameter !== undefined ? body.diameter : (scenarioInputs.diameter !== undefined ? scenarioInputs.diameter : null),
+      // ✅ Support des paramètres de compression
+      pressure_in: scenarioInputs.pressure_in,
+      pressure_out: scenarioInputs.pressure_out,
+      temperature_in: scenarioInputs.temperature_in,
+      temperature_out: scenarioInputs.temperature_out,
       scenario_type: body.scenario_type || "H2_PIPELINE",
       scenario_inputs: scenarioInputs,
     };
