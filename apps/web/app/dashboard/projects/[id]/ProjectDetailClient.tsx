@@ -33,12 +33,17 @@ export default function ProjectDetailClient({ id }: { id: string }) {
 
   // ✅ Sécurisation du parsing des résultats
   const results = useMemo(() => {
-    if (!latestAnalysis?.results) return {};
-    if (typeof latestAnalysis.results === 'string') {
-      try { return JSON.parse(latestAnalysis.results); }
-      catch (e) { console.error("Failed to parse results:", e); return {}; }
+    try {
+      if (!latestAnalysis?.results) return {};
+      let parsedResults = latestAnalysis.results;
+      if (typeof parsedResults === 'string') {
+        parsedResults = JSON.parse(parsedResults);
+      }
+      return parsedResults || {};
+    } catch (e) {
+      console.error("Critical error parsing analysis results:", e);
+      return {};
     }
-    return latestAnalysis.results;
   }, [latestAnalysis?.results]);
 
   const predictions3d = useMemo(() => {

@@ -94,23 +94,44 @@ export default function PINN3DVisualizer({
   )
 
   const hoverText = useMemo(
-    () => predictions.map(
-      (p, i) => `t=${p.time?.toFixed(2) || '0.00'}s<br>P=${(p.pressure !== null && p.pressure !== undefined ? p.pressure.toExponential(2) : '0.00')} Pa<br>T=${(p.temperature !== null && p.temperature !== undefined ? p.temperature.toFixed(1) : '0.0')} K<br>ρ=${(p.density || 0).toFixed(4)} kg/m³<br>|V|=${Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2).toFixed(3)} m/s`
-    ),
+    () => {
+      try {
+        return predictions.map(
+          (p, i) => `t=${p?.time?.toFixed(2) || '0.00'}s<br>P=${(p?.pressure !== null && p?.pressure !== undefined ? p.pressure.toExponential(2) : '0.00')} Pa<br>T=${(p?.temperature !== null && p?.temperature !== undefined ? p.temperature.toFixed(1) : '0.0')} K<br>ρ=${(p?.density || 0).toFixed(4)} kg/m³<br>|V|=${Math.sqrt((p?.velocity_u || 0) ** 2 + (p?.velocity_v || 0) ** 2 + (p?.velocity_w || 0) ** 2).toFixed(3)} m/s`
+        )
+      } catch (e) {
+        console.error("Error generating hover text:", e);
+        return [];
+      }
+    },
     [predictions]
   )
 
   const velocityHoverText = useMemo(
-    () => predictions.map(
-      (p, i) => `t=${p.time?.toFixed(2) || '0.00'}s<br>u=${(p.velocity_u || 0).toFixed(3)} m/s<br>v=${(p.velocity_v || 0).toFixed(3)} m/s<br>w=${(p.velocity_w || 0).toFixed(3)} m/s<br>|V|=${Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2).toFixed(3)} m/s`
-    ),
+    () => {
+      try {
+        return predictions.map(
+          (p, i) => `t=${p?.time?.toFixed(2) || '0.00'}s<br>u=${(p?.velocity_u || 0).toFixed(3)} m/s<br>v=${(p?.velocity_v || 0).toFixed(3)} m/s<br>w=${(p?.velocity_w || 0).toFixed(3)} m/s<br>|V|=${Math.sqrt((p?.velocity_u || 0) ** 2 + (p?.velocity_v || 0) ** 2 + (p?.velocity_w || 0) ** 2).toFixed(3)} m/s`
+        )
+      } catch (e) {
+        console.error("Error generating velocity hover text:", e);
+        return [];
+      }
+    },
     [predictions]
   )
 
   const temperatureHoverText = useMemo(
-    () => predictions.map(
-      (p, i) => `t=${p.time?.toFixed(2) || '0.00'}s<br>T=${(p.temperature !== null && p.temperature !== undefined ? p.temperature.toFixed(1) : '0.0')} K<br>P=${(p.pressure !== null && p.pressure !== undefined ? p.pressure.toExponential(2) : '0.00')} Pa`
-    ),
+    () => {
+      try {
+        return predictions.map(
+          (p, i) => `t=${p?.time?.toFixed(2) || '0.00'}s<br>T=${(p?.temperature !== null && p?.temperature !== undefined ? p.temperature.toFixed(1) : '0.0')} K<br>P=${(p?.pressure !== null && p?.pressure !== undefined ? p.pressure.toExponential(2) : '0.00')} Pa`
+        )
+      } catch (e) {
+        console.error("Error generating temperature hover text:", e);
+        return [];
+      }
+    },
     [predictions]
   )
 
