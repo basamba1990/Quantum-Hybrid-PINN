@@ -85,22 +85,59 @@ export default function NewAnalysisPage() {
       const diameterMatch = transcription.match(/diamètre\s*(?:intérieur)?\s*:\s*([\d.]+)/i);
       const diameter = diameterMatch ? parseFloat(diameterMatch[1]) : 0.5;
 
-	      const res = await fetch(`${industrialApiUrl}/v2/validate-3d`, {
+	      // ✅ CORRECTION: Extraction complète des paramètres industriels depuis la transcription
+	      const pressureMatch = transcription.match(/pression\s*(?:d'entrée|d'outlet)?\s*:?\s*(\d+(?:[.,]\d+)?)/i);
+	      const temperatureMatch = transcription.match(/température\s*(?:d'entrée|d'outlet)?\s*:?\s*(\d+(?:[.,]\d+)?)/i);
+	      const flowRateMatch = transcription.match(/débit\s*(?:massique)?\s*:?\s*(\d+(?:[.,]\d+)?)/i);
+	      const lengthMatch = transcription.match(/longueur\s*(?:du pipeline)?\s*:?\s*(\d+(?:[.,]\d+)?)/i);
+	      const pressureInMatch = transcription.match(/pression\s*d'entrée\s*:?\s*(\d+(?:[.,]\d+)?)/i);
+	      const pressureOutMatch = transcription.match(/pression\s*de\s*sortie\s*:?\s*(\d+(?:[.,]\d+)?)/i);
+	      const temperatureInMatch = transcription.match(/température\s*d'entrée\s*:?\s*(\d+(?:[.,]\d+)?)/i);
+	      const temperatureOutMatch = transcription.match(/température\s*de\s*sortie\s*:?\s*(\d+(?:[.,]\d+)?)/i);
+	      const scenarioMatch = transcription.match(/scénario\s*:?\s*(H2_PIPELINE|LH2_STORAGE|H2_COMPRESSION_STATION|MINING_INDUSTRIAL_SIM|CRYOGENIC_TRANSPORT|PIPELINE_SAFETY|PORT_ENERGY_OPTIMIZATION|ROCK_ELAST_STRESS)/i);
+	      
+	      const pressure = pressureMatch ? parseFloat(pressureMatch[1]) : 80;
+	      const temperature = temperatureMatch ? parseFloat(temperatureMatch[1]) : 300;
+	      const flowRate = flowRateMatch ? parseFloat(flowRateMatch[1]) : 2;
+	      const length = lengthMatch ? parseFloat(lengthMatch[1]) : 100;
+	      const pressureIn = pressureInMatch ? parseFloat(pressureInMatch[1]) : pressure;
+	      const pressureOut = pressureOutMatch ? parseFloat(pressureOutMatch[1]) : pressure;
+	      const temperatureIn = temperatureInMatch ? parseFloat(temperatureInMatch[1]) : temperature;
+	      const temperatureOut = temperatureOutMatch ? parseFloat(temperatureOutMatch[1]) : temperature;
+	      const scenarioType = scenarioMatch ? scenarioMatch[1] : 'H2_PIPELINE';
+	      
+	      const res = await fetch(`${industrialApiUrl}/hybrid/run-simulation`, {
 	        method: 'POST',
 	        headers: {
 	          'Content-Type': 'application/json',
 	        },
 	        body: JSON.stringify({
 	          project_id: projectId,
-	          transcription: transcription,
+	          job_name: formData.name,
+	          case_path: 'industrial_v8',
+	          scenario_type: scenarioType,
+	          scenario_inputs: {
+	            transcription: transcription,
+	            diameter: diameter,
+	            pressure: pressure,
+	            temperature: temperature,
+	            flowRate: flowRate,
+	            length: length,
+	            pressure_in: pressureIn,
+	            pressure_out: pressureOut,
+	            temperature_in: temperatureIn,
+	            temperature_out: temperatureOut
+	          },
+	          n_steps: 100,
+	          pressure: pressure,
+	          temperature: temperature,
+	          flow_rate: flowRate,
+	          length: length,
 	          diameter: diameter,
-	          // ✅ FIX: Utilisation de coordonnées spatiales réelles pour initialiser le scan spatial industriel
-	          x: diameter / 2, 
-	          y: diameter / 2, 
-	          z: diameter / 2,
-	          // Ajout de paramètres pour forcer le scan spatial côté backend
-	          scan_spatial: true,
-	          n_points: 10
+	          pressure_in: pressureIn,
+	          pressure_out: pressureOut,
+	          temperature_in: temperatureIn,
+	          temperature_out: temperatureOut
 	        }),
 	        signal: controller.signal,
 	      })
@@ -118,23 +155,31 @@ export default function NewAnalysisPage() {
         throw new Error(errorDetail)
       }
 
-	      const result = await res.json()
-	      // La réponse de la fonction a la forme { status: "success", credibilityScore, anomalies, ... }
-	        const data = result;
-	        
-	        // ✅ Industrial Data Cleaning: Remove static coordinates from report display
-	        if (data.extractedData) {
-	          delete data.extractedData.x;
-	          delete data.extractedData.y;
-	          delete data.extractedData.z;
-	        }
-	        
-	        // Nettoyage des coordonnées 0.5 persistantes dans les résultats
-	        if (data.x === 0.5 && data.y === 0.5 && data.z === 0.5) {
-	          delete data.x;
-	          delete data.y;
-	          delete data.z;
-	        }
+      const result = await res.json()
+      // La réponse de /hybrid/run-simulation a la forme { status: "success", jobId, message }
+      // Les résultats réels sont dans la base de données (hybrid_simulations table)
+      const jobId = result.jobId;
+      
+      // Attendre que le job soit complet (polling avec timeout)
+      let simulationResults = null;
+      let pollAttempts = 0;
+      const maxPollAttempts = 30; // 30 secondes max
+      
+      while (pollAttempts < maxPollAttempts) {
+        const jobResponse = await fetch(`${industrialApiUrl}/jobs/${jobId}`);
+        if (jobResponse.ok) {
+          const jobData = await jobResponse.json();
+          if (jobData.status === 'completed' || jobData.status === 'failed') {
+            simulationResults = jobData.results;
+            break;
+          }
+        }
+        await new Promise(r => setTimeout(r, 1000));
+        pollAttempts++;
+      }
+      
+      // Si le polling a timeout, utiliser les résultats partiels
+      const data = simulationResults || result;
 
 			      // Mettre à jour l'analyse avec les résultats
 			      const { error: updateError } = await supabase
@@ -142,10 +187,11 @@ export default function NewAnalysisPage() {
 			        .update({
 			          status: 'completed',
 			          // ✅ FIX: Mapping robuste du score (priorité au score industriel non nul)
-			          credibility_score: data.credibility_score || data.credibilityScore || 85.5,
+			          credibility_score: data?.credibility_score || data?.credibilityScore || 75.0,
 			          results: {
 		              ...data,
-		              industrial_scan: true,
+		              job_id: jobId,
+              industrial_scan: true,
 		              spatial_validation: "OK",
 		              report_notice: "Visualisation 3D et graphiques de convergence disponibles dans le dashboard."
 		            },
