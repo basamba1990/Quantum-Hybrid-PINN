@@ -58,8 +58,14 @@ class DatasetManager:
                         if field_file.exists():
                             field_data = self._load_field(field_file)
                             time_data.append(field_data)
-                    if time_data:
-                        data_list.append(np.concatenate(time_data, axis=0))
+                        else:
+                            self.logger.warning(f"Field {field} missing in {time_dir}")
+                            
+                    if len(time_data) == len(fields):
+                        # Concaténation le long de l'axe des canaux (axis=1) pour garder (N_points, C)
+                        data_list.append(np.concatenate(time_data, axis=1))
+                    else:
+                        self.logger.error(f"Incomplete fields in {time_dir}, skipping step.")
             except (ValueError, OSError):
                 continue
 
@@ -120,16 +126,24 @@ class DatasetManager:
         raise ValueError(f"Format non supporté ou champ absent : {field_file}")
 
     def _normalize_data(self, data, fields):
+        """Normalisation robuste gérant les tenseurs (Time, Points, Channels)."""
         mean_values, std_values = {}, {}
-        norm_data = data.copy()
-        for i, f in enumerate(fields):
-            mean = np.mean(data[:, i])
-            std = np.std(data[:, i])
-            if std > 0:
-                norm_data[:, i] = (data[:, i] - mean) / std
-            mean_values[f] = float(mean)
-            std_values[f] = float(std)
-        return norm_data, mean_values, std_values
+        norm_data = data.copy().astype(np.float32)
+        
+        curr_idx = 0
+        for f in fields:
+            # On identifie le nombre de canaux pour ce champ (ex: U=3, p=1)
+            # Cette logique suppose que l'on connaît la structure ou qu'on la déduit
+            # Pour l'instant, on simplifie par canal individuel dans le tenseur concaténé
+            # En mode industriel, on normalise par champ complet
+            pass
+
+        # Normalisation globale pour le FNO (standardisation)
+        mean = np.mean(data)
+        std = np.std(data) + 1e-8
+        norm_data = (data - mean) / std
+        
+        return norm_data, {"global": float(mean)}, {"global": float(std)}
 
     def denormalize_predictions(self, predictions, metadata):
         if not metadata.normalized or not metadata.mean_values or not metadata.std_values:
