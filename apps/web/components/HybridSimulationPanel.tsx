@@ -70,6 +70,10 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
   };
 
   const startPollingForJob = (jobId: string) => {
+    if (!jobId || jobId === 'undefined') {
+      console.error('startPollingForJob called with invalid jobId:', jobId);
+      return;
+    }
     if (pollingRef.current) clearInterval(pollingRef.current);
     pollingRef.current = setInterval(async () => {
       try {
