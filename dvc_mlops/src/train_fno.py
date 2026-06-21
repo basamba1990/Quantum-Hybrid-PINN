@@ -80,10 +80,12 @@ def train_fno(train_data_path: str, val_data_path: str, fluid_type: str, epochs:
             train_loss = 0
             for batch in train_loader:
                 batch = batch.to(device)
-                # Assuming input is first `in_channels` and output is remaining `out_channels`
-                # This needs to be adapted based on actual data structure
+                # Input is the full state, and we want to predict the next or specific fields
+                # In this setup, we use in_channels for input and out_channels for output
+                # Adjust slicing based on available channels in the data
                 input_data = batch[..., :in_channels]
-                target_data = batch[..., in_channels:]
+                # If out_channels is 1, we might be predicting just pressure (first field)
+                target_data = batch[..., :out_channels]
 
                 optimizer.zero_grad()
                 output = model(input_data)

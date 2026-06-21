@@ -73,7 +73,9 @@ def prepare_data(case_path: str, output_dir: str, fields: list, time_range: tupl
         else:
             # Fallback : Génération de données synthétiques physiquement cohérentes pour Colab
             print(f"⚠️ Dossier {scenario} non trouvé. Génération de données synthétiques...")
-            data = np.random.randn(50, len(fields), 16, 16).astype(np.float32)
+            # Format attendu par FNO3D: (Batch, X, Y, Z, Channels)
+            # Ici on génère (50 samples, 16x16x16 grid, len(fields) channels)
+            data = np.random.randn(50, 16, 16, 16, len(fields)).astype(np.float32)
             metadata_dict = {"fields": fields, "scenario": scenario, "status": "synthetic"}
         
         all_data.append(data)
