@@ -75,6 +75,29 @@ def train_pinn_model(epochs: int, learning_rate: float, N_pde: int,
         torch.save(pinn_v8.pinn_model.state_dict(), model_output_path)
         print(f"PINN model saved to {model_output_path}")
 
+        # ✅ SAUVEGARDE DES STATISTIQUES OOD POUR L'API INDUSTRIELLE
+        print("Génération des statistiques OOD pour la production...")
+        with torch.no_grad():
+            # Échantillonnage de points de référence "normaux"
+            t_ref = torch.rand(1000, 1) * 10.0
+            x_ref = torch.rand(1000, 1) * 100.0
+            y_ref = torch.zeros(1000, 1)
+            z_ref = torch.zeros(1000, 1)
+            rho_r, u_r, v_r, w_r, T_r = pinn_v8.pinn_model(t_ref.to(pinn_v8.device), 
+                                                           x_ref.to(pinn_v8.device), 
+                                                           y_ref.to(pinn_v8.device), 
+                                                           z_ref.to(pinn_v8.device))
+            
+            features = torch.cat([rho_r, u_r, v_r, w_r, T_r], dim=-1).cpu().numpy()
+            ood_stats_path = Path(model_output_path).parent / "ood_stats.npz"
+            
+            # Calcul manuel de la moyenne et de la covariance pour sauvegarde
+            mean = np.mean(features, axis=0)
+            cov = np.cov(features, rowvar=False)
+            np.savez(ood_stats_path, mean=mean, cov=cov)
+            print(f"Statistiques OOD sauvegardées dans {ood_stats_path}")
+            mlflow.log_artifact(str(ood_stats_path))
+
         Path("metrics").mkdir(parents=True, exist_ok=True)
         with open("metrics/pinn_metrics.json", "w") as f:
             json.dump({"final_loss": history["loss"][-1]}, f)

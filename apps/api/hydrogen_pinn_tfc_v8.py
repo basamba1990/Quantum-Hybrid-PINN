@@ -76,12 +76,22 @@ class TFCPINN3DNavierStokes(nn.Module):
 
     def loss(self, t, x, y, z, rho, u, v, w, T) -> torch.Tensor:
         """
-        Calcule le résidu des équations de Navier-Stokes (à implémenter).
-        Placeholder pour l'instant.
+        Calcule le résidu des équations de Navier-Stokes en utilisant la classe de base.
         """
-        # Ici vous devez implémenter les résidus PDE (continuité, quantité de mouvement, énergie)
-        # En attendant, retourne une perte nulle.
-        return torch.tensor(0.0, device=t.device, requires_grad=True)
+        # Utiliser une instance temporaire pour calculer les résidus standard
+        from pinn_3d_navier_stokes import PINN3DNavierStokes
+        temp_pinn = PINN3DNavierStokes(fluid_type=self.fluid_type).to(t.device)
+        
+        # S'assurer que les gradients sont activés
+        t.requires_grad_(True)
+        x.requires_grad_(True)
+        y.requires_grad_(True)
+        z.requires_grad_(True)
+        
+        mass, mom_x, mom_y, mom_z, energy = temp_pinn.compute_residuals(t, x, y, z, rho, u, v, w, T)
+        
+        loss_val = (mass**2).mean() + (mom_x**2).mean() + (mom_y**2).mean() + (mom_z**2).mean() + (energy**2).mean()
+        return loss_val
 
 
 class HydrogenPINNTFCV8:

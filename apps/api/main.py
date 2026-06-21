@@ -11,14 +11,14 @@ from datetime import datetime
 from supabase import create_client, Client
 
 try:
-    from hydrogen_pinn_v8 import HydrogenPINNV8, get_device
+    from hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as HydrogenPINNV8, get_device
     from deep_kalman_filter import DeepKalmanFilter
     from cfd_validation_service import CFDValidationService
     from scenario_engines import SCENARIO_ENGINES
     from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
     from industrial_risk_manager import IndustrialRiskManager
 except ImportError:
-    from .hydrogen_pinn_v8 import HydrogenPINNV8, get_device
+    from .hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as HydrogenPINNV8, get_device
     from .deep_kalman_filter import DeepKalmanFilter
     from .cfd_validation_service import CFDValidationService
     from .scenario_engines import SCENARIO_ENGINES
@@ -185,6 +185,15 @@ async def load_pinn_model():
         
         # Initialisation du Risk Manager
         risk_manager = IndustrialRiskManager(current_model_v8)
+        
+        # Tentative de chargement des stats OOD
+        ood_stats_path = os.path.join(os.path.dirname(model_path), "ood_stats.npz")
+        if os.path.exists(ood_stats_path):
+            risk_manager.load_ood_stats(ood_stats_path)
+            print(f"✅ Statistiques OOD chargées depuis {ood_stats_path}")
+        else:
+            print("⚠️ Statistiques OOD non trouvées, détection OOD désactivée.")
+            
         print("✅ Industrial Risk Manager initialisé.")
     del t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t
     gc.collect()
