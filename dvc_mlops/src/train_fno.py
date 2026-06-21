@@ -52,7 +52,7 @@ class DummyDataLoader:
     def __len__(self):
         return (len(self.data) + self.batch_size - 1) // self.batch_size
 
-def train_fno(train_data_path: str, val_data_path: str, fluid_type: str, epochs: int, learning_rate: float, n_modes: int, width: int, in_channels: int, out_channels: int, model_output_path: str):
+def train_fno(train_data_path: str, val_data_path: str, fluid_type: str, epochs: int, learning_rate: float, n_modes: int, width: int, in_channels: int, out_channels: int, model_output_path: str, scenarios: str, batch_size: int, early_stopping_patience: int):
     mlflow.set_experiment("FNO_Training")
     with mlflow.start_run():
         mlflow.log_params({
@@ -72,8 +72,8 @@ def train_fno(train_data_path: str, val_data_path: str, fluid_type: str, epochs:
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
         loss_fn = nn.MSELoss()
 
-        train_loader = DummyDataLoader(train_data_path, batch_size=4) # Adjust batch size as needed
-        val_loader = DummyDataLoader(val_data_path, batch_size=4)
+        train_loader = DummyDataLoader(train_data_path, batch_size=batch_size)
+        val_loader = DummyDataLoader(val_data_path, batch_size=batch_size)
 
         for epoch in range(epochs):
             model.train()
@@ -131,6 +131,9 @@ if __name__ == "__main__":
     parser.add_argument("--in_channels", type=int, default=1, help="Number of input channels.")
     parser.add_argument("--out_channels", type=int, default=1, help="Number of output channels.")
     parser.add_argument("--model_output_path", type=str, default="models/fno_model.pt", help="Path to save the trained model.")
+    parser.add_argument("--scenarios", type=str, default="", help="Comma-separated list of scenarios to train on.")
+    parser.add_argument("--batch_size", type=int, default=4, help="Batch size for training.")
+    parser.add_argument("--early_stopping_patience", type=int, default=20, help="Patience for early stopping.")
 
     args = parser.parse_args()
 
@@ -148,5 +151,8 @@ if __name__ == "__main__":
         width=args.width,
         in_channels=args.in_channels,
         out_channels=args.out_channels,
-        model_output_path=args.model_output_path
+        model_output_path=args.model_output_path,
+        scenarios=args.scenarios,
+        batch_size=args.batch_size,
+        early_stopping_patience=args.early_stopping_patience
     )
