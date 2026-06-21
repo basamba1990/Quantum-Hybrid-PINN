@@ -297,7 +297,7 @@ async def validate_3d(request: PredictionRequestV8):
         p_t = get_eos(current_model_v8.fluid_type, rho, T)
 
         result = {
-            "pressure": float(p_t.item()) if p_t is not None else request.pressure,
+            "pressure": float(p_t.mean().item()) if p_t is not None else request.pressure,
             "velocity_u": float(u.item()),
             "velocity_v": float(v.item()),
             "velocity_w": float(w.item()),
@@ -516,9 +516,13 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
                 mom = float(torch.sqrt(res_mom_x**2 + res_mom_y**2 + res_mom_z**2).item())
                 ene = float(torch.abs(res_energy).item())
                 
-                # MC Dropout pour l'incertitude industrielle
-                uncertainty_res = current_model_v8.predict_state_with_uncertainty(t_val, x_val, y_val, z_val, n_samples=10)
-                uncert_val = float(uncertainty_res["uncertainty"].get("pressure", cont * 0.1))
+                # MC Dropout pour l'incertitude industrielle (fallback si méthode non implémentée)
+                if hasattr(current_model_v8, "predict_state_with_uncertainty"):
+                    uncertainty_res = current_model_v8.predict_state_with_uncertainty(t_val, x_val, y_val, z_val, n_samples=10)
+                    uncert_val = float(uncertainty_res["uncertainty"].get("pressure", cont * 0.1))
+                else:
+                    # Estimation simple de l'incertitude basée sur les résidus
+                    uncert_val = float(cont * 0.1 + 1e-7)
 
                 step_data = {
                     "step": i,
