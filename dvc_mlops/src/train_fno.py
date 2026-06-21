@@ -119,7 +119,11 @@ def train():
     criterion = nn.MSELoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.5)
 
-    mlflow.set_experiment("Quantum-Hybrid-FNO-Industrial")
+    experiment_name = "Quantum-Hybrid-FNO-Industrial"
+    if not mlflow.get_experiment_by_name(experiment_name):
+        mlflow.create_experiment(experiment_name)
+    mlflow.set_experiment(experiment_name)
+    
     with mlflow.start_run():
         mlflow.log_params(vars(args))
         
