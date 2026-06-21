@@ -86,10 +86,21 @@ def evaluate_pinn(model_path: str, test_data_path: str, metrics_output_path: str
         l2_error = np.linalg.norm(u_pred - u_true) / np.linalg.norm(u_true) if np.linalg.norm(u_true) > 0 else 0.0
 
         # 4. Calcul des résidus physiques (Validation de la loi physique)
-        # On utilise une petite portion pour le calcul des gradients si nécessaire
-        pinn.pinn_model.train() # Re-passer en train pour autograd
-        res_dict = pinn.compute_residuals(t_test[:10], x_test[:10], y_test[:10], z_test[:10])
+        print("Analyse de la dérive physique (Drift Monitoring)...")
+        pinn.pinn_model.train()
+        
+        # Échantillonnage pour le monitoring de dérive
+        n_drift = min(len(t_test), 50)
+        res_dict = pinn.calculate_residuals(t_test[:n_drift].unsqueeze(1), 
+                                            x_test[:n_drift].unsqueeze(1), 
+                                            y_test[:n_drift].unsqueeze(1), 
+                                            z_test[:n_drift].unsqueeze(1))
+        
         mean_res = {k: float(v.mean().item()) for k, v in res_dict.items()}
+        
+        # ✅ CALCUL DU DRIFT SCORE (Dérive par rapport au seuil industriel 1e-3)
+        drift_score = sum(mean_res.values()) / (len(mean_res) * 1e-3)
+        is_drifting = drift_score > 2.0 # Alerte si les résidus sont 2x plus hauts que le seuil
 
         # 5. Logging MLflow
         metrics = {
@@ -97,6 +108,8 @@ def evaluate_pinn(model_path: str, test_data_path: str, metrics_output_path: str
             "rmse_pressure": float(rmse_p),
             "rmse_temperature": float(rmse_t),
             "l2_relative_error": float(l2_error),
+            "physical_drift_score": float(drift_score),
+            "is_physical_drift_alert": 1.0 if is_drifting else 0.0,
             **{f"phys_res_{k}": v for k, v in mean_res.items()}
         }
         mlflow.log_metrics(metrics)

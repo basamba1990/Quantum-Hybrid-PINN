@@ -26,6 +26,31 @@ class IndustrialRiskManager:
         self.is_fitted = True
         logger.info("Détecteur OOD industriel ajusté.")
 
+    def load_ood_stats(self, stats_path: str):
+        """Charge les statistiques OOD pré-calculées"""
+        try:
+            from hydrogen_pinn_v8 import MahalanobisOODDetector
+            data = np.load(stats_path)
+            self.ood_detector = MahalanobisOODDetector(threshold_percentile=self.threshold_percentile)
+            self.ood_detector.mean = data['mean']
+            # Reconstruire l'inverse de la covariance
+            cov = data['cov']
+            d = len(self.ood_detector.mean)
+            shrinkage = 0.01
+            cov_reg = (1 - shrinkage) * cov + shrinkage * np.eye(d) * np.trace(cov) / d
+            self.ood_detector.cov_inv = np.linalg.pinv(cov_reg)
+            
+            # Seuil par défaut basé sur la distribution de Mahalanobis (Chi-2)
+            # Pour d=5, p=0.99, le seuil est environ 15.0
+            self.ood_detector.threshold = 15.0 
+            self.ood_detector.fitted = True
+            self.is_fitted = True
+            logger.info(f"Statistiques OOD chargées depuis {stats_path}")
+            return True
+        except Exception as e:
+            logger.error(f"Erreur chargement OOD stats: {e}")
+            return False
+
     def certify_prediction(self, t: float, x: float, y: float, z: float) -> Dict:
         """
         Certifie une prédiction en calculant les résidus et l'incertitude.
@@ -85,4 +110,21 @@ class IndustrialRiskManager:
             **pred,
             "certification": cert,
             "status": "SAFE" if cert["is_certified"] else "RISKY"
+        }
+
+    def check_drift(self, batch_residuals: List[Dict[str, float]]) -> Dict:
+        """
+        Analyse une série de résidus pour détecter une dérive physique globale.
+        """
+        if not batch_residuals:
+            return {"drift_detected": False, "drift_score": 0.0}
+            
+        avg_res = sum([sum(r.values()) for r in batch_residuals]) / (len(batch_residuals) * 5)
+        # Seuil industriel : 1e-3
+        drift_score = avg_res / 1e-3
+        
+        return {
+            "drift_detected": drift_score > 2.0,
+            "drift_score": float(drift_score),
+            "avg_residual": float(avg_res)
         }
