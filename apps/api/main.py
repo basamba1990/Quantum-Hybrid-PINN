@@ -16,12 +16,14 @@ try:
     from cfd_validation_service import CFDValidationService
     from scenario_engines import SCENARIO_ENGINES
     from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+    from industrial_risk_manager import IndustrialRiskManager
 except ImportError:
     from .hydrogen_pinn_v8 import HydrogenPINNV8, get_device
     from .deep_kalman_filter import DeepKalmanFilter
     from .cfd_validation_service import CFDValidationService
     from .scenario_engines import SCENARIO_ENGINES
     from .pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+    from .industrial_risk_manager import IndustrialRiskManager
 
 def clean_float(value: float, fallback: float = 0.0) -> float:
     if not np.isfinite(value):
@@ -141,11 +143,12 @@ async def download_model_from_supabase(model_local_path: str):
     return False
 
 current_model_v8 = None
+risk_manager = None
 model_path = os.getenv("MODEL_PATH", "models/pinn_model.pt")
 
 @app.on_event("startup")
 async def load_pinn_model():
-    global current_model_v8
+    global current_model_v8, risk_manager
     print("Chargement modèle PINN...")
     try:
         downloaded = await download_model_from_supabase(model_path)
@@ -179,6 +182,10 @@ async def load_pinn_model():
         )
         current_model_v8.scales = scales
         print(f"✅ Échelles calculées : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
+        
+        # Initialisation du Risk Manager
+        risk_manager = IndustrialRiskManager(current_model_v8)
+        print("✅ Industrial Risk Manager initialisé.")
     del t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t
     gc.collect()
     if torch.cuda.is_available():
@@ -357,10 +364,13 @@ async def validate_3d(request: PredictionRequestV8):
             "gravimetric_density": float(rho.item())
         })
 
+        # ✅ Ajout de la certification de risque industrielle
+        risk_cert = risk_manager.certify_prediction(t, request.x, request.y, request.z) if risk_manager else {}
+        
         return PredictionResponseV8(
             **result,
-            credibility_score=credibility_score,
-            residuals=residuals,
+            credibility_score=risk_cert.get("composite_score", credibility_score),
+            residuals=risk_cert.get("residuals", residuals),
             predictions3d=predictions_profile,
             timestamp=datetime.utcnow().isoformat()
         )
