@@ -105,9 +105,9 @@ def train():
     # On importe ici pour s'assurer que le chemin est correct dans l'environnement d'exécution
     import sys
     sys.path.append(os.getcwd())
-    from apps.api.fno_3d_navier_stokes import FNO3d
+    from apps.api.fno_3d_navier_stokes import FNO3D
     
-    model = FNO3d(
+    model = FNO3D(
         modes1=args.n_modes, modes2=args.n_modes, modes3=args.n_modes, 
         width=args.width, in_channels=args.in_channels, out_channels=args.out_channels
     ).to(device)
