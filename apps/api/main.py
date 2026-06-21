@@ -170,9 +170,10 @@ async def load_pinn_model():
         current_model_v8 = HydrogenPINNV8()
 
     # ========== CALCUL DES ÉCHELLES AVEC GRADIENTS ACTIVÉS ==========
+    # Optimisation mémoire pour Render (limite 512Mo)
     print("Calcul des échelles de normalisation des résidus pour l'API (mode gradients activés)...")
     device = current_model_v8.device
-    N_samples = 1000
+    N_samples = 200 # Réduit de 1000 à 200 pour économiser la RAM
     with torch.enable_grad():
         t_temp = (torch.rand(N_samples, 1, device=device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
         x_temp = (torch.rand(N_samples, 1, device=device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
@@ -185,6 +186,12 @@ async def load_pinn_model():
         current_model_v8.scales = scales
         print(f"✅ Échelles calculées : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
         
+        # Nettoyage immédiat de la RAM après calcul des gradients
+        del t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         # Initialisation du Risk Manager
         risk_manager = IndustrialRiskManager(current_model_v8)
         
@@ -604,6 +611,7 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
         jobs_store[job_id].update({"status": "failed", "errorMessage": str(e)})
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8080))
-    host = os.getenv("HOST", "0.0.0.0")
-    uvicorn.run(app, host=host, port=port, log_level="info")
+    import uvicorn
+    # Render utilise la variable d'environnement PORT
+    port = int(os.getenv("PORT", 10000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info", proxy_headers=True)
