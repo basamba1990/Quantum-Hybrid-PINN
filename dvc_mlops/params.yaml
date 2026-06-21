@@ -9,33 +9,23 @@ commit_hash: "auto"
 # PHASE 1 : PRÉPARATION DES DONNÉES
 # ============================================================================
 prepare:
-  scenarios: 
-    - "H2_PIPELINE"
-    - "LH2_STORAGE"
-    - "H2_COMPRESSION_STATION"
-    - "MINING_INDUSTRIAL_SIM"
-    - "CRYOGENIC_TRANSPORT"
-    - "PIPELINE_SAFETY"
-    - "PORT_ENERGY_OPTIMIZATION"
-    - "ROCK_ELAST_STRESS"
+  scenarios: "H2_PIPELINE,LH2_STORAGE,H2_COMPRESSION_STATION,MINING_INDUSTRIAL_SIM,CRYOGENIC_TRANSPORT,PIPELINE_SAFETY,PORT_ENERGY_OPTIMIZATION,ROCK_ELAST_STRESS"
   train_val_split: 0.8
   test_split: 0.1
   normalize: true
-  augmentation_factor: 1.5
 
 # ============================================================================
-# PHASE 2 : ENTRAÎNEMENT FNO (Fourier Neural Operator)
+# PHASE 2 : ENTRAÎNEMENT FNO
 # ============================================================================
-epochs: 200
+epochs: 100
 learning_rate: 0.001
 n_modes: 12
 width: 32
 in_channels: 1
 out_channels: 1
-fno_scenarios: ["H2_PIPELINE", "LH2_STORAGE", "CRYOGENIC_TRANSPORT"]
+fno_scenarios_str: "H2_PIPELINE,LH2_STORAGE,CRYOGENIC_TRANSPORT"
 fno_batch_size: 32
 early_stopping_patience: 20
-fno_weight_decay: 1e-5
 
 # ============================================================================
 # PHASE 3 : ENTRAÎNEMENT PINN V8
@@ -43,25 +33,15 @@ fno_weight_decay: 1e-5
 pinn_epochs: 5000
 pinn_learning_rate: 0.001
 pinn_N_pde: 5000
-pinn_layers: [4, 128, 128, 128, 5]
+pinn_layers_str: "4,128,128,128,5"
 pinn_model_path: "models/pinn_model.pt"
-pinn_scenarios: 
-  - "H2_PIPELINE"
-  - "H2_COMPRESSION_STATION"
-  - "MINING_INDUSTRIAL_SIM"
-  - "ROCK_ELAST_STRESS"
+pinn_scenarios_str: "H2_PIPELINE,H2_COMPRESSION_STATION,MINING_INDUSTRIAL_SIM,ROCK_ELAST_STRESS"
 
-# Paramètres physiques du PINN
+# Paramètres physiques
 fluid_type: "H2"
 enable_mc_dropout: true
 enable_ood_detection: true
 residual_threshold: 0.01
-pinn_weight_decay: 1e-6
-
-# Paramètres d'optimisation avancés
-pinn_scheduler: "cosine"
-pinn_warmup_epochs: 100
-pinn_gradient_clip: 1.0
 
 # ============================================================================
 # PHASE 4 : ENTRAÎNEMENT DEEP KALMAN FILTER
@@ -71,13 +51,6 @@ kalman_observation_dim: 3
 kalman_hidden_dim: 64
 kalman_epochs: 500
 kalman_learning_rate: 0.001
-kalman_batch_size: 16
-kalman_weight_decay: 1e-5
-
-# Paramètres de covariance
-kalman_Q_init: -4.605  # log(0.01)
-kalman_R_init: -2.302  # log(0.1)
-kalman_P_init_scale: 1.0
 
 # ============================================================================
 # PHASE 5 : ÉVALUATION ET VALIDATION
@@ -85,54 +58,5 @@ kalman_P_init_scale: 1.0
 fno_model_path: "models/fno_model.pt"
 eval_test_data: "data/processed/val.npz"
 eval_metrics_path: "metrics/eval_metrics.json"
-eval_scenarios: 
-  - "H2_PIPELINE"
-  - "LH2_STORAGE"
-  - "H2_COMPRESSION_STATION"
-  - "MINING_INDUSTRIAL_SIM"
-
-# Types de validation
-validation_type: "cross_scenario"  # Options: "cross_scenario", "temporal", "spatial", "hybrid"
-
-# Seuils de validation
-residual_tolerance_continuity: 1e-4
-residual_tolerance_momentum: 1e-4
-residual_tolerance_energy: 1e-3
-credibility_score_threshold: 70.0
-
-# ============================================================================
-# PHASE 6 : RAPPORTS ET VERSIONING
-# ============================================================================
-report:
-  include_plots: true
-  include_residuals_analysis: true
-  include_scenario_comparison: true
-  save_model_registry: true
-  upload_to_supabase: true
-
-# ============================================================================
-# CONFIGURATION INFRASTRUCTURE
-# ============================================================================
-infrastructure:
-  device: "cuda"  # Options: "cuda", "cpu", "mps"
-  num_workers: 4
-  pin_memory: true
-  mixed_precision: true
-  distributed_training: false
-  
-# Ressources
-compute:
-  max_memory_gb: 16
-  timeout_minutes: 1440  # 24 heures
-  checkpoint_interval: 100
-
-# ============================================================================
-# INTÉGRATION SUPABASE
-# ============================================================================
-supabase:
-  enabled: true
-  project_url: "https://your-project.supabase.co"
-  upload_models: true
-  upload_metrics: true
-  upload_reports: true
-  versioning_strategy: "semantic"  # Options: "semantic", "timestamp", "commit_hash"
+eval_scenarios_str: "H2_PIPELINE,LH2_STORAGE,H2_COMPRESSION_STATION,MINING_INDUSTRIAL_SIM"
+validation_type: "cross_scenario"
