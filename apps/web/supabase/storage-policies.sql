@@ -19,3 +19,14 @@ ON storage.objects FOR SELECT USING (
 
 CREATE POLICY "Allow authenticated users to delete reports"
 ON storage.objects FOR DELETE USING (auth.role() = 'authenticated' AND bucket_id = 'reports');
+
+-- Create models bucket
+INSERT INTO storage.buckets (id, name, public) VALUES ('models', 'models', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policies for models bucket
+CREATE POLICY "Allow service role to manage models"
+ON storage.objects FOR ALL USING (bucket_id = 'models');
+
+CREATE POLICY "Allow public access to models"
+ON storage.objects FOR SELECT USING (bucket_id = 'models');
