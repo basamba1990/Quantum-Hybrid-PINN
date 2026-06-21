@@ -84,6 +84,13 @@ def evaluate_pinn(model_path: str, test_data_path: str, metrics_output_path: str
         
         # Calcul de l'erreur relative L2
         l2_error = np.linalg.norm(u_pred - u_true) / np.linalg.norm(u_true) if np.linalg.norm(u_true) > 0 else 0.0
+        
+        # ✅ CALCUL DU SCORE R2 (Indicateur clé 1 de la doc)
+        from sklearn.metrics import r2_score
+        r2_u = r2_score(u_true.flatten(), u_pred.flatten())
+        r2_p = r2_score(p_true.flatten(), p_pred.flatten())
+        r2_t = r2_score(t_phys_true.flatten(), t_phys_pred.flatten())
+        r2_avg = (r2_u + r2_p + r2_t) / 3
 
         # 4. Calcul des résidus physiques (Validation de la loi physique)
         print("Analyse de la dérive physique (Drift Monitoring)...")
@@ -98,18 +105,40 @@ def evaluate_pinn(model_path: str, test_data_path: str, metrics_output_path: str
         
         mean_res = {k: float(v.mean().item()) for k, v in res_dict.items()}
         
+        # ✅ CALCUL DE L'ERREUR AUX LIMITES (Indicateur clé 4 de la doc)
+        # On vérifie si les conditions aux limites (BC) sont respectées sur les parois
+        print("Vérification des conditions aux limites (BC Error)...")
+        # Échantillonnage sur les parois (ex: x=0 ou x=X_MAX)
+        from pinn_3d_navier_stokes import X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+        n_bc = 20
+        x_bc = torch.tensor([[X_MIN]] * n_bc, dtype=torch.float32).to(pinn.device)
+        y_bc = torch.rand(n_bc, 1).to(pinn.device)
+        z_bc = torch.rand(n_bc, 1).to(pinn.device)
+        t_bc = torch.zeros(n_bc, 1).to(pinn.device)
+        
+        with torch.no_grad():
+            rho_bc, u_bc, v_bc, w_bc, T_bc = pinn.pinn_model(t_bc, x_bc, y_bc, z_bc)
+            # Erreur de Dirichlet : u=0 sur les parois
+            bc_error = torch.sqrt(u_bc**2 + v_bc**2 + w_bc**2).mean().item()
+
         # ✅ CALCUL DU DRIFT SCORE (Dérive par rapport au seuil industriel 1e-3)
         drift_score = sum(mean_res.values()) / (len(mean_res) * 1e-3)
         is_drifting = drift_score > 2.0 # Alerte si les résidus sont 2x plus hauts que le seuil
 
         # 5. Logging MLflow
         metrics = {
+            "r2_score_avg": float(r2_avg),
+            "r2_velocity": float(r2_u),
+            "r2_pressure": float(r2_p),
             "rmse_velocity": float(rmse_u),
             "rmse_pressure": float(rmse_p),
             "rmse_temperature": float(rmse_t),
             "l2_relative_error": float(l2_error),
+            "boundary_condition_error": float(bc_error),
             "physical_drift_score": float(drift_score),
             "is_physical_drift_alert": 1.0 if is_drifting else 0.0,
+            "conservation_mass_error": mean_res.get("continuity", 0.0),
+            "conservation_energy_error": mean_res.get("energy", 0.0),
             **{f"phys_res_{k}": v for k, v in mean_res.items()}
         }
         mlflow.log_metrics(metrics)
