@@ -154,12 +154,14 @@ async def load_pinn_model():
         downloaded = await download_model_from_supabase(model_path)
         if downloaded and os.path.exists(model_path):
             current_model_v8 = HydrogenPINNV8()
-            current_model_v8.pinn_model.load_state_dict(torch.load(model_path, map_location=current_model_v8.device))
-            print("Modèle chargé depuis Supabase.")
+            state_dict = torch.load(model_path, map_location=current_model_v8.device)
+            current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
+            print("Modèle chargé depuis Supabase (strict=False).")
         elif os.path.exists(model_path):
             current_model_v8 = HydrogenPINNV8()
-            current_model_v8.pinn_model.load_state_dict(torch.load(model_path, map_location=current_model_v8.device))
-            print("Modèle chargé localement.")
+            state_dict = torch.load(model_path, map_location=current_model_v8.device)
+            current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
+            print("Modèle chargé localement (strict=False).")
         else:
             current_model_v8 = HydrogenPINNV8()
             print("Modèle initialisé par défaut (poids aléatoires).")

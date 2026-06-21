@@ -35,12 +35,13 @@ class TFCPINN3DNavierStokes(nn.Module):
         self.fluid_type = fluid_type
         self.geometry = geometry if geometry else TankGeometry(geometry_type="cylindrical", radius=0.5, length=2.0)
 
-        # Réseau de neurones pour la fonction libre
-        self.net = nn.Sequential()
+        # Réseau de neurones pour la fonction libre (renommé en linears pour compatibilité state_dict)
+        self.linears = nn.ModuleList([nn.Linear(layers[i], layers[i+1]) for i in range(len(layers)-1)])
+        self.net = nn.Sequential() # Gardé pour compatibilité interne si besoin
         for i in range(len(layers)-2):
-            self.net.append(nn.Linear(layers[i], layers[i+1]))
+            self.net.append(self.linears[i])
             self.net.append(nn.Tanh())
-        self.net.append(nn.Linear(layers[-2], layers[-1]))  # sortie: 5 variables (rho, u, v, w, T)
+        self.net.append(self.linears[-1])
 
         # Paramètres d'échelle pour la sortie (bornes physiques)
         self.register_buffer('rho_min', torch.tensor(0.0))
@@ -74,22 +75,26 @@ class TFCPINN3DNavierStokes(nn.Module):
 
         return rho, u, v, w, T
 
-    def loss(self, t, x, y, z, rho, u, v, w, T) -> torch.Tensor:
+    def compute_residuals(self, t, x, y, z, rho, u, v, w, T, scale_dict=None):
         """
-        Calcule le résidu des équations de Navier-Stokes en utilisant la classe de base.
+        Calcule les résidus des équations de Navier-Stokes.
         """
-        # Utiliser une instance temporaire pour calculer les résidus standard
         from pinn_3d_navier_stokes import PINN3DNavierStokes
         temp_pinn = PINN3DNavierStokes(fluid_type=self.fluid_type).to(t.device)
         
         # S'assurer que les gradients sont activés
-        t.requires_grad_(True)
-        x.requires_grad_(True)
-        y.requires_grad_(True)
-        z.requires_grad_(True)
+        if not t.requires_grad: t.requires_grad_(True)
+        if not x.requires_grad: x.requires_grad_(True)
+        if not y.requires_grad: y.requires_grad_(True)
+        if not z.requires_grad: z.requires_grad_(True)
         
-        mass, mom_x, mom_y, mom_z, energy = temp_pinn.compute_residuals(t, x, y, z, rho, u, v, w, T)
-        
+        return temp_pinn.compute_residuals(t, x, y, z, rho, u, v, w, T, scale_dict=scale_dict)
+
+    def loss(self, t, x, y, z, rho, u, v, w, T) -> torch.Tensor:
+        """
+        Calcule la perte totale basée sur les résidus.
+        """
+        mass, mom_x, mom_y, mom_z, energy, _ = self.compute_residuals(t, x, y, z, rho, u, v, w, T)
         loss_val = (mass**2).mean() + (mom_x**2).mean() + (mom_y**2).mean() + (mom_z**2).mean() + (energy**2).mean()
         return loss_val
 
@@ -107,6 +112,18 @@ class HydrogenPINNTFCV8:
         self.pinn_model = TFCPINN3DNavierStokes(layers, fluid_type=fluid_type, geometry=self.geometry).to(self.device)
         self.dkl_model = DeepKalmanFilter(state_dim=5, observation_dim=3).to(self.device)
         self.eos_model = SilveraGoldmanEOS(device=self.device)
+
+    def calculate_residuals(self, t, x, y, z):
+        """Calcule les résidus pour un ensemble de points"""
+        rho, u, v, w, T = self.pinn_model(t, x, y, z)
+        mass, mx, my, mz, energy, _ = self.pinn_model.compute_residuals(t, x, y, z, rho, u, v, w, T)
+        return {
+            "continuity": mass,
+            "momentum_x": mx,
+            "momentum_y": my,
+            "momentum_z": mz,
+            "energy": energy
+        }
 
     def train_pinn(self, epochs: int = 5000, learning_rate: float = 1e-3, N_pde: int = 5000) -> Dict[str, List[float]]:
         """
