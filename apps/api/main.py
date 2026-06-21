@@ -298,11 +298,11 @@ async def validate_3d(request: PredictionRequestV8):
 
         result = {
             "pressure": float(p_t.mean().item()) if p_t is not None else request.pressure,
-            "velocity_u": float(u.item()),
-            "velocity_v": float(v.item()),
-            "velocity_w": float(w.item()),
-            "temperature": float(T.item()),
-            "density": float(rho.item()),
+            "velocity_u": float(u.mean().item()),
+            "velocity_v": float(v.mean().item()),
+            "velocity_w": float(w.mean().item()),
+            "temperature": float(T.mean().item()),
+            "density": float(rho.mean().item()),
             "time": t,
             "x": request.x,
             "y": request.y,

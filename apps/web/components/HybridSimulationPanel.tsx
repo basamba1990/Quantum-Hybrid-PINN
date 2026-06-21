@@ -186,7 +186,10 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         throw new Error(data.error || `Backend error: ${response.status}`);
       }
       
-      const newJobId = data.job_id;
+      const newJobId = data.job_id || data.jobId;
+      if (!newJobId) {
+        throw new Error('No jobId returned from simulation request');
+      }
       const tempJob: JobStatus = {
         jobId: newJobId,
         name: config.jobName,
