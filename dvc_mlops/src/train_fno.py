@@ -13,7 +13,7 @@ from supabase import create_client, Client
 
 # Configuration du logging industriel
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("FNO-Trainer")
+logger = logging.getLogger("FNO-Industrial-Trainer")
 
 class IndustrialFNODataset(Dataset):
     """Dataset PyTorch robuste pour FNO 3D."""
@@ -24,6 +24,7 @@ class IndustrialFNODataset(Dataset):
         self.in_channels = in_channels
         self.out_channels = out_channels
         
+        # Validation des dimensions (Batch, X, Y, Z, Channels)
         if self.data.dim() != 5:
             raise ValueError(f"Format de données invalide : attendu 5D (B,X,Y,Z,C), reçu {self.data.dim()}D")
             
@@ -32,6 +33,7 @@ class IndustrialFNODataset(Dataset):
         
     def __getitem__(self, idx):
         sample = self.data[idx]
+        # Slicing propre des canaux
         x = sample[..., :self.in_channels]
         y = sample[..., :self.out_channels]
         return x, y
@@ -41,7 +43,7 @@ def upload_to_supabase(file_path: str, bucket: str, destination_path: str):
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     if not url or not key:
-        logger.warning("Supabase credentials missing, skipping upload.")
+        logger.warning("Supabase credentials missing (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY), skipping upload.")
         return None
         
     try:
@@ -58,7 +60,7 @@ def upload_to_supabase(file_path: str, bucket: str, destination_path: str):
         logger.error(f"❌ Échec du téléchargement Supabase : {e}")
         return None
 
-def save_metrics_to_supabase(metrics: dict, model_url: str):
+def save_metrics_to_supabase(metrics: dict, model_url: str, scenario: str):
     """Enregistre les métriques dans la base de données Supabase."""
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -67,7 +69,8 @@ def save_metrics_to_supabase(metrics: dict, model_url: str):
     try:
         supabase: Client = create_client(url, key)
         supabase.table("model_trainings").insert({
-            "model_type": "FNO",
+            "model_type": "FNO_INDUSTRIAL",
+            "scenario": scenario,
             "metrics": metrics,
             "model_url": model_url,
             "timestamp": datetime.utcnow().isoformat()
@@ -93,16 +96,16 @@ def train():
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logger.info(f"Device: {device}")
+    logger.info(f"Utilisation du device : {device}")
 
-    # Datasets
+    # Initialisation Datasets
     train_ds = IndustrialFNODataset(args.train_data_path, args.in_channels, args.out_channels)
     val_ds = IndustrialFNODataset(args.val_data_path, args.in_channels, args.out_channels)
-    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
+    
+    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=2)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
 
-    # Modèle
-    # On importe ici pour s'assurer que le chemin est correct dans l'environnement d'exécution
+    # Import dynamique du modèle
     import sys
     sys.path.append(os.getcwd())
     from apps.api.fno_3d_navier_stokes import FNO3D
@@ -116,9 +119,10 @@ def train():
     criterion = nn.MSELoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.5)
 
-    mlflow.set_experiment("FNO_Training_Industrial")
+    mlflow.set_experiment("Quantum-Hybrid-FNO-Industrial")
     with mlflow.start_run():
         mlflow.log_params(vars(args))
+        
         best_val_loss = float('inf')
         patience_counter = 0
         
@@ -136,6 +140,7 @@ def train():
             
             avg_train_loss = train_loss / len(train_loader)
             
+            # Validation
             model.eval()
             val_loss = 0
             with torch.no_grad():
@@ -157,26 +162,40 @@ def train():
                 patience_counter = 0
                 Path(args.model_output_path).parent.mkdir(parents=True, exist_ok=True)
                 torch.save(model.state_dict(), args.model_output_path)
+                logger.info(f"Epoch {epoch}: Nouveau meilleur modèle sauvegardé ({avg_val_loss:.6f})")
             else:
                 patience_counter += 1
                 
             if patience_counter >= args.early_stopping_patience:
-                logger.info("Early stopping triggered.")
+                logger.info("Early stopping déclenché.")
                 break
 
-        # Finalisation et Upload Supabase
-        metrics = {"final_val_loss": best_val_loss, "epochs_completed": epoch + 1}
-        with open("metrics/fno_metrics.json", "w") as f:
-            json.dump(metrics, f)
+        # Finalisation et Export Supabase
+        final_metrics = {
+            "final_val_loss": best_val_loss, 
+            "epochs_completed": epoch + 1,
+            "model_version": "8.1.0-industrial"
+        }
+        
+        # Sauvegarde locale des métriques
+        metrics_dir = Path("metrics")
+        metrics_dir.mkdir(exist_ok=True)
+        with open(metrics_dir / "fno_metrics.json", "w") as f:
+            json.dump(final_metrics, f)
             
+        # Upload du modèle vers Supabase Storage
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        model_filename = f"fno_industrial_{timestamp}.pt"
         model_url = upload_to_supabase(
             args.model_output_path, 
             "models", 
-            f"fno/{datetime.now().strftime('%Y%m%d_%H%M%S')}_fno_model.pt"
+            f"fno/{model_filename}"
         )
-        save_metrics_to_supabase(metrics, model_url or "local_only")
+        
+        # Enregistrement dans Supabase DB
+        save_metrics_to_supabase(final_metrics, model_url or "local_only", args.scenarios)
 
-    logger.info("✅ Entraînement et export Supabase terminés.")
+    logger.info("✅ Entraînement industriel et export Supabase terminés.")
 
 if __name__ == "__main__":
     train()
