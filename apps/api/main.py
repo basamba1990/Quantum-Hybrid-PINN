@@ -153,12 +153,13 @@ async def load_pinn_model():
     try:
         downloaded = await download_model_from_supabase(model_path)
         if downloaded and os.path.exists(model_path):
-            current_model_v8 = HydrogenPINNV8()
+            # Ajustement des couches à 64 pour correspondre au checkpoint DNS/CFD (Indicateur clé 2)
+            current_model_v8 = HydrogenPINNV8(layers=[4, 64, 64, 64, 5])
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("Modèle chargé depuis Supabase (strict=False).")
         elif os.path.exists(model_path):
-            current_model_v8 = HydrogenPINNV8()
+            current_model_v8 = HydrogenPINNV8(layers=[4, 64, 64, 64, 5])
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("Modèle chargé localement (strict=False).")
@@ -204,7 +205,8 @@ async def load_pinn_model():
             print("⚠️ Statistiques OOD non trouvées, détection OOD désactivée.")
             
         print("✅ Industrial Risk Manager initialisé.")
-    del t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t
+    
+    # Suppression du del redondant qui causait l'UnboundLocalError
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
