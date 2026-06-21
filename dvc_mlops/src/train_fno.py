@@ -83,12 +83,20 @@ def train_fno(train_data_path: str, val_data_path: str, fluid_type: str, epochs:
                 # Input is the full state, and we want to predict the next or specific fields
                 # In this setup, we use in_channels for input and out_channels for output
                 # Adjust slicing based on available channels in the data
+                # In FNO, we typically predict the full state at next time step or mapping
+                # Here we ensure we take exactly the number of channels the model expects
                 input_data = batch[..., :in_channels]
-                # If out_channels is 1, we might be predicting just pressure (first field)
+                # The target should match the model's output channels
                 target_data = batch[..., :out_channels]
-
+                
                 optimizer.zero_grad()
                 output = model(input_data)
+                
+                # If there's still a mismatch (e.g. model output is (B,X,Y,Z,C) and target is (B,X,Y,Z,C))
+                # but one has a different number of channels, we slice the target
+                if target_data.shape[-1] != output.shape[-1]:
+                    target_data = target_data[..., :output.shape[-1]]
+
                 loss = loss_fn(output, target_data)
                 loss.backward()
                 optimizer.step()
