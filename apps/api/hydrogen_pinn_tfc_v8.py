@@ -170,18 +170,29 @@ class HydrogenPINNTFCV8:
             rho, u, v, w, T = self.pinn_model(t_t, x_t, y_t, z_t)
             p = self.eos_model(rho, T)
         return {
-            "pressure": p.item(),
-            "velocity_u": u.item(),
-            "velocity_v": v.item(),
-            "velocity_w": w.item(),
-            "temperature": T.item(),
-            "density": rho.item(),
+            "pressure": p.mean().item(),
+            "velocity_u": u.mean().item(),
+            "velocity_v": v.mean().item(),
+            "velocity_w": w.mean().item(),
+            "temperature": T.mean().item(),
+            "density": rho.mean().item(),
             "time": t,
             "x": x,
             "y": y,
             "z": z,
             "method": "TFC-Enriched"
         }
+
+    def assimilate_data(self, current_state: List[float], observation: List[float]) -> List[float]:
+        """
+        Assimilate des données via le filtre de Kalman profond (interface API).
+        """
+        self.dkl_model.eval()
+        with torch.no_grad():
+            c_t = torch.tensor([current_state], dtype=torch.float32, device=self.device)
+            o_t = torch.tensor([observation], dtype=torch.float32, device=self.device)
+            x_new = self.dkl_model.assimilate_batch(c_t, o_t)
+            return x_new.cpu().numpy()[0].tolist()
 
     def assimilate_observation(self, current_state: torch.Tensor, observation: torch.Tensor) -> torch.Tensor:
         """

@@ -156,16 +156,16 @@ export default function NewAnalysisPage() {
       }
 
       const result = await res.json()
-      // La réponse de /hybrid/run-simulation a la forme { status: "success", jobId, message }
+      // La réponse de /hybrid/run-simulation a la forme { status: "success", job_id, message }
       // Les résultats réels sont dans la base de données (hybrid_simulations table)
-      const jobId = result.jobId;
+      const jobId = result.job_id || result.jobId;
       
       // Attendre que le job soit complet (polling avec timeout)
       let simulationResults = null;
       let pollAttempts = 0;
       const maxPollAttempts = 30; // 30 secondes max
       
-      while (pollAttempts < maxPollAttempts) {
+      while (jobId && jobId !== 'undefined' && pollAttempts < maxPollAttempts) {
         const jobResponse = await fetch(`${industrialApiUrl}/jobs/${jobId}`);
         if (jobResponse.ok) {
           const jobData = await jobResponse.json();
