@@ -356,18 +356,18 @@ async def validate_3d(request: PredictionRequestV8):
                 
                 # Extraction des paramètres thermodynamiques (Enthalpie, Entropie)
                 # On utilise des corrélations simplifiées basées sur rho et T pour l'hydrogène
-                h_val = float(T_raw.item() * 14.3) # kJ/kg approx
-                s_val = float(np.log(T_raw.item() + 1) * 2.1) # kJ/kg.K approx
+                h_val = float(T_raw.mean().item() * 14.3) # kJ/kg approx
+                s_val = float(np.log(T_raw.mean().item() + 1) * 2.1) # kJ/kg.K approx
                 
                 predictions_profile.append({
                     "time": float(t_p),
                     "x": float(x_p),
                     "y": float(request.y),
                     "z": float(request.z),
-                    "pressure": float(p_p.item()),
-                    "velocity_u": float(u_raw.item()),
-                    "temperature": float(T_raw.item()),
-                    "density": float(rho_raw.item()),
+                    "pressure": float(p_p.mean().item()),
+                    "velocity_u": float(u_raw.mean().item()),
+                    "temperature": float(T_raw.mean().item()),
+                    "density": float(rho_raw.mean().item()),
                     "enthalpy": h_val,
                     "entropy": s_val
                 })
@@ -378,10 +378,10 @@ async def validate_3d(request: PredictionRequestV8):
         if d_val is None: d_val = 0.5
         
         result.update({
-            "enthalpy": float(T.item() * 14.3),
-            "entropy": float(np.log(T.item() + 1) * 2.1),
-            "mass_flow_rate": float(rho.item() * u.item() * (np.pi * (d_val/2)**2)),
-            "gravimetric_density": float(rho.item())
+            "enthalpy": float(T.mean().item() * 14.3),
+            "entropy": float(np.log(T.mean().item() + 1) * 2.1),
+            "mass_flow_rate": float(rho.mean().item() * u.mean().item() * (np.pi * (d_val/2)**2)),
+            "gravimetric_density": float(rho.mean().item())
         })
 
         # ✅ Ajout de la certification de risque industrielle

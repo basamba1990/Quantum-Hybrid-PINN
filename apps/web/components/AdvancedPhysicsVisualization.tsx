@@ -58,8 +58,8 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
 
   useEffect(() => {
-    if (!simulationId) {
-      console.log("AdvancedPhysicsVisualization: simulationId is missing");
+    if (!simulationId || simulationId === 'undefined') {
+      console.log("AdvancedPhysicsVisualization: simulationId is missing or undefined");
       return;
     }
 
