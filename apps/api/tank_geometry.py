@@ -36,6 +36,27 @@ class TankGeometry:
         """
         return torch.sqrt(y**2 + z**2) - self.radius
 
+    def sdf_tunnel(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
+        """
+        SDF pour un tunnel minier (section rectangulaire ou semi-circulaire).
+        Ici, on modélise une galerie de section rectangulaire pour la ventilation.
+        """
+        # Largeur self.radius*2, Hauteur self.radius*2
+        dx = torch.abs(y) - self.radius
+        dy = torch.abs(z) - self.radius
+        return torch.maximum(dx, dy)
+
+    def sdf_industrial_zone(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
+        """
+        SDF pour une zone industrielle ouverte (Port / Station).
+        Modélisée comme une grande enceinte avec des zones de dissipation.
+        """
+        # Enceinte de taille proportionnelle à length
+        d_enceinte = torch.maximum(torch.abs(x) - self.length/2, 
+                                   torch.maximum(torch.abs(y) - self.length/4, 
+                                                 torch.abs(z) - self.length/4))
+        return d_enceinte
+
     def sdf_sphere(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         """SDF pour une sphère de rayon R."""
         return torch.sqrt(x**2 + y**2 + z**2) - self.radius
@@ -61,6 +82,10 @@ class TankGeometry:
             d = self.sdf_pipeline(x, y, z)
         elif self.geometry_type == "spherical":
             d = self.sdf_sphere(x, y, z)
+        elif self.geometry_type == "tunnel":
+            d = self.sdf_tunnel(x, y, z)
+        elif self.geometry_type == "industrial_zone":
+            d = self.sdf_industrial_zone(x, y, z)
         elif self.geometry_type == "box":
             d = self.sdf_box(x, y, z)
         else:
