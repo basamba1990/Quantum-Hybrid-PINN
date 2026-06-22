@@ -43,12 +43,12 @@ class TFCPINN3DNavierStokes(nn.Module):
             self.net.append(nn.Tanh())
         self.net.append(self.linears[-1])
 
-        # Paramètres d'échelle pour la sortie (bornes physiques)
-        self.register_buffer('rho_min', torch.tensor(0.0))
-        self.register_buffer('rho_max', torch.tensor(150.0))
+        # Paramètres d'échelle pour la sortie (bornes physiques cryogéniques LH2)
+        self.register_buffer('rho_min', torch.tensor(1.0))
+        self.register_buffer('rho_max', torch.tensor(80.0))
         self.register_buffer('T_min', torch.tensor(14.0))
-        self.register_buffer('T_max', torch.tensor(500.0))
-        self.register_buffer('vel_max', torch.tensor(100.0))
+        self.register_buffer('T_max', torch.tensor(35.0)) # LH2 boil-off range
+        self.register_buffer('vel_max', torch.tensor(0.5)) # m/s max flow speed
 
     def forward(self, t: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[torch.Tensor, ...]:
         """
@@ -103,12 +103,13 @@ class HydrogenPINNTFCV8:
     """
     Version améliorée de HydrogenPINN utilisant TFC, EOS quantique et DKF.
     """
-    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2', geometry_type: str = "cylindrical"):
+    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2', geometry_type: str = "spherical"):
         self.device = get_device()
         self.fluid_type = fluid_type
         if layers is None:
             layers = [4, 128, 128, 128, 128, 5]  # 4 entrées (t,x,y,z), 5 sorties
-        self.geometry = TankGeometry(geometry_type=geometry_type, radius=0.5, length=2.0)
+        # NASA LH2 Tank: 4.57m diameter -> 2.285m radius
+        self.geometry = TankGeometry(geometry_type=geometry_type, radius=2.285, length=4.57)
         self.pinn_model = TFCPINN3DNavierStokes(layers, fluid_type=fluid_type, geometry=self.geometry).to(self.device)
         self.dkl_model = DeepKalmanFilter(state_dim=5, observation_dim=3).to(self.device)
         self.eos_model = SilveraGoldmanEOS(device=self.device)
