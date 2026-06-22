@@ -154,12 +154,13 @@ async def load_pinn_model():
         downloaded = await download_model_from_supabase(model_path)
         if downloaded and os.path.exists(model_path):
             # Ajustement des couches à 64 pour correspondre au checkpoint DNS/CFD (Indicateur clé 2)
-            current_model_v8 = HydrogenPINNV8(layers=[4, 64, 64, 64, 5])
+            # Utilisation intelligente de la géométrie selon le contexte industriel
+            current_model_v8 = HydrogenPINNV8(layers=[4, 64, 64, 64, 5], geometry_type="pipeline")
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("Modèle chargé depuis Supabase (strict=False).")
         elif os.path.exists(model_path):
-            current_model_v8 = HydrogenPINNV8(layers=[4, 64, 64, 64, 5])
+            current_model_v8 = HydrogenPINNV8(layers=[4, 64, 64, 64, 5], geometry_type="pipeline")
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("Modèle chargé localement (strict=False).")
@@ -476,14 +477,27 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
         if request.temperature_in: inputs['temperature_in'] = request.temperature_in
         if request.temperature_out: inputs['temperature_out'] = request.temperature_out
 
-        engine = SCENARIO_ENGINES.get(request.scenario_type, SCENARIO_ENGINES["H2_PIPELINE"])
+        # ✅ AJUSTEMENT DYNAMIQUE DE LA GÉOMÉTRIE TFC POUR ÉVITER LE BIAIS GÉOMÉTRIQUE
+        scenario_type = request.scenario_type or "H2_PIPELINE"
+        if "STORAGE" in scenario_type or "TANK" in scenario_type:
+            current_model_v8.geometry.geometry_type = "spherical"
+        elif "PIPELINE" in scenario_type or "TRANSPORT" in scenario_type:
+            current_model_v8.geometry.geometry_type = "pipeline"
+        else:
+            current_model_v8.geometry.geometry_type = "cylindrical"
+        
+        # Mise à jour du rayon et de la longueur dans la géométrie TFC
+        L_phys = inputs.get('length', 100)
+        D_phys = inputs.get('diameter', 0.5)
+        current_model_v8.geometry.radius = D_phys / 2.0
+        current_model_v8.geometry.length = L_phys
+
+        engine = SCENARIO_ENGINES.get(scenario_type, SCENARIO_ENGINES["H2_PIPELINE"])
         scenario_outputs = engine(inputs)
 
         history = []
         num_steps = request.n_steps
         # ✅ Échelles physiques dynamiques selon le scénario
-        L_phys = inputs.get('length', 100)
-        D_phys = inputs.get('diameter', 0.5)
         
         # Pour la station de compression, on utilise la pression de sortie pour la validation
         if request.scenario_type == "H2_COMPRESSION_STATION":

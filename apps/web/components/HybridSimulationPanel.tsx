@@ -75,12 +75,19 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
       return;
     }
     if (pollingRef.current) clearInterval(pollingRef.current);
+    let pollCount = 0;
+    const MAX_POLLS = 300; // 10 minutes à 2s d'intervalle (bien au-delà des 30s limités précédemment)
+    
     pollingRef.current = setInterval(async () => {
+      pollCount++;
       try {
         const res = await fetch(`/api/jobs/${jobId}`);
         
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
+          // Ne pas échouer immédiatement sur un 404/502 temporaire pendant le polling
+          if (res.status >= 500 && pollCount < MAX_POLLS) return;
+          
           setSelectedJob(prev => prev ? { 
             ...prev, 
             status: 'failed',
@@ -108,9 +115,21 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
           }
           fetchJobs();
         }
+        
+        // Timeout de sécurité côté client après 10 minutes
+        if (pollCount >= MAX_POLLS) {
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setError("La simulation prend plus de temps que prévu. Elle continue probablement en arrière-plan, veuillez rafraîchir plus tard.");
+        }
       } catch (err) {
         console.error('Polling error:', err);
-        setError(`Erreur lors du polling du job ${jobId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        // Tolérance aux erreurs réseau temporaires
+        if (pollCount >= MAX_POLLS) {
+          setError(`Erreur lors du polling du job ${jobId}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+          if (pollingRef.current) clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
       }
     }, 2000);
   };

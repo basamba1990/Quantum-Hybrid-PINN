@@ -78,9 +78,11 @@ class TFCPINN3DNavierStokes(nn.Module):
     def compute_residuals(self, t, x, y, z, rho, u, v, w, T, scale_dict=None):
         """
         Calcule les résidus des équations de Navier-Stokes.
+        Optimisé : Utilise une instance persistante pour éviter la dépendance circulaire et l'overhead.
         """
-        from pinn_3d_navier_stokes import PINN3DNavierStokes
-        temp_pinn = PINN3DNavierStokes(fluid_type=self.fluid_type).to(t.device)
+        if not hasattr(self, '_residual_engine'):
+            from pinn_3d_navier_stokes import PINN3DNavierStokes
+            self._residual_engine = PINN3DNavierStokes(fluid_type=self.fluid_type).to(t.device)
         
         # S'assurer que les gradients sont activés
         if not t.requires_grad: t.requires_grad_(True)
@@ -88,7 +90,7 @@ class TFCPINN3DNavierStokes(nn.Module):
         if not y.requires_grad: y.requires_grad_(True)
         if not z.requires_grad: z.requires_grad_(True)
         
-        return temp_pinn.compute_residuals(t, x, y, z, rho, u, v, w, T, scale_dict=scale_dict)
+        return self._residual_engine.compute_residuals(t, x, y, z, rho, u, v, w, T, scale_dict=scale_dict)
 
     def loss(self, t, x, y, z, rho, u, v, w, T) -> torch.Tensor:
         """

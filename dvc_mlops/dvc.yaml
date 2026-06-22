@@ -82,6 +82,7 @@ stages:
       - residual_threshold
     outs:
       - models/pinn_model.pt
+      - models/ood_stats.npz
     metrics:
       - metrics/pinn_metrics.json:
           cache: false
