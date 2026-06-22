@@ -105,7 +105,7 @@ class HydrogenPINNTFCV8:
     """
     Version améliorée de HydrogenPINN utilisant TFC, EOS quantique et DKF.
     """
-    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2', geometry_type: str = "spherical"):
+    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2', geometry_type: str = "pipeline"):
         self.device = get_device()
         self.fluid_type = fluid_type
         if layers is None:
