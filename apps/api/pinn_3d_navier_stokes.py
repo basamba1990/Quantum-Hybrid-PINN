@@ -138,7 +138,7 @@ class PINN3DNavierStokes(nn.Module):
             energy = energy / scale_dict['energy']
             return mass, mom_x, mom_y, mom_z, energy
         else:
-            if mass.numel() == 0:
+            if mass.numel() <= 1:
                 scales = {'mass': 1.0, 'mom': 1.0, 'energy': 1.0}
             else:
                 scales = {
