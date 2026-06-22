@@ -52,7 +52,8 @@ def train_pinn_model(epochs: int, learning_rate: float, N_pde: int,
             "residual_threshold": residual_threshold
         })
 
-        pinn_v8 = HydrogenPINNV8(layers=layers or [4, 128, 128, 128, 5], fluid_type=fluid_type)
+        # Utilisation de la géométrie pipeline par défaut pour l'entraînement industriel
+        pinn_v8 = HydrogenPINNV8(layers=layers or [4, 128, 128, 128, 5], fluid_type=fluid_type, geometry_type="pipeline")
         
         # Configuration optionnelle
         if enable_ood_detection:
@@ -77,6 +78,7 @@ def train_pinn_model(epochs: int, learning_rate: float, N_pde: int,
 
         # ✅ SAUVEGARDE DES STATISTIQUES OOD POUR L'API INDUSTRIELLE
         print("Génération des statistiques OOD pour la production...")
+        import numpy as np # Import local pour garantir la disponibilité
         with torch.no_grad():
             # Échantillonnage de points de référence "normaux"
             t_ref = torch.rand(1000, 1) * 10.0
@@ -112,18 +114,20 @@ def train_pinn_model(epochs: int, learning_rate: float, N_pde: int,
                 from supabase import create_client
                 supabase = create_client(supabase_url, supabase_key)
                 
+                bucket_name = os.environ.get('SUPABASE_BUCKET_NAME', 'pinn-models')
                 with open(model_output_path, 'rb') as f:
-                    supabase.storage.from_('models').upload(
+                    supabase.storage.from_(bucket_name).upload(
                         path='pinn_model.pt',
                         file=f,
                         file_options={"upsert": "true"}
                     )
                 
                 # Exportation des stats OOD si elles existent
+                bucket_name = os.environ.get('SUPABASE_BUCKET_NAME', 'pinn-models')
                 ood_stats_path = Path(model_output_path).parent / "ood_stats.npz"
                 if ood_stats_path.exists():
                     with open(ood_stats_path, 'rb') as f:
-                        supabase.storage.from_('models').upload(
+                        supabase.storage.from_(bucket_name).upload(
                             path='ood_stats.npz',
                             file=f,
                             file_options={"upsert": "true"}

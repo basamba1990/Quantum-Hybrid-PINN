@@ -17,6 +17,8 @@ class TankGeometry:
         self.geometry_type = geometry_type
         self.radius = radius
         self.length = length
+        # Support pour les pipelines longs (ZLECAf / 100km+)
+        self.is_long_range = (geometry_type == "pipeline")
 
     def sdf_cylinder(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         """
@@ -26,6 +28,13 @@ class TankGeometry:
         d_radial = torch.sqrt(y**2 + z**2) - self.radius
         d_axial = torch.abs(x) - self.length / 2.0
         return torch.maximum(d_radial, d_axial)
+
+    def sdf_pipeline(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
+        """
+        SDF pour un pipeline infini ou très long aligné sur l'axe X.
+        On ignore les limites en X pour se concentrer sur les parois radiales.
+        """
+        return torch.sqrt(y**2 + z**2) - self.radius
 
     def sdf_sphere(self, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         """SDF pour une sphère de rayon R."""
@@ -48,6 +57,8 @@ class TankGeometry:
         """
         if self.geometry_type == "cylindrical":
             d = self.sdf_cylinder(x, y, z)
+        elif self.geometry_type == "pipeline":
+            d = self.sdf_pipeline(x, y, z)
         elif self.geometry_type == "spherical":
             d = self.sdf_sphere(x, y, z)
         elif self.geometry_type == "box":

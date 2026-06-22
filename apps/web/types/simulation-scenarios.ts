@@ -59,7 +59,7 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
   LH2_STORAGE: {
     id: 'LH2_STORAGE',
     name: 'Stockage Hydrogène Liquide (LH2)',
-    description: 'Simulation de réservoir LH2, stabilité thermique et évaporation.',
+    description: 'Simulation thermodynamique avancée de réservoirs cryogéniques (LH2). Calcule le taux d\'évaporation (Boil-Off Rate) via les équations de transfert thermique, la convection naturelle interne et la montée en pression isochore pour garantir l\'intégrité structurelle.',
     inputs: [
       { name: 'volume', label: 'Volume', type: 'number', unit: 'm3', defaultValue: 50 },
       { name: 'pressure', label: 'Pression Interne', type: 'number', unit: 'bar', defaultValue: 1.2 },
@@ -76,7 +76,7 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
   PORT_ENERGY_OPTIMIZATION: {
     id: 'PORT_ENERGY_OPTIMIZATION',
     name: 'Optimisation Énergétique Portuaire',
-    description: 'Optimisation de la consommation énergétique, refroidissement industriel et logistique.',
+    description: 'Modèle d\'optimisation multi-physique pour hubs énergétiques portuaires. Analyse l\'efficacité des systèmes de refroidissement industriels, l\'empreinte carbone (tCO2/an) et optimise la demande énergétique variable via une approche de contrôle prédictif.',
     inputs: [
       { name: 'portLocation', label: 'Port', type: 'select', defaultValue: 'Dakar', options: [
         { label: 'Dakar', value: 'Dakar' },
@@ -97,7 +97,7 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
   PIPELINE_SAFETY: {
     id: 'PIPELINE_SAFETY',
     name: 'Sécurité Pipeline Pétrole/Gaz',
-    description: 'Détection d\'anomalies de pression, prédiction de fuites et de ruptures.',
+    description: 'Système de surveillance prédictive basé sur l\'analyse des ondes de pression transitoires. Détecte les micro-fuites et les anomalies structurelles en temps réel, calculant la probabilité de défaillance et optimisant l\'intervalle de maintenance préventive.',
     inputs: [
       { name: 'length', label: 'Longueur', type: 'number', unit: 'km', defaultValue: 200 },
       { name: 'sensorInterval', label: 'Intervalle Capteurs', type: 'number', unit: 'km', defaultValue: 5 }
@@ -112,7 +112,7 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
   CRYOGENIC_TRANSPORT: {
     id: 'CRYOGENIC_TRANSPORT',
     name: 'Transport Cryogénique (GNL/LH2)',
-    description: 'Simulation des pertes thermiques et de la sécurité pendant le transport.',
+    description: 'Simulation de transport maritime et terrestre de fluides cryogéniques. Modélise les ponts thermiques, la stratification du fluide et les pertes par évaporation (BOG) sous conditions environnementales variables pour assurer la sécurité des cargaisons GNL/LH2.',
     inputs: [
       { name: 'cargoType', label: 'Type de Cargaison', type: 'select', defaultValue: 'LH2', options: [
         { label: 'Hydrogène Liquide (LH2)', value: 'LH2' },
@@ -129,7 +129,7 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
   MINING_INDUSTRIAL_SIM: {
     id: 'MINING_INDUSTRIAL_SIM',
     name: 'Simulation Industrielle Minière',
-    description: 'Ventilation, transfert thermique et sécurité gaz dans les mines (Cuivre, Cobalt, Lithium).',
+    description: 'Modélisation de la dynamique des fluides (CFD) pour la ventilation souterraine et la gestion thermique des mines profondes. Analyse la dispersion des gaz toxiques, la qualité de l\'air et les contraintes géo-mécaniques pour l\'extraction sécurisée de minerais critiques.',
     inputs: [
       { name: 'mineType', label: 'Type de Mine', type: 'select', defaultValue: 'Cobalt', options: [
         { label: 'Cuivre', value: 'Cuivre' },
