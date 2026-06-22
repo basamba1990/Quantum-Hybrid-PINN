@@ -451,6 +451,20 @@ async def assimilate_data(request: Request):
 
 @app.post("/hybrid/run-simulation", response_model=SimulationResponse)
 async def run_hybrid_simulation(request: SimulationRequest, background_tasks: BackgroundTasks):
+    # ✅ VÉRIFICATION DE LA SANTÉ DU MODÈLE AVANT LANCEMENT
+    if current_model_v8 is None:
+        raise HTTPException(status_code=503, detail="Modèle PINN non chargé. Service indisponible.")
+    
+    # ✅ VÉRIFICATION DE LA MÉMOIRE (Protection Render 512Mo)
+    import psutil
+    mem = psutil.virtual_memory()
+    if mem.percent > 90:
+        # Tentative de nettoyage forcé
+        gc.collect()
+        if torch.cuda.is_available(): torch.cuda.empty_cache()
+        if psutil.virtual_memory().percent > 95:
+            raise HTTPException(status_code=507, detail="Mémoire système saturée. Impossible de lancer la simulation.")
+
     job_id = f"sim_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
     job_info = {
         "job_id": job_id,
@@ -483,6 +497,10 @@ async def execute_simulation_pipeline(job_id: str, request: SimulationRequest):
             current_model_v8.geometry.geometry_type = "spherical"
         elif "PIPELINE" in scenario_type or "TRANSPORT" in scenario_type:
             current_model_v8.geometry.geometry_type = "pipeline"
+        elif "MINING" in scenario_type or "TUNNEL" in scenario_type:
+            current_model_v8.geometry.geometry_type = "tunnel"
+        elif "PORT" in scenario_type or "STATION" in scenario_type:
+            current_model_v8.geometry.geometry_type = "industrial_zone"
         else:
             current_model_v8.geometry.geometry_type = "cylindrical"
         
