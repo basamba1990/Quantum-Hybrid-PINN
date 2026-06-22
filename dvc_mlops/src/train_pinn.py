@@ -102,6 +102,39 @@ def train_pinn_model(epochs: int, learning_rate: float, N_pde: int,
         with open("metrics/pinn_metrics.json", "w") as f:
             json.dump({"final_loss": history["loss"][-1]}, f)
 
+        # ✅ EXPORTATION AUTOMATIQUE VERS SUPABASE (POUR DÉPLOIEMENT RENDER)
+        supabase_url = os.environ.get('SUPABASE_URL')
+        supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+        
+        if supabase_url and supabase_key:
+            print("🚀 Exportation du modèle vers Supabase Storage...")
+            try:
+                from supabase import create_client
+                supabase = create_client(supabase_url, supabase_key)
+                
+                with open(model_output_path, 'rb') as f:
+                    supabase.storage.from_('models').upload(
+                        path='pinn_model.pt',
+                        file=f,
+                        file_options={"upsert": "true"}
+                    )
+                
+                # Exportation des stats OOD si elles existent
+                ood_stats_path = Path(model_output_path).parent / "ood_stats.npz"
+                if ood_stats_path.exists():
+                    with open(ood_stats_path, 'rb') as f:
+                        supabase.storage.from_('models').upload(
+                            path='ood_stats.npz',
+                            file=f,
+                            file_options={"upsert": "true"}
+                        )
+                
+                print("✅ Modèles exportés avec succès vers Supabase.")
+            except Exception as e:
+                print(f"❌ Erreur lors de l'exportation vers Supabase : {e}")
+        else:
+            print("⚠️ Variables SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY manquantes. Exportation sautée.")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--epochs", type=int, default=5000)
