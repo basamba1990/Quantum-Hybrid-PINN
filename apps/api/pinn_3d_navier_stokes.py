@@ -3,13 +3,13 @@ import torch.nn as nn
 import numpy as np
 from fluid_properties import FLUID_CONFIGS, get_eos
 
-T_MIN, T_MAX = 0.0, 3600.0
-X_MIN, X_MAX = 0.0, 100000.0
-Y_MIN, Y_MAX = -0.25, 0.25
-Z_MIN, Z_MAX = -0.25, 0.25
-U_SCALE = 20.0
-TEMP_SCALE = 400.0
-RHO_SCALE = 100.0
+T_MIN, T_MAX = 0.0, 1000.0 # s
+X_MIN, X_MAX = -5.0, 5.0 # m (Réservoir 4.57m)
+Y_MIN, Y_MAX = -5.0, 5.0 # m
+Z_MIN, Z_MAX = -5.0, 5.0 # m
+U_SCALE = 0.1 # m/s (Convection naturelle LH2 lente)
+TEMP_SCALE = 50.0 # K (Plage cryogénique)
+RHO_SCALE = 71.0 # kg/m3 (Densité LH2 à 20K)
 
 class PINN3DNavierStokes(nn.Module):
     def __init__(self, layers=None, fluid_type='H2', dropout_rate=0.1, enable_dropout=False):
@@ -42,11 +42,11 @@ class PINN3DNavierStokes(nn.Module):
                 inp = self.dropouts[i](inp)
         out = self.linears[-1](inp)
 
-        rho = (out[..., 0:1] + 1) * RHO_SCALE / 2 + 0.1
-        u = (out[..., 1:2] + 1) * U_SCALE / 2
-        v = (out[..., 2:3] + 1) * U_SCALE / 2
-        w = (out[..., 3:4] + 1) * U_SCALE / 2
-        T = (out[..., 4:5] + 1) * TEMP_SCALE / 2 + 200.0
+        rho = (torch.sigmoid(out[..., 0:1])) * RHO_SCALE + 1.0
+        u = (torch.tanh(out[..., 1:2])) * U_SCALE
+        v = (torch.tanh(out[..., 2:3])) * U_SCALE
+        w = (torch.tanh(out[..., 3:4])) * U_SCALE
+        T = (torch.sigmoid(out[..., 4:5])) * TEMP_SCALE + 14.0 # H2 triple point = 13.8K
         return rho, u, v, w, T
 
     def _safe_grad(self, y, x, create_graph=True):
