@@ -60,7 +60,7 @@ class MahalanobisOODDetector:
         return (dist > self.threshold, dist)
 
 class HydrogenPINNV8:
-    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2', rock_type: str = None):
+    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2', rock_type: str = None, geometry_type: str = 'pipeline'):
         self.device = get_device()
         self.fluid_type = fluid_type
         self.rock_type = rock_type
