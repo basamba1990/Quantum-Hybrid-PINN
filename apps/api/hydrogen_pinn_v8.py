@@ -5,10 +5,16 @@ from typing import Dict, List, Optional, Tuple
 import logging
 import gc
 
-from pinn_3d_navier_stokes import PINN3DNavierStokes, T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
-from rock_pinn_3d import RockPINN3D
-from deep_kalman_filter import DeepKalmanFilter
-from quantum_eos_torch import SilveraGoldmanEOS, integrate_eos_in_pinn_loss
+try:
+    from pinn_3d_navier_stokes import PINN3DNavierStokes, T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+    from rock_pinn_3d import RockPINN3D
+    from deep_kalman_filter import DeepKalmanFilter
+    from quantum_eos_torch import SilveraGoldmanEOS, integrate_eos_in_pinn_loss
+except ImportError:
+    from .pinn_3d_navier_stokes import PINN3DNavierStokes, T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+    from .rock_pinn_3d import RockPINN3D
+    from .deep_kalman_filter import DeepKalmanFilter
+    from .quantum_eos_torch import SilveraGoldmanEOS, integrate_eos_in_pinn_loss
 
 logger = logging.getLogger(__name__)
 

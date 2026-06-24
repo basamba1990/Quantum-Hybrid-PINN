@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
     
     // Extraction des valeurs depuis scenario_inputs pour les mapper au top-level attendu par l'API
     const scenarioInputs = body.scenario_inputs || {};

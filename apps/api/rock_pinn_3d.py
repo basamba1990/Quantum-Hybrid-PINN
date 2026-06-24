@@ -1,7 +1,11 @@
 import torch
 import torch.nn as nn
-from pinn_3d_navier_stokes import PINN3DNavierStokes
-from rock_properties import ROCK_CONFIGS
+try:
+    from pinn_3d_navier_stokes import PINN3DNavierStokes
+    from rock_properties import ROCK_CONFIGS
+except ImportError:
+    from .pinn_3d_navier_stokes import PINN3DNavierStokes
+    from .rock_properties import ROCK_CONFIGS
 
 class RockPINN3D(PINN3DNavierStokes):
     """PINN 3D pour roche avec endommagement et couplage poroélastique de Biot"""

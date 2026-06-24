@@ -23,12 +23,20 @@ current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
 # Now import local modules
-from hydrogen_pinn_model import (
-    HydrogenPINN,
-    train_pinn,
-    predict_hydrogen_state,
-    generate_training_data,
-)
+try:
+    from hydrogen_pinn_model import (
+        HydrogenPINN,
+        train_pinn,
+        predict_hydrogen_state,
+        generate_training_data,
+    )
+except ImportError:
+    from .hydrogen_pinn_model import (
+        HydrogenPINN,
+        train_pinn,
+        predict_hydrogen_state,
+        generate_training_data,
+    )
 
 # Initialize FastAPI app
 app = FastAPI(

@@ -10,20 +10,12 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from supabase import create_client, Client
 
-try:
-    from hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as HydrogenPINNV8, get_device
-    from deep_kalman_filter import DeepKalmanFilter
-    from cfd_validation_service import CFDValidationService
-    from scenario_engines import SCENARIO_ENGINES
-    from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
-    from industrial_risk_manager import IndustrialRiskManager
-except ImportError:
-    from .hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as HydrogenPINNV8, get_device
-    from .deep_kalman_filter import DeepKalmanFilter
-    from .cfd_validation_service import CFDValidationService
-    from .scenario_engines import SCENARIO_ENGINES
-    from .pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
-    from .industrial_risk_manager import IndustrialRiskManager
+from hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as HydrogenPINNV8, get_device
+from deep_kalman_filter import DeepKalmanFilter
+from cfd_validation_service import CFDValidationService
+from scenario_engines import SCENARIO_ENGINES
+from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+from industrial_risk_manager import IndustrialRiskManager
 
 def clean_float(value: float, fallback: float = 0.0) -> float:
     if not np.isfinite(value):
@@ -335,7 +327,10 @@ async def validate_3d(request: PredictionRequestV8):
         idx_center = N_points // 2
         rho, u, v, w, T = rho_s[idx_center:idx_center+1], u_s[idx_center:idx_center+1], v_s[idx_center:idx_center+1], w_s[idx_center:idx_center+1], T_s[idx_center:idx_center+1]
 
-        from fluid_properties import get_eos
+        try:
+            from fluid_properties import get_eos
+        except ImportError:
+            from .fluid_properties import get_eos
         p_t = get_eos(current_model_v8.fluid_type, rho, T)
 
         result = {
@@ -565,7 +560,10 @@ async def execute_simulation_v8(job_id: str, request: SimulationRequest):
                 z_p = torch.tensor([[z_fixed]], dtype=torch.float32, device=current_model_v8.device)
                 
                 rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
-                from fluid_properties import get_eos
+                try:
+                    from fluid_properties import get_eos
+                except ImportError:
+                    from .fluid_properties import get_eos
                 p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
                 
                 predictions_list.append({
@@ -627,14 +625,7 @@ async def execute_simulation_v8(job_id: str, request: SimulationRequest):
                 report_filename = f"temp_report_{job_id}.pdf"
                 report_path = os.path.join("/tmp", report_filename)
                 
-                # Utilisation du Risk Manager pour générer le contenu du rapport
-                report_content = risk_manager.generate_full_report(
-                    project_id=request.project_id,
-                    analysis_id=job_id,
-                    scenario_type=scenario_type,
-                    scenario_inputs=inputs,
-                    final_result=final_result
-                )
+                # Le contenu du rapport est généré directement dans le fichier PDF ci-dessous
                 
                 # Utilisation du Risk Manager pour générer le rapport PDF réel
                 risk_manager.generate_full_report(
