@@ -36,7 +36,7 @@ export async function POST(req: Request) {
 
     // Call the actual simulation backend (FastAPI)
     const simulationResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/simulations/run`,
+      `${process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com'}/api/simulations/run`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

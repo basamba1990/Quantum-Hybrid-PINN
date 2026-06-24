@@ -13,7 +13,10 @@ import uvicorn
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
-from hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8
+try:
+    from hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8
+except ImportError:
+    from .hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8
 
 app = FastAPI(
     title="Quantum-Hybrid-PINN TFC-Enriched API",

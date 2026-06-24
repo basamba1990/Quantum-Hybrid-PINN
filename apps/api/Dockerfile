@@ -19,8 +19,8 @@ COPY . .
 # Create directory for models if it doesn't exist
 RUN mkdir -p models
 
-# Expose the port FastAPI will run on
+# Expose the port FastAPI will run on (Render will override this via PORT env var)
 EXPOSE 8080
 
-# Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Command to run the application using the PORT environment variable
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}

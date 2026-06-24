@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from fluid_properties import FLUID_CONFIGS, get_eos
+try:
+    from fluid_properties import FLUID_CONFIGS, get_eos
+except ImportError:
+    from .fluid_properties import FLUID_CONFIGS, get_eos
 
 T_MIN, T_MAX = 0.0, 1000.0 # s
 X_MIN, X_MAX = -5.0, 5.0 # m (Réservoir 4.57m)
