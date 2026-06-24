@@ -183,12 +183,12 @@ async def load_pinn_model():
         downloaded = await download_model_from_supabase(model_path)
         if downloaded and os.path.exists(model_path):
             # MISE À JOUR : Ajustement des couches à 64 pour correspondre au checkpoint DNS/CFD
-            current_model_v8 = HydrogenPINNV8(layers=[4, 64, 64, 64, 5], geometry_type="pipeline")
+            current_model_v8 = HydrogenPINNV8(layers=[4, 128, 128, 128, 5], geometry_type="pipeline")
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("Modèle chargé depuis Supabase (strict=False).")
         elif os.path.exists(model_path):
-            current_model_v8 = HydrogenPINNV8(layers=[4, 64, 64, 64, 5], geometry_type="pipeline")
+            current_model_v8 = HydrogenPINNV8(layers=[4, 128, 128, 128, 5], geometry_type="pipeline")
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("Modèle chargé localement (strict=False).")
@@ -227,7 +227,20 @@ async def load_pinn_model():
         
         # Tentative de chargement des stats OOD
         ood_stats_path = os.path.join(os.path.dirname(model_path), "ood_stats.npz")
-        if os.path.exists(ood_stats_path):
+        ood_downloaded = False
+        if supabase_client:
+            try:
+                res_ood = supabase_client.storage.from_(SUPABASE_BUCKET_NAME).download("ood_stats.npz")
+                if res_ood:
+                    os.makedirs(os.path.dirname(ood_stats_path), exist_ok=True)
+                    with open(ood_stats_path, "wb") as f:
+                        f.write(res_ood)
+                    ood_downloaded = True
+                    print(f"Statistiques OOD téléchargées: {ood_stats_path}")
+            except Exception as e:
+                print(f"Erreur téléchargement stats OOD: {e}")
+
+        if ood_downloaded and os.path.exists(ood_stats_path):
             risk_manager.load_ood_stats(ood_stats_path)
             print(f"✅ Statistiques OOD chargées depuis {ood_stats_path}")
         else:
@@ -623,14 +636,15 @@ async def execute_simulation_v8(job_id: str, request: SimulationRequest):
                     final_result=final_result
                 )
                 
-                # Écriture du contenu dans un fichier temporaire (vous devrez implémenter generate_full_report pour créer un PDF)
-                # Pour l'instant, on simule la création d'un PDF simple
-                with open(report_path, "w") as f:
-                    f.write(f"Rapport d'analyse pour {request.job_name}\n\n")
-                    f.write(f"Score de crédibilité: {credibility_score:.2f}%\n\n")
-                    f.write(f"Évaluation des risques: {risk_assessment}\n\n")
-                    f.write(f"Rapport de conformité: {compliance_report}\n\n")
-                    f.write(f"Historique des résidus: {final_result['residual_history'][-1]}\n")
+                # Utilisation du Risk Manager pour générer le rapport PDF réel
+                risk_manager.generate_full_report(
+                    output_path=report_path,
+                    project_id=request.project_id,
+                    analysis_id=job_id,
+                    scenario_type=scenario_type,
+                    scenario_inputs=inputs,
+                    final_result=final_result
+                )
 
                 # Upload du rapport sur Supabase
                 public_report_url = await upload_report_to_supabase(report_path, request.project_id, job_id)
