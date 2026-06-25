@@ -1,144 +1,61 @@
 
 stages:
-  # ============================================================================
-  # PHASE 1 : Préparation des données pour tous les scénarios industriels
-  # ============================================================================
   prepare:
-    cmd: python dvc_mlops/src/prepare.py --case_path data/raw/simulations --output_dir data/processed --scenarios all
+    cmd: python3 dvc_mlops/src/prepare.py --case_path data/raw/simulations --output_dir data/processed --scenarios all
     deps:
       - dvc_mlops/src/prepare.py
+      - apps/api/repit_integration/industrial_loader.py
     outs:
       - data/processed/train.npz
       - data/processed/val.npz
+      - data/processed/train_kalman.npz
+      - data/processed/val_kalman.npz
       - data/processed/metadata.json
-      - data/processed/scenarios_manifest.json
-    metrics:
-      - metrics/prepare_metrics.json
 
-  # ============================================================================
-  # PHASE 2 : Entraînement FNO (Fourier Neural Operator) multi-scénarios
-  # ============================================================================
   train_fno:
-    cmd: python dvc_mlops/src/train_fno.py 
-      --train_data_path data/processed/train.npz 
-      --val_data_path data/processed/val.npz 
-      --model_output_path models/fno_model.pt 
-      --epochs ${epochs} 
-      --learning_rate ${learning_rate} 
-      --in_channels ${in_channels} 
-      --out_channels ${out_channels}
-      --batch_size ${fno_batch_size}
-      --n_modes ${n_modes}
-      --width ${width}
-      --early_stopping_patience ${early_stopping_patience}
+    cmd: python3 dvc_mlops/src/train_fno.py --train_data_path data/processed/train.npz --val_data_path data/processed/val.npz --model_output_path models/fno_model.pt --epochs ${epochs}
     deps:
+      - dvc_mlops/src/train_fno.py
       - data/processed/train.npz
       - data/processed/val.npz
-      - dvc_mlops/src/train_fno.py
     params:
       - epochs
-      - learning_rate
-      - n_modes
-      - width
-      - in_channels
-      - out_channels
-      - fno_scenarios_str
-      - fno_batch_size
-      - early_stopping_patience
     outs:
       - models/fno_model.pt
-    metrics:
-      - metrics/fno_metrics.json:
-          cache: false
 
-  # ============================================================================
-  # PHASE 3 : Entraînement PINN V8 (Physics-Informed Neural Network)
-  # ============================================================================
   train_pinn:
-    cmd: python dvc_mlops/src/train_pinn.py 
-      --epochs ${pinn_epochs} 
-      --learning_rate ${pinn_learning_rate} 
-      --N_pde ${pinn_N_pde} 
-      --model_output_path ${pinn_model_path} 
-      --layers "${pinn_layers_str}"
-      --scenarios "${pinn_scenarios_str}"
-      --fluid_type ${fluid_type}
-      --enable_mc_dropout ${enable_mc_dropout}
-      --enable_ood_detection ${enable_ood_detection}
-      --residual_threshold ${residual_threshold}
+    cmd: python3 dvc_mlops/src/train_pinn.py --epochs ${pinn_epochs} --learning_rate ${pinn_learning_rate} --N_pde ${pinn_N_pde} --model_output_path models/pinn_model.pt --enable_ood_detection --enable_mc_dropout
     deps:
       - dvc_mlops/src/train_pinn.py
-      - data/processed/train.npz
+      - apps/api/hydrogen_pinn_v8.py
     params:
       - pinn_epochs
       - pinn_learning_rate
       - pinn_N_pde
-      - pinn_layers_str
-      - pinn_model_path
-      - pinn_scenarios_str
-      - fluid_type
-      - enable_mc_dropout
-      - enable_ood_detection
-      - residual_threshold
     outs:
       - models/pinn_model.pt
       - models/ood_stats.npz
-    metrics:
-      - metrics/pinn_metrics.json:
-          cache: false
 
-  # ============================================================================
-  # PHASE 4 : Entraînement du Deep Kalman Filter
-  # ============================================================================
   train_kalman:
-    cmd: python dvc_mlops/src/train_kalman.py 
-      --train_data_path data/processed/train.npz 
-      --model_output_path models/deep_kalman_filter.pt 
-      --state_dim ${kalman_state_dim}
-      --observation_dim ${kalman_observation_dim}
-      --hidden_dim ${kalman_hidden_dim}
-      --epochs ${kalman_epochs}
-      --learning_rate ${kalman_learning_rate}
+    cmd: python3 dvc_mlops/src/train_kalman.py --train_data_path data/processed/train_kalman.npz --val_data_path data/processed/val_kalman.npz --model_output_path models/deep_kalman_filter.pt --epochs ${kalman_epochs} --lr ${kalman_learning_rate}
     deps:
-      - data/processed/train.npz
       - dvc_mlops/src/train_kalman.py
+      - apps/api/deep_kalman_filter.py
+      - data/processed/train_kalman.npz
     params:
-      - kalman_state_dim
-      - kalman_observation_dim
-      - kalman_hidden_dim
       - kalman_epochs
       - kalman_learning_rate
     outs:
       - models/deep_kalman_filter.pt
-    metrics:
-      - metrics/kalman_metrics.json:
-          cache: false
 
-  # ============================================================================
-  # PHASE 5 : Évaluation et Validation Croisée
-  # ============================================================================
   evaluate:
-    cmd: python dvc_mlops/src/evaluate.py 
-      --pinn_model_path ${pinn_model_path} 
-      --fno_model_path ${fno_model_path}
-      --kalman_model_path models/deep_kalman_filter.pt
-      --test_data_path ${eval_test_data} 
-      --metrics_output_path ${eval_metrics_path}
-      --scenarios "${eval_scenarios_str}"
-      --validation_type ${validation_type}
+    cmd: python3 dvc_mlops/src/evaluate.py --pinn_model_path models/pinn_model.pt --fno_model_path models/fno_model.pt --kalman_model_path models/deep_kalman_filter.pt --test_data_path data/processed/val.npz
     deps:
-      - ${pinn_model_path}
-      - ${fno_model_path}
-      - models/deep_kalman_filter.pt
-      - ${eval_test_data}
       - dvc_mlops/src/evaluate.py
-    params:
-      - pinn_model_path
-      - fno_model_path
-      - eval_test_data
-      - eval_metrics_path
-      - eval_scenarios_str
-      - validation_type
+      - models/pinn_model.pt
+      - models/fno_model.pt
+      - models/deep_kalman_filter.pt
+      - data/processed/val.npz
     metrics:
       - metrics/eval_metrics.json:
           cache: false
