@@ -92,8 +92,6 @@ class PredictionRequestV8(BaseModel):
     diameter: Optional[float] = 0.5
     project_id: Optional[str] = None
     transcription: Optional[str] = None
-    # Ajout d'un paramètre pour contrôler le nombre de points 3D pour l'optimisation frontend
-    num_3d_points: Optional[int] = 30 # Valeur par défaut raisonnable
 
 class PredictionResponseV8(BaseModel):
     pressure: float
@@ -110,9 +108,6 @@ class PredictionResponseV8(BaseModel):
     residuals: Optional[Dict[str, float]] = None
     predictions3d: Optional[List[Dict]] = None
     timestamp: str
-    # Ajout de champs pour le rapport industriel
-    risk_assessment: Optional[Dict] = None
-    compliance_report: Optional[Dict] = None
 
 class AssimilationResponseV8(BaseModel):
     assimilated_state: List[float]
@@ -124,7 +119,6 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ivhxnaxhgfbiqlhgfkik.supabase.
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "pinn-models")
 SUPABASE_MODEL_PATH = os.getenv("SUPABASE_MODEL_PATH", "pinn_model.pt")
-SUPABASE_REPORTS_BUCKET = os.getenv("SUPABASE_REPORTS_BUCKET", "reports") # Nouveau bucket pour les rapports
 
 supabase_client: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_KEY:
@@ -138,7 +132,6 @@ async def download_model_from_supabase(model_local_path: str):
     if not supabase_client:
         return False
     try:
-        # Utilisation du bucket 'pinn-models' pour le modèle
         res = supabase_client.storage.from_(SUPABASE_BUCKET_NAME).download(SUPABASE_MODEL_PATH)
         if res:
             os.makedirs(os.path.dirname(model_local_path), exist_ok=True)
@@ -149,27 +142,6 @@ async def download_model_from_supabase(model_local_path: str):
     except Exception as e:
         print(f"Erreur téléchargement: {e}")
     return False
-
-async def upload_report_to_supabase(report_path: str, project_id: str, analysis_id: str):
-    if not supabase_client:
-        return None
-    try:
-        # Utilisation du bucket 'reports' pour les rapports
-        with open(report_path, "rb") as f:
-            file_content = f.read()
-        
-        # Chemin du fichier dans le bucket Supabase
-        supabase_file_path = f"{project_id}/{analysis_id}_report.pdf"
-        
-        res = supabase_client.storage.from_(SUPABASE_REPORTS_BUCKET).upload(supabase_file_path, file_content, {"content-type": "application/pdf"})
-        
-        # Obtenir l'URL publique du fichier uploadé
-        public_url = supabase_client.storage.from_(SUPABASE_REPORTS_BUCKET).get_public_url(supabase_file_path)
-        print(f"Rapport PDF uploadé: {public_url}")
-        return public_url
-    except Exception as e:
-        print(f"Erreur upload rapport PDF: {e}")
-        return None
 
 current_model_v8 = None
 risk_manager = None
@@ -227,20 +199,7 @@ async def load_pinn_model():
         
         # Tentative de chargement des stats OOD
         ood_stats_path = os.path.join(os.path.dirname(model_path), "ood_stats.npz")
-        ood_downloaded = False
-        if supabase_client:
-            try:
-                res_ood = supabase_client.storage.from_(SUPABASE_BUCKET_NAME).download("ood_stats.npz")
-                if res_ood:
-                    os.makedirs(os.path.dirname(ood_stats_path), exist_ok=True)
-                    with open(ood_stats_path, "wb") as f:
-                        f.write(res_ood)
-                    ood_downloaded = True
-                    print(f"Statistiques OOD téléchargées: {ood_stats_path}")
-            except Exception as e:
-                print(f"Erreur téléchargement stats OOD: {e}")
-
-        if ood_downloaded and os.path.exists(ood_stats_path):
+        if os.path.exists(ood_stats_path):
             risk_manager.load_ood_stats(ood_stats_path)
             print(f"✅ Statistiques OOD chargées depuis {ood_stats_path}")
         else:
@@ -362,44 +321,34 @@ async def validate_3d(request: PredictionRequestV8):
                 residuals[k] = 1e-6
             residuals[k] = clean_float(residuals[k], 1e-6)
 
-        # Calcul du score de crédibilité via le Risk Manager
-        if risk_manager:
-            credibility_score, risk_assessment, compliance_report = risk_manager.compute_risk_score(
-                residuals, current_model_v8.fluid_type, request.transcription
-            )
-        else:
-            tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
-            weighted_sum = 0.0
-            for k in tolerances:
-                val = residuals[k]
-                tol = tolerances[k]
-                weighted_sum += val / tol if tol != 0 else val
-            weighted_res = weighted_sum / len(tolerances)
-            credibility_score = float(100.0 / (1.0 + 0.3 * weighted_res))
-            credibility_score = min(100, max(5.0, clean_float(credibility_score, 50.0)))
-            risk_assessment = {"status": "Risk Manager non initialisé"}
-            compliance_report = {"status": "Risk Manager non initialisé"}
+        tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
+        weighted_sum = 0.0
+        for k in tolerances:
+            val = residuals[k]
+            tol = tolerances[k]
+            weighted_sum += val / tol if tol != 0 else val
+        weighted_res = weighted_sum / len(tolerances)
+        # ✅ FIX: Utilisation d'une fonction sigmoïde plus douce pour éviter le score 0.0 immédiat
+        # Un résidu pondéré de 1.0 (seuil atteint) donnera un score d'environ 73% au lieu de 36%
+        credibility_score = float(100.0 / (1.0 + 0.3 * weighted_res))
+        credibility_score = min(100, max(5.0, clean_float(credibility_score, 50.0)))
 
         # ✅ Génération du profil 3D Industriel (Scan Temporel ET Spatial)
         # FIX: Ne pas rester figé sur x,y,z = 0.5. On génère une trajectoire spatio-temporelle.
         predictions_profile = []
-        # Utilisation du paramètre num_3d_points pour l'optimisation frontend
-        steps_3d = request.num_3d_points if request.num_3d_points > 0 else 30
-        times = np.linspace(max(0, t), t + 10, steps_3d)
+        steps = 30
+        times = np.linspace(max(0, t), t + 10, steps)
         # Trajectoire spatiale simulée le long du pipeline (axe X)
-        x_traj = np.linspace(request.x, request.x + 5.0, steps_3d) 
+        x_traj = np.linspace(request.x, request.x + 5.0, steps) 
         
         with torch.no_grad():
-            for i in range(steps_3d):
+            for i in range(steps):
                 t_p = times[i]
                 x_p = x_traj[i]
-                y_p = request.y # Fixe Y
-                z_p = request.z # Fixe Z
-                
                 t_p_t = torch.tensor([[t_p]], dtype=torch.float32, device=current_model_v8.device)
                 x_p_t = torch.tensor([[x_p]], dtype=torch.float32, device=current_model_v8.device)
-                y_p_t = torch.tensor([[y_p]], dtype=torch.float32, device=current_model_v8.device)
-                z_p_t = torch.tensor([[z_p]], dtype=torch.float32, device=current_model_v8.device)
+                y_p_t = torch.tensor([[request.y]], dtype=torch.float32, device=current_model_v8.device)
+                z_p_t = torch.tensor([[request.z]], dtype=torch.float32, device=current_model_v8.device)
                 
                 rho_raw, u_raw, v_raw, w_raw, T_raw = current_model_v8.pinn_model(t_p_t, x_p_t, y_p_t, z_p_t)
                 
@@ -409,12 +358,8 @@ async def validate_3d(request: PredictionRequestV8):
                 predictions_profile.append({
                     "time": float(t_p),
                     "x": float(x_p),
-                    "y": float(y_p),
-                    "z": float(z_p),
                     "pressure": clean_float(p_p.item()),
                     "velocity_u": clean_float(u_raw.item()),
-                    "velocity_v": clean_float(v_raw.item()),
-                    "velocity_w": clean_float(w_raw.item()),
                     "temperature": clean_float(T_raw.item())
                 })
 
@@ -423,9 +368,7 @@ async def validate_3d(request: PredictionRequestV8):
             "credibility_score": credibility_score,
             "residuals": residuals,
             "predictions3d": predictions_profile,
-            "timestamp": datetime.utcnow().isoformat(),
-            "risk_assessment": risk_assessment,
-            "compliance_report": compliance_report
+            "timestamp": datetime.utcnow().isoformat()
         })
     except Exception as e:
         import traceback
@@ -487,8 +430,8 @@ async def execute_simulation_v8(job_id: str, request: SimulationRequest):
             current_model_v8.geometry.geometry_type = "cylindrical"
         
         # Mise à jour du rayon et de la longueur dans la géométrie TFC
-        L_phys = inputs.get("length", 100)
-        D_phys = inputs.get("diameter", 0.5)
+        L_phys = inputs.get('length', 100)
+        D_phys = inputs.get('diameter', 0.5)
         current_model_v8.geometry.radius = D_phys / 2.0
         current_model_v8.geometry.length = L_phys
 
@@ -500,11 +443,11 @@ async def execute_simulation_v8(job_id: str, request: SimulationRequest):
         
         # Pour la station de compression, on utilise la pression de sortie pour la validation
         if request.scenario_type == "H2_COMPRESSION_STATION":
-            P_phys = inputs.get("pressure_out", 60)
-            T_phys = inputs.get("temperature_out", 380)
+            P_phys = inputs.get('pressure_out', 60)
+            T_phys = inputs.get('temperature_out', 380)
         else:
-            P_phys = inputs.get("pressure", 80)
-            T_phys = inputs.get("temperature", 300)
+            P_phys = inputs.get('pressure', 80)
+            T_phys = inputs.get('temperature', 300)
 
         # ✅ Utiliser torch.enable_grad() pour avoir des résidus non nuls (Calcul Industriel)
         with torch.enable_grad():
@@ -547,40 +490,42 @@ async def execute_simulation_v8(job_id: str, request: SimulationRequest):
                 }
                 history.append(step_data)
 
-        # ✅ Profil 3D Industriel Complet (Optimisation pour le frontend)
-        # Réduction du nombre de points pour un affichage fluide
-        num_3d_points_frontend = 50 # Par exemple, 50 points au lieu de 360 pour le frontend
-        x_profile = np.linspace(0, L_phys, num_3d_points_frontend)
+        # ✅ Profil 3D Industriel Complet
+        x_profile = np.linspace(0, L_phys, 15)
         predictions_list = []
         fixed_time = t_val
-        # Pour simplifier la visualisation frontend, on peut fixer y et z au centre
-        y_fixed = D_phys / 2
-        z_fixed = D_phys / 2
+        r_steps = np.linspace(0, D_phys/2, 3)
+        theta_steps = np.linspace(0, 2*np.pi, 8)
         
         with torch.no_grad():
             for x_pos in x_profile:
-                t_p = torch.tensor([[fixed_time]], dtype=torch.float32, device=current_model_v8.device)
-                x_p = torch.tensor([[x_pos]], dtype=torch.float32, device=current_model_v8.device)
-                y_p = torch.tensor([[y_fixed]], dtype=torch.float32, device=current_model_v8.device)
-                z_p = torch.tensor([[z_fixed]], dtype=torch.float32, device=current_model_v8.device)
-                
-                rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
-                from fluid_properties import get_eos
-                p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
-                
-                predictions_list.append({
-                    "time": fixed_time,
-                    "x": float(x_pos),
-                    "y": float(y_fixed),
-                    "z": float(z_fixed),
-                    "pressure": clean_float(p_p.item()),
-                    "velocity_u": clean_float(u_p.item()),
-                    "velocity_v": clean_float(v_p.item()),
-                    "velocity_w": clean_float(w_p.item()),
-                    "temperature": clean_float(T_p.item()),
-                    "density": clean_float(rho_p.item()),
-                    "velocity_magnitude": clean_float(torch.sqrt(u_p**2 + v_p**2 + w_p**2).item())
-                })
+                for r in r_steps:
+                    for theta in theta_steps:
+                        y_pos = r * np.cos(theta)
+                        z_pos = r * np.sin(theta)
+                        
+                        t_p = torch.tensor([[fixed_time]], dtype=torch.float32, device=current_model_v8.device)
+                        x_p = torch.tensor([[x_pos]], dtype=torch.float32, device=current_model_v8.device)
+                        y_p = torch.tensor([[y_pos]], dtype=torch.float32, device=current_model_v8.device)
+                        z_p = torch.tensor([[z_pos]], dtype=torch.float32, device=current_model_v8.device)
+                        
+                        rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
+                        from fluid_properties import get_eos
+                        p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
+                        
+                        predictions_list.append({
+                            "time": fixed_time,
+                            "x": float(x_pos),
+                            "y": float(y_pos),
+                            "z": float(z_pos),
+                            "pressure": clean_float(p_p.item()),
+                            "velocity_u": clean_float(u_p.item()),
+                            "velocity_v": clean_float(v_p.item()),
+                            "velocity_w": clean_float(w_p.item()),
+                            "temperature": clean_float(T_p.item()),
+                            "density": clean_float(rho_p.item()),
+                            "velocity_magnitude": clean_float(torch.sqrt(u_p**2 + v_p**2 + w_p**2).item())
+                        })
 
         final_residuals = history[-1]
         tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
@@ -591,17 +536,12 @@ async def execute_simulation_v8(job_id: str, request: SimulationRequest):
             tol = tolerances[k]
             weighted_sum += val / tol if tol != 0 else val
         weighted_res = weighted_sum / len(tolerances)
+        credibility_score = float(100.0 / (1.0 + 0.3 * weighted_res))
         
-        # Calcul du score de crédibilité via le Risk Manager
-        if risk_manager:
-            credibility_score, risk_assessment, compliance_report = risk_manager.compute_risk_score(
-                final_residuals, current_model_v8.fluid_type, request.transcription
-            )
-        else:
-            credibility_score = float(100.0 / (1.0 + 0.3 * weighted_res))
-            credibility_score = min(100, max(5.0, clean_float(credibility_score, 50.0)))
-            risk_assessment = {"status": "Risk Manager non initialisé"}
-            compliance_report = {"status": "Risk Manager non initialisé"}
+        if scenario_outputs and "coherenceScore" in scenario_outputs:
+            credibility_score = 0.6 * credibility_score + 0.4 * scenario_outputs["coherenceScore"]
+            
+        credibility_score = min(100, max(5.0, clean_float(credibility_score, 50.0)))
 
         final_result = {
             "iteration": num_steps,
@@ -614,52 +554,9 @@ async def execute_simulation_v8(job_id: str, request: SimulationRequest):
             "uncertainty": final_residuals.get("uncertainty", 0.05),
             "predictions3d": clean_json(predictions_list),
             "scenario_outputs": clean_json(scenario_outputs),
-            "risk_assessment": risk_assessment, # Ajout du rapport de risque
-            "compliance_report": compliance_report, # Ajout du rapport de conformité
             "log": f"Convergence stable après {num_steps} itérations.\nCalcul des résidus via AutoGrad terminé.\nIncertitude MC Dropout calculée.\nChamps 3D (P, V, T) générés avec succès."
         }
         jobs_store[job_id].update({"status": "completed", "results": final_result})
-
-        # Génération et upload du rapport PDF
-        if supabase_client and risk_manager:
-            try:
-                # Création d'un rapport PDF temporaire
-                report_filename = f"temp_report_{job_id}.pdf"
-                report_path = os.path.join("/tmp", report_filename)
-                
-                # Utilisation du Risk Manager pour générer le contenu du rapport
-                report_content = risk_manager.generate_full_report(
-                    project_id=request.project_id,
-                    analysis_id=job_id,
-                    scenario_type=scenario_type,
-                    scenario_inputs=inputs,
-                    final_result=final_result
-                )
-                
-                # Utilisation du Risk Manager pour générer le rapport PDF réel
-                risk_manager.generate_full_report(
-                    output_path=report_path,
-                    project_id=request.project_id,
-                    analysis_id=job_id,
-                    scenario_type=scenario_type,
-                    scenario_inputs=inputs,
-                    final_result=final_result
-                )
-
-                # Upload du rapport sur Supabase
-                public_report_url = await upload_report_to_supabase(report_path, request.project_id, job_id)
-                if public_report_url:
-                    jobs_store[job_id]["report_url"] = public_report_url
-                    print(f"✅ Rapport PDF disponible à : {public_report_url}")
-                else:
-                    print("❌ Échec de l'upload du rapport PDF.")
-                
-                # Nettoyage du fichier temporaire
-                os.remove(report_path)
-
-            except Exception as report_e:
-                print(f"Erreur lors de la génération/upload du rapport PDF: {report_e}")
-
     except Exception as e:
         import traceback
         traceback.print_exc()
