@@ -131,20 +131,23 @@ if SUPABASE_URL and SUPABASE_KEY:
     except Exception as e:
         print(f"Erreur Supabase: {e}")
 
-async def download_model_from_supabase(model_local_path: str):
+async def download_file_from_supabase(remote_path: str, local_path: str):
     if not supabase_client:
         return False
     try:
-        res = supabase_client.storage.from_(SUPABASE_BUCKET_NAME).download(SUPABASE_MODEL_PATH)
+        res = supabase_client.storage.from_(SUPABASE_BUCKET_NAME).download(remote_path)
         if res:
-            os.makedirs(os.path.dirname(model_local_path), exist_ok=True)
-            with open(model_local_path, "wb") as f:
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            with open(local_path, "wb") as f:
                 f.write(res)
-            print(f"Modèle téléchargé: {model_local_path}")
+            print(f"Fichier téléchargé: {local_path} depuis {remote_path}")
             return True
     except Exception as e:
-        print(f"Erreur téléchargement: {e}")
+        print(f"Erreur téléchargement {remote_path}: {e}")
     return False
+
+async def download_model_from_supabase(model_local_path: str):
+    return await download_file_from_supabase(SUPABASE_MODEL_PATH, model_local_path)
 
 current_model_v8 = None
 risk_manager = None
@@ -160,7 +163,9 @@ async def load_pinn_model():
     # Initialisation de l'orchestrateur FNO
     try:
         from fno_pipeline_orchestrator import FNOPipelineOrchestrator
-        fno_orchestrator = FNOPipelineOrchestrator()
+        fno_model_path = "models/fno_model.pt"
+        await download_file_from_supabase("fno_model.pt", fno_model_path)
+        fno_orchestrator = FNOPipelineOrchestrator(model_path=fno_model_path)
         print("✅ FNO Orchestrator initialisé.")
     except Exception as e:
         print(f"⚠️ Erreur initialisation FNO: {e}")
@@ -222,13 +227,15 @@ async def load_pinn_model():
         
         # Tentative de chargement des stats OOD
         ood_stats_path = os.path.join(os.path.dirname(model_path), "ood_stats.npz")
+        await download_file_from_supabase("ood_stats.npz", ood_stats_path)
         if os.path.exists(ood_stats_path):
             risk_manager.load_ood_stats(ood_stats_path)
             print(f"✅ Statistiques OOD chargées depuis {ood_stats_path}")
         else:
             # ✅ AJOUT : Initialisation OOD par défaut si fichier absent (Truly-Industrial Fallback)
             print("⚠️ Statistiques OOD non trouvées, initialisation OOD par défaut...")
-            dummy_features = np.random.randn(10, 5) # Fallback structuré
+            # Les features ont 6 dimensions: [density, pressure, temperature, u, v, w]
+            dummy_features = np.random.randn(10, 6) # Fallback structuré
             risk_manager.fit_ood(dummy_features)
             print("✅ Détecteur OOD initialisé en mode fallback.")
             
