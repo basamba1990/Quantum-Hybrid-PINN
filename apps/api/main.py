@@ -156,12 +156,12 @@ async def load_pinn_model():
         if downloaded and os.path.exists(model_path):
             # MISE À JOUR : Correction de la taille des couches à 128 pour correspondre au checkpoint réel
             # Note: HydrogenPINNTFCV8 utilise par défaut [4, 128, 128, 128, 128, 5]
-            current_model_v8 = HydrogenPINNV8(layers=[4, 128, 128, 128, 128, 5], geometry_type="pipeline")
+            current_model_v8 = HydrogenPINNV8(layers=[4, 128, 128, 128, 5], geometry_type="pipeline")
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("Modèle chargé depuis Supabase (strict=False).")
         elif os.path.exists(model_path):
-            current_model_v8 = HydrogenPINNV8(layers=[4, 128, 128, 128, 128, 5], geometry_type="pipeline")
+            current_model_v8 = HydrogenPINNV8(layers=[4, 128, 128, 128, 5], geometry_type="pipeline")
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("Modèle chargé localement (strict=False).")
