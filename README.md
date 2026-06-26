@@ -188,6 +188,15 @@ CREATE POLICY "Allow all for service role" ON public.analysis_results
 
 ## 📜 References & Scientific Inspirations
 
+This project is heavily inspired by and builds upon the rigorous evaluation frameworks proposed by:
+
+*   **[1] Under What Conditions Can a Physics AI Surrogate Substitute for CFD?** by C.E.M. (2024) - [Link](https://cemsecondordernotes.substack.com/p/under-what-conditions-can-a-physics?r=yzp1k)
+*   **[2] Physics AI Evaluation Map for Engineering Companies** by C.E.M. (2024) - [Link](https://cemsecondordernotes.substack.com/p/physics-ai-evaluation-map-for-engineering?r=yzp1k)
+
+These articles provide critical insights into the industrial deployment of Physics AI, focusing on reliability, uncertainty quantification, and decision-making in engineering workflows. They have directly informed the development of our Industrial Risk Manager and the emphasis on certified predictions.
+
+---
+
 The platform incorporates and expands upon foundational concepts from leading numerical fluid mechanics and data assimilation frameworks, including:
 
 * *Fourier Neural Operators for Parametric Partial Differential Equations* (Li et al.)
