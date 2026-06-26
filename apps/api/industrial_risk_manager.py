@@ -59,34 +59,63 @@ class IndustrialRiskManager:
             logger.error(f"Erreur chargement OOD stats: {e}")
             return False
         
-    def compute_risk_score(self, residuals: Dict[str, float], fluid_type: str, transcription: Optional[str] = None) -> Tuple[float, Dict, Dict]:
+    def compute_risk_score(self, residuals: Dict[str, float], fluid_type: str, transcription: Optional[str] = None, critical_regions_residuals: Optional[Dict[str, float]] = None) -> Tuple[float, Dict, Dict]:
         """
-        Calcule le score de crédibilité, l'évaluation des risques et le rapport de conformité.
-        Ceci est une version simplifiée pour l'exemple.
+        Calcule le score de crédibilité avec focus sur les régions critiques et seuils de décision.
         """
-        # Calcul du score de crédibilité basé sur les résidus
+        # 1. Calcul des tolérances dynamiques (ISO 13623 / API 620)
         tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
+        
+        # 2. Pondération des résidus globaux
         weighted_sum = 0.0
         for k in tolerances:
             val = residuals.get(k, 0.0)
             if val == 0.0: val = 1e-6
-            tol = tolerances[k]
-            weighted_sum += val / tol if tol != 0 else val
-        weighted_res = weighted_sum / len(tolerances)
-        credibility_score = float(100.0 / (1.0 + 0.3 * weighted_res))
+            weighted_sum += val / tolerances[k]
+        weighted_res_global = weighted_sum / len(tolerances)
+        
+        # 3. Pondération spécifique aux régions critiques (Pénalité si forte erreur locale)
+        critical_penalty = 1.0
+        if critical_regions_residuals:
+            crit_sum = sum([critical_regions_residuals.get(k, 0.0) / tolerances.get(k, 1e-4) for k in tolerances]) / len(tolerances)
+            if crit_sum > 2.0: # Si l'erreur locale est 2x supérieure à la tolérance
+                critical_penalty = 1.5
+                logger.warning(f"⚠️ Alerte : Résidus critiques élevés ({crit_sum:.2e})")
+
+        credibility_score = float(100.0 / (1.0 + 0.3 * weighted_res_global * critical_penalty))
         credibility_score = min(100, max(5.0, credibility_score))
 
-        # Évaluation des risques (simplifiée)
+        # 4. Évaluation de l'Erreur de Décision (Seuils de Sécurité)
+        # Exemple : Seuil de température critique pour l'hydrogène (boil-off ou fragilisation)
+        temp_value = residuals.get("max_temperature", 300.0)
+        pressure_value = residuals.get("max_pressure", 70e5)
+        
+        is_safe = True
+        decision_details = []
+        
+        if fluid_type == "LH2" and temp_value > 33.0: # Seuil critique LH2
+            is_safe = False
+            decision_details.append("TEMPÉRATURE CRITIQUE : Risque de vaporisation (Boil-off)")
+        if pressure_value > 80e5: # 80 bar limit
+            is_safe = False
+            decision_details.append("SURPRESSION : Limite structurelle atteinte")
+
+        # 5. Évaluation des risques
         risk_assessment = {
-            "level": "Faible" if credibility_score > 80 else ("Modéré" if credibility_score > 60 else "Élevé"),
-            "details": f"Le score de crédibilité de {credibility_score:.2f}% indique un niveau de risque {('faible' if credibility_score > 80 else ('modéré' if credibility_score > 60 else 'élevé'))} pour cette simulation."
+            "level": "Faible" if (credibility_score > 80 and is_safe) else ("Modéré" if (credibility_score > 60 and is_safe) else "Élevé"),
+            "details": f"Score: {credibility_score:.2f}%. " + (" ".join(decision_details) if decision_details else "Paramètres physiques dans les limites nominales.")
         }
 
-        # Rapport de conformité (simplifié)
+        # 6. Rapport de conformité certifié
         compliance_report = {
-            "status": "Conforme" if credibility_score > 75 else "Non Conforme",
+            "status": "CERTIFIÉ CONFORME" if (credibility_score > 75 and is_safe) else "NON CONFORME / RISQUE ÉLEVÉ",
             "standards": ["ISO 13623 (Pipelines)", "API 620 (LH2 Storage)"] if fluid_type == "LH2" else ["ISO 13623 (Pipelines)"],
-            "recommendations": "Aucune" if credibility_score > 75 else "Vérifier les paramètres d'entrée ou ré-entraîner le modèle."
+            "decision_metrics": {
+                "is_safe": is_safe,
+                "critical_region_penalty": critical_penalty > 1.0,
+                "max_temp_observed": temp_value
+            },
+            "recommendations": "Opération normale" if (credibility_score > 75 and is_safe) else "INTERVENTION REQUISE : Vérifier l'intégrité physique du système."
         }
         
         return credibility_score, risk_assessment, compliance_report

@@ -43,10 +43,12 @@ class TFCPINN3DNavierStokes(nn.Module):
 
         # Réseau de neurones pour la fonction libre (renommé en linears pour compatibilité state_dict)
         self.linears = nn.ModuleList([nn.Linear(layers[i], layers[i+1]) for i in range(len(layers)-1)])
-        self.net = nn.Sequential() # Gardé pour compatibilité interne si besoin
+        self.dropout = nn.Dropout(p=0.1) # Pour MC Dropout (Incertitude Industrielle)
+        self.net = nn.Sequential()
         for i in range(len(layers)-2):
             self.net.append(self.linears[i])
             self.net.append(nn.Tanh())
+            self.net.append(self.dropout) # Ajout du dropout pour l'incertitude
         self.net.append(self.linears[-1])
 
         # Paramètres d'échelle pour la sortie (bornes physiques cryogéniques LH2)
@@ -166,9 +168,37 @@ class HydrogenPINNTFCV8:
 
         return history
 
+    def predict_state_with_uncertainty(self, t: float, x: float, y: float, z: float, n_samples: int = 20) -> Dict[str, any]:
+        """
+        Prédiction avec quantification d'incertitude via MC Dropout.
+        Indispensable pour le caractère "Truly-Industrial".
+        """
+        self.pinn_model.train() # Activer le dropout pour MC Dropout
+        t_t = torch.tensor([[t]] * n_samples, dtype=torch.float32, device=self.device)
+        x_t = torch.tensor([[x]] * n_samples, dtype=torch.float32, device=self.device)
+        y_t = torch.tensor([[y]] * n_samples, dtype=torch.float32, device=self.device)
+        z_t = torch.tensor([[z]] * n_samples, dtype=torch.float32, device=self.device)
+        
+        with torch.no_grad():
+            rho, u, v, w, T = self.pinn_model(t_t, x_t, y_t, z_t)
+            p = self.eos_model(rho, T)
+            
+        # Moyenne et écart-type (incertitude)
+        return {
+            "pressure": {"mean": p.mean().item(), "std": p.std().item()},
+            "velocity_u": {"mean": u.mean().item(), "std": u.std().item()},
+            "velocity_v": {"mean": v.mean().item(), "std": v.std().item()},
+            "velocity_w": {"mean": w.mean().item(), "std": w.std().item()},
+            "temperature": {"mean": T.mean().item(), "std": T.std().item()},
+            "density": {"mean": rho.mean().item(), "std": rho.std().item()},
+            "uncertainty_score": (p.std().item() / (p.mean().item() + 1e-6)) * 100, # % relatif
+            "time": t, "x": x, "y": y, "z": z,
+            "method": "MC-Dropout-Uncertainty"
+        }
+
     def predict_state(self, t: float, x: float, y: float, z: float) -> Dict[str, float]:
         """
-        Prédiction en un point donné.
+        Prédiction simple (rétro-compatibilité).
         """
         self.pinn_model.eval()
         with torch.no_grad():
@@ -185,10 +215,7 @@ class HydrogenPINNTFCV8:
             "velocity_w": w.mean().item(),
             "temperature": T.mean().item(),
             "density": rho.mean().item(),
-            "time": t,
-            "x": x,
-            "y": y,
-            "z": z,
+            "time": t, "x": x, "y": y, "z": z,
             "method": "TFC-Enriched"
         }
 

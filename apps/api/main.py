@@ -297,6 +297,9 @@ async def validate_3d(request: PredictionRequestV8):
         from fluid_properties import get_eos
         p_t = get_eos(current_model_v8.fluid_type, rho, T)
 
+        # ✅ AJOUT : Quantification de l'incertitude via MC Dropout (Principe 1)
+        uncertainty_data = current_model_v8.predict_state_with_uncertainty(t, request.x, request.y, request.z)
+
         result = {
             "pressure": float(p_t.mean().item()) if p_t is not None else request.pressure,
             "velocity_u": float(u.mean().item()),
@@ -304,16 +307,22 @@ async def validate_3d(request: PredictionRequestV8):
             "velocity_w": float(w.mean().item()),
             "temperature": float(T.mean().item()),
             "density": float(rho.mean().item()),
+            "uncertainty_score": uncertainty_data["uncertainty_score"],
             "time": t,
             "x": request.x,
             "y": request.y,
             "z": request.z
         }
 
+        # ✅ AJOUT : Focus sur les régions critiques (Principe 2)
+        # On identifie les résidus maximaux dans le scan spatial
         residuals = {
             "continuity": float(res_mass_avg.item()),
             "momentum": float(res_mom_avg.item()),
-            "energy": float(res_energy_avg.item())
+            "energy": float(res_energy_avg.item()),
+            "max_continuity": float(torch.abs(res_mass).max().item()),
+            "max_temperature": float(T_s.max().item()),
+            "max_pressure": float(p_t.max().item()) if p_t is not None else 0.0
         }
         # Fallback si les résidus sont nuls (modèle non entraîné)
         for k in residuals:
@@ -328,10 +337,12 @@ async def validate_3d(request: PredictionRequestV8):
             tol = tolerances[k]
             weighted_sum += val / tol if tol != 0 else val
         weighted_res = weighted_sum / len(tolerances)
-        # ✅ FIX: Utilisation d'une fonction sigmoïde plus douce pour éviter le score 0.0 immédiat
-        # Un résidu pondéré de 1.0 (seuil atteint) donnera un score d'environ 73% au lieu de 36%
-        credibility_score = float(100.0 / (1.0 + 0.3 * weighted_res))
-        credibility_score = min(100, max(5.0, clean_float(credibility_score, 50.0)))
+        # ✅ AJOUT : Certification de décision (Principe 3) via IndustrialRiskManager
+        critical_res = {"continuity": residuals["max_continuity"]} # Exemple de focus local
+        cred_score, risk_eval, compliance = risk_manager.compute_risk_score(
+            residuals, current_model_v8.fluid_type, critical_regions_residuals=critical_res
+        )
+        credibility_score = cred_score
 
         # ✅ Génération du profil 3D Industriel (Scan Temporel ET Spatial)
         # FIX: Ne pas rester figé sur x,y,z = 0.5. On génère une trajectoire spatio-temporelle.
