@@ -88,6 +88,9 @@ class PredictionRequestV8(BaseModel):
     pressure: Optional[float] = 101325.0
     temperature: Optional[float] = 293.15
     density: Optional[float] = 1.0
+    velocity_u: Optional[float] = 0.0
+    velocity_v: Optional[float] = 0.0
+    velocity_w: Optional[float] = 0.0
     velocity_magnitude: Optional[float] = 0.5
     diameter: Optional[float] = 0.5
     project_id: Optional[str] = None
@@ -145,11 +148,30 @@ async def download_model_from_supabase(model_local_path: str):
 
 current_model_v8 = None
 risk_manager = None
+fno_orchestrator = None
+kalman_filter = None
 model_path = os.getenv("MODEL_PATH", "models/pinn_model.pt")
 
 @app.on_event("startup")
 async def load_pinn_model():
-    global current_model_v8, risk_manager
+    global current_model_v8, risk_manager, fno_orchestrator, kalman_filter
+    print("Chargement des orchestrateurs industriels...")
+    
+    # Initialisation de l'orchestrateur FNO
+    try:
+        from fno_pipeline_orchestrator import FNOPipelineOrchestrator
+        fno_orchestrator = FNOPipelineOrchestrator()
+        print("✅ FNO Orchestrator initialisé.")
+    except Exception as e:
+        print(f"⚠️ Erreur initialisation FNO: {e}")
+    
+    # Initialisation du filtre de Kalman
+    try:
+        kalman_filter = DeepKalmanFilter(state_dim=5, observation_dim=3)
+        print("✅ Filtre de Kalman initialisé.")
+    except Exception as e:
+        print(f"⚠️ Erreur initialisation Kalman: {e}")
+
     print("Chargement modèle PINN...")
     try:
         downloaded = await download_model_from_supabase(model_path)
