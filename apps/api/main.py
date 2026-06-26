@@ -430,7 +430,7 @@ async def assimilate_data(request: PredictionRequestV8):
 
 @app.post("/hybrid/run-simulation", response_model=SimulationResponse)
 async def run_hybrid_simulation(request: SimulationRequest, background_tasks: BackgroundTasks):
-    job_id = f"job_{datetime.now().strftime("%Y%m%d_%H%M%S")}"
+    job_id = f"job_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     jobs_store[job_id] = {"status": "initializing", "request": request.dict(), "results": None, "fno_preview": None}
     
     background_tasks.add_task(hybrid_simulation_task, job_id, request)
