@@ -28,7 +28,11 @@ class IndustrialRiskManager:
         
     def fit_ood(self, training_features: np.ndarray):
         """Ajuste le détecteur OOD sur les données d'entraînement"""
-        from .hydrogen_pinn_v8 import MahalanobisOODDetector
+        try:
+            from hydrogen_pinn_v8 import MahalanobisOODDetector
+        except ImportError:
+            from .hydrogen_pinn_v8 import MahalanobisOODDetector
+            
         self.ood_detector = MahalanobisOODDetector(threshold_percentile=self.threshold_percentile)
         self.ood_detector.fit(training_features)
         self.is_fitted = True
@@ -37,7 +41,10 @@ class IndustrialRiskManager:
     def load_ood_stats(self, stats_path: str):
         """Charge les statistiques OOD pré-calculées"""
         try:
-            from .hydrogen_pinn_v8 import MahalanobisOODDetector
+            try:
+                from hydrogen_pinn_v8 import MahalanobisOODDetector
+            except ImportError:
+                from .hydrogen_pinn_v8 import MahalanobisOODDetector
             data = np.load(stats_path)
             self.ood_detector = MahalanobisOODDetector(threshold_percentile=self.threshold_percentile)
             self.ood_detector.mean = data["mean"]
