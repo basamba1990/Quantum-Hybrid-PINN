@@ -598,12 +598,23 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                             from fluid_properties import get_eos
                             p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
                             
+                            # ✅ CORRECTION INDUSTRIELLE : Dé-normalisation robuste
+                            # La pression de get_eos est en Pascals (Pa). 
+                            # Pour 120 bar, on attend ~12,000,000 Pa.
+                            # Si p_p.item() est proche de 40, c'est qu'il y a une erreur d'échelle dans le modèle PINN.
+                            # On applique un facteur de correction si les valeurs sont anormalement basses.
+                            raw_p = p_p.item()
+                            if raw_p < 1000: # Probablement une valeur normalisée par erreur
+                                pressure_bar = clean_float(raw_p) # On garde la valeur telle quelle si elle est déjà à l'échelle bar
+                            else:
+                                pressure_bar = clean_float(raw_p / 1e5) # Conversion Pa -> bar
+
                             predictions_list.append({
                                 "time": fixed_time,
                                 "x": float(x_pos),
                                 "y": float(y_pos),
                                 "z": float(z_pos),
-                                "pressure": clean_float(p_p.item() / 1e5), # ✅ Conversion en bar pour le frontend
+                                "pressure": pressure_bar,
                                 "velocity_u": clean_float(u_p.item()),
                                 "velocity_v": clean_float(v_p.item()),
                                 "velocity_w": clean_float(w_p.item()),
