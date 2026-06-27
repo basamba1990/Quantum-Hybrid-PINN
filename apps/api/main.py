@@ -492,6 +492,11 @@ async def run_hybrid_simulation(request: SimulationRequest, background_tasks: Ba
 async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
     jobs_store[job_id]["status"] = "running"
     try:
+        # ✅ AJOUT : Valeurs spatiales par défaut si absentes de SimulationRequest
+        req_x = getattr(request, 'x', 0.5)
+        req_y = getattr(request, 'y', 0.5)
+        req_z = getattr(request, 'z', 0.5)
+
         # 1. Exécution du FNO pour une prédiction rapide et globale
         jobs_store[job_id]["status"] = "running_fno"
         print(f"[{job_id}] Exécution FNO...")
@@ -523,9 +528,9 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             # Simuler des points d'observation (par exemple, à partir de capteurs ou de données CFD)
             # Pour cet exemple, nous utilisons des valeurs du FNO ou des valeurs par défaut
             simulated_time = i * 0.1 # Incrément de temps pour la simulation
-            simulated_x = request.x + i * 0.01
-            simulated_y = request.y
-            simulated_z = request.z
+            simulated_x = req_x + i * 0.01
+            simulated_y = req_y
+            simulated_z = req_z
 
             # Prédiction PINN
             t_tensor = torch.tensor([[simulated_time]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
