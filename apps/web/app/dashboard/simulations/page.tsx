@@ -89,9 +89,27 @@ export default function SimulationsPage() {
       }
     }
 
-    const predictions = results?.predictions3d || results?.pinn_predictions || [];
-    const residuals = results?.residuals || null;
+    // ✅ FIX: Support des formats de résultats hybrides et de validation
+    const predictions = results?.predictions3d || results?.pinn_predictions || results?.extractedData?.predictions || [];
+    const residuals = results?.residuals || results?.physical_metrics?.residuals || null;
     
+    // Si on a des données scalaires mais pas de séries temporelles, on simule une série pour l'affichage
+    if ((!Array.isArray(predictions) || predictions.length === 0) && results?.extractedData) {
+      const data = results.extractedData;
+      return {
+        x: [0],
+        pressure: [data.pressure || 0],
+        velocity: [data.velocity || 0],
+        temperature: [data.temperature || 0],
+        damage: [0],
+        k: [0],
+        epsilon: [0],
+        stress: [0],
+        residuals,
+        isEmpty: false
+      };
+    }
+
     if (!Array.isArray(predictions) || predictions.length === 0) {
       return { 
         x: [], 

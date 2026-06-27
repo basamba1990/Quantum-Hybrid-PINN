@@ -106,16 +106,15 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
           if (resResult?.data) setResidualData(resResult.data);
         }
 
-        // Fetch Industrial Data (Stress, Damage, TKE)
+        // Fetch Industrial Data (Stress, Damage, TKE, Pressure, Temperature)
         const indResponse = await fetch(`${API_BASE_URL}/v2/validate-3d`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             simulation_id: simulationId, 
             time, 
-            // ✅ FIX: Activation du scan spatial industriel complet
             scan_spatial: true,
-            n_points: 10,
+            n_points: 20,
             pressure: 101325, temperature: 293.15, density: 1.0, velocity_magnitude: 1.0
           }),
         });
@@ -123,6 +122,11 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
           const indResult = await indResponse.json();
           if (indResult?.predictions3d) {
             setIndustrialData(indResult.predictions3d);
+            // ✅ FIX: Mise à jour des états pour pression et température
+            setPressureData(indResult.predictions3d.map((p: any) => ({ time: p.time || time, pressure: p.pressure })));
+            setTemperatureData(indResult.predictions3d.map((p: any) => ({ time: p.time || time, temperature: p.temperature })));
+            setVelocityData(indResult.predictions3d.map((p: any) => ({ time: p.time || time, velocity: p.velocity_u || p.velocity_magnitude })));
+            
             if (onDataFetch) onDataFetch(indResult);
           }
         }
@@ -439,12 +443,25 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
 
             {/* Multi-Physique */}
             <TabsContent value="multi-physics" className="space-y-6">
-              {(velocityData.length > 0 || industrialData.length > 0) ? (
-                <>
-                  {renderPhysicsChart(industrialData.length > 0 ? industrialData : velocityData, 'Vitesse (m/s)', 'velocity_u')}
-                  {renderPhysicsChart(industrialData.length > 0 ? industrialData : pressureData, 'Pression (Pa)', 'pressure')}
-                  {renderPhysicsChart(industrialData.length > 0 ? industrialData : temperatureData, 'Température (K)', 'temperature')}
-                </>
+              {industrialData.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <p className="text-xs font-mono text-emerald-400 uppercase">Vitesse du Fluide</p>
+                    {renderPhysicsChart(industrialData, 'Vitesse (m/s)', 'velocity_u')}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-mono text-emerald-400 uppercase">Pression</p>
+                    {renderPhysicsChart(industrialData, 'Pression (Pa)', 'pressure')}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-mono text-emerald-400 uppercase">Température</p>
+                    {renderPhysicsChart(industrialData, 'Température (K)', 'temperature')}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-mono text-emerald-400 uppercase">Incertitude</p>
+                    {renderPhysicsChart(industrialData, 'Incertitude (%)', 'uncertainty')}
+                  </div>
+                </div>
               ) : (
                 <div className="p-12 text-center text-emerald-600">Données multi-physique non disponibles du backend</div>
               )}
