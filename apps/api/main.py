@@ -509,8 +509,9 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
         print(f"[{job_id}] Exécution PINN et validation CFD...")
         
         # Récupération de l'engine de scénario
-        engine = SCENARIO_ENGINES.get(request.scenario_type, SCENARIO_ENGINES["H2_PIPELINE"])
-        scenario_outputs = engine.run(request.scenario_inputs)
+        engine_func = SCENARIO_ENGINES.get(request.scenario_type, SCENARIO_ENGINES["H2_PIPELINE"])
+        # SCENARIO_ENGINES contient des fonctions, on les appelle directement au lieu d'utiliser .run()
+        scenario_outputs = engine_func(request.scenario_inputs)
 
         # Initialisation pour la boucle d'itération
         num_steps = request.n_steps if request.n_steps is not None else 100
