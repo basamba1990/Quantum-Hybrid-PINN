@@ -100,7 +100,7 @@ export default function PINN3DVisualizer({
         xaxis: { title: 'X (m)', range: [-6, 6] },
         yaxis: { title: 'Y (m)', range: [-6, 6] },
         zaxis: { title: 'Z (m)', range: [-6, 6] },
-        aspectmode: 'cube',
+        aspectmode: 'cube' as const,
       },
       title: { text: `${title} – Pression`, x: 0.5, xanchor: 'center' as const },
     }),
