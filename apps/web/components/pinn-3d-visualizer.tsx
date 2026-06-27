@@ -67,9 +67,15 @@ export default function PINN3DVisualizer({
         x, y, z,
         pressure: validPoints.map((p) => {
           const rawP = p.pressure ?? 0;
+          // ✅ CORRECTION : Si c'est déjà en bar (ex: 120), on garde. Si c'est en Pa (ex: 1.2e7), on convertit.
           return rawP > 1000 ? rawP / 1e5 : rawP;
         }),
-        temperature: validPoints.map((p) => p.temperature ?? 293.15),
+        temperature: validPoints.map((p) => {
+          const rawT = p.temperature ?? 0;
+          // ✅ CORRECTION : Si la température est trop basse (ex: 20K) pour un projet gazier,
+          // on affiche la valeur réelle, mais on s'assure qu'elle n'est pas nulle.
+          return rawT === 0 ? 288.15 : rawT;
+        }),
         density: validPoints.map((p) => p.density ?? 1.0),
         u, v, w,
         velocityMagnitude: validPoints.map(
@@ -87,9 +93,10 @@ export default function PINN3DVisualizer({
       autosize: true,
       margin: { l: 0, r: 0, b: 0, t: 40 },
       scene: {
-        xaxis: { title: 'X (m)' },
-        yaxis: { title: 'Y (m)' },
-        zaxis: { title: 'Z (m)' },
+        xaxis: { title: 'X (m)', range: [-6, 6] },
+        yaxis: { title: 'Y (m)', range: [-6, 6] },
+        zaxis: { title: 'Z (m)', range: [-6, 6] },
+        aspectmode: 'cube',
       },
       title: { text: `${title} – Pression`, x: 0.5, xanchor: 'center' as const },
     }),

@@ -55,30 +55,31 @@ class TFCPINN3DNavierStokes(nn.Module):
         self.register_buffer('rho_min', torch.tensor(1.0))
         self.register_buffer('rho_max', torch.tensor(80.0))
         self.register_buffer('T_min', torch.tensor(14.0))
-        self.register_buffer('T_max', torch.tensor(35.0)) # LH2 boil-off range
-        self.register_buffer('vel_max', torch.tensor(0.5)) # m/s max flow speed
+        self.register_buffer('T_max', torch.tensor(400.0)) # ✅ Étendu pour H2 Gazeux (Ambiant)
+        self.register_buffer('vel_max', torch.tensor(50.0)) # ✅ Étendu pour Pipeline (max 35 m/s)
 
     def forward(self, t: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[torch.Tensor, ...]:
         """
-        Retourne (rho, u, v, w, T) satisfaisant les conditions aux limites via TFC.
+        Retourne (rho, u, v, w, T) avec Edge Functions (TFC) renforcées.
         """
-        # Entrée: (t, x, y, z)
         inp = torch.cat([t, x, y, z], dim=-1)
-        raw = self.net(inp)  # (batch, 5)
+        raw = self.net(inp)
 
-        # Fonction de support (nulle sur la frontière, positive à l'intérieur)
-        mask = self.geometry.get_mask(x, y, z).unsqueeze(-1)  # (batch, 1)
+        # ✅ EDGE FUNCTIONS : Masque géométrique pour conditions aux limites (BC)
+        mask = self.geometry.get_mask(x, y, z).unsqueeze(-1)
 
-        # Contrainte de Dirichlet: u = 0 sur les parois -> u = mask * u_net
-        # On applique mask à toutes les variables pour satisfaire BC homogènes
-        rho_net = torch.sigmoid(raw[:, 0:1])  # entre 0 et 1
+        # 1. Densité : Bornée physiquement
+        rho_net = torch.sigmoid(raw[:, 0:1])
         rho = self.rho_min + mask * (self.rho_max - self.rho_min) * rho_net
 
+        # 2. Vitesses : Nulle aux parois (No-slip BC) via le masque
         u = mask * torch.tanh(raw[:, 1:2]) * self.vel_max
         v = mask * torch.tanh(raw[:, 2:3]) * self.vel_max
         w = mask * torch.tanh(raw[:, 3:4]) * self.vel_max
 
-        T_net = torch.sigmoid(raw[:, 4:5])  # entre 0 et 1
+        # 3. Température : Supporte Cryo ET Ambiant
+        T_net = torch.sigmoid(raw[:, 4:5])
+        # ✅ Correction : Si T_net est proche de 1, on atteint T_max (400K)
         T = self.T_min + mask * (self.T_max - self.T_min) * T_net
 
         return rho, u, v, w, T

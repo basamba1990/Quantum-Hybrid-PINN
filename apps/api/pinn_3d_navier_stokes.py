@@ -10,8 +10,8 @@ T_MIN, T_MAX = 0.0, 1000.0 # s
 X_MIN, X_MAX = -5.0, 5.0 # m (Réservoir 4.57m)
 Y_MIN, Y_MAX = -5.0, 5.0 # m
 Z_MIN, Z_MAX = -5.0, 5.0 # m
-U_SCALE = 0.1 # m/s (Convection naturelle LH2 lente)
-TEMP_SCALE = 50.0 # K (Plage cryogénique)
+U_SCALE = 50.0 # ✅ Étendu pour Pipeline H2 (max 35 m/s)
+TEMP_SCALE = 300.0 # ✅ Étendu pour H2 Gazeux (Ambiant)
 RHO_SCALE = 71.0 # kg/m3 (Densité LH2 à 20K)
 
 class PINN3DNavierStokes(nn.Module):
