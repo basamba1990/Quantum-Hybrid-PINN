@@ -393,10 +393,9 @@ function calculateCredibilityScore(
     score = (pressureQuality * 0.35 + residualQuality * 0.65) * 100.0 - anomalyPenalty;
   }
 
-  // Sécurité : ne jamais renvoyer exactement 0.0 si une simulation a tourné
-  // V8.3 : Si on a des prédictions 3D, le score minimum est remonté à 45% pour éviter les alertes rouges inutiles
-  const finalMinScore = (predictions3d && predictions3d.length > 0) ? 45.0 : 5.0;
-  score = Math.max(finalMinScore, Math.min(100, score));
+  // Transparence Industrielle V8.3 : Le score reflète la réalité physique brute sans seuil minimal artificiel.
+  // Un score bas indique une déviation réelle par rapport aux lois de conservation (Navier-Stokes).
+  score = Math.max(0.0, Math.min(100, score));
 
   return { score, anomalies };
 }
