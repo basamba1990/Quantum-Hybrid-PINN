@@ -163,39 +163,46 @@ export default function NewAnalysisPage() {
       // Attendre que le job soit complet (polling avec timeout)
       let simulationResults = null;
       let pollAttempts = 0;
-      const maxPollAttempts = 30; // 30 secondes max
+      const maxPollAttempts = 60; // Augmenté à 60 secondes pour Render
       
       while (jobId && jobId !== 'undefined' && pollAttempts < maxPollAttempts) {
         const jobResponse = await fetch(`${industrialApiUrl}/jobs/${jobId}`);
         if (jobResponse.ok) {
           const jobData = await jobResponse.json();
-          if (jobData.status === 'completed' || jobData.status === 'failed') {
+          if (jobData.status === 'completed') {
             simulationResults = jobData.results;
             break;
+          }
+          if (jobData.status === 'failed') {
+            throw new Error(jobData.errorMessage || "Échec de l'analyse industrielle");
           }
         }
         await new Promise(r => setTimeout(r, 1000));
         pollAttempts++;
       }
       
-      // Si le polling a timeout, utiliser les résultats partiels
+      // Si le polling a timeout, utiliser les résultats partiels mais marquer comme partiel
       const data = simulationResults || result;
+      const isComplete = !!simulationResults;
 
-			      // Mettre à jour l'analyse avec les résultats
-			      const { error: updateError } = await supabase
-			        .from('analyses')
-			        .update({
-			          status: 'completed',
-			          // ✅ FIX: Mapping robuste du score (priorité au score industriel non nul)
-			          credibility_score: data?.credibility_score || data?.credibilityScore || 75.0,
-			          results: {
-		              ...data,
-		              job_id: jobId,
-              industrial_scan: true,
-		              spatial_validation: "OK",
-		              report_notice: "Visualisation 3D et graphiques de convergence disponibles dans le dashboard."
-		            },
-			        })
+				      // Mettre à jour l'analyse avec les résultats
+				      const { error: updateError } = await supabase
+				        .from('analyses')
+				        .update({
+				          status: isComplete ? 'completed' : 'partial',
+				          // ✅ FIX: Mapping robuste du score (priorité au score industriel non nul)
+				          credibility_score: data?.credibility_score || data?.credibilityScore || (isComplete ? 75.0 : 50.0),
+				          results: {
+			              ...data,
+			              job_id: jobId,
+	              industrial_scan: true,
+			              is_complete: isComplete,
+			              spatial_validation: isComplete ? "OK" : "TIMEOUT_PARTIAL",
+			              report_notice: isComplete 
+                      ? "Visualisation 3D et graphiques de convergence disponibles dans le dashboard."
+                      : "Analyse partielle suite à un délai de réponse prolongé. Veuillez rafraîchir plus tard."
+			            },
+				        })
         .eq('id', newAnalysis.id)
 
       if (updateError) {
