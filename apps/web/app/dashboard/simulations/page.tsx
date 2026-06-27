@@ -127,12 +127,20 @@ export default function SimulationsPage() {
 
     try {
       const x = predictions.map(p => p?.time || 0);
-      const pressure = predictions.map(p => (p?.pressure || 0) / 1e5);
+      // ✅ FIX: Harmonisation des unités. L'API envoie maintenant des Pascals réels.
+      // Si la valeur est déjà petite (< 1000), on suppose qu'elle est déjà en bar.
+      const pressure = predictions.map(p => {
+        const rawP = p?.pressure || 0;
+        return rawP > 1000 ? rawP / 1e5 : rawP;
+      });
       const temperature = predictions.map(p => p?.temperature || 0);
       const damage = predictions.map(p => p?.damage || 0);
-      const k = predictions.map(p => p?.k || 0);
-      const epsilon = predictions.map(p => p?.epsilon || 0);
-      const stress = predictions.map(p => p?.stress || 0);
+      
+      // ✅ FIX: Mapping des champs physiques avancés pour rendre les courbes visibles
+      const k = predictions.map(p => p?.k || p?.tke || 0);
+      const epsilon = predictions.map(p => p?.epsilon || p?.dissipation || 0);
+      const stress = predictions.map(p => p?.stress || p?.stress_xx || 0);
+      
       const velocity = predictions.map(p => {
         const u = p?.velocity_u || 0;
         const v = p?.velocity_v || 0;

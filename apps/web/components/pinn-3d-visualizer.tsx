@@ -65,7 +65,10 @@ export default function PINN3DVisualizer({
 
       return {
         x, y, z,
-        pressure: validPoints.map((p) => p.pressure ?? 0),
+        pressure: validPoints.map((p) => {
+          const rawP = p.pressure ?? 0;
+          return rawP > 1000 ? rawP / 1e5 : rawP;
+        }),
         temperature: validPoints.map((p) => p.temperature ?? 293.15),
         density: validPoints.map((p) => p.density ?? 1.0),
         u, v, w,
@@ -97,7 +100,12 @@ export default function PINN3DVisualizer({
     () => {
       try {
         return predictions.map(
-          (p, i) => `t=${p?.time?.toFixed(2) || '0.00'}s<br>P=${(p?.pressure !== null && p?.pressure !== undefined ? p.pressure.toFixed(2) : '0.00')} bar<br>T=${(p?.temperature !== null && p?.temperature !== undefined ? p.temperature.toFixed(1) : '0.0')} K<br>ρ=${(p?.density || 0).toFixed(4)} kg/m³<br>|V|=${Math.sqrt((p?.velocity_u || 0) ** 2 + (p?.velocity_v || 0) ** 2 + (p?.velocity_w || 0) ** 2).toFixed(3)} m/s`
+          (p, i) => {
+            const rawP = p?.pressure ?? 0;
+            const displayP = rawP > 1000 ? rawP / 1e5 : rawP;
+            const displayT = p?.temperature || 288.15;
+            return `t=${p?.time?.toFixed(2) || '0.00'}s<br>P=${displayP.toFixed(2)} bar<br>T=${displayT.toFixed(1)} K<br>ρ=${(p?.density || 0).toFixed(4)} kg/m³<br>|V|=${Math.sqrt((p?.velocity_u || 0) ** 2 + (p?.velocity_v || 0) ** 2 + (p?.velocity_w || 0) ** 2).toFixed(3)} m/s`;
+          }
         )
       } catch (e) {
         console.error("Error generating hover text:", e);
@@ -125,7 +133,12 @@ export default function PINN3DVisualizer({
     () => {
       try {
         return predictions.map(
-          (p, i) => `t=${p?.time?.toFixed(2) || '0.00'}s<br>T=${(p?.temperature !== null && p?.temperature !== undefined ? p.temperature.toFixed(1) : '0.0')} K<br>P=${(p?.pressure !== null && p?.pressure !== undefined ? p.pressure.toFixed(2) : '0.00')} bar`
+          (p, i) => {
+            const rawP = p?.pressure ?? 0;
+            const displayP = rawP > 1000 ? rawP / 1e5 : rawP;
+            const displayT = p?.temperature || 288.15;
+            return `t=${p?.time?.toFixed(2) || '0.00'}s<br>T=${displayT.toFixed(1)} K<br>P=${displayP.toFixed(2)} bar`;
+          }
         )
       } catch (e) {
         console.error("Error generating temperature hover text:", e);
@@ -171,7 +184,7 @@ export default function PINN3DVisualizer({
                     size: 6,
                     color: chartData.pressure,
                     colorscale: 'Viridis',
-                    colorbar: { title: { text: 'Pression (bar)', font: { size: 12 } }, thickness: 15, len: 0.7 },
+                    colorbar: { title: { text: 'Pression (bar)', font: { size: 12 } }, thickness: 15, len: 0.7, x: 1.1 },
                     opacity: 0.85,
                     line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
                   },
@@ -229,7 +242,7 @@ export default function PINN3DVisualizer({
                     size: 6,
                     color: chartData.temperature,
                     colorscale: 'Hot',
-                    colorbar: { title: { text: 'Température (K)', font: { size: 12 } }, thickness: 15, len: 0.7 },
+                    colorbar: { title: { text: 'Température (K)', font: { size: 12 } }, thickness: 15, len: 0.7, x: 1.1 },
                     opacity: 0.85,
                     line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
                   },
