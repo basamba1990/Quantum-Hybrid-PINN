@@ -367,23 +367,21 @@ function calculateCredibilityScore(
     const pressureCorrection = Math.abs(correctedPressure - init_p_norm) / (init_p_norm + 1e-6);
     
     // ✅ FIX: Score plus robuste pour éviter le 0.0
-    // ✅ FIX: Calibration Industrielle V8 pour 100km (Momentum ~ 10^5 est OK en Pa)
-    const pressureQuality = Math.max(0.7, 1.0 - (pressureCorrection / 5.0));
+    // ✅ FIX DYNAMIQUE : Suppression du fallback statique (93.0)
+    // On utilise une sensibilité accrue aux résidus réels pour refléter la précision de la simulation
+    const pressureQuality = Math.max(0.5, 1.0 - (pressureCorrection / 2.0));
     
-    // Normalisation industrielle : On tolère jusqu'à 10^6 pour le momentum sur 100km
     const rawMomentum = Math.abs(assimilationResult.residuals?.momentum || 0);
-    let residualQuality = 0.9; // Par défaut excellent si pas d'anomalies
+    const rawContinuity = Math.abs(assimilationResult.residuals?.continuity || 0);
+    const rawEnergy = Math.abs(assimilationResult.residuals?.energy || 0);
     
-    if (rawMomentum > 1e6) {
-      residualQuality = 1.0 / (1.0 + Math.log10(rawMomentum / 1e5));
-    } else if (rawMomentum > 1e4) {
-      // Zone de convergence normale pour 100km
-      residualQuality = 0.85 + (0.1 * (1.0 - (rawMomentum / 1e6)));
-    }
+    // Calcul d'une qualité basée sur l'échelle logarithmique des résidus (plus ils sont petits, plus le score est haut)
+    const resLogSum = Math.log10(rawMomentum + 1e-10) + Math.log10(rawContinuity + 1e-10) + Math.log10(rawEnergy + 1e-10);
+    // On normalise : un score de 100 correspond à des résidus de l'ordre de 1e-7
+    let residualQuality = Math.max(0.1, Math.min(1.0, (-resLogSum / 21.0))); 
     
-    // Si aucune anomalie détectée par GPT-4o, on renforce la confiance
-    const anomalyPenalty = anomalies.length * 10;
-    score = (pressureQuality * 0.3 + residualQuality * 0.7) * 100.0 - anomalyPenalty;
+    const anomalyPenalty = anomalies.length * 15;
+    score = (pressureQuality * 0.4 + residualQuality * 0.6) * 100.0 - anomalyPenalty;
   }
 
   // Sécurité : ne jamais renvoyer exactement 0.0 si une simulation a tourné
