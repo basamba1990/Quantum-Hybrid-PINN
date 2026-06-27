@@ -405,7 +405,7 @@ async def validate_3d(request: PredictionRequestV8):
                     "x": float(x_p),
                     "y": float(request.y),
                     "z": float(request.z),
-                    "pressure": clean_float(p_p.item()),
+                    "pressure": clean_float(p_p.item() / 1e5), # ✅ Conversion en bar
                     "velocity_u": clean_float(u_raw.item()),
                     "velocity_v": clean_float(v_raw.item()),
                     "velocity_w": clean_float(w_raw.item()),
@@ -598,7 +598,7 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                                 "x": float(x_pos),
                                 "y": float(y_pos),
                                 "z": float(z_pos),
-                                "pressure": clean_float(p_p.item()),
+                                "pressure": clean_float(p_p.item() / 1e5), # ✅ Conversion en bar pour le frontend
                                 "velocity_u": clean_float(u_p.item()),
                                 "velocity_v": clean_float(v_p.item()),
                                 "velocity_w": clean_float(w_p.item()),
@@ -623,6 +623,13 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             
         credibility_score = min(100, max(5.0, clean_float(credibility_score, 50.0)))
 
+        # Calcul des risques et conformité via IndustrialRiskManager
+        cred_score_risk, risk_assessment, compliance_report = risk_manager.compute_risk_score(
+            final_residuals, 
+            fluid_type=current_model_v8.fluid_type,
+            transcription=request.transcription
+        )
+
         final_result = {
             "iteration": num_steps,
             "cfdTime": num_steps * 0.042,
@@ -631,11 +638,48 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             "residual_history": clean_json(history),
             "credibility_score": credibility_score,
             "credibilityScore": credibility_score,
+            "risk_assessment": risk_assessment,
+            "compliance_report": compliance_report,
             "uncertainty": final_residuals.get("uncertainty", 0.05),
             "predictions3d": clean_json(predictions_list),
             "scenario_outputs": clean_json(scenario_outputs),
             "log": f"Convergence stable après {num_steps} itérations.\nCalcul des résidus via AutoGrad terminé.\nIncertitude MC Dropout calculée.\nChamps 3D (P, V, T) générés avec succès."
         }
+        
+        # Génération du rapport PDF industriel
+        try:
+            report_filename = f"report_{job_id}.pdf"
+            report_path = os.path.join("/tmp", report_filename)
+            risk_manager.generate_full_report(
+                report_path, 
+                project_id=request.project_id, 
+                analysis_id=job_id, 
+                scenario_type=request.scenario_type, 
+                scenario_inputs=request.dict(), 
+                final_result=final_result
+            )
+            
+            # Upload vers Supabase si disponible
+            if supabase_client:
+                with open(report_path, "rb") as f:
+                    supabase_client.storage.from_("reports").upload(
+                        f"reports/{report_filename}", 
+                        f.read(),
+                        {"content-type": "application/pdf"}
+                    )
+                report_url = supabase_client.storage.from_("reports").get_public_url(f"reports/{report_filename}")
+                final_result["report_url"] = report_url
+                
+                # Enregistrement dans la table 'reports'
+                supabase_client.table("reports").insert({
+                    "project_id": request.project_id,
+                    "name": f"Rapport Scientifique - {request.job_name}",
+                    "file_url": report_url,
+                    "type": "PDF"
+                }).execute()
+        except Exception as report_err:
+            print(f"⚠️ Erreur génération rapport: {report_err}")
+
         jobs_store[job_id].update({"status": "completed", "results": final_result})
     except Exception as e:
         import traceback
