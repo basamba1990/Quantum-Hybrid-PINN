@@ -11,6 +11,7 @@ import {
   Activity
 } from 'lucide-react'
 import PINN3DVisualizer from './pinn-3d-visualizer'
+import HybridChartVisualizer from './hybrid-chart-visualizer'
 import type { Prediction3D } from '@/types'
 
 interface ConfidenceMetrics {
@@ -168,6 +169,10 @@ export default function ScientificAuditCard({
             </div>
             {show3D && (
               <div className="space-y-4">
+                {/* Courbes 2D Temporelles */}
+                <HybridChartVisualizer predictions={auditData.predictions3d} title="Audit Scientifique PINN V8" />
+                
+                {/* Visualisation 3D */}
                 <PINN3DVisualizer predictions={auditData.predictions3d} />
                 
                 {/* Confidence Metrics */}

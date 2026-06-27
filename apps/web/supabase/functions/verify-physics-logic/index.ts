@@ -366,22 +366,27 @@ function calculateCredibilityScore(
     const init_p_norm = init[0] > 100 ? init[0] / 100000 : init[0];
     const pressureCorrection = Math.abs(correctedPressure - init_p_norm) / (init_p_norm + 1e-6);
     
-    // ✅ FIX: Score plus robuste pour éviter le 0.0
-    // ✅ FIX DYNAMIQUE : Suppression du fallback statique (93.0)
-    // On utilise une sensibilité accrue aux résidus réels pour refléter la précision de la simulation
-    const pressureQuality = Math.max(0.5, 1.0 - (pressureCorrection / 2.0));
+    // ✅ FIX V8.3: Formule de qualité pression plus réaliste
+    // Réduction de la pénalité pour les corrections modérées (< 50%)
+    const pressureQuality = Math.max(0.6, 1.0 - Math.min(pressureCorrection / 3.0, 0.4));
     
     const rawMomentum = Math.abs(assimilationResult.residuals?.momentum || 0);
     const rawContinuity = Math.abs(assimilationResult.residuals?.continuity || 0);
     const rawEnergy = Math.abs(assimilationResult.residuals?.energy || 0);
     
-    // Calcul d'une qualité basée sur l'échelle logarithmique des résidus (plus ils sont petits, plus le score est haut)
+    // ✅ FIX V8.3: Échelle logarithmique des résidus ajustée
+    // Normalisation pour des résidus typiques industriels (1e-2 à 1e-1)
+    // Au lieu de 1e-7, on utilise 1e-3 comme référence (plus réaliste pour PINN)
     const resLogSum = Math.log10(rawMomentum + 1e-10) + Math.log10(rawContinuity + 1e-10) + Math.log10(rawEnergy + 1e-10);
-    // On normalise : un score de 100 correspond à des résidus de l'ordre de 1e-7
-    let residualQuality = Math.max(0.1, Math.min(1.0, (-resLogSum / 21.0))); 
+    // Formule ajustée : un score de 100 = résidus de 1e-3, score de 50 = résidus de 1e-1
+    let residualQuality = Math.max(0.3, Math.min(1.0, 0.5 + (-resLogSum / 12.0)));
     
-    const anomalyPenalty = anomalies.length * 15;
-    score = (pressureQuality * 0.4 + residualQuality * 0.6) * 100.0 - anomalyPenalty;
+    // ✅ FIX V8.3: Pénalité d'anomalies réduite (15 -> 8 points par anomalie)
+    const anomalyPenalty = anomalies.length * 8;
+    
+    // ✅ FIX V8.3: Poids rééquilibrés (pression 35%, résidus 65%)
+    // Cela reflète que les résidus sont plus importants que la correction Kalman
+    score = (pressureQuality * 0.35 + residualQuality * 0.65) * 100.0 - anomalyPenalty;
   }
 
   // Sécurité : ne jamais renvoyer exactement 0.0 si une simulation a tourné

@@ -67,14 +67,18 @@ export default function PINN3DVisualizer({
         x, y, z,
         pressure: validPoints.map((p) => {
           const rawP = p.pressure ?? 0;
-          // ✅ CORRECTION : Si c'est déjà en bar (ex: 120), on garde. Si c'est en Pa (ex: 1.2e7), on convertit.
-          return rawP > 1000 ? rawP / 1e5 : rawP;
+                // ✅ CORRECTION : Si c'est déjà en bar (ex: 120), on garde. Si c'est en Pa (ex: 1.2e7), on convertit.
+                return rawP > 1000 ? rawP / 1e5 : rawP;
         }),
         temperature: validPoints.map((p) => {
-          const rawT = p.temperature ?? 0;
-          // ✅ CORRECTION : Si la température est trop basse (ex: 20K) pour un projet gazier,
-          // on affiche la valeur réelle, mais on s'assure qu'elle n'est pas nulle.
-          return rawT === 0 ? 288.15 : rawT;
+                const rawT = p.temperature ?? 0;
+                // ✅ CORRECTION V8.3 : Gestion intelligente de la température
+                // Si rawT < 100K, c'est de l'hydrogène liquide cryogénique (afficher tel quel)
+                // Si rawT >= 100K, c'est déjà converti ou en ambiant (afficher tel quel)
+                // Si rawT === 0, utiliser la température standard (288.15 K)
+                if (rawT === 0) return 288.15;
+                if (rawT < 100) return rawT; // Hydrogène liquide cryogénique (20-30 K)
+                return rawT; // Température convertie ou ambiance
         }),
         density: validPoints.map((p) => p.density ?? 1.0),
         u, v, w,
@@ -110,8 +114,9 @@ export default function PINN3DVisualizer({
           (p, i) => {
             const rawP = p?.pressure ?? 0;
             const displayP = rawP > 1000 ? rawP / 1e5 : rawP;
-            const displayT = p?.temperature || 288.15;
-            return `t=${p?.time?.toFixed(2) || '0.00'}s<br>P=${displayP.toFixed(2)} bar<br>T=${displayT.toFixed(1)} K<br>ρ=${(p?.density || 0).toFixed(4)} kg/m³<br>|V|=${Math.sqrt((p?.velocity_u || 0) ** 2 + (p?.velocity_v || 0) ** 2 + (p?.velocity_w || 0) ** 2).toFixed(3)} m/s`;
+            const rawT = p?.temperature || 288.15;
+            const displayT = rawT < 100 ? `${rawT.toFixed(1)} K (cryo)` : `${rawT.toFixed(1)} K`;
+            return `t=${p?.time?.toFixed(2) || '0.00'}s<br>P=${displayP.toFixed(2)} bar<br>T=${displayT}<br>ρ=${(p?.density || 0).toFixed(4)} kg/m³<br>|V|=${Math.sqrt((p?.velocity_u || 0) ** 2 + (p?.velocity_v || 0) ** 2 + (p?.velocity_w || 0) ** 2).toFixed(3)} m/s`;
           }
         )
       } catch (e) {
@@ -143,8 +148,9 @@ export default function PINN3DVisualizer({
           (p, i) => {
             const rawP = p?.pressure ?? 0;
             const displayP = rawP > 1000 ? rawP / 1e5 : rawP;
-            const displayT = p?.temperature || 288.15;
-            return `t=${p?.time?.toFixed(2) || '0.00'}s<br>T=${displayT.toFixed(1)} K<br>P=${displayP.toFixed(2)} bar`;
+            const rawT = p?.temperature || 288.15;
+            const displayT = rawT < 100 ? `${rawT.toFixed(1)} K (cryo)` : `${rawT.toFixed(1)} K`;
+            return `t=${p?.time?.toFixed(2) || '0.00'}s<br>T=${displayT}<br>P=${displayP.toFixed(2)} bar`;
           }
         )
       } catch (e) {
