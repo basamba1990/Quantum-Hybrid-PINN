@@ -453,9 +453,8 @@ async def assimilate_data(request: PredictionRequestV8):
         if kalman_filter:
             with torch.no_grad():
                 # Le filtre de Kalman prend l'état actuel et l'observation pour produire un état assimilé
-                # Ici, nous simulons une prédiction basée sur l'observation pour l'exemple
-                # Dans un cas réel, il faudrait intégrer la prédiction du PINN avec l'observation
-                assimilated_state = kalman_filter.predict_observation(observed_state_tensor)
+                # ✅ CORRECTION : Utilisation de 'assimilate_batch' au lieu de 'predict_observation'
+                assimilated_state = kalman_filter.assimilate_batch(observed_state_tensor, observed_state_tensor)
                 # Pour cet exemple, nous retournons simplement l'observation comme état assimilé
                 # ou une version raffinée par le KF si le KF est plus sophistiqué
                 final_assimilated_state = assimilated_state.flatten().tolist()
@@ -570,7 +569,8 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             if kalman_filter:
                 observed_state_for_kalman = torch.tensor(assimilated_state, dtype=torch.float32, device=current_model_v8.device).unsqueeze(0)
                 with torch.no_grad():
-                    assimilated_state_tensor = kalman_filter.predict_observation(observed_state_for_kalman)
+                    # ✅ CORRECTION : Utilisation de 'assimilate_batch' au lieu de 'predict_observation'
+                    assimilated_state_tensor = kalman_filter.assimilate_batch(observed_state_for_kalman, observed_state_for_kalman)
                 assimilated_state = assimilated_state_tensor.flatten().tolist()
             
             # Stocker l'historique des résidus et des scores
