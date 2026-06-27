@@ -328,14 +328,20 @@ async def validate_3d(request: PredictionRequestV8):
         idx_center = N_points // 2
         rho, u, v, w, T = rho_s[idx_center:idx_center+1], u_s[idx_center:idx_center+1], v_s[idx_center:idx_center+1], w_s[idx_center:idx_center+1], T_s[idx_center:idx_center+1]
 
-        from fluid_properties import get_eos
-        p_t = get_eos(current_model_v8.fluid_type, rho, T)
+        # EOS Import
+        try:
+            from fluid_properties import get_eos
+        except ImportError:
+            from .fluid_properties import get_eos
+            
+        p_t_center = get_eos(current_model_v8.fluid_type, rho, T)
+        p_t_all = get_eos(current_model_v8.fluid_type, rho_s, T_s)
 
         # ✅ AJOUT : Quantification de l'incertitude via MC Dropout (Principe 1)
         uncertainty_data = current_model_v8.predict_state_with_uncertainty(t, request.x, request.y, request.z)
 
         result = {
-            "pressure": float(p_t.mean().item()) if p_t is not None else request.pressure,
+            "pressure": float(p_t_center.mean().item()) if p_t_center is not None else request.pressure,
             "velocity_u": float(u.mean().item()),
             "velocity_v": float(v.mean().item()),
             "velocity_w": float(w.mean().item()),
@@ -347,6 +353,9 @@ async def validate_3d(request: PredictionRequestV8):
             "y": request.y,
             "z": request.z
         }
+        
+        # Correction pour les résidus max
+        p_t = p_t_all
 
         # ✅ AJOUT : Focus sur les régions critiques (Principe 2)
         # On identifie les résidus maximaux dans le scan spatial
