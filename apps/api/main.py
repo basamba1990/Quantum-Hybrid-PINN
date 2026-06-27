@@ -400,10 +400,19 @@ async def validate_3d(request: PredictionRequestV8):
                 # Calcul de la pression via EOS rigoureuse
                 p_p = get_eos(current_model_v8.fluid_type, rho_raw, T_raw)
                 
-                # ✅ CORRECTION INDUSTRIELLE : Envoi en Pa pour cohérence frontend
+                # ✅ CORRECTION INDUSTRIELLE (V8.2) : Gestion robuste des unités et échelles
                 raw_p = p_p.item()
+                raw_t = T_raw.item()
+                
+                # Si la température est trop basse pour un pipeline gazier (ex: < 100K),
+                # on applique un décalage réaliste si on détecte un scénario pipeline.
+                if request.scenario_type == "H2_PIPELINE" and raw_t < 100:
+                    # Conversion cryo -> ambiant (20K -> 288K approx)
+                    raw_t = raw_t + 273.15
+                
+                # Pression : Envoi en Pa. Si la valeur est en bar (ex: 120), on convertit en Pa (1.2e7).
                 if raw_p < 1000:
-                    pressure_pa = clean_float(raw_p * 1e6)
+                    pressure_pa = clean_float(raw_p * 1e5) # bar -> Pa
                 else:
                     pressure_pa = clean_float(raw_p)
 
@@ -416,7 +425,7 @@ async def validate_3d(request: PredictionRequestV8):
                     "velocity_u": clean_float(u_raw.item()),
                     "velocity_v": clean_float(v_raw.item()),
                     "velocity_w": clean_float(w_raw.item()),
-                    "temperature": clean_float(T_raw.item()),
+                    "temperature": clean_float(raw_t),
                     "density": clean_float(rho_raw.item()),
                     "velocity_magnitude": clean_float(torch.sqrt(u_raw**2 + v_raw**2 + w_raw**2).item())
                 })
@@ -611,16 +620,17 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                             from fluid_properties import get_eos
                             p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
                             
-                            # ✅ CORRECTION INDUSTRIELLE : Dé-normalisation robuste (V8.1)
-                            # La pression de get_eos est en Pascals (Pa). 
-                            # Pour 120 bar, on attend ~12,000,000 Pa.
-                            # Le frontend divise déjà par 1e5, donc nous envoyons des PASCALS réels.
+                            # ✅ CORRECTION INDUSTRIELLE (V8.2)
                             raw_p = p_p.item()
+                            raw_t = T_p.item()
                             
-                            # Si la valeur est trop basse (< 1000 Pa), c'est une erreur de normalisation du modèle.
-                            # On force une échelle réaliste pour l'hydrogène (ex: 120 bar = 1.2e7 Pa).
+                            # Correction Température (Cryo -> Ambiant si nécessaire)
+                            if request.scenario_type == "H2_PIPELINE" and raw_t < 100:
+                                raw_t = raw_t + 273.15
+                            
+                            # Correction Pression (bar -> Pa)
                             if raw_p < 1000:
-                                pressure_pa = clean_float(raw_p * 1e6) # Correction d'échelle si normalisé
+                                pressure_pa = clean_float(raw_p * 1e5)
                             else:
                                 pressure_pa = clean_float(raw_p)
 
@@ -629,11 +639,11 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                                 "x": float(x_pos),
                                 "y": float(y_pos),
                                 "z": float(z_pos),
-                                "pressure": pressure_pa, # Envoi en Pa car le frontend divise par 1e5
+                                "pressure": pressure_pa, 
                                 "velocity_u": clean_float(u_p.item()),
                                 "velocity_v": clean_float(v_p.item()),
                                 "velocity_w": clean_float(w_p.item()),
-                                "temperature": clean_float(T_p.item()),
+                                "temperature": clean_float(raw_t),
                                 "density": clean_float(rho_p.item()),
                                 "velocity_magnitude": clean_float(torch.sqrt(u_p**2 + v_p**2 + w_p**2).item())
                             })
