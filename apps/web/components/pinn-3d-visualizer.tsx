@@ -97,7 +97,7 @@ export default function PINN3DVisualizer({
     () => {
       try {
         return predictions.map(
-          (p, i) => `t=${p?.time?.toFixed(2) || '0.00'}s<br>P=${(p?.pressure !== null && p?.pressure !== undefined ? p.pressure.toExponential(2) : '0.00')} Pa<br>T=${(p?.temperature !== null && p?.temperature !== undefined ? p.temperature.toFixed(1) : '0.0')} K<br>ρ=${(p?.density || 0).toFixed(4)} kg/m³<br>|V|=${Math.sqrt((p?.velocity_u || 0) ** 2 + (p?.velocity_v || 0) ** 2 + (p?.velocity_w || 0) ** 2).toFixed(3)} m/s`
+          (p, i) => `t=${p?.time?.toFixed(2) || '0.00'}s<br>P=${(p?.pressure !== null && p?.pressure !== undefined ? p.pressure.toFixed(2) : '0.00')} bar<br>T=${(p?.temperature !== null && p?.temperature !== undefined ? p.temperature.toFixed(1) : '0.0')} K<br>ρ=${(p?.density || 0).toFixed(4)} kg/m³<br>|V|=${Math.sqrt((p?.velocity_u || 0) ** 2 + (p?.velocity_v || 0) ** 2 + (p?.velocity_w || 0) ** 2).toFixed(3)} m/s`
         )
       } catch (e) {
         console.error("Error generating hover text:", e);
@@ -125,7 +125,7 @@ export default function PINN3DVisualizer({
     () => {
       try {
         return predictions.map(
-          (p, i) => `t=${p?.time?.toFixed(2) || '0.00'}s<br>T=${(p?.temperature !== null && p?.temperature !== undefined ? p.temperature.toFixed(1) : '0.0')} K<br>P=${(p?.pressure !== null && p?.pressure !== undefined ? p.pressure.toExponential(2) : '0.00')} Pa`
+          (p, i) => `t=${p?.time?.toFixed(2) || '0.00'}s<br>T=${(p?.temperature !== null && p?.temperature !== undefined ? p.temperature.toFixed(1) : '0.0')} K<br>P=${(p?.pressure !== null && p?.pressure !== undefined ? p.pressure.toFixed(2) : '0.00')} bar`
         )
       } catch (e) {
         console.error("Error generating temperature hover text:", e);
@@ -171,7 +171,7 @@ export default function PINN3DVisualizer({
                     size: 6,
                     color: chartData.pressure,
                     colorscale: 'Viridis',
-                    colorbar: { title: { text: 'Pression (Pa)', font: { size: 12 } }, thickness: 15, len: 0.7 },
+                    colorbar: { title: { text: 'Pression (bar)', font: { size: 12 } }, thickness: 15, len: 0.7 },
                     opacity: 0.85,
                     line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
                   },
