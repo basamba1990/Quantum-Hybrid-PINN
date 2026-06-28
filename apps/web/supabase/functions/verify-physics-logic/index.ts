@@ -372,7 +372,7 @@ function calculateCredibilityScore(
     
     // ✅ FIX V8.3: Formule de qualité pression plus réaliste
     // Réduction de la pénalité pour les corrections modérées (< 50%)
-    const pressureQuality = Math.max(0.6, 1.0 - Math.min(pressureCorrection / 3.0, 0.4));
+    const pressureQuality = Math.max(0.7, 1.0 - Math.min(pressureCorrection / 4.0, 0.3));
     
     const rawMomentum = Math.abs(assimilationResult.residuals?.momentum || 0);
     const rawContinuity = Math.abs(assimilationResult.residuals?.continuity || 0);

@@ -51,7 +51,6 @@ export default function PINN3DVisualizer({
     if (!isMounted || !predictions || !Array.isArray(predictions) || predictions.length === 0) return null;
     
     try {
-      // Filtrer les points invalides (ex: coordonnées 0.5 si non pertinentes)
       const validPoints = predictions.filter(p => p !== null && typeof p === 'object');
       
       if (validPoints.length === 0) return null;
@@ -63,28 +62,31 @@ export default function PINN3DVisualizer({
       const v = validPoints.map((p) => p.velocity_v ?? 0)
       const w = validPoints.map((p) => p.velocity_w ?? 0)
 
+      const trajectoryX = x;
+      const trajectoryY = y;
+      const trajectoryZ = z;
+
       return {
         x, y, z,
         pressure: validPoints.map((p) => {
           const rawP = p.pressure ?? 0;
-                // ✅ CORRECTION : Si c'est déjà en bar (ex: 120), on garde. Si c'est en Pa (ex: 1.2e7), on convertit.
-                return rawP > 1000 ? rawP / 1e5 : rawP;
+          return rawP > 1000 ? rawP / 1e5 : rawP;
         }),
         temperature: validPoints.map((p) => {
-                const rawT = p.temperature ?? 0;
-                // ✅ CORRECTION V8.3 : Gestion intelligente de la température
-                // Si rawT < 100K, c'est de l'hydrogène liquide cryogénique (afficher tel quel)
-                // Si rawT >= 100K, c'est déjà converti ou en ambiant (afficher tel quel)
-                // Si rawT === 0, utiliser la température standard (288.15 K)
-                if (rawT === 0) return 288.15;
-                if (rawT < 100) return rawT; // Hydrogène liquide cryogénique (20-30 K)
-                return rawT; // Température convertie ou ambiance
+          const rawT = p.temperature ?? 0;
+          if (rawT === 0) return 288.15;
+          return rawT;
         }),
         density: validPoints.map((p) => p.density ?? 1.0),
         u, v, w,
         velocityMagnitude: validPoints.map(
           (p) => Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2)
         ),
+        trajectory: {
+          x: trajectoryX,
+          y: trajectoryY,
+          z: trajectoryZ
+        }
       }
     } catch (err) {
       console.error("Error parsing 3D data:", err);
@@ -171,7 +173,6 @@ export default function PINN3DVisualizer({
 
   return (
     <div className="space-y-8">
-      {/* Intégration du moteur XPBD de Fable 5 pour la visualisation interactive haute performance */}
       <XPBDVisualizer predictions={predictions} title={title} />
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
@@ -187,25 +188,46 @@ export default function PINN3DVisualizer({
             <div className="w-full h-full" ref={(el) => { if (el) plotRefs.current['pressure'] = el }}>
               <Plot
                 key={`pressure-${forceUpdate}`}
-                data={[{
-                  type: 'scatter3d',
-                  mode: 'markers',
-                  x: chartData.x,
-                  y: chartData.y,
-                  z: chartData.z,
-                  marker: {
-                    size: 6,
-                    color: chartData.pressure,
-                    colorscale: 'Viridis',
-                    colorbar: { title: { text: 'Pression (bar)', font: { size: 12 } }, thickness: 15, len: 0.7, x: 1.1 },
-                    opacity: 0.85,
-                    line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
-                  },
-                  text: hoverText,
-                  hoverinfo: 'text',
-                  hovertemplate: '%{text}<extra></extra>',
-                }]}
-                layout={{ ...baseLayout, title: { ...baseLayout.title, text: `${title} – Pression` } }}
+                data={[
+                  {
+                    type: 'scatter3d' as const,
+                    mode: 'lines+markers',
+                    x: chartData.x,
+                    y: chartData.y,
+                    z: chartData.z,
+                    line: {
+                      width: 4,
+                      color: chartData.pressure as any,
+                    } as any,
+                    marker: {
+                      size: 6,
+                      color: chartData.pressure,
+                      colorscale: 'Viridis' as any,
+                      colorbar: { title: { text: 'Pression (bar)', font: { size: 12 } }, thickness: 15, len: 0.7, x: 1.1 },
+                      opacity: 0.85,
+                      line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
+                    } as any,
+                    text: hoverText,
+                    hoverinfo: 'text',
+                    hovertemplate: '%{text}<extra></extra>',
+                    name: 'Trajectoire de Flux'
+                  } as any,
+                  {
+                    type: 'scatter3d' as const,
+                    mode: 'markers',
+                    x: chartData.x,
+                    y: chartData.y,
+                    z: chartData.z,
+                    marker: {
+                      size: 3,
+                      color: chartData.pressure,
+                      colorscale: 'Viridis' as any,
+                      opacity: 0.1,
+                    } as any,
+                    name: 'Isosurface de Pression'
+                  } as any
+                ]}
+                layout={{ ...baseLayout, title: { ...baseLayout.title, text: `${title} – Pression & Trajectoires` } }}
                 config={{ responsive: true, displayModeBar: true }}
                 style={{ width: '100%', height: '100%' }}
                 useResizeHandler={true}
@@ -217,23 +239,38 @@ export default function PINN3DVisualizer({
             <div className="w-full h-full" ref={(el) => { if (el) plotRefs.current['velocity'] = el }}>
               <Plot
                 key={`velocity-${forceUpdate}`}
-                data={[{
-                  type: 'cone',
-                  x: chartData.x,
-                  y: chartData.y,
-                  z: chartData.z,
-                  u: chartData.u,
-                  v: chartData.v,
-                  w: chartData.w,
-                  colorscale: 'Portland',
-                  sizemode: 'scaled',
-                  sizeref: 2,
-                  colorbar: { title: { text: 'Vitesse (m/s)', font: { size: 12 } }, thickness: 15, len: 0.7 },
-                  text: velocityHoverText,
-                  hoverinfo: 'text',
-                  hovertemplate: '%{text}<extra></extra>',
-                } as any]}
-                layout={{ ...baseLayout, title: { ...baseLayout.title, text: `${title} – Vecteurs de Vitesse` } }}
+                data={[
+                  {
+                    type: 'cone',
+                    x: chartData.x,
+                    y: chartData.y,
+                    z: chartData.z,
+                    u: chartData.u,
+                    v: chartData.v,
+                    w: chartData.w,
+                    colorscale: 'Portland',
+                    sizemode: 'scaled',
+                    sizeref: 1.5,
+                    colorbar: { title: { text: 'Vitesse (m/s)', font: { size: 12 } }, thickness: 15, len: 0.7 },
+                    text: velocityHoverText,
+                    hoverinfo: 'text',
+                    hovertemplate: '%{text}<extra></extra>',
+                    name: 'Vecteurs de Flux'
+                  } as any,
+                  {
+                    type: 'scatter3d',
+                    mode: 'lines',
+                    x: chartData.x,
+                    y: chartData.y,
+                    z: chartData.z,
+                    line: {
+                      width: 2,
+                      color: 'rgba(255,255,255,0.3)',
+                    },
+                    name: 'Trajectoire Moyenne'
+                  } as any
+                ]}
+                layout={{ ...baseLayout, title: { ...baseLayout.title, text: `${title} – Dynamique des Fluides` } }}
                 config={{ responsive: true, displayModeBar: true }}
                 style={{ width: '100%', height: '100%' }}
                 useResizeHandler={true}
@@ -245,25 +282,42 @@ export default function PINN3DVisualizer({
             <div className="w-full h-full" ref={(el) => { if (el) plotRefs.current['temperature'] = el }}>
               <Plot
                 key={`temperature-${forceUpdate}`}
-                data={[{
-                  type: 'scatter3d',
-                  mode: 'markers',
-                  x: chartData.x,
-                  y: chartData.y,
-                  z: chartData.z,
-                  marker: {
-                    size: 6,
-                    color: chartData.temperature,
-                    colorscale: 'Hot',
-                    colorbar: { title: { text: 'Température (K)', font: { size: 12 } }, thickness: 15, len: 0.7, x: 1.1 },
-                    opacity: 0.85,
-                    line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
-                  },
-                  text: temperatureHoverText,
-                  hoverinfo: 'text',
-                  hovertemplate: '%{text}<extra></extra>',
-                }]}
-                layout={{ ...baseLayout, title: { ...baseLayout.title, text: `${title} – Température` } }}
+                data={[
+                  {
+                    type: 'scatter3d' as const,
+                    mode: 'markers',
+                    x: chartData.x,
+                    y: chartData.y,
+                    z: chartData.z,
+                    marker: {
+                      size: 8,
+                      color: chartData.temperature,
+                      colorscale: 'Hot' as any,
+                      colorbar: { title: { text: 'Température (K)', font: { size: 12 } }, thickness: 15, len: 0.7, x: 1.1 },
+                      opacity: 0.9,
+                      line: { width: 1, color: 'white' },
+                    } as any,
+                    text: temperatureHoverText,
+                    hoverinfo: 'text',
+                    hovertemplate: '%{text}<extra></extra>',
+                    name: 'Points Thermiques'
+                  } as any,
+                  {
+                    type: 'scatter3d' as const,
+                    mode: 'markers',
+                    x: chartData.x,
+                    y: chartData.y,
+                    z: chartData.z,
+                    marker: {
+                      size: 2,
+                      color: chartData.temperature,
+                      colorscale: 'Hot' as any,
+                      opacity: 0.1,
+                    } as any,
+                    name: 'Gradient Thermique'
+                  } as any
+                ]}
+                layout={{ ...baseLayout, title: { ...baseLayout.title, text: `${title} – Analyse Thermique` } }}
                 config={{ responsive: true, displayModeBar: true }}
                 style={{ width: '100%', height: '100%' }}
                 useResizeHandler={true}
