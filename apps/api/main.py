@@ -587,13 +587,14 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                 weighted_sum += val / tol if tol != 0 else val
             weighted_res = weighted_sum / len(tolerances)
             # ✅ CORRECTION INDUSTRIELLE : Score de crédibilité boosté pour les scénarios réalistes
-            # Si les résidus sont faibles (< 1e-3), on garantit un score > 90%
-            if weighted_res < 1e-3:
-                credibility_score_pinn = float(100.0 - (weighted_res * 1000))
-            else:
-                credibility_score_pinn = float(100.0 / (1.0 + 0.3 * weighted_res))
+            # V8.3 Industrial Logic: Le score est basé sur la norme L2 des résidus Navier-Stokes.
+            # Un résidu pondéré de 1e-3 donne 100%. Un résidu de 1e-1 donne 50%.
+            res_log = np.log10(max(1e-10, weighted_res))
+            # Formule: score = 100 * (1 - (log10(res) + 3) / 2) bridé entre 0 et 100
+            credibility_score_pinn = float(100.0 * (1.0 - max(0, (res_log + 3.0) / 4.0)))
             
-            credibility_score_pinn = min(100, max(5.0, clean_float(credibility_score_pinn, 95.0)))
+            # V8.3 Industrial Compliance: Pas de score minimal artificiel. Le score doit être 100% transparent.
+            credibility_score_pinn = min(100, max(0.0, clean_float(credibility_score_pinn, 95.0)))
 
             # Assimilation de données avec le filtre de Kalman (si disponible)
             assimilated_state = [rho_pinn.item(), u_pinn.item(), v_pinn.item(), w_pinn.item(), T_pinn.item()]
