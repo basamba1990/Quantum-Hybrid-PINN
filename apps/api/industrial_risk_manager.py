@@ -290,11 +290,22 @@ class IndustrialRiskManager:
         residual_history = final_result.get('residual_history', [])
         if residual_history:
             story.append(Paragraph("6. Historique des Résidus (Dernière Étape)", styles['Heading1']))
-            last_step_residuals = residual_history[-1]
-            story.append(Paragraph(f"Continuité : {last_step_residuals.get('continuity', 'N/A'):.2e}", styles['BodyText']))
-            story.append(Paragraph(f"Momentum : {last_step_residuals.get('momentum', 'N/A'):.2e}", styles['BodyText']))
-            story.append(Paragraph(f"Énergie : {last_step_residuals.get('energy', 'N/A'):.2e}", styles['BodyText']))
-            story.append(Paragraph(f"Incertitude : {last_step_residuals.get('uncertainty', 'N/A'):.2e}", styles['BodyText']))
+            last_step_residuals = residual_history[-1].get('residuals', {})
+            continuity_val = last_step_residuals.get('continuity', 0.0)
+            momentum_val = last_step_residuals.get('momentum', 0.0)
+            energy_val = last_step_residuals.get('energy', 0.0)
+            uncertainty_val = last_step_residuals.get('uncertainty', 0.0)
+            
+            # Formatage sécurisé avec gestion des valeurs None/string
+            cont_str = f"{float(continuity_val):.2e}" if isinstance(continuity_val, (int, float)) else "N/A"
+            mom_str = f"{float(momentum_val):.2e}" if isinstance(momentum_val, (int, float)) else "N/A"
+            ener_str = f"{float(energy_val):.2e}" if isinstance(energy_val, (int, float)) else "N/A"
+            unc_str = f"{float(uncertainty_val):.2e}" if isinstance(uncertainty_val, (int, float)) else "N/A"
+            
+            story.append(Paragraph(f"Continuité : {cont_str}", styles['BodyText']))
+            story.append(Paragraph(f"Momentum : {mom_str}", styles['BodyText']))
+            story.append(Paragraph(f"Énergie : {ener_str}", styles['BodyText']))
+            story.append(Paragraph(f"Incertitude : {unc_str}", styles['BodyText']))
             story.append(Spacer(1, 0.1 * 2.54 * 72))
 
         # Section Prédictions 3D (Résumé)
