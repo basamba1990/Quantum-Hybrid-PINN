@@ -95,6 +95,7 @@ class PredictionRequestV8(BaseModel):
     diameter: Optional[float] = 0.5
     project_id: Optional[str] = None
     transcription: Optional[str] = None
+    scenario_type: Optional[str] = "H2_PIPELINE"
 
 class PredictionResponseV8(BaseModel):
     pressure: float
