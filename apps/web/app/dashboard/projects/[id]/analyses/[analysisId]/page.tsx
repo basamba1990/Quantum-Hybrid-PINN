@@ -103,7 +103,12 @@ export default function AnalysisDetailPage() {
     extractedData: analysis.results?.extractedData || {},
     predictions3d: analysis.results?.predictions3d || [],
     confidenceMetrics: analysis.results?.confidenceMetrics,
-    assimilation: analysis.results?.assimilation
+    assimilation: analysis.results?.assimilation,
+    riskAssessment: analysis.results?.risk_assessment,
+    complianceReport: analysis.results?.compliance_report,
+    residuals: analysis.results?.residuals,
+    residualHistory: analysis.results?.residual_history,
+    experimentalCorrelation: analysis.results?.experimental_correlation
   }
 
   return (

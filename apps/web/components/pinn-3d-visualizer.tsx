@@ -99,10 +99,14 @@ export default function PINN3DVisualizer({
       autosize: true,
       margin: { l: 0, r: 0, b: 0, t: 40 },
       scene: {
-        xaxis: { title: 'X (m)', range: [-6, 6] },
-        yaxis: { title: 'Y (m)', range: [-6, 6] },
-        zaxis: { title: 'Z (m)', range: [-6, 6] },
-        aspectmode: 'cube' as const,
+        xaxis: { title: 'X (m)', range: [-0.5, 1.5] },
+        yaxis: { title: 'Y (m)', range: [-0.3, 0.3] },
+        zaxis: { title: 'Z (m)', range: [-0.3, 0.3] },
+        aspectmode: 'auto' as const,
+        camera: {
+          eye: { x: 1.5, y: 1.5, z: 1.3 },
+          center: { x: 0, y: 0, z: 0 },
+        },
       },
       title: { text: `${title} – Pression`, x: 0.5, xanchor: 'center' as const },
     }),
@@ -241,31 +245,48 @@ export default function PINN3DVisualizer({
                 key={`velocity-${forceUpdate}`}
                 data={[
                   {
-                    type: 'cone',
+                    type: 'scatter3d' as const,
+                    mode: 'markers',
                     x: chartData.x,
                     y: chartData.y,
                     z: chartData.z,
-                    u: chartData.u,
-                    v: chartData.v,
-                    w: chartData.w,
-                    colorscale: 'Portland',
-                    sizemode: 'scaled',
-                    sizeref: 1.5,
-                    colorbar: { title: { text: 'Vitesse (m/s)', font: { size: 12 } }, thickness: 15, len: 0.7 },
+                    marker: {
+                      size: 6,
+                      color: chartData.velocityMagnitude,
+                      colorscale: 'Portland' as any,
+                      colorbar: { title: { text: '|V| (m/s)', font: { size: 12 } }, thickness: 15, len: 0.7, x: 1.1 },
+                      opacity: 0.85,
+                      line: { width: 0.5, color: 'rgba(0,0,0,0.2)' },
+                    } as any,
                     text: velocityHoverText,
                     hoverinfo: 'text',
                     hovertemplate: '%{text}<extra></extra>',
-                    name: 'Vecteurs de Flux'
+                    name: 'Magnitude de Vitesse'
                   } as any,
                   {
-                    type: 'scatter3d',
+                    type: 'cone' as const,
+                    x: chartData.x.filter((_, i) => i % 3 === 0),
+                    y: chartData.y.filter((_, i) => i % 3 === 0),
+                    z: chartData.z.filter((_, i) => i % 3 === 0),
+                    u: chartData.u.filter((_, i) => i % 3 === 0).map(v => v * 0.5),
+                    v: chartData.v.filter((_, i) => i % 3 === 0).map(v => v * 0.5),
+                    w: chartData.w.filter((_, i) => i % 3 === 0).map(v => v * 0.5),
+                    colorscale: 'Portland' as any,
+                    sizemode: 'scaled' as const,
+                    sizeref: 2.0,
+                    colorbar: { title: { text: 'Vecteurs', font: { size: 10 } }, thickness: 10, len: 0.5, x: 1.15 },
+                    name: 'Vecteurs de Flux',
+                    showscale: false,
+                  } as any,
+                  {
+                    type: 'scatter3d' as const,
                     mode: 'lines',
                     x: chartData.x,
                     y: chartData.y,
                     z: chartData.z,
                     line: {
                       width: 2,
-                      color: 'rgba(255,255,255,0.3)',
+                      color: 'rgba(100,150,255,0.4)',
                     },
                     name: 'Trajectoire Moyenne'
                   } as any
