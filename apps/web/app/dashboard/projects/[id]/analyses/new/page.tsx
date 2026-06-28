@@ -68,7 +68,8 @@ export default function NewAnalysisPage() {
       }
 
       // 4. Appeler l'Edge Function avec le token utilisateur
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      // Correction V8.3 : S'assurer que l'URL est bien formée et ne pas dépendre uniquement de process.env si vide
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ivhxnaxhgfbiqlhgfkik.supabase.co'
       if (!supabaseUrl) {
         throw new Error("Configuration manquante : NEXT_PUBLIC_SUPABASE_URL")
       }
@@ -208,6 +209,26 @@ export default function NewAnalysisPage() {
       if (updateError) {
         console.error('Erreur mise à jour analyse:', updateError)
         // Non bloquant : l'analyse est déjà créée, on continue
+      }
+
+      // ✅ V8.3 : Appel de la fonction de vérification physique Supabase
+      try {
+        const edgeFunctionUrl = `${supabaseUrl}/functions/v1/verify-physics-logic`
+        await fetch(edgeFunctionUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            projectId: projectId,
+            analysisId: newAnalysis.id,
+            transcription: project.transcription,
+            context: scenarioType
+          })
+        })
+      } catch (edgeErr) {
+        console.warn("Edge Function call failed, but simulation is running:", edgeErr)
       }
 
       toast.success('Analyse lancée avec succès 🚀')
