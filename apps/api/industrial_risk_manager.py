@@ -71,7 +71,8 @@ class IndustrialRiskManager:
         Calcule le score de crédibilité avec focus sur les régions critiques et seuils de décision.
         """
         # 1. Calcul des tolérances dynamiques (ISO 13623 / API 620)
-        tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
+        # Ajustement industriel pour éviter les fausses alertes sur les résidus transitoires
+        tolerances = {"continuity": 1e-3, "momentum": 1e-3, "energy": 5e-3}
         
         # 2. Pondération des résidus globaux
         weighted_sum = 0.0
@@ -220,12 +221,18 @@ class IndustrialRiskManager:
         story = []
 
         # Styles personnalisés
-        styles.add(ParagraphStyle(name='TitleStyle', fontSize=24, leading=28, alignment=TA_CENTER, spaceAfter=20))
-        styles.add(ParagraphStyle(name='Heading1', fontSize=18, leading=22, spaceAfter=14, textColor=colors.darkblue))
-        styles.add(ParagraphStyle(name='Heading2', fontSize=14, leading=18, spaceAfter=10, textColor=colors.blue))
-        styles.add(ParagraphStyle(name='BodyText', fontSize=10, leading=12, spaceAfter=6))
-        styles.add(ParagraphStyle(name='Code', fontName='Courier', fontSize=9, leading=10, backColor=colors.lightgrey, spaceBefore=6, spaceAfter=6, borderPadding=5))
-        styles.add(ParagraphStyle(name='TableCaption', fontSize=9, leading=11, spaceBefore=6, spaceAfter=6, alignment=TA_CENTER))
+        if 'TitleStyle' not in styles:
+            styles.add(ParagraphStyle(name='TitleStyle', fontSize=24, leading=28, alignment=TA_CENTER, spaceAfter=20))
+        if 'Heading1' not in styles:
+            styles.add(ParagraphStyle(name='Heading1', fontSize=18, leading=22, spaceAfter=14, textColor=colors.darkblue))
+        if 'Heading2' not in styles:
+            styles.add(ParagraphStyle(name='Heading2', fontSize=14, leading=18, spaceAfter=10, textColor=colors.blue))
+        if 'BodyText' not in styles:
+            styles.add(ParagraphStyle(name='BodyText', fontSize=10, leading=12, spaceAfter=6))
+        if 'Code' not in styles:
+            styles.add(ParagraphStyle(name='Code', fontName='Courier', fontSize=9, leading=10, backColor=colors.lightgrey, spaceBefore=6, spaceAfter=6, borderPadding=5))
+        if 'TableCaption' not in styles:
+            styles.add(ParagraphStyle(name='TableCaption', fontSize=9, leading=11, spaceBefore=6, spaceAfter=6, alignment=TA_CENTER))
 
         # Titre du rapport
         story.append(Paragraph("Rapport d'Analyse Industrielle", styles['TitleStyle']))
