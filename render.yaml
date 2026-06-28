@@ -15,6 +15,12 @@ services:
         value: https://quantum-hybrid-pinn-jdoj.onrender.com
       - key: H2_INFERENCE_API_URL
         value: https://quantum-hybrid-pinn-jdoj.onrender.com
+      - key: API_BASE_URL
+        value: https://quantum-hybrid-pinn-jdoj.onrender.com
+      - key: BACKEND_SERVICE_URL
+        value: https://quantum-hybrid-pinn-jdoj.onrender.com
+      - key: KEEP_ALIVE_URLS
+        value: https://quantum-hybrid-pinn-jdoj.onrender.com/health
       - key: SUPABASE_URL
         value: https://ivhxnaxhgfbiqlhgfkik.supabase.co
       - key: SUPABASE_KEY
