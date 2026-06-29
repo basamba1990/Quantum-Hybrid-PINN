@@ -126,9 +126,6 @@ importers:
       '@trpc/server':
         specifier: ^11.0.0
         version: 11.17.0(typescript@5.9.3)
-      '@types/three':
-        specifier: ^0.185.0
-        version: 0.185.0
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -247,6 +244,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.1
         version: 19.2.3(@types/react@19.2.15)
+      '@types/three':
+        specifier: ^0.185.0
+        version: 0.185.0
       autoprefixer:
         specifier: ^10.4.20
         version: 10.5.0(postcss@8.5.15)
