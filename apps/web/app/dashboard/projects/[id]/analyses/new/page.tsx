@@ -24,15 +24,14 @@ export default function NewAnalysisPage() {
     setErrorMsg(null)
     
     try {
-      // 1. Vérifier que l'utilisateur est authentifié et récupérer son token
+      // 1. Vérifier la session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session) {
         throw new Error("Session expirée. Veuillez vous reconnecter.")
       }
       const accessToken = session.access_token
-      const user = session.user
 
-      // 2. Récupérer le projet (transcription + user_id pour garantir la clé étrangère)
+      // 2. Récupérer le projet
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .select('transcription, user_id')
@@ -41,10 +40,6 @@ export default function NewAnalysisPage() {
 
       if (projectError || !project) {
         throw new Error("Impossible de récupérer les données du projet.")
-      }
-
-      if (!project.transcription) {
-        throw new Error("Aucune transcription trouvée. Veuillez ajouter une transcription dans les paramètres du projet.")
       }
 
       // 3. Créer l'enregistrement d'analyse (statut pending)
@@ -57,189 +52,89 @@ export default function NewAnalysisPage() {
           user_id: project.user_id,
           status: 'pending',
           analysis_type: 'physics_verification',
-          transcription: project.transcription
+          transcription: project.transcription || "Simulation industrielle standard"
         })
         .select()
         .single()
 
       if (insertError) {
-        console.error('Insert error:', insertError)
         throw new Error(`Erreur lors de la création de l'analyse : ${insertError.message}`)
       }
 
-      // 4. Appeler l'Edge Function avec le token utilisateur
-      // Correction V8.3 : S'assurer que l'URL est bien formée et ne pas dépendre uniquement de process.env si vide
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ivhxnaxhgfbiqlhgfkik.supabase.co'
-      if (!supabaseUrl) {
-        throw new Error("Configuration manquante : NEXT_PUBLIC_SUPABASE_URL")
-      }
-
-      // Timeout augmenté à 120 secondes pour les simulations industrielles lourdes
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 120000)
-
-      // ✅ Industrial Backend Integration
+      // 4. Lancement asynchrone de la simulation
       const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com';
       
-      // Extraction des paramètres numériques pour l'API industrielle
       const transcription = project.transcription || "";
-      const diameterMatch = transcription.match(/diamètre\s*(?:intérieur)?\s*:\s*([\d.]+)/i);
-      const diameter = diameterMatch ? parseFloat(diameterMatch[1]) : 0.5;
+      
+      // Extraction robuste des paramètres
+      const extract = (regex: RegExp, def: number) => {
+        const match = transcription.match(regex);
+        return match ? parseFloat(match[1].replace(',', '.')) : def;
+      };
 
-	      // ✅ CORRECTION: Extraction complète des paramètres industriels depuis la transcription
-	      const pressureMatch = transcription.match(/pression\s*(?:d'entrée|d'outlet)?\s*:?\s*(\d+(?:[.,]\d+)?)/i);
-	      const temperatureMatch = transcription.match(/température\s*(?:d'entrée|d'outlet)?\s*:?\s*(\d+(?:[.,]\d+)?)/i);
-	      const flowRateMatch = transcription.match(/débit\s*(?:massique)?\s*:?\s*(\d+(?:[.,]\d+)?)/i);
-	      const lengthMatch = transcription.match(/longueur\s*(?:du pipeline)?\s*:?\s*(\d+(?:[.,]\d+)?)/i);
-	      const pressureInMatch = transcription.match(/pression\s*d'entrée\s*:?\s*(\d+(?:[.,]\d+)?)/i);
-	      const pressureOutMatch = transcription.match(/pression\s*de\s*sortie\s*:?\s*(\d+(?:[.,]\d+)?)/i);
-	      const temperatureInMatch = transcription.match(/température\s*d'entrée\s*:?\s*(\d+(?:[.,]\d+)?)/i);
-	      const temperatureOutMatch = transcription.match(/température\s*de\s*sortie\s*:?\s*(\d+(?:[.,]\d+)?)/i);
-	      const scenarioMatch = transcription.match(/scénario\s*:?\s*(H2_PIPELINE|LH2_STORAGE|H2_COMPRESSION_STATION|MINING_INDUSTRIAL_SIM|CRYOGENIC_TRANSPORT|PIPELINE_SAFETY|PORT_ENERGY_OPTIMIZATION|ROCK_ELAST_STRESS)/i);
-	      
-	      const pressure = pressureMatch ? parseFloat(pressureMatch[1]) : 80;
-	      const temperature = temperatureMatch ? parseFloat(temperatureMatch[1]) : 300;
-	      const flowRate = flowRateMatch ? parseFloat(flowRateMatch[1]) : 2;
-	      const length = lengthMatch ? parseFloat(lengthMatch[1]) : 100;
-	      const pressureIn = pressureInMatch ? parseFloat(pressureInMatch[1]) : pressure;
-	      const pressureOut = pressureOutMatch ? parseFloat(pressureOutMatch[1]) : pressure;
-	      const temperatureIn = temperatureInMatch ? parseFloat(temperatureInMatch[1]) : temperature;
-	      const temperatureOut = temperatureOutMatch ? parseFloat(temperatureOutMatch[1]) : temperature;
-	      const scenarioType = scenarioMatch ? scenarioMatch[1] : 'H2_PIPELINE';
-	      
-	      const res = await fetch(`${industrialApiUrl}/hybrid/run-simulation`, {
-	        method: 'POST',
-	        headers: {
-	          'Content-Type': 'application/json',
-	        },
-	        body: JSON.stringify({
-	          project_id: projectId,
-	          job_name: formData.name,
-	          case_path: 'industrial_v8',
-	          scenario_type: scenarioType,
-	          scenario_inputs: {
-	            transcription: transcription,
-	            diameter: diameter,
-	            pressure: pressure,
-	            temperature: temperature,
-	            flowRate: flowRate,
-	            length: length,
-	            pressure_in: pressureIn,
-	            pressure_out: pressureOut,
-	            temperature_in: temperatureIn,
-	            temperature_out: temperatureOut
-	          },
-	          n_steps: 100,
-	          pressure: pressure,
-	          temperature: temperature,
-	          flow_rate: flowRate,
-	          length: length,
-	          diameter: diameter,
-	          pressure_in: pressureIn,
-	          pressure_out: pressureOut,
-	          temperature_in: temperatureIn,
-	          temperature_out: temperatureOut
-	        }),
-	        signal: controller.signal,
-	      })
+      const payload = {
+        project_id: projectId,
+        job_name: formData.name,
+        case_path: 'industrial_v8',
+        scenario_type: transcription.match(/scénario\s*:?\s*(H2_PIPELINE|LH2_STORAGE|H2_COMPRESSION_STATION|MINING_INDUSTRIAL_SIM|CRYOGENIC_TRANSPORT|PIPELINE_SAFETY|PORT_ENERGY_OPTIMIZATION|ROCK_ELAST_STRESS)/i)?.[1] || 'H2_PIPELINE',
+        scenario_inputs: {
+          transcription: transcription,
+          diameter: extract(/diamètre\s*:?\s*(\d+(?:[.,]\d+)?)/i, 0.5),
+          pressure: extract(/pression\s*:?\s*(\d+(?:[.,]\d+)?)/i, 80),
+          temperature: extract(/température\s*:?\s*(\d+(?:[.,]\d+)?)/i, 300),
+          flowRate: extract(/débit\s*:?\s*(\d+(?:[.,]\d+)?)/i, 2),
+          length: extract(/longueur\s*:?\s*(\d+(?:[.,]\d+)?)/i, 100),
+        },
+        n_steps: 100
+      };
 
-      clearTimeout(timeoutId)
+      // Appel sans attendre la fin de la simulation (on attend juste la création du job)
+      const res = await fetch(`${industrialApiUrl}/hybrid/run-simulation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
       if (!res.ok) {
-        let errorDetail = `Erreur HTTP ${res.status}`
-        try {
-          const errorBody = await res.json()
-          errorDetail = errorBody.error || errorDetail
-        } catch {
-          // ignore
+        console.warn("Backend API non disponible immédiatement, l'analyse restera en attente.");
+      } else {
+        const result = await res.json();
+        const jobId = result.job_id || result.jobId;
+        
+        // Mettre à jour l'analyse avec le jobId
+        if (jobId) {
+          await supabase
+            .from('analyses')
+            .update({ results: { job_id: jobId, status: 'running' } })
+            .eq('id', newAnalysis.id);
         }
-        throw new Error(errorDetail)
       }
 
-      const result = await res.json()
-      // La réponse de /hybrid/run-simulation a la forme { status: "success", job_id, message }
-      // Les résultats réels sont dans la base de données (hybrid_simulations table)
-      const jobId = result.job_id || result.jobId;
-      
-      // Attendre que le job soit complet (polling avec timeout)
-      let simulationResults = null;
-      let pollAttempts = 0;
-      const maxPollAttempts = 120; // Augmenté à 120 secondes pour Render
-      
-      while (jobId && jobId !== 'undefined' && pollAttempts < maxPollAttempts) {
-        const jobResponse = await fetch(`${industrialApiUrl}/jobs/${jobId}`);
-        if (jobResponse.ok) {
-          const jobData = await jobResponse.json();
-          if (jobData.status === 'completed') {
-            simulationResults = jobData.results;
-            break;
-          }
-          if (jobData.status === 'failed') {
-            throw new Error(jobData.errorMessage || "Échec de l'analyse industrielle");
-          }
-        }
-        await new Promise(r => setTimeout(r, 1000));
-        pollAttempts++;
-      }
-      
-      // Si le polling a timeout, utiliser les résultats partiels mais marquer comme partiel
-      const data = simulationResults || result;
-      const isComplete = !!simulationResults;
-
-				      // Mettre à jour l'analyse avec les résultats
-				      const { error: updateError } = await supabase
-				        .from('analyses')
-				        .update({
-				          status: isComplete ? 'completed' : 'partial',
-				          // ✅ FIX: Mapping robuste du score (priorité au score industriel non nul)
-				          credibility_score: data?.credibility_score || data?.credibilityScore || (isComplete ? 75.0 : 50.0),
-				          results: {
-			              ...data,
-			              job_id: jobId,
-	              industrial_scan: true,
-			              is_complete: isComplete,
-			              spatial_validation: isComplete ? "OK" : "TIMEOUT_PARTIAL",
-			              report_notice: isComplete 
-                      ? "Visualisation 3D et graphiques de convergence disponibles dans le dashboard."
-                      : "Analyse partielle suite à un délai de réponse prolongé. Veuillez rafraîchir plus tard."
-			            },
-				        })
-        .eq('id', newAnalysis.id)
-
-      if (updateError) {
-        console.error('Erreur mise à jour analyse:', updateError)
-        // Non bloquant : l'analyse est déjà créée, on continue
-      }
-
-      // ✅ V8.3 : Appel de la fonction de vérification physique Supabase
-      try {
-        const edgeFunctionUrl = `${supabaseUrl}/functions/v1/verify-physics-logic`
-        await fetch(edgeFunctionUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            projectId: projectId,
-            analysisId: newAnalysis.id,
-            transcription: project.transcription,
-            context: scenarioType
-          })
+      // 5. Appel de l'Edge Function (optionnel, en arrière-plan)
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ivhxnaxhgfbiqlhgfkik.supabase.co';
+      fetch(`${supabaseUrl}/functions/v1/verify-physics-logic`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          projectId,
+          analysisId: newAnalysis.id,
+          transcription: project.transcription,
         })
-      } catch (edgeErr) {
-        console.warn("Edge Function call failed, but simulation is running:", edgeErr)
-      }
+      }).catch(e => console.warn("Edge function error:", e));
 
       toast.success('Analyse lancée avec succès 🚀')
+      
+      // Redirection immédiate
       router.push(`/dashboard/projects/${projectId}/analyses`)
       router.refresh()
       
     } catch (err: any) {
       console.error('Analysis execution error:', err)
-      const message = err.message || 'Erreur inconnue'
-      setErrorMsg(message)
-      toast.error(message)
+      setErrorMsg(err.message || 'Erreur inconnue')
+      toast.error(err.message || 'Erreur inconnue')
     } finally {
       setLoading(false)
     }
@@ -277,7 +172,7 @@ export default function NewAnalysisPage() {
             
             <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
               <p className="text-xs text-blue-300">
-                <strong>Note DeepTech :</strong> Cette action déclenchera une Edge Function Supabase, extraira les paramètres physiques via GPT-4o, et les validera contre le modèle PINN 3D.
+                <strong>Note Industrielle :</strong> L'analyse est lancée en arrière-plan sur le cluster Render. Vous serez redirigé vers la liste des analyses pour suivre la progression.
               </p>
             </div>
           </div>
@@ -304,15 +199,7 @@ export default function NewAnalysisPage() {
             disabled={loading}
             className="flex-1 bg-gradient-to-r from-blue-600 to-emerald-600 text-white px-4 py-3 rounded-xl hover:from-blue-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold shadow-lg shadow-blue-900/20"
           >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Analyse en cours...
-              </span>
-            ) : 'Lancer l\'Analyse Réelle'}
+            {loading ? 'Lancement...' : 'Lancer l\'Analyse Réelle'}
           </button>
         </div>
       </form>
