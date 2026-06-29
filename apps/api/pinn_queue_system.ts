@@ -319,7 +319,7 @@ export class PINNQueueManager extends EventEmitter {
     modelConfig: any,
     dataPoints?: any[]
   ): Promise<any> {
-    const apiUrl = process.env.H2_INFERENCE_API_URL || 'https://quantum-pinn-api-qef2.onrender.com'
+    const apiUrl = process.env.H2_INFERENCE_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com'
 
     let endpoint = ''
     let payload = {}

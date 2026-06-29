@@ -152,7 +152,7 @@ const validated = PhysicalParametersSchema.parse(parsed)
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 OPENAI_API_KEY=sk-...
-H2_INFERENCE_API_URL=https://quantum-pinn-api-qef2.onrender.com
+H2_INFERENCE_API_URL=https://quantum-hybrid-pinn-jdoj.onrender.com
 ```
 
 ---

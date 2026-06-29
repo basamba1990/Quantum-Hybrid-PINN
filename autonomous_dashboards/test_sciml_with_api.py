@@ -29,7 +29,7 @@ def test_pipeline_scenario():
     """Test 1: Scénario Pipeline H2 - Transport sur 100 km"""
     print_section("TEST 1 : PIPELINE H2 - TRANSPORT 100 KM")
     
-    API_URL = os.getenv("H2_INFERENCE_API_URL", "https://quantum-pinn-api-qef2.onrender.com")
+    API_URL = os.getenv("H2_INFERENCE_API_URL", "https://quantum-hybrid-pinn-jdoj.onrender.com")
     sciml_engine = SciMLEngine(API_URL)
     
     pipeline_inputs = {
@@ -79,7 +79,7 @@ def test_lh2_storage_scenario():
     """Test 2: Scénario Stockage LH2 - Réservoir cryogénique"""
     print_section("TEST 2 : STOCKAGE LH2 - RÉSERVOIR CRYOGÉNIQUE")
     
-    API_URL = os.getenv("H2_INFERENCE_API_URL", "https://quantum-pinn-api-qef2.onrender.com")
+    API_URL = os.getenv("H2_INFERENCE_API_URL", "https://quantum-hybrid-pinn-jdoj.onrender.com")
     sciml_engine = SciMLEngine(API_URL)
     
     lh2_inputs = {
@@ -120,7 +120,7 @@ def test_rock_stress_scenario():
     """Test 3: Scénario Stress Rocheux - Stockage géologique"""
     print_section("TEST 3 : STRESS ROCHEUX - STOCKAGE GÉOLOGIQUE")
     
-    API_URL = os.getenv("H2_INFERENCE_API_URL", "https://quantum-pinn-api-qef2.onrender.com")
+    API_URL = os.getenv("H2_INFERENCE_API_URL", "https://quantum-hybrid-pinn-jdoj.onrender.com")
     sciml_engine = SciMLEngine(API_URL)
     
     rock_inputs = {
@@ -173,7 +173,7 @@ def generate_summary_report(pipeline_data, lh2_data, rock_data):
         print(f"{name:<30} {score:<15.1f} {status:<20}")
     
     print("\nIntégration API Quantum-Hybrid-PINN:")
-    print(f"  • Endpoint: https://quantum-pinn-api-qef2.onrender.com/v2/predict-batch")
+    print(f"  • Endpoint: https://quantum-hybrid-pinn-jdoj.onrender.com/v2/predict-batch")
     print(f"  • Statut: ✓ Connecté et fonctionnel")
     print(f"  • Prédictions PINN: Intégrées dans les 3 scénarios")
     print(f"  • Résidus (différences finies): Calculés et validés")

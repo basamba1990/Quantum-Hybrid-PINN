@@ -58,7 +58,7 @@ import requests
 import time
 import random
 
-API_URL = "https://quantum-pinn-api-qef2.onrender.com/v2/assimilate"
+API_URL = "https://quantum-hybrid-pinn-jdoj.onrender.com/v2/assimilate"
 
 def read_scada_sensors():
     # Simulation de lecture de capteurs réels (ex: Modbus/OPC-UA)

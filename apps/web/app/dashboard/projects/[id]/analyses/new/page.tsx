@@ -79,7 +79,7 @@ export default function NewAnalysisPage() {
       const timeoutId = setTimeout(() => controller.abort(), 30000)
 
       // ✅ Industrial Backend Integration
-      const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
+      const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com';
       
       // Extraction des paramètres numériques pour l'API industrielle
       const transcription = project.transcription || "";

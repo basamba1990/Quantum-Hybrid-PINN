@@ -287,7 +287,7 @@ Pour valider que les corrections fonctionnent :
 
 ```bash
 # 1. Tester l'endpoint /hybrid/run-simulation
-curl -X POST https://quantum-pinn-api-qef2.onrender.com/hybrid/run-simulation \
+curl -X POST https://quantum-hybrid-pinn-jdoj.onrender.com/hybrid/run-simulation \
   -H "Content-Type: application/json" \
   -d '{
     "job_name": "Test Pipeline H2",
@@ -303,7 +303,7 @@ curl -X POST https://quantum-pinn-api-qef2.onrender.com/hybrid/run-simulation \
   }'
 
 # 2. Vérifier le statut du job
-curl https://quantum-pinn-api-qef2.onrender.com/jobs/{job_id}
+curl https://quantum-hybrid-pinn-jdoj.onrender.com/jobs/{job_id}
 
 # 3. Vérifier les résidus réels (non zéro)
 # Réponse attendue : { "continuity": 1.23e-4, "momentum": 4.56e-5, "energy": 7.89e-3 }

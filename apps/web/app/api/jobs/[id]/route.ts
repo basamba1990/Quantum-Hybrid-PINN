@@ -6,7 +6,7 @@ export async function GET(
 ) {
   const { id } = await params;
   try {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com';
     const response = await fetch(`${API_URL}/jobs/${id}`, {
       headers: { 'Content-Type': 'application/json' },
       cache: 'no-store'

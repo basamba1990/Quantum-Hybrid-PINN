@@ -7,7 +7,7 @@ import autoTable from "https://esm.sh/jspdf-autotable";
 
 const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
-  H2_INFERENCE_API_URL: z.string().url().default("https://quantum-pinn-api-qef2.onrender.com"),
+  H2_INFERENCE_API_URL: z.string().url().default("https://quantum-hybrid-pinn-jdoj.onrender.com"),
   SUPABASE_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   LOG_LEVEL: z.enum(["debug","info","warn","error"]).default("info"),
