@@ -165,6 +165,16 @@ export default function SimulationsPage() {
     }
   }
   const { x, pressure, velocity, temperature, damage, k, epsilon, stress, residuals, isEmpty } = getChartData()
+  
+  // ✅ FIX: Extraction des résultats pour utilisation dans le JSX (résolution erreur compilation Vercel)
+  let results = selectedAnalysis?.results as any;
+  if (typeof results === 'string') {
+    try {
+      results = JSON.parse(results);
+    } catch (e) {
+      results = {};
+    }
+  }
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
