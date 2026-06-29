@@ -74,9 +74,9 @@ export default function NewAnalysisPage() {
         throw new Error("Configuration manquante : NEXT_PUBLIC_SUPABASE_URL")
       }
 
-      // Timeout de 30 secondes pour la fonction (peut être long à cause de GPT-4o)
+      // Timeout augmenté à 120 secondes pour les simulations industrielles lourdes
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000)
+      const timeoutId = setTimeout(() => controller.abort(), 120000)
 
       // ✅ Industrial Backend Integration
       const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com';
@@ -164,7 +164,7 @@ export default function NewAnalysisPage() {
       // Attendre que le job soit complet (polling avec timeout)
       let simulationResults = null;
       let pollAttempts = 0;
-      const maxPollAttempts = 60; // Augmenté à 60 secondes pour Render
+      const maxPollAttempts = 120; // Augmenté à 120 secondes pour Render
       
       while (jobId && jobId !== 'undefined' && pollAttempts < maxPollAttempts) {
         const jobResponse = await fetch(`${industrialApiUrl}/jobs/${jobId}`);
