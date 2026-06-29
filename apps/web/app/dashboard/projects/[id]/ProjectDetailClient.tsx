@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Project, Report } from '@/types'
 import PDFViewer from '@/components/pdf-viewer'
-import Industrial3DVisualizer from '@/components/industrial-3d-visualizer-enhanced'
+import Industrial3DVisualizerIndustrialGrade from '@/components/industrial-3d-visualizer-industrial-grade'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import { 
@@ -233,8 +233,14 @@ export default function ProjectDetailClient({ id }: { id: string }) {
             Visualisation Scientifique 3D (Dernière Analyse)
           </h2>
           <div className="rounded-2xl overflow-hidden bg-black/20 border border-white/5">
-            <Industrial3DVisualizer 
-              data={predictions3d} 
+            <Industrial3DVisualizerIndustrialGrade 
+              data={predictions3d}
+              scenario={{
+                reynolds: (latestAnalysis as any)?.reynolds,
+                mach: (latestAnalysis as any)?.mach,
+                description: project?.description,
+              }}
+              showValidation={true}
             />
           </div>
         </div>
