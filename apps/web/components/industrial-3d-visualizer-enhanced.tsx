@@ -34,7 +34,8 @@ const Industrial3DVisualizerEnhanced: React.FC<Props> = ({ data = [] }) => {
     let animationFrameId: number
 
     const init = async () => {
-      const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls')
+      // @ts-ignore - OrbitControls path is valid in runtime but may cause TS issues during build
+      const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js')
 
       const scene = new THREE.Scene()
       scene.background = new THREE.Color(0x020617)
