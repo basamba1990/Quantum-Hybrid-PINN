@@ -682,6 +682,49 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             transcription=request.transcription
         )
 
+        # ✅ PHASE 2: Calcul des métadonnées industrielles
+        # Détection des limites du domaine à partir des prédictions 3D
+        if predictions_list:
+            x_coords = [p['x'] for p in predictions_list]
+            y_coords = [p['y'] for p in predictions_list]
+            z_coords = [p['z'] for p in predictions_list]
+            domain_bounds = {
+                "xMin": float(min(x_coords)),
+                "xMax": float(max(x_coords)),
+                "yMin": float(min(y_coords)),
+                "yMax": float(max(y_coords)),
+                "zMin": float(min(z_coords)),
+                "zMax": float(max(z_coords)),
+            }
+        else:
+            domain_bounds = {"xMin": 0.0, "xMax": 1.0, "yMin": 0.0, "yMax": 1.0, "zMin": 0.0, "zMax": 1.0}
+        
+        # Calcul du nombre de Reynolds (si disponible)
+        reynolds = 1.0
+        if hasattr(current_model_v8, 'reynolds'):
+            reynolds = float(current_model_v8.reynolds)
+        elif request.scenario_inputs and 'reynolds' in request.scenario_inputs:
+            reynolds = float(request.scenario_inputs['reynolds'])
+        
+        # Calcul du nombre de Mach (si applicable)
+        mach = 0.0
+        if request.scenario_inputs and 'mach' in request.scenario_inputs:
+            mach = float(request.scenario_inputs['mach'])
+        
+        # Propriétés du fluide
+        fluid_properties = {
+            "density": float(current_model_v8.rho_ref) if hasattr(current_model_v8, 'rho_ref') else 1.0,
+            "viscosity": float(current_model_v8.mu_ref) if hasattr(current_model_v8, 'mu_ref') else 1e-5,
+            "temperature_ref": float(current_model_v8.T_ref) if hasattr(current_model_v8, 'T_ref') else 293.15,
+        }
+        
+        # Métriques de convergence
+        convergence_metrics = {
+            "residual_max": float(max([final_residuals.get(k, 0.0) for k in ['continuity', 'momentum', 'energy']])),
+            "residual_avg": float(weighted_res),
+            "iterations": int(num_steps),
+        }
+        
         final_result = {
             "iteration": num_steps,
             "cfdTime": num_steps * 0.042,
@@ -695,7 +738,12 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             "uncertainty": final_residuals.get("uncertainty", 0.05),
             "predictions3d": clean_json(predictions_list),
             "scenario_outputs": clean_json(scenario_outputs),
-            "log": f"Convergence stable après {num_steps} itérations.\nCalcul des résidus via AutoGrad terminé.\nIncertitude MC Dropout calculée.\nChamps 3D (P, V, T) générés avec succès."
+            "log": f"Convergence stable après {num_steps} itérations.\nCalcul des résidus via AutoGrad terminé.\nIncertitude MC Dropout calculée.\nChamps 3D (P, V, T) générés avec succès.",
+            "reynolds": reynolds,
+            "mach": mach,
+            "domain_bounds": domain_bounds,
+            "fluid_properties": fluid_properties,
+            "convergence_metrics": convergence_metrics,
         }
         
         # Génération du rapport PDF industriel

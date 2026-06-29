@@ -23,6 +23,13 @@ export interface Prediction3D {
   y: number;
   z: number;
   timestamp: string;
+  velocity_magnitude?: number;
+  damage?: number;
+  tke?: number;
+  epsilon?: number;
+  stress?: number;
+  uncertainty?: number;
+  residual?: number;
 }
 
 export interface AnalysisResults {
@@ -48,6 +55,27 @@ export interface Analysis {
   credibility_score?: number
   created_at: string
   updated_at: string
+  reynolds?: number
+  mach?: number
+  domain_bounds?: {
+    xMin: number
+    xMax: number
+    yMin: number
+    yMax: number
+    zMin: number
+    zMax: number
+  }
+  fluid_properties?: {
+    density: number
+    viscosity: number
+    temperature_ref: number
+  }
+  boundary_conditions?: string
+  convergence_metrics?: {
+    residual_max: number
+    residual_avg: number
+    iterations: number
+  }
 }
 
 export interface Report {
@@ -57,6 +85,9 @@ export interface Report {
   file_url: string
   created_at: string
   updated_at: string
+  file_type?: string
+  file_size_kb?: number
+  file_name?: string
 }
 
 export interface User {
