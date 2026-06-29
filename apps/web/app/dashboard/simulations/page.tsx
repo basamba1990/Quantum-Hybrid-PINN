@@ -285,14 +285,42 @@ export default function SimulationsPage() {
                     </TabsContent>
                     
                     <TabsContent value="residuals" className="mt-6 h-[400px]">
-                      {residuals ? (
+                      {results?.residual_history && results.residual_history.length > 0 ? (
+                        <Plot 
+                          data={[
+                            { 
+                              x: results.residual_history.map((h: any) => h.iteration), 
+                              y: results.residual_history.map((h: any) => h.residuals.continuity), 
+                              type: 'scatter' as const, mode: 'lines', name: 'Masse', line: { color: '#ef4444', width: 2 } 
+                            },
+                            { 
+                              x: results.residual_history.map((h: any) => h.iteration), 
+                              y: results.residual_history.map((h: any) => h.residuals.momentum), 
+                              type: 'scatter' as const, mode: 'lines', name: 'Momentum', line: { color: '#3b82f6', width: 2 } 
+                            },
+                            { 
+                              x: results.residual_history.map((h: any) => h.iteration), 
+                              y: results.residual_history.map((h: any) => h.residuals.energy), 
+                              type: 'scatter' as const, mode: 'lines', name: 'Énergie', line: { color: '#10b981', width: 2 } 
+                            }
+                          ] as any} 
+                          layout={{ 
+                            autosize: true, 
+                            paper_bgcolor: 'rgba(0,0,0,0)', 
+                            plot_bgcolor: 'rgba(0,0,0,0)', 
+                            font: { color: '#fff' },
+                            yaxis: { type: 'log', title: 'Résidus (Log)', gridcolor: 'rgba(255,255,255,0.1)', exponentformat: 'e' },
+                            xaxis: { title: 'Itérations', gridcolor: 'rgba(255,255,255,0.1)' }
+                          }} 
+                          useResizeHandler 
+                          style={{ width: '100%', height: '100%' }} 
+                        />
+                      ) : residuals ? (
                         <Plot 
                           data={[
                             { x, y: residuals.continuity || residuals.continuity_residual, type: 'scatter' as const, mode: 'lines', name: 'Masse', line: { color: '#ef4444' } },
                             { x, y: residuals.momentum || residuals.momentum_x || residuals.momentum_residual, type: 'scatter' as const, mode: 'lines', name: 'Momentum', line: { color: '#3b82f6' } },
-                            { x, y: residuals.energy || residuals.energy_residual, type: 'scatter' as const, mode: 'lines', name: 'Énergie', line: { color: '#10b981' } },
-                            { x, y: residuals.k, type: 'scatter' as const, mode: 'lines', name: 'k', line: { color: '#f59e0b' } },
-                            { x, y: residuals.epsilon, type: 'scatter' as const, mode: 'lines', name: 'epsilon', line: { color: '#ec4899' } }
+                            { x, y: residuals.energy || residuals.energy_residual, type: 'scatter' as const, mode: 'lines', name: 'Énergie', line: { color: '#10b981' } }
                           ].filter(d => d.y !== undefined) as any} 
                           layout={{ 
                             autosize: true, 

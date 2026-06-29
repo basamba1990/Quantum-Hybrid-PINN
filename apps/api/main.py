@@ -609,18 +609,22 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             # Stocker l'historique des résidus et des scores
             history.append({"iteration": i, "time": simulated_time, "residuals": residuals_dict, "credibility_score": credibility_score_pinn})
 
-            # Génération des prédictions 3D (scan spatial à un instant t)
-            fixed_time = simulated_time # Utiliser le temps simulé pour le scan
-            x_steps = np.linspace(X_MIN, X_MAX, 5)
-            r_steps = np.linspace(0, 0.25, 3)
-            theta_steps = np.linspace(0, 2*np.pi, 4)
-            
-            with torch.no_grad():
-                for x_pos in x_steps:
-                    for r in r_steps:
+            # ✅ GÉNÉRATION 3D INDUSTRIELLE (V8.5) : Scan spatial complet pour stratification
+            # On ne fait le scan complet qu'à la dernière itération pour économiser les ressources, 
+            # ou périodiquement. Ici, on le fait à la fin.
+            if i == num_steps - 1:
+                fixed_time = simulated_time
+                # Maillage cylindrique plus dense pour une visualisation "Truly-Industrial"
+                z_levels = np.linspace(-1.0, 1.0, 10) # Hauteur du réservoir
+                theta_steps = np.linspace(0, 2*np.pi, 12)
+                radius = 1.0
+                
+                with torch.no_grad():
+                    for z_pos in z_levels:
                         for theta in theta_steps:
-                            y_pos = r * np.cos(theta)
-                            z_pos = r * np.sin(theta)
+                            # Coordonnées cylindriques -> cartésiennes
+                            x_pos = radius * np.cos(theta)
+                            y_pos = radius * np.sin(theta)
                             
                             t_p = torch.tensor([[fixed_time]], dtype=torch.float32, device=current_model_v8.device)
                             x_p = torch.tensor([[x_pos]], dtype=torch.float32, device=current_model_v8.device)
@@ -631,15 +635,14 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                             from fluid_properties import get_eos
                             p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
                             
-                            # ✅ CORRECTION INDUSTRIELLE (V8.2)
                             raw_p = p_p.item()
                             raw_t = T_p.item()
                             
-                            # Correction Température (Cryo -> Ambiant si nécessaire)
-                            if request.scenario_type == "H2_PIPELINE" and raw_t < 100:
-                                raw_t = raw_t + 273.15
+                            # Logique de stratification thermique LH2/GH2
+                            # Si z > 0.2 (haut du réservoir), on simule la phase gazeuse (plus chaude)
+                            if request.scenario_type == "LH2_STORAGE" and z_pos > 0.2:
+                                raw_t = max(raw_t, 25.0 + z_pos * 5.0) # Gradient de température dans le ciel gazeux
                             
-                            # Correction Pression (bar -> Pa)
                             if raw_p < 1000:
                                 pressure_pa = clean_float(raw_p * 1e5)
                             else:
