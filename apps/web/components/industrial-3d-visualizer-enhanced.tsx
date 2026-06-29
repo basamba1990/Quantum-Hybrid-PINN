@@ -217,21 +217,21 @@ const Industrial3DVisualizerEnhanced: React.FC<Industrial3DVisualizerEnhancedPro
 
   return (
     <div className="w-full space-y-4">
-      <div ref={containerRef} className="w-full h-[600px] bg-slate-900 rounded-2xl border border-white/10 overflow-hidden shadow-2xl" />
+      <div ref={containerRef} className="w-full h-[500px] bg-slate-900 rounded-xl border border-white/10 overflow-hidden shadow-2xl" />
       
       {/* Statistiques industrielles */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-          <p className="text-xs text-gray-500 uppercase tracking-widest">Points Analysés</p>
-          <p className="text-2xl font-bold text-blue-400 mt-2">{stats.pointCount}</p>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+          <p className="text-[10px] text-gray-500 uppercase tracking-tight font-bold">Points</p>
+          <p className="text-lg font-black text-blue-400 mt-1">{stats.pointCount}</p>
         </div>
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-          <p className="text-xs text-gray-500 uppercase tracking-widest">Température Moyenne</p>
-          <p className="text-2xl font-bold text-emerald-400 mt-2">{stats.avgTemp} K</p>
+        <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+          <p className="text-[10px] text-gray-500 uppercase tracking-tight font-bold">Temp. Moy.</p>
+          <p className="text-lg font-black text-emerald-400 mt-1">{stats.avgTemp} K</p>
         </div>
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-          <p className="text-xs text-gray-500 uppercase tracking-widest">Vélocité Max</p>
-          <p className="text-2xl font-bold text-orange-400 mt-2">{stats.maxVelocity} m/s</p>
+        <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+          <p className="text-[10px] text-gray-500 uppercase tracking-tight font-bold">Vélocité Max</p>
+          <p className="text-lg font-black text-orange-400 mt-1">{stats.maxVelocity} m/s</p>
         </div>
       </div>
     </div>

@@ -10,7 +10,7 @@ import {
   Box,
   Activity
 } from 'lucide-react'
-import PINN3DVisualizer from './pinn-3d-visualizer'
+import Industrial3DVisualizer from './industrial-3d-visualizer-enhanced'
 import HybridChartVisualizer from './hybrid-chart-visualizer'
 import type { Prediction3D } from '@/types'
 
@@ -172,8 +172,10 @@ export default function ScientificAuditCard({
                 {/* Courbes 2D Temporelles */}
                 <HybridChartVisualizer predictions={auditData.predictions3d} title="Audit Scientifique PINN V8" />
                 
-                {/* Visualisation 3D */}
-                <PINN3DVisualizer predictions={auditData.predictions3d} />
+                {/* Visualisation 3D Cadrée Industrielle */}
+                <div className="max-w-4xl mx-auto border border-slate-200 rounded-2xl overflow-hidden shadow-inner bg-slate-900">
+                  <Industrial3DVisualizer data={auditData.predictions3d} />
+                </div>
                 
                 {/* Confidence Metrics */}
                 {auditData.confidenceMetrics && (
