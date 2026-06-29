@@ -36,7 +36,13 @@ const PINN3DVisualizer: React.FC<PINN3DVisualizerProps> = ({
         colorscale: 'RdYlBu_r',
         opacity: 0.9,
         showscale: true,
-        colorbar: { title: 'Température (K)', tickfont: { color: '#fff' } },
+        colorbar: { 
+          title: 'Température (K)', 
+          tickfont: { color: '#fff' },
+          // Force l'échelle pour montrer la stratification même si les écarts sont faibles
+          tickvals: [Math.min(...temp), (Math.min(...temp) + Math.max(...temp))/2, Math.max(...temp)],
+          ticktext: [Math.min(...temp).toFixed(1) + 'K', 'Interface', Math.max(...temp).toFixed(1) + 'K']
+        },
         name: 'Stratification Thermique'
       }]
     } else {
