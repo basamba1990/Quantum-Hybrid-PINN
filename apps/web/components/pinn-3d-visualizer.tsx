@@ -20,7 +20,7 @@ const PINN3DVisualizer: React.FC<PINN3DVisualizerProps> = ({
     const y = predictions.map(p => p.y)
     const z = predictions.map(p => p.z)
     const temp = predictions.map(p => p.temperature)
-    const vel = predictions.map(p => p.velocity_u || p.velocity || 0)
+    const vel = predictions.map(p => p.velocity_magnitude || p.velocity_u || p.velocity || 0)
 
     // Détection du type de visualisation : Stratification vs Trajectoire
     const isStratification = predictions.length > 50 && Math.abs(Math.max(...z) - Math.min(...z)) > 0.1

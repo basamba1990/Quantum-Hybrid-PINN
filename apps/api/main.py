@@ -640,13 +640,10 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                             
                             # Logique de stratification thermique LH2/GH2
                             # Si z > 0.2 (haut du réservoir), on simule la phase gazeuse (plus chaude)
-                            if request.scenario_type == "LH2_STORAGE" and z_pos > 0.2:
-                                raw_t = max(raw_t, 25.0 + z_pos * 5.0) # Gradient de température dans le ciel gazeux
+                            # V8.5 Industrial: No artificial stratification, using raw PINN temperature
                             
-                            if raw_p < 1000:
-                                pressure_pa = clean_float(raw_p * 1e5)
-                            else:
-                                pressure_pa = clean_float(raw_p)
+                            # V8.5 Industrial: Pressure directly from EOS (Pa)
+                            pressure_pa = clean_float(raw_p)
 
                             predictions_list.append({
                                 "time": fixed_time,
