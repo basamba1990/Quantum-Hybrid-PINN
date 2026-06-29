@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Project, Report } from '@/types'
 import PDFViewer from '@/components/pdf-viewer'
-import PINN3DVisualizer from '@/components/pinn-3d-visualizer'
+import Industrial3DVisualizer from '@/components/industrial-3d-visualizer-enhanced'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import { 
@@ -233,9 +233,8 @@ export default function ProjectDetailClient({ id }: { id: string }) {
             Visualisation Scientifique 3D (Dernière Analyse)
           </h2>
           <div className="rounded-2xl overflow-hidden bg-black/20 border border-white/5">
-            <PINN3DVisualizer 
-              predictions={predictions3d} 
-              title={`Simulation PINN - ${latestAnalysis.title || 'H2 Pipeline'}`}
+            <Industrial3DVisualizer 
+              data={predictions3d} 
             />
           </div>
         </div>
