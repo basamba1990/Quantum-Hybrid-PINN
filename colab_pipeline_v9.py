@@ -18,7 +18,7 @@ print("🚀 Initialisation du Pipeline Industriel Quantum-Hybrid V9...")
 REPO_NAME = "Quantum-Hybrid-PINN"
 # Remplacer par votre token GitHub pour le clonage
 REPO_URL = "https://github.com/basamba1990/Quantum-Hybrid-PINN.git"
-API_URL = "https://quantum-pinn-api-qef2.onrender.com"
+API_URL = "https://quantum-hybrid-pinn-jdoj.onrender.com"
 
 # Clonage authentifié (nettoyage préalable)
 if os.path.exists(REPO_NAME):

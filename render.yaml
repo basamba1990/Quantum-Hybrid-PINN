@@ -12,9 +12,9 @@ services:
       - key: MODEL_PATH
         value: models/pinn_model.pt
       - key: NEXT_PUBLIC_API_URL
-        value: https://quantum-pinn-api-qef2.onrender.com
+        value: https://quantum-hybrid-pinn-jdoj.onrender.com
       - key: H2_INFERENCE_API_URL
-        value: https://quantum-pinn-api-qef2.onrender.com
+        value: https://quantum-hybrid-pinn-jdoj.onrender.com
       - key: SUPABASE_URL
         value: https://ivhxnaxhgfbiqlhgfkik.supabase.co
       - key: SUPABASE_KEY

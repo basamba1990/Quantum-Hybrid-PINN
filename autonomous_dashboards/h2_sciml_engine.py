@@ -450,7 +450,7 @@ class SciMLEngine:
 
 
 if __name__ == "__main__":
-    API_URL = os.getenv("H2_INFERENCE_API_URL", "https://quantum-pinn-api-qef2.onrender.com")
+    API_URL = os.getenv("H2_INFERENCE_API_URL", "https://quantum-hybrid-pinn-jdoj.onrender.com")
     sciml_engine = SciMLEngine(API_URL)
 
     print(f"Using API URL: {API_URL}")

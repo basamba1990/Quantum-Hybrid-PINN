@@ -14,7 +14,7 @@ from h2_sciml_engine import SciMLEngine
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-API_BASE_URL = os.getenv("H2_INFERENCE_API_URL", "https://quantum-pinn-api-qef2.onrender.com")
+API_BASE_URL = os.getenv("H2_INFERENCE_API_URL", "https://quantum-hybrid-pinn-jdoj.onrender.com")
 OUTPUT_DIR = Path("digital_twins")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
