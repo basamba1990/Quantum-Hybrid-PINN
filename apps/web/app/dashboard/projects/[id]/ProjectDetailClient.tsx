@@ -242,5 +242,4 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
   )
 }
 
-// Import Eye icon
-import { Eye } from 'lucide-react'
+
