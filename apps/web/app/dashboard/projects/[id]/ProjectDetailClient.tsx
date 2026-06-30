@@ -4,8 +4,6 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Project, Report } from '@/types'
-import PDFViewer from '@/components/pdf-viewer'
-import Industrial3DVisualizerIndustrialGrade from '@/components/industrial-3d-visualizer-industrial-grade'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import { 
@@ -13,7 +11,6 @@ import {
   FileText, 
   BarChart3, 
   Settings2, 
-  Download, 
   Eye, 
   Activity,
   Cpu,
@@ -23,6 +20,14 @@ import {
   Clock
 } from 'lucide-react'
 
+// Import dynamique pour éviter le blocage au chargement
+import dynamic from 'next/dynamic'
+
+const Industrial3DVisualizer = dynamic(
+  () => import('@/components/industrial-3d-visualizer-industrial-grade'),
+  { ssr: false, loading: () => <div className="h-[500px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse">Initialisation du Moteur Graphique...</div> }
+)
+
 export default function ProjectDetailClient({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
@@ -31,20 +36,16 @@ export default function ProjectDetailClient({ id }: { id: string }) {
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
-  // ✅ Sécurisation du parsing des résultats
   const results = useMemo(() => {
     try {
       if (!latestAnalysis?.results) return {};
       let parsedResults = latestAnalysis.results;
-      if (typeof parsedResults === 'string') {
-        parsedResults = JSON.parse(parsedResults);
-      }
+      if (typeof parsedResults === 'string') parsedResults = JSON.parse(parsedResults);
       return parsedResults || {};
     } catch (e) {
-      console.error("Critical error parsing analysis results:", e);
       return {};
     }
-  }, [latestAnalysis?.results]);
+  }, [latestAnalysis]);
 
   const predictions3d = useMemo(() => {
     return Array.isArray(results?.predictions3d) ? results.predictions3d : [];
@@ -55,94 +56,43 @@ export default function ProjectDetailClient({ id }: { id: string }) {
       try {
         if (!id) return;
         
-        const { data: projectData, error: projectError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle()
-
-        if (projectError) throw projectError
+        const { data: projectData } = await supabase.from('projects').select('*').eq('id', id).maybeSingle()
         setProject(projectData)
 
-        const { data: reportsData, error: reportsError } = await supabase
-          .from('reports')
-          .select('*')
-          .eq('project_id', id)
-          .order('created_at', { ascending: false })
-
-        if (reportsError) console.error("Error fetching reports:", reportsError)
-        const fetchedReports = reportsData || []
-        setReports(fetchedReports)
+        const { data: reportsData } = await supabase.from('reports').select('*').eq('project_id', id).order('created_at', { ascending: false })
+        setReports(reportsData || [])
         
-        // Récupérer la dernière analyse terminée pour la visualisation 3D
-        const { data: analysisData, error: analysisError } = await supabase
-          .from('analyses')
-          .select('*')
-          .eq('project_id', id)
-          .eq('status', 'completed')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const { data: analysisData } = await supabase.from('analyses').select('*').eq('project_id', id).eq('status', 'completed').order('created_at', { ascending: false }).limit(1).maybeSingle();
         
-        if (analysisData && !analysisError) {
-          let processedAnalysis = { ...analysisData };
+        if (analysisData) {
+          let processed = { ...analysisData };
           try {
-            if (typeof processedAnalysis.results === 'string') {
-              processedAnalysis.results = JSON.parse(processedAnalysis.results);
-            }
-          } catch (e) {
-            console.error("Failed to parse analysis results", e);
-            processedAnalysis.results = {};
-          }
-          
-          processedAnalysis.results = processedAnalysis.results || {};
-          if (!processedAnalysis.results.predictions3d && !processedAnalysis.results.predictions_list) {
-             processedAnalysis.results.predictions3d = [];
-          }
-          
-          // ✅ Récupération explicite du score de crédibilité avec fallbacks multiples
-          const results = processedAnalysis.results || {};
-          // ✅ FIX: Utilisation des vrais scores stockés sans fallback artificiel à 85
-          processedAnalysis.credibility_score = analysisData.credibility_score ?? results.credibility_score ?? results.credibilityScore ?? results.overallScore ?? 0.0;
-          processedAnalysis.credibilityScore = processedAnalysis.credibility_score;
-          
-          // Les coordonnées x,y,z ne sont plus supprimées ici car elles sont gérées
-          // soit par le scan spatial industriel (vraies coordonnées), soit filtrées au niveau du composant de rendu.
-          // Cela permet de voir si le backend renvoie toujours 0.5 par erreur.
-          
-          setLatestAnalysis(processedAnalysis);
+            if (typeof processed.results === 'string') processed.results = JSON.parse(processed.results);
+          } catch (e) { processed.results = {}; }
+          setLatestAnalysis(processed);
         }
         
-        if (fetchedReports.length > 0) {
-          setSelectedReport(fetchedReports[0])
-        }
+        if (reportsData?.length) setSelectedReport(reportsData[0])
       } catch (err) {
-        console.error("Critical error in ProjectDetailClient:", err)
+        console.error("Fetch error:", err)
       } finally {
         setLoading(false)
       }
     }
-
     fetchData()
   }, [id, supabase])
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-[80vh] space-y-4">
-      <div className="relative h-12 w-12">
-        <div className="absolute inset-0 rounded-full border-2 border-blue-500/20" />
-        <div className="absolute inset-0 rounded-full border-t-2 border-blue-500 animate-spin" />
-      </div>
+      <div className="h-12 w-12 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
       <p className="text-xs font-mono text-blue-500 uppercase tracking-widest animate-pulse">Chargement du Module...</p>
     </div>
   )
 
-  if (!project || !project.id) return (
+  if (!project) return (
     <div className="p-8 flex flex-col items-center justify-center h-[60vh] text-center">
-      <div className="p-4 bg-red-500/10 rounded-full mb-4">
-        <Activity className="w-8 h-8 text-red-500" />
-      </div>
+      <Activity className="w-12 h-12 text-red-500 mb-4" />
       <h2 className="text-2xl font-bold text-white">Projet Introuvable</h2>
-      <p className="text-gray-400 mt-2">L'identifiant de simulation spécifié est invalide ou a été archivé.</p>
       <Link href="/dashboard" className="mt-6 text-blue-500 hover:underline flex items-center gap-2">
         <ArrowLeft className="w-4 h-4" /> Retour au Nexus
       </Link>
@@ -150,63 +100,32 @@ export default function ProjectDetailClient({ id }: { id: string }) {
   )
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 relative">
-      {/* Header Navigation */}
+    <div className="p-8 max-w-7xl mx-auto space-y-8">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <Link 
-          href="/dashboard" 
-          className="group flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm font-medium"
-        >
-          <div className="p-1.5 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
-          </div>
-          Retour au Nexus
+        <Link href="/dashboard" className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm font-medium">
+          <ArrowLeft className="w-4 h-4" /> Retour au Nexus
         </Link>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono text-blue-400 uppercase tracking-widest">
-            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" />
-            Simulation Live
-          </div>
-          <button className="p-2 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all">
-            <Settings2 className="w-4 h-4" />
-          </button>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono text-blue-400 uppercase tracking-widest">
+          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" /> Simulation Live
         </div>
       </div>
 
-      {/* Main Title & Info */}
-      <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-[32px] p-10 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] -z-10" />
+      {/* Hero */}
+      <div className="bg-white/[0.03] border border-white/10 rounded-[32px] p-10 relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
           <div className="space-y-4 max-w-2xl">
-            <div className="flex items-center gap-3 text-emerald-500 font-mono text-[10px] uppercase tracking-[0.2em]">
-              <Cpu className="w-4 h-4" />
-              <span>Module PINN V8.0 // {id.slice(0, 8)}</span>
+            <div className="flex items-center gap-3 text-emerald-500 font-mono text-[10px] uppercase tracking-widest">
+              <Cpu className="w-4 h-4" /> <span>Module PINN V8.0 // {id.slice(0, 8)}</span>
             </div>
             <h1 className="text-5xl font-black tracking-tighter text-white">{project.name}</h1>
-            <p className="text-gray-400 text-lg leading-relaxed">
-              {project.description || "Aucune description scientifique disponible pour cette unité de simulation."}
-            </p>
-            <div className="flex items-center gap-6 pt-2">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-500" />
-                <span className="text-xs text-gray-500">Initialisé le {project.created_at ? (function() { 
-                  try { return format(new Date(project.created_at), 'dd MMMM yyyy'); } 
-                  catch(e) { return 'Date invalide'; }
-                })() : 'Date inconnue'}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Database className="w-4 h-4 text-gray-500" />
-                <span className="text-xs text-gray-500">Statut: {project.status || 'Actif'}</span>
-              </div>
-            </div>
+            <p className="text-gray-400 text-lg leading-relaxed">{project.description}</p>
           </div>
           
           <div className="flex flex-col gap-3 min-w-[240px]">
             <Link href={`/dashboard/projects/${id}/analyses/new`} className="w-full">
-              <button className="w-full group relative px-6 py-4 bg-blue-600 text-white font-bold rounded-2xl overflow-hidden transition-all hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-blue-900/20">
-                <span className="relative flex items-center justify-center gap-2">
-                  <Activity className="w-5 h-5" /> Nouvelle Analyse
-                </span>
+              <button className="w-full px-6 py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+                <Activity className="w-5 h-5" /> Nouvelle Analyse
               </button>
             </Link>
             <div className="grid grid-cols-2 gap-3">
@@ -225,140 +144,52 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* Visualiseur 3D PINN sécurisé */}
-      {latestAnalysis && predictions3d.length > 0 && (
-        <div className="bg-gradient-to-br from-white/[0.03] to-transparent border border-white/10 rounded-[32px] p-8">
+      {/* Visualiseur 3D */}
+      {predictions3d.length > 0 && (
+        <div className="bg-white/[0.03] border border-white/10 rounded-[32px] p-8">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-blue-500" />
-            Visualisation Scientifique 3D (Dernière Analyse)
+            <Activity className="w-5 h-5 text-blue-500" /> Visualisation Scientifique 3D
           </h2>
-          <div className="rounded-2xl overflow-hidden bg-black/20 border border-white/5">
-            <Industrial3DVisualizerIndustrialGrade 
-              data={predictions3d}
-              scenario={{
-                reynolds: (latestAnalysis as any)?.reynolds,
-                mach: (latestAnalysis as any)?.mach,
-                description: project?.description,
-              }}
-              showValidation={true}
-            />
-          </div>
+          <Industrial3DVisualizer data={predictions3d} />
         </div>
       )}
 
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Reports List */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="flex items-center justify-between px-2">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-500" />
-              Archives PDF
-            </h2>
-            <span className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] font-mono text-gray-500">{reports.length} UNITÉS</span>
-          </div>
-          
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <FileText className="w-5 h-5 text-blue-500" /> Archives PDF
+          </h2>
           <div className="space-y-3">
-            {reports.length === 0 ? (
-              <div className="p-8 rounded-[24px] border border-dashed border-white/10 bg-white/[0.01] text-center">
-                <FlaskConical className="w-8 h-8 text-gray-700 mx-auto mb-3" />
-                <p className="text-sm text-gray-500 font-medium">Aucun rapport généré.</p>
-                <p className="text-[10px] text-gray-600 mt-1 uppercase tracking-tighter">En attente de validation physique</p>
-              </div>
-            ) : (
-              reports.map((report) => (
-                <div 
-                  key={report.id}
-                  onClick={() => setSelectedReport(report)}
-                  className={`group relative p-4 border rounded-2xl transition-all cursor-pointer ${
-                    selectedReport?.id === report.id 
-                      ? 'bg-blue-500/10 border-blue-500/50' 
-                      : 'bg-white/5 border-white/10 hover:border-blue-500/30'
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl transition-all ${
-                      selectedReport?.id === report.id
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-blue-500/10 text-blue-400 group-hover:bg-blue-500 group-hover:text-white'
-                    }`}>
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-bold truncate transition-colors ${
-                        selectedReport?.id === report.id ? 'text-blue-400' : 'text-white group-hover:text-blue-400'
-                      }`}>{report.name}</p>
-                      <p className="text-[10px] font-mono text-gray-500 uppercase mt-1">
-                        {report.created_at ? (function() {
-                          try { return format(new Date(report.created_at), 'dd.MM.yyyy HH:mm'); }
-                          catch(e) { return 'Date invalide'; }
-                        })() : 'Date inconnue'}
-                      </p>
-                    </div>
-                    <ChevronRight className={`w-4 h-4 transition-colors ${
-                      selectedReport?.id === report.id ? 'text-blue-500' : 'text-gray-700 group-hover:text-blue-500'
-                    }`} />
+            {reports.map((report) => (
+              <div 
+                key={report.id}
+                onClick={() => setSelectedReport(report)}
+                className={`p-4 border rounded-2xl cursor-pointer transition-all ${selectedReport?.id === report.id ? 'bg-blue-500/10 border-blue-500/50' : 'bg-white/5 border-white/10 hover:border-blue-500/30'}`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-xl ${selectedReport?.id === report.id ? 'bg-blue-500 text-white' : 'bg-blue-500/10 text-blue-400'}`}>
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{report.name}</p>
+                    <p className="text-[10px] font-mono text-gray-500 uppercase mt-1">{report.created_at ? format(new Date(report.created_at), 'dd.MM.yyyy HH:mm') : ''}</p>
                   </div>
                 </div>
-              ))
-            )}
+              </div>
+            ))}
           </div>
-          
-          <Link href={`/dashboard/projects/${id}/reports`} className="block">
-            <button className="w-full py-4 rounded-2xl border border-white/5 bg-white/[0.02] text-xs font-bold text-gray-500 hover:text-white hover:bg-white/5 transition-all uppercase tracking-widest">
-              Gérer les rapports système
-            </button>
-          </Link>
         </div>
 
-        {/* Right Column: PDF Viewer / Preview */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="flex items-center justify-between px-2">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Eye className="w-5 h-5 text-emerald-500" />
-              Aperçu Scientifique
-            </h2>
-            {selectedReport && (
-              <a 
-                href={selectedReport.file_url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-[10px] font-bold text-blue-500 hover:text-blue-400 transition-colors uppercase tracking-widest"
-              >
-                <Download className="w-3.5 h-3.5" /> Exporter PDF
-              </a>
-            )}
-          </div>
-          
-          <div className="relative rounded-[32px] border border-white/10 bg-black/40 overflow-hidden min-h-[600px] flex flex-col items-center justify-center">
-            {selectedReport && selectedReport.file_url ? (
-              <div className="w-full h-full p-4 flex flex-col items-center justify-center">
-                <div className="w-full h-full bg-white/5 rounded-lg overflow-auto">
-                  <PDFViewer url={selectedReport.file_url} />
-                </div>
-              </div>
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Eye className="w-5 h-5 text-emerald-500" /> Aperçu Scientifique
+          </h2>
+          <div className="bg-white/5 border border-white/10 rounded-[32px] p-8 min-h-[400px] flex items-center justify-center">
+            {selectedReport ? (
+              <iframe src={selectedReport.file_url} className="w-full h-[600px] rounded-2xl border-none" />
             ) : (
-              <div className="text-center p-12 space-y-6">
-                <div className="relative">
-                  <div className="w-24 h-24 rounded-full border border-white/10 flex items-center justify-center mx-auto">
-                    <FileText className="w-10 h-10 text-gray-800" />
-                  </div>
-                  <div className="absolute inset-0 bg-blue-500/5 blur-2xl rounded-full" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-white">Visualiseur Inactif</h3>
-                  <p className="text-sm text-gray-500 max-w-xs mx-auto">
-                    {reports.length > 0 
-                      ? "Sélectionnez un rapport d'analyse dans la colonne de gauche pour charger l'aperçu technique."
-                      : "Générez votre première analyse pour visualiser les résultats techniques."}
-                  </p>
-                </div>
-                <Link href={`/dashboard/projects/${id}/analyses/new`}>
-                  <Button variant="outline" className="rounded-xl border-white/10 text-xs font-bold uppercase tracking-widest px-8">
-                    Générer la première analyse
-                  </Button>
-                </Link>
-              </div>
+              <p className="text-gray-500">Sélectionnez un rapport pour l'aperçu.</p>
             )}
           </div>
         </div>
