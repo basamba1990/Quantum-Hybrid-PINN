@@ -5,6 +5,68 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
+import { ArrowLeft, Zap, AlertCircle, CheckCircle2, Cpu, Gauge } from 'lucide-react'
+import Link from 'next/link'
+
+// Scénarios disponibles avec descriptions
+const SCENARIOS = [
+  {
+    id: 'H2_PIPELINE',
+    name: 'Pipeline Hydrogène',
+    description: 'Simulation thermodynamique d\'un pipeline H₂ haute pression avec analyse de chute de pression et risque de fuite',
+    icon: '🔬',
+    color: 'from-blue-600 to-cyan-600'
+  },
+  {
+    id: 'LH2_STORAGE',
+    name: 'Stockage LH₂',
+    description: 'Analyse cryogénique du stockage d\'hydrogène liquéfié avec calcul du taux d\'évaporation',
+    icon: '❄️',
+    color: 'from-cyan-600 to-blue-600'
+  },
+  {
+    id: 'H2_COMPRESSION_STATION',
+    name: 'Station de Compression',
+    description: 'Bilan thermodynamique d\'une station de compression H₂ avec vérification d\'efficacité isentropique',
+    icon: '⚙️',
+    color: 'from-emerald-600 to-green-600'
+  },
+  {
+    id: 'CRYOGENIC_TRANSPORT',
+    name: 'Transport Cryogénique',
+    description: 'Simulation des pertes thermiques lors du transport de LH₂ ou GNL',
+    icon: '🚚',
+    color: 'from-purple-600 to-pink-600'
+  },
+  {
+    id: 'PIPELINE_SAFETY',
+    name: 'Sécurité Pipeline',
+    description: 'Analyse de détection et prédiction de ruptures avec capteurs distribués',
+    icon: '🛡️',
+    color: 'from-orange-600 to-red-600'
+  },
+  {
+    id: 'PORT_ENERGY_OPTIMIZATION',
+    name: 'Optimisation Portuaire',
+    description: 'Optimisation énergétique des installations portuaires avec réduction carbone',
+    icon: '⚡',
+    color: 'from-yellow-600 to-orange-600'
+  },
+  {
+    id: 'MINING_INDUSTRIAL_SIM',
+    name: 'Ventilation Minière',
+    description: 'Simulation de ventilation et qualité de l\'air en environnement minier',
+    icon: '⛏️',
+    color: 'from-gray-600 to-slate-600'
+  },
+  {
+    id: 'ROCK_ELAST_STRESS',
+    name: 'Géomécanique Rocheuse',
+    description: 'Analyse des contraintes élastiques et endommagement de roches en profondeur',
+    icon: '🪨',
+    color: 'from-amber-600 to-yellow-600'
+  }
+]
 
 export default function NewAnalysisPage() {
   const router = useRouter()
