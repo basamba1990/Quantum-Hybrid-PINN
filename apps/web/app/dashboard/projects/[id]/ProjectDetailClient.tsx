@@ -14,17 +14,23 @@ import {
   Cpu,
   ChevronRight,
   FlaskConical,
-  Clock
+  Clock,
+  Eye
 } from 'lucide-react'
 
 // Imports dynamiques pour optimiser le chargement
 const Industrial3DVisualizerAdvanced = dynamic(
-  () => import('@/components/industrial-3d-visualizer-advanced'),
+  () => import('@/components/industrial-3d-visualizer-lod'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse">Initializing 3D Engine...</div> }
 )
 
-const SimulationMetricsPanel = dynamic(
-  () => import('@/components/simulation-metrics-panel'),
+const PINNPerformanceMonitor = dynamic(
+  () => import('@/components/pinn-performance-monitor'),
+  { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
+const ScenarioMetricsPanel = dynamic(
+  () => import('@/components/scenario-metrics-panel'),
   { ssr: false, loading: () => <div className="h-64 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
@@ -55,6 +61,10 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
   const predictions3d = useMemo(() => {
     return Array.isArray(results?.predictions3d) ? results.predictions3d : []
   }, [results])
+
+  const scenarioType = useMemo(() => {
+    return latestAnalysis?.scenario_type || 'H2_PIPELINE'
+  }, [latestAnalysis])
 
   const metricsData = useMemo(() => ({
     pressure: results?.pressure || 101.3,
@@ -193,13 +203,24 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
 
         {/* Center - 3D Visualizer & Metrics */}
         <div className="xl:col-span-3 space-y-8">
-          {/* 3D Visualizer */}
+          {/* 3D Visualizer with LOD and Color Bars */}
           {predictions3d.length > 0 && (
-            <Industrial3DVisualizerAdvanced data={predictions3d} title="3D Isosurface Visualization" />
+            <Industrial3DVisualizerAdvanced 
+              data={predictions3d} 
+              title="3D Isosurface Visualization"
+              colorVariable="temperature"
+              maxPointsDisplay={100000}
+            />
           )}
 
-          {/* Metrics Panel */}
-          <SimulationMetricsPanel data={metricsData} />
+          {/* Scenario-Specific Metrics Panel */}
+          <ScenarioMetricsPanel 
+            scenarioType={scenarioType}
+            data={results}
+          />
+
+          {/* PINN Performance Monitor */}
+          <PINNPerformanceMonitor isLive={true} />
 
           {/* Residuals Chart */}
           <ResidualsChart />
