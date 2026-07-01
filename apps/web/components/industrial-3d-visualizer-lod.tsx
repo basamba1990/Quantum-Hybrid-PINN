@@ -17,8 +17,9 @@ interface Props {
 }
 
 /**
- * Système de LOD (Level of Detail) pour optimisation 3D
+ * Système de LOD (Level of Detail) pour optimisation 3D - VERSION OPTIMISÉE
  * Réduit le nombre de points affichés en fonction de la distance caméra
+ * CORRECTION: Évite la boucle de rendu infinie en mettant à jour les géométries une seule fois
  */
 const Industrial3DVisualizerLOD: React.FC<Props> = ({ 
   data = [], 
@@ -32,6 +33,8 @@ const Industrial3DVisualizerLOD: React.FC<Props> = ({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const pointsRef = useRef<THREE.Points | null>(null)
+  const controlsRef = useRef<any>(null)
+  const lastLodLevelRef = useRef<number>(-1)
   
   const [stats, setStats] = useState({ minT: 0, maxT: 1, minP: 0, maxP: 1, count: 0, displayedCount: 0 })
   const [lodLevel, setLodLevel] = useState(0)
@@ -53,23 +56,23 @@ const Industrial3DVisualizerLOD: React.FC<Props> = ({
   }, [data])
 
   // Fonction de sélection LOD
-  const selectLODData = useCallback((fullData: DataPoint[], cameraDistance: number): DataPoint[] => {
-    if (fullData.length <= maxPointsDisplay) return fullData
+  const selectLODData = useCallback((fullData: DataPoint[], cameraDistance: number): { data: DataPoint[], level: number } => {
+    if (fullData.length <= maxPointsDisplay) return { data: fullData, level: 0 }
 
     // Déterminer le niveau LOD basé sur la distance caméra
     let lodFactor = 1
-    if (cameraDistance < 10) lodFactor = 1      // LOD 0: tous les points
-    else if (cameraDistance < 20) lodFactor = 2 // LOD 1: 50% des points
-    else if (cameraDistance < 40) lodFactor = 4 // LOD 2: 25% des points
-    else lodFactor = 8                            // LOD 3: 12.5% des points
+    let level = 0
+    if (cameraDistance < 10) { lodFactor = 1; level = 0 }
+    else if (cameraDistance < 20) { lodFactor = 2; level = 1 }
+    else if (cameraDistance < 40) { lodFactor = 4; level = 2 }
+    else { lodFactor = 8; level = 3 }
 
     const selectedData: DataPoint[] = []
     for (let i = 0; i < fullData.length; i += lodFactor) {
       selectedData.push(fullData[i])
     }
     
-    setLodLevel(Math.log2(lodFactor))
-    return selectedData
+    return { data: selectedData, level }
   }, [maxPointsDisplay])
 
   // Calcul des plages de coordonnées pour normalisation
@@ -85,17 +88,18 @@ const Industrial3DVisualizerLOD: React.FC<Props> = ({
     const zMin = Math.min(...zs), zMax = Math.max(...zs)
     
     return {
-      xRange: [xMin, xMax],
-      yRange: [yMin, yMax],
-      zRange: [zMin, zMax]
+      xRange: [xMin, xMax === xMin ? xMin + 1 : xMax],
+      yRange: [yMin, yMax === yMin ? yMin + 1 : yMax],
+      zRange: [zMin, zMax === zMin ? zMin + 1 : zMax]
     }
   }, [data])
 
-  // Rendu Three.js avec LOD
+  // Rendu Three.js avec LOD - VERSION OPTIMISÉE
   useEffect(() => {
     if (!containerRef.current || !data.length) return
 
     let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer, controls: any
+    let isInitialized = false
 
     const init = async () => {
       try {
@@ -109,7 +113,6 @@ const Industrial3DVisualizerLOD: React.FC<Props> = ({
         const width = containerRef.current!.clientWidth || 1000
         const height = containerRef.current!.clientHeight || 600
         camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
-        // Positionner la caméra pour voir les données normalisées (0-1)
         camera.position.set(1.5, 1.5, 1.5)
         camera.lookAt(0.5, 0.5, 0.5)
         cameraRef.current = camera
@@ -126,6 +129,7 @@ const Industrial3DVisualizerLOD: React.FC<Props> = ({
         controls.enableDamping = true
         controls.dampingFactor = 0.05
         controls.autoRotate = false
+        controlsRef.current = controls
 
         // Éclairage
         scene.add(new THREE.AmbientLight(0xffffff, 0.6))
@@ -133,12 +137,12 @@ const Industrial3DVisualizerLOD: React.FC<Props> = ({
         directionalLight.position.set(10, 10, 10)
         scene.add(directionalLight)
 
-        // Grille (ajustée à la plage normalisée 0-1)
+        // Grille
         const gridHelper = new THREE.GridHelper(1.2, 12, 0x444444, 0x222222)
         gridHelper.position.set(0.6, 0, 0.6)
         scene.add(gridHelper)
 
-        // Axes (ajustés à la plage normalisée 0-1)
+        // Axes
         const axisLength = 1.2
         
         // Axe X (rouge)
@@ -165,67 +169,115 @@ const Industrial3DVisualizerLOD: React.FC<Props> = ({
         const zAxisMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 3 })
         scene.add(new THREE.Line(zAxisGeometry, zAxisMaterial))
 
-        // Boucle d'animation avec LOD dynamique
+        // Créer les points initialement
+        const { data: lodData, level } = selectLODData(data, camera.position.length())
+        
+        const geometry = new THREE.BufferGeometry()
+        const posArr = new Float32Array(lodData.length * 3)
+        const colArr = new Float32Array(lodData.length * 3)
+        
+        const tRange = stats.maxT - stats.minT || 1
+        const pRange = stats.maxP - stats.minP || 1
+
+        lodData.forEach((p, i) => {
+          const xNorm = (p.x - coordRanges.xRange[0]) / (coordRanges.xRange[1] - coordRanges.xRange[0] || 1)
+          const yNorm = (p.y - coordRanges.yRange[0]) / (coordRanges.yRange[1] - coordRanges.yRange[0] || 1)
+          const zNorm = (p.z - coordRanges.zRange[0]) / (coordRanges.zRange[1] - coordRanges.zRange[0] || 1)
+          
+          posArr[i * 3] = xNorm
+          posArr[i * 3 + 1] = yNorm
+          posArr[i * 3 + 2] = zNorm
+          
+          let norm = 0
+          if (activeVariable === 'temperature') {
+            norm = (p.temperature - stats.minT) / tRange
+          } else {
+            norm = (p.pressure - stats.minP) / pRange
+          }
+          
+          const hue = 0.6 * (1 - norm)
+          const color = new THREE.Color().setHSL(hue, 1, 0.5)
+          colArr[i * 3] = color.r
+          colArr[i * 3 + 1] = color.g
+          colArr[i * 3 + 2] = color.b
+        })
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(posArr, 3))
+        geometry.setAttribute('color', new THREE.BufferAttribute(colArr, 3))
+
+        const pointsMaterial = new THREE.PointsMaterial({
+          size: 0.15,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.8,
+          sizeAttenuation: true
+        })
+
+        const points = new THREE.Points(geometry, pointsMaterial)
+        scene.add(points)
+        pointsRef.current = points
+        lastLodLevelRef.current = level
+
+        setStats(prev => ({ ...prev, displayedCount: lodData.length }))
+        setLodLevel(level)
+
+        isInitialized = true
+
+        // Boucle d'animation OPTIMISÉE - Pas de recréation de géométries
         const animate = () => {
           frameIdRef.current = requestAnimationFrame(animate)
           controls.update()
 
-          // Calculer la distance caméra et mettre à jour LOD
-          const cameraDistance = camera.position.length()
-          const lodData = selectLODData(data, cameraDistance)
-
-          // Mettre à jour les points 3D
-          if (pointsRef.current) {
-            scene.remove(pointsRef.current)
-          }
-
-          const geometry = new THREE.BufferGeometry()
-          const posArr = new Float32Array(lodData.length * 3)
-          const colArr = new Float32Array(lodData.length * 3)
-          
-          const tRange = stats.maxT - stats.minT || 1
-          const pRange = stats.maxP - stats.minP || 1
-
-          lodData.forEach((p, i) => {
-            // Normaliser les coordonnées
-            const xNorm = (p.x - coordRanges.xRange[0]) / (coordRanges.xRange[1] - coordRanges.xRange[0] || 1)
-            const yNorm = (p.y - coordRanges.yRange[0]) / (coordRanges.yRange[1] - coordRanges.yRange[0] || 1)
-            const zNorm = (p.z - coordRanges.zRange[0]) / (coordRanges.zRange[1] - coordRanges.zRange[0] || 1)
+          // Vérifier si le LOD doit changer (seulement tous les 10 frames pour éviter les fluctuations)
+          if (frameIdRef.current! % 10 === 0) {
+            const cameraDistance = camera.position.length()
+            const { data: newLodData, level: newLevel } = selectLODData(data, cameraDistance)
             
-            posArr[i * 3] = xNorm
-            posArr[i * 3 + 1] = yNorm
-            posArr[i * 3 + 2] = zNorm
-            
-            let norm = 0
-            if (activeVariable === 'temperature') {
-              norm = (p.temperature - stats.minT) / tRange
-            } else {
-              norm = (p.pressure - stats.minP) / pRange
+            if (newLevel !== lastLodLevelRef.current) {
+              // Recréer les géométries seulement si le LOD change
+              if (pointsRef.current) {
+                scene.remove(pointsRef.current)
+              }
+
+              const newGeometry = new THREE.BufferGeometry()
+              const newPosArr = new Float32Array(newLodData.length * 3)
+              const newColArr = new Float32Array(newLodData.length * 3)
+              
+              newLodData.forEach((p, i) => {
+                const xNorm = (p.x - coordRanges.xRange[0]) / (coordRanges.xRange[1] - coordRanges.xRange[0] || 1)
+                const yNorm = (p.y - coordRanges.yRange[0]) / (coordRanges.yRange[1] - coordRanges.yRange[0] || 1)
+                const zNorm = (p.z - coordRanges.zRange[0]) / (coordRanges.zRange[1] - coordRanges.zRange[0] || 1)
+                
+                newPosArr[i * 3] = xNorm
+                newPosArr[i * 3 + 1] = yNorm
+                newPosArr[i * 3 + 2] = zNorm
+                
+                let norm = 0
+                if (activeVariable === 'temperature') {
+                  norm = (p.temperature - stats.minT) / tRange
+                } else {
+                  norm = (p.pressure - stats.minP) / pRange
+                }
+                
+                const hue = 0.6 * (1 - norm)
+                const color = new THREE.Color().setHSL(hue, 1, 0.5)
+                newColArr[i * 3] = color.r
+                newColArr[i * 3 + 1] = color.g
+                newColArr[i * 3 + 2] = color.b
+              })
+
+              newGeometry.setAttribute('position', new THREE.BufferAttribute(newPosArr, 3))
+              newGeometry.setAttribute('color', new THREE.BufferAttribute(newColArr, 3))
+
+              const newPoints = new THREE.Points(newGeometry, pointsMaterial)
+              scene.add(newPoints)
+              pointsRef.current = newPoints
+              lastLodLevelRef.current = newLevel
+
+              setStats(prev => ({ ...prev, displayedCount: newLodData.length }))
+              setLodLevel(newLevel)
             }
-            
-            const hue = 0.6 * (1 - norm)
-            const color = new THREE.Color().setHSL(hue, 1, 0.5)
-            colArr[i * 3] = color.r
-            colArr[i * 3 + 1] = color.g
-            colArr[i * 3 + 2] = color.b
-          })
-
-          geometry.setAttribute('position', new THREE.BufferAttribute(posArr, 3))
-          geometry.setAttribute('color', new THREE.BufferAttribute(colArr, 3))
-
-          const pointsMaterial = new THREE.PointsMaterial({
-            size: 0.15,
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.8,
-            sizeAttenuation: true
-          })
-
-          const points = new THREE.Points(geometry, pointsMaterial)
-          scene.add(points)
-          pointsRef.current = points
-
-          setStats(prev => ({ ...prev, displayedCount: lodData.length }))
+          }
 
           renderer.render(scene, camera)
         }
@@ -246,7 +298,7 @@ const Industrial3DVisualizerLOD: React.FC<Props> = ({
       }
       if (containerRef.current) containerRef.current.innerHTML = ''
     }
-    }, [data, stats, activeVariable, selectLODData, coordRanges])
+  }, [data, stats, activeVariable, selectLODData, coordRanges])
 
   return (
     <div className="w-full space-y-4">
@@ -306,7 +358,7 @@ const Industrial3DVisualizerLOD: React.FC<Props> = ({
               </div>
               <div className="text-center">
                 <p className="text-sm font-bold text-emerald-400">
-                  {((stats.displayedCount / stats.count) * 100).toFixed(1)}%
+                  {stats.count > 0 ? ((stats.displayedCount / stats.count) * 100).toFixed(1) : '0'}%
                 </p>
                 <p className="text-[10px] text-gray-500 mt-1">Displayed</p>
               </div>
@@ -361,7 +413,7 @@ const Industrial3DVisualizerLOD: React.FC<Props> = ({
         </div>
         <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
           <p className="text-[10px] text-gray-500 uppercase font-black">Réduction</p>
-          <p className="text-xl font-black text-emerald-400">{((1 - stats.displayedCount / stats.count) * 100).toFixed(1)}%</p>
+          <p className="text-xl font-black text-emerald-400">{stats.count > 0 ? ((1 - stats.displayedCount / stats.count) * 100).toFixed(1) : '0'}%</p>
         </div>
         <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
           <p className="text-[10px] text-gray-500 uppercase font-black">LOD Niveau</p>

@@ -35,6 +35,8 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const frameIdRef = useRef<number | null>(null)
+  const sceneRef = useRef<THREE.Scene | null>(null)
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const [stats, setStats] = useState({ minT: 0, maxT: 1, minP: 0, maxP: 1, count: 0 })
   const [activeVariable, setActiveVariable] = useState<'temperature' | 'pressure'>(colorVariable)
 
@@ -51,9 +53,9 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
     const zMin = Math.min(...zs), zMax = Math.max(...zs)
     
     return {
-      xRange: [xMin, xMax],
-      yRange: [yMin, yMax],
-      zRange: [zMin, zMax]
+      xRange: [xMin, xMax === xMin ? xMin + 1 : xMax],
+      yRange: [yMin, yMax === yMin ? yMin + 1 : yMax],
+      zRange: [zMin, zMax === zMin ? zMin + 1 : zMax]
     }
   }, [data])
 
@@ -70,7 +72,7 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
     })
   }, [data])
 
-  // Rendu Three.js
+  // Rendu Three.js - VERSION OPTIMISÉE
   useEffect(() => {
     if (!containerRef.current || !data.length) return
 
@@ -83,13 +85,14 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
 
         scene = new THREE.Scene()
         scene.background = new THREE.Color(0x0f172a)
+        sceneRef.current = scene
 
         const width = containerRef.current!.clientWidth || 1000
         const height = containerRef.current!.clientHeight || 600
         camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
-        // Positionner la caméra pour voir les données normalisées (0-1)
         camera.position.set(1.5, 1.5, 1.5)
         camera.lookAt(0.5, 0.5, 0.5)
+        cameraRef.current = camera
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
         renderer.setSize(width, height)
@@ -110,31 +113,12 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         directionalLight.position.set(10, 10, 10)
         scene.add(directionalLight)
 
-        // Grille (ajustée à la plage normalisée 0-1)
+        // Grille
         const gridHelper = new THREE.GridHelper(1.2, 12, 0x444444, 0x222222)
         gridHelper.position.set(0.6, 0, 0.6)
         scene.add(gridHelper)
 
-        // ============ AXES NUMÉROTÉS ET DISTINGUÉS ============
-        
-        // Fonction utilitaire pour créer du texte 3D
-        const createTextSprite = (text: string, color: string, size: number = 0.3): THREE.Sprite => {
-          const canvas = document.createElement('canvas')
-          canvas.width = 512
-          canvas.height = 128
-          const ctx = canvas.getContext('2d')!
-          ctx.fillStyle = color
-          ctx.font = 'bold 96px Arial'
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText(text, 256, 64)
-          const texture = new THREE.CanvasTexture(canvas)
-          const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }))
-          sprite.scale.set(size, size * 0.25, 1)
-          return sprite
-        }
-
-        // Axes avec couleurs standards (X=rouge, Y=vert, Z=bleu) - ajustés à 0-1
+        // Axes
         const axisLength = 1.2
         
         // Axe X (rouge)
@@ -164,65 +148,14 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         const zAxis = new THREE.Line(zAxisGeometry, zAxisMaterial)
         scene.add(zAxis)
 
-        // Étiquettes des axes avec unités
-        const xLabel = createTextSprite('X (m)', '#ff0000', 0.4)
-        xLabel.position.set(axisLength + 0.5, 0, 0)
-        scene.add(xLabel)
-
-        const yLabel = createTextSprite('Y (m)', '#00ff00', 0.4)
-        yLabel.position.set(0, axisLength + 0.5, 0)
-        scene.add(yLabel)
-
-        const zLabel = createTextSprite('Z (m)', '#0000ff', 0.4)
-        zLabel.position.set(0, 0, axisLength + 0.5)
-        scene.add(zLabel)
-
-        // Marqueurs de graduation sur les axes
-        const tickSpacing = 1
-        const tickLength = 0.2
-        const tickColor = 0xcccccc
-
-        for (let i = 0; i <= axisLength; i += tickSpacing) {
-          // Ticks sur X
-          const xTickGeom = new THREE.BufferGeometry()
-          xTickGeom.setAttribute('position', new THREE.BufferAttribute(
-            new Float32Array([i, 0, 0, i, tickLength, 0]), 3
-          ))
-          const xTick = new THREE.Line(xTickGeom, new THREE.LineBasicMaterial({ color: tickColor }))
-          scene.add(xTick)
-
-          // Ticks sur Y
-          const yTickGeom = new THREE.BufferGeometry()
-          yTickGeom.setAttribute('position', new THREE.BufferAttribute(
-            new Float32Array([0, i, 0, tickLength, i, 0]), 3
-          ))
-          const yTick = new THREE.Line(yTickGeom, new THREE.LineBasicMaterial({ color: tickColor }))
-          scene.add(yTick)
-
-          // Ticks sur Z
-          const zTickGeom = new THREE.BufferGeometry()
-          zTickGeom.setAttribute('position', new THREE.BufferAttribute(
-            new Float32Array([0, 0, i, tickLength, 0, i]), 3
-          ))
-          const zTick = new THREE.Line(zTickGeom, new THREE.LineBasicMaterial({ color: tickColor }))
-          scene.add(zTick)
-
-          // Numéros de graduation
-          if (i > 0) {
-            const numSprite = createTextSprite(i.toString(), '#cccccc', 0.2)
-            numSprite.position.set(i, -0.5, 0)
-            scene.add(numSprite)
-          }
-        }
-
-        // Boîte englobante avec dimensions
+        // Boîte englobante
         const boxGeometry = new THREE.BoxGeometry(1, 1, 1)
         const boxMaterial = new THREE.LineBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.2 })
         const boxLines = new THREE.LineSegments(new THREE.EdgesGeometry(boxGeometry), boxMaterial)
         boxLines.position.set(0.5, 0.5, 0.5)
         scene.add(boxLines)
 
-        // Nuage de points avec gradient de température ou pression
+        // Créer les points UNE SEULE FOIS
         const geometry = new THREE.BufferGeometry()
         const posArr = new Float32Array(data.length * 3)
         const colArr = new Float32Array(data.length * 3)
@@ -231,7 +164,6 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         const pRange = stats.maxP - stats.minP || 1
 
         data.forEach((p, i) => {
-          // Normaliser les coordonnées
           const xNorm = (p.x - coordRanges.xRange[0]) / (coordRanges.xRange[1] - coordRanges.xRange[0] || 1)
           const yNorm = (p.y - coordRanges.yRange[0]) / (coordRanges.yRange[1] - coordRanges.yRange[0] || 1)
           const zNorm = (p.z - coordRanges.zRange[0]) / (coordRanges.zRange[1] - coordRanges.zRange[0] || 1)
@@ -247,7 +179,7 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
             norm = (p.pressure - stats.minP) / pRange
           }
           
-          const hue = 0.6 * (1 - norm) // Bleu (froid/bas) à Rouge (chaud/haut)
+          const hue = 0.6 * (1 - norm)
           const color = new THREE.Color().setHSL(hue, 1, 0.5)
           colArr[i * 3] = color.r
           colArr[i * 3 + 1] = color.g
@@ -268,8 +200,7 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         const points = new THREE.Points(geometry, pointsMaterial)
         scene.add(points)
 
-        // Isosurface simple (sphère de température moyenne)
-        const avgTemp = (stats.minT + stats.maxT) / 2
+        // Isosurface
         const isoGeometry = new THREE.IcosahedronGeometry(0.3, 6)
         const isoColor = new THREE.Color().setHSL(0.3, 1, 0.5)
         const isoMaterial = new THREE.MeshPhongMaterial({
@@ -284,7 +215,7 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         isoMesh.position.set(0.5, 0.5, 0.5)
         scene.add(isoMesh)
 
-        // Boucle d'animation
+        // Boucle d'animation OPTIMISÉE - Pas de recréation de géométries
         const animate = () => {
           frameIdRef.current = requestAnimationFrame(animate)
           controls.update()
@@ -307,33 +238,7 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
       }
       if (containerRef.current) containerRef.current.innerHTML = ''
     }
-    }, [data, stats, activeVariable, coordRanges])
-
-  // Fonction pour générer le gradient de couleur (canvas)
-  const generateColorBar = (min: number, max: number, label: string, unit: string) => {
-    const canvas = document.createElement('canvas')
-    canvas.width = 40
-    canvas.height = 300
-    const ctx = canvas.getContext('2d')!
-
-    // Gradient vertical (bleu en bas, rouge en haut)
-    const gradient = ctx.createLinearGradient(0, 0, 0, 300)
-    for (let i = 0; i <= 1; i += 0.1) {
-      const hue = 0.6 * (1 - i)
-      const color = new THREE.Color().setHSL(hue, 1, 0.5)
-      gradient.addColorStop(i, `rgb(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ${Math.round(color.b * 255)})`)
-    }
-
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, 40, 300)
-
-    // Bordure
-    ctx.strokeStyle = '#cccccc'
-    ctx.lineWidth = 1
-    ctx.strokeRect(0, 0, 40, 300)
-
-    return canvas.toDataURL()
-  }
+  }, [data, stats, activeVariable, coordRanges])
 
   return (
     <div className="w-full space-y-4">
@@ -354,7 +259,7 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         {/* Visualiseur 3D */}
         <div ref={containerRef} className="flex-1 h-[600px] bg-slate-950 rounded-3xl border border-white/10 overflow-hidden shadow-2xl" />
         
-        {/* Panneau des échelles de couleurs (Color Bars) */}
+        {/* Panneau des échelles de couleurs */}
         <div className="w-32 space-y-6 flex flex-col">
           {/* Sélecteur de variable */}
           <div className="bg-white/5 border border-white/10 rounded-xl p-3 space-y-2">
@@ -416,51 +321,6 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
               </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Légende des axes */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="flex items-center gap-3 p-3 bg-red-500/10 rounded-xl border border-red-500/20">
-          <div className="w-4 h-4 bg-red-500 rounded"></div>
-          <div>
-            <p className="text-[10px] text-gray-500 uppercase font-black">Axe X</p>
-            <p className="text-sm font-bold text-red-400">{xRange[0].toFixed(1)} → {xRange[1].toFixed(1)} m</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 p-3 bg-green-500/10 rounded-xl border border-green-500/20">
-          <div className="w-4 h-4 bg-green-500 rounded"></div>
-          <div>
-            <p className="text-[10px] text-gray-500 uppercase font-black">Axe Y</p>
-            <p className="text-sm font-bold text-green-400">{yRange[0].toFixed(1)} → {yRange[1].toFixed(1)} m</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">
-          <div className="w-4 h-4 bg-blue-500 rounded"></div>
-          <div>
-            <p className="text-[10px] text-gray-500 uppercase font-black">Axe Z</p>
-            <p className="text-sm font-bold text-blue-400">{zRange[0].toFixed(1)} → {zRange[1].toFixed(1)} m</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Statistiques */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-          <p className="text-[10px] text-gray-500 uppercase font-black">Points</p>
-          <p className="text-xl font-black text-blue-400">{stats.count}</p>
-        </div>
-        <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-          <p className="text-[10px] text-gray-500 uppercase font-black">Temp Min</p>
-          <p className="text-xl font-black text-cyan-400">{Math.round(stats.minT)} K</p>
-        </div>
-        <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-          <p className="text-[10px] text-gray-500 uppercase font-black">Temp Max</p>
-          <p className="text-xl font-black text-red-400">{Math.round(stats.maxT)} K</p>
-        </div>
-        <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-          <p className="text-[10px] text-gray-500 uppercase font-black">Pression Moy</p>
-          <p className="text-xl font-black text-emerald-400">{Math.round((stats.minP + stats.maxP) / 2)} kPa</p>
         </div>
       </div>
     </div>
