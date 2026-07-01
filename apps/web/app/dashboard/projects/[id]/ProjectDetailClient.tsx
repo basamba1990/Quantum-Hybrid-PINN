@@ -20,7 +20,7 @@ import {
 
 // Imports dynamiques pour optimiser le chargement
 const Industrial3DVisualizerAdvanced = dynamic(
-  () => import('@/components/industrial-3d-visualizer-stable'),
+  () => import('@/components/industrial-3d-visualizer-production'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse">Initializing 3D Engine...</div> }
 )
 
