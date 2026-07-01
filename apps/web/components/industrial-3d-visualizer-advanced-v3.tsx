@@ -38,7 +38,25 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
   const [stats, setStats] = useState({ minT: 0, maxT: 1, minP: 0, maxP: 1, count: 0 })
   const [activeVariable, setActiveVariable] = useState<'temperature' | 'pressure'>(colorVariable)
 
-  // Calcul des statistiques
+  // Calcul des statistiques et des plages de coordonnées
+  const coordRanges = useMemo(() => {
+    if (!data.length) return { xRange: [0, 1], yRange: [0, 1], zRange: [0, 1] }
+    
+    const xs = data.map(p => p.x)
+    const ys = data.map(p => p.y)
+    const zs = data.map(p => p.z)
+    
+    const xMin = Math.min(...xs), xMax = Math.max(...xs)
+    const yMin = Math.min(...ys), yMax = Math.max(...ys)
+    const zMin = Math.min(...zs), zMax = Math.max(...zs)
+    
+    return {
+      xRange: [xMin, xMax],
+      yRange: [yMin, yMax],
+      zRange: [zMin, zMax]
+    }
+  }, [data])
+
   useEffect(() => {
     if (!data.length) return
     const temps = data.map(p => p.temperature)
@@ -69,8 +87,9 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         const width = containerRef.current!.clientWidth || 1000
         const height = containerRef.current!.clientHeight || 600
         camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
-        camera.position.set(8, 8, 8)
-        camera.lookAt(0, 0, 0)
+        // Positionner la caméra pour voir les données normalisées (0-1)
+        camera.position.set(1.5, 1.5, 1.5)
+        camera.lookAt(0.5, 0.5, 0.5)
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
         renderer.setSize(width, height)
@@ -91,8 +110,9 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         directionalLight.position.set(10, 10, 10)
         scene.add(directionalLight)
 
-        // Grille
-        const gridHelper = new THREE.GridHelper(10, 20, 0x444444, 0x222222)
+        // Grille (ajustée à la plage normalisée 0-1)
+        const gridHelper = new THREE.GridHelper(1.2, 12, 0x444444, 0x222222)
+        gridHelper.position.set(0.6, 0, 0.6)
         scene.add(gridHelper)
 
         // ============ AXES NUMÉROTÉS ET DISTINGUÉS ============
@@ -114,8 +134,8 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
           return sprite
         }
 
-        // Axes avec couleurs standards (X=rouge, Y=vert, Z=bleu)
-        const axisLength = 6
+        // Axes avec couleurs standards (X=rouge, Y=vert, Z=bleu) - ajustés à 0-1
+        const axisLength = 1.2
         
         // Axe X (rouge)
         const xAxisGeometry = new THREE.BufferGeometry()
@@ -196,10 +216,10 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         }
 
         // Boîte englobante avec dimensions
-        const boxGeometry = new THREE.BoxGeometry(axisLength, axisLength, axisLength)
+        const boxGeometry = new THREE.BoxGeometry(1, 1, 1)
         const boxMaterial = new THREE.LineBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.2 })
         const boxLines = new THREE.LineSegments(new THREE.EdgesGeometry(boxGeometry), boxMaterial)
-        boxLines.position.set(axisLength / 2, axisLength / 2, axisLength / 2)
+        boxLines.position.set(0.5, 0.5, 0.5)
         scene.add(boxLines)
 
         // Nuage de points avec gradient de température ou pression
@@ -211,9 +231,14 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         const pRange = stats.maxP - stats.minP || 1
 
         data.forEach((p, i) => {
-          posArr[i * 3] = p.x
-          posArr[i * 3 + 1] = p.y
-          posArr[i * 3 + 2] = p.z
+          // Normaliser les coordonnées
+          const xNorm = (p.x - coordRanges.xRange[0]) / (coordRanges.xRange[1] - coordRanges.xRange[0] || 1)
+          const yNorm = (p.y - coordRanges.yRange[0]) / (coordRanges.yRange[1] - coordRanges.yRange[0] || 1)
+          const zNorm = (p.z - coordRanges.zRange[0]) / (coordRanges.zRange[1] - coordRanges.zRange[0] || 1)
+          
+          posArr[i * 3] = xNorm
+          posArr[i * 3 + 1] = yNorm
+          posArr[i * 3 + 2] = zNorm
           
           let norm = 0
           if (activeVariable === 'temperature') {
@@ -245,7 +270,7 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
 
         // Isosurface simple (sphère de température moyenne)
         const avgTemp = (stats.minT + stats.maxT) / 2
-        const isoGeometry = new THREE.IcosahedronGeometry(1.5, 6)
+        const isoGeometry = new THREE.IcosahedronGeometry(0.3, 6)
         const isoColor = new THREE.Color().setHSL(0.3, 1, 0.5)
         const isoMaterial = new THREE.MeshPhongMaterial({
           color: isoColor,
@@ -256,7 +281,7 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
           emissiveIntensity: 0.3
         })
         const isoMesh = new THREE.Mesh(isoGeometry, isoMaterial)
-        isoMesh.position.set(axisLength / 2, axisLength / 2, axisLength / 2)
+        isoMesh.position.set(0.5, 0.5, 0.5)
         scene.add(isoMesh)
 
         // Boucle d'animation
@@ -282,7 +307,7 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
       }
       if (containerRef.current) containerRef.current.innerHTML = ''
     }
-  }, [data, stats, activeVariable])
+    }, [data, stats, activeVariable, coordRanges])
 
   // Fonction pour générer le gradient de couleur (canvas)
   const generateColorBar = (min: number, max: number, label: string, unit: string) => {
