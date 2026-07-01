@@ -241,9 +241,9 @@ const Industrial3DVisualizerStable: React.FC<Props> = ({
 
     // Supprimer les anciens points
     if (engineRef.current.points) {
-      engineRef.current.scene!.remove(engineRef.current.points)
-      engineRef.current.points.geometry.dispose()
-      (engineRef.current.points.material as THREE.Material).dispose()
+      engineRef.current.scene!.remove(engineRef.current.points);
+      (engineRef.current.points.geometry as THREE.BufferGeometry).dispose();
+      (engineRef.current.points.material as THREE.Material).dispose();
     }
 
     // Ajouter les nouveaux points
