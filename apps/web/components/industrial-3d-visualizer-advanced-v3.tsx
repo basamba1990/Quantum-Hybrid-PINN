@@ -40,22 +40,14 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
   const [stats, setStats] = useState({ minT: 0, maxT: 1, minP: 0, maxP: 1, count: 0 })
   const [activeVariable, setActiveVariable] = useState<'temperature' | 'pressure'>(colorVariable)
 
-  // Calcul des statistiques et des plages de coordonnées
-  const coordRanges = useMemo(() => {
-    if (!data.length) return { xRange: [0, 1], yRange: [0, 1], zRange: [0, 1] }
-    
-    const xs = data.map(p => p.x)
-    const ys = data.map(p => p.y)
-    const zs = data.map(p => p.z)
-    
-    const xMin = Math.min(...xs), xMax = Math.max(...xs)
-    const yMin = Math.min(...ys), yMax = Math.max(...ys)
-    const zMin = Math.min(...zs), zMax = Math.max(...zs)
-    
+  // Calcul des statistiques et des plages réelles
+  const realRanges = useMemo(() => {
+    if (!data.length) return { x: [-1, 1], y: [-1, 1], z: [-1, 1] }
+    const xs = data.map(p => p.x), ys = data.map(p => p.y), zs = data.map(p => p.z)
     return {
-      xRange: [xMin, xMax === xMin ? xMin + 1 : xMax],
-      yRange: [yMin, yMax === yMin ? yMin + 1 : yMax],
-      zRange: [zMin, zMax === zMin ? zMin + 1 : zMax]
+      x: [Math.min(...xs), Math.max(...xs)],
+      y: [Math.min(...ys), Math.max(...ys)],
+      z: [Math.min(...zs), Math.max(...zs)]
     }
   }, [data])
 
@@ -64,15 +56,12 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
     const temps = data.map(p => p.temperature)
     const press = data.map(p => p.pressure)
     setStats({
-      minT: Math.min(...temps),
-      maxT: Math.max(...temps),
-      minP: Math.min(...press),
-      maxP: Math.max(...press),
+      minT: Math.min(...temps), maxT: Math.max(...temps),
+      minP: Math.min(...press), maxP: Math.max(...press),
       count: data.length
     })
   }, [data])
 
-  // Rendu Three.js - VERSION OPTIMISÉE
   useEffect(() => {
     if (!containerRef.current || !data.length) return
 
@@ -84,20 +73,18 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js')
 
         scene = new THREE.Scene()
-        scene.background = new THREE.Color(0x0f172a)
+        scene.background = new THREE.Color(0x020617) // Deep industrial dark
         sceneRef.current = scene
 
-        const width = containerRef.current!.clientWidth || 1000
-        const height = containerRef.current!.clientHeight || 600
+        const width = containerRef.current!.clientWidth
+        const height = containerRef.current!.clientHeight
         camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
-        camera.position.set(1.5, 1.5, 1.5)
-        camera.lookAt(0.5, 0.5, 0.5)
+        camera.position.set(2.5, 2, 2.5)
         cameraRef.current = camera
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
         renderer.setSize(width, height)
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-        
         containerRef.current!.innerHTML = ''
         containerRef.current!.appendChild(renderer.domElement)
         rendererRef.current = renderer
@@ -105,221 +92,140 @@ const Industrial3DVisualizerAdvancedV3: React.FC<Props> = ({
         controls = new OrbitControls(camera, renderer.domElement)
         controls.enableDamping = true
         controls.dampingFactor = 0.05
-        controls.autoRotate = false
 
         // Éclairage
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6))
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
-        directionalLight.position.set(10, 10, 10)
-        scene.add(directionalLight)
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4))
+        const light = new THREE.PointLight(0xffffff, 1)
+        light.position.set(5, 5, 5)
+        scene.add(light)
 
-        // Grille
-        const gridHelper = new THREE.GridHelper(1.2, 12, 0x444444, 0x222222)
-        gridHelper.position.set(0.6, 0, 0.6)
-        scene.add(gridHelper)
+        // Helper function for text
+        const createText = (text: string, color: string, size: number = 0.1) => {
+          const canvas = document.createElement('canvas')
+          canvas.width = 256; canvas.height = 64
+          const ctx = canvas.getContext('2d')!
+          ctx.fillStyle = color
+          ctx.font = 'bold 40px Arial'
+          ctx.textAlign = 'center'
+          ctx.fillText(text, 128, 45)
+          const tex = new THREE.CanvasTexture(canvas)
+          const mat = new THREE.SpriteMaterial({ map: tex })
+          const sprite = new THREE.Sprite(mat)
+          sprite.scale.set(size * 4, size, 1)
+          return sprite
+        }
 
-        // Axes
-        const axisLength = 1.2
+        // Bounding Box Industrielle
+        const boxGeom = new THREE.BoxGeometry(2, 2, 2)
+        const edges = new THREE.EdgesGeometry(boxGeom)
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.5 })
+        const box = new THREE.LineSegments(edges, lineMat)
+        scene.add(box)
+
+        // Axes Gradués -1 à 1
+        const axisMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.8 })
+        const ticks = [-1, -0.5, 0, 0.5, 1]
         
-        // Axe X (rouge)
-        const xAxisGeometry = new THREE.BufferGeometry()
-        xAxisGeometry.setAttribute('position', new THREE.BufferAttribute(
-          new Float32Array([0, 0, 0, axisLength, 0, 0]), 3
-        ))
-        const xAxisMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 })
-        const xAxis = new THREE.Line(xAxisGeometry, xAxisMaterial)
-        scene.add(xAxis)
+        ticks.forEach(t => {
+          // X-Axis Labels
+          const tx = createText(t.toString(), '#ef4444', 0.15)
+          tx.position.set(t, -1.2, -1)
+          scene.add(tx)
+          
+          // Y-Axis Labels
+          const ty = createText(t.toString(), '#22c55e', 0.15)
+          ty.position.set(-1.2, t, -1)
+          scene.add(ty)
+          
+          // Z-Axis Labels
+          const tz = createText(t.toString(), '#3b82f6', 0.15)
+          tz.position.set(-1.2, -1, t)
+          scene.add(tz)
+        })
 
-        // Axe Y (vert)
-        const yAxisGeometry = new THREE.BufferGeometry()
-        yAxisGeometry.setAttribute('position', new THREE.BufferAttribute(
-          new Float32Array([0, 0, 0, 0, axisLength, 0]), 3
-        ))
-        const yAxisMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 3 })
-        const yAxis = new THREE.Line(yAxisGeometry, yAxisMaterial)
-        scene.add(yAxis)
+        // Labels des axes
+        const xl = createText('X (m)', '#ef4444', 0.2); xl.position.set(0, -1.5, -1); scene.add(xl)
+        const yl = createText('Y (m)', '#22c55e', 0.2); yl.position.set(-1.5, 0, -1); scene.add(yl)
+        const zl = createText('Z (m)', '#3b82f6', 0.2); zl.position.set(-1.5, -1.2, 0); scene.add(zl)
 
-        // Axe Z (bleu)
-        const zAxisGeometry = new THREE.BufferGeometry()
-        zAxisGeometry.setAttribute('position', new THREE.BufferAttribute(
-          new Float32Array([0, 0, 0, 0, 0, axisLength]), 3
-        ))
-        const zAxisMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 3 })
-        const zAxis = new THREE.Line(zAxisGeometry, zAxisMaterial)
-        scene.add(zAxis)
-
-        // Boîte englobante
-        const boxGeometry = new THREE.BoxGeometry(1, 1, 1)
-        const boxMaterial = new THREE.LineBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.2 })
-        const boxLines = new THREE.LineSegments(new THREE.EdgesGeometry(boxGeometry), boxMaterial)
-        boxLines.position.set(0.5, 0.5, 0.5)
-        scene.add(boxLines)
-
-        // Créer les points UNE SEULE FOIS
+        // Nuage de points coloré (Rouge/Bleu)
         const geometry = new THREE.BufferGeometry()
         const posArr = new Float32Array(data.length * 3)
         const colArr = new Float32Array(data.length * 3)
         
-        const tRange = stats.maxT - stats.minT || 1
-        const pRange = stats.maxP - stats.minP || 1
+        const vMin = activeVariable === 'temperature' ? stats.minT : stats.minP
+        const vMax = activeVariable === 'temperature' ? stats.maxT : stats.maxP
+        const vRange = vMax - vMin || 1
 
         data.forEach((p, i) => {
-          const xNorm = (p.x - coordRanges.xRange[0]) / (coordRanges.xRange[1] - coordRanges.xRange[0] || 1)
-          const yNorm = (p.y - coordRanges.yRange[0]) / (coordRanges.yRange[1] - coordRanges.yRange[0] || 1)
-          const zNorm = (p.z - coordRanges.zRange[0]) / (coordRanges.zRange[1] - coordRanges.zRange[0] || 1)
+          posArr[i * 3] = p.x; posArr[i * 3 + 1] = p.y; posArr[i * 3 + 2] = p.z
           
-          posArr[i * 3] = xNorm
-          posArr[i * 3 + 1] = yNorm
-          posArr[i * 3 + 2] = zNorm
-          
-          let norm = 0
-          if (activeVariable === 'temperature') {
-            norm = (p.temperature - stats.minT) / tRange
-          } else {
-            norm = (p.pressure - stats.minP) / pRange
-          }
-          
-          const hue = 0.6 * (1 - norm)
-          const color = new THREE.Color().setHSL(hue, 1, 0.5)
-          colArr[i * 3] = color.r
-          colArr[i * 3 + 1] = color.g
-          colArr[i * 3 + 2] = color.b
+          const val = activeVariable === 'temperature' ? p.temperature : p.pressure
+          const norm = (val - vMin) / vRange
+          // Gradient Rouge (chaud) -> Bleu (froid)
+          const color = new THREE.Color()
+          color.setRGB(norm, 0.2, 1 - norm) 
+          colArr[i * 3] = color.r; colArr[i * 3 + 1] = color.g; colArr[i * 3 + 2] = color.b
         })
 
         geometry.setAttribute('position', new THREE.BufferAttribute(posArr, 3))
         geometry.setAttribute('color', new THREE.BufferAttribute(colArr, 3))
 
-        const pointsMaterial = new THREE.PointsMaterial({
-          size: 0.15,
-          vertexColors: true,
-          transparent: true,
-          opacity: 0.8,
-          sizeAttenuation: true
-        })
-
-        const points = new THREE.Points(geometry, pointsMaterial)
+        const points = new THREE.Points(geometry, new THREE.PointsMaterial({
+          size: 0.08, vertexColors: true, transparent: true, opacity: 0.8
+        }))
         scene.add(points)
 
-        // Isosurface
-        const isoGeometry = new THREE.IcosahedronGeometry(0.3, 6)
-        const isoColor = new THREE.Color().setHSL(0.3, 1, 0.5)
-        const isoMaterial = new THREE.MeshPhongMaterial({
-          color: isoColor,
-          transparent: true,
-          opacity: 0.15,
-          wireframe: false,
-          emissive: isoColor,
-          emissiveIntensity: 0.3
+        // Volume Isosurface (Placeholder pour rendu volumique)
+        const isoGeom = new THREE.SphereGeometry(0.8, 32, 32)
+        const isoMat = new THREE.MeshPhongMaterial({
+          color: activeVariable === 'temperature' ? 0xef4444 : 0x3b82f6,
+          transparent: true, opacity: 0.15, wireframe: true
         })
-        const isoMesh = new THREE.Mesh(isoGeometry, isoMaterial)
-        isoMesh.position.set(0.5, 0.5, 0.5)
-        scene.add(isoMesh)
+        const iso = new THREE.Mesh(isoGeom, isoMat)
+        scene.add(iso)
 
-        // Boucle d'animation OPTIMISÉE - Pas de recréation de géométries
         const animate = () => {
           frameIdRef.current = requestAnimationFrame(animate)
-          controls.update()
-          renderer.render(scene, camera)
+          controls.update(); renderer.render(scene, camera)
         }
         animate()
-      } catch (e) {
-        console.error('3D Visualizer Error:', e)
-      }
+      } catch (e) { console.error(e) }
     }
-
     init()
-
     return () => {
       if (frameIdRef.current) cancelAnimationFrame(frameIdRef.current)
-      if (rendererRef.current) {
-        rendererRef.current.dispose()
-        rendererRef.current.forceContextLoss()
-        rendererRef.current = null
-      }
-      if (containerRef.current) containerRef.current.innerHTML = ''
+      if (rendererRef.current) rendererRef.current.dispose()
     }
-  }, [data, stats, activeVariable, coordRanges])
+  }, [data, stats, activeVariable])
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-6 bg-slate-950 p-6 rounded-[32px] border border-white/5 shadow-2xl">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2 1m2-1l-2-1m2 1v2.5" />
-          </svg>
-          {title}
+        <h3 className="text-xl font-black text-white tracking-tight flex items-center gap-3">
+          <div className="w-2 h-6 bg-blue-600 rounded-full" /> {title}
         </h3>
-        <div className="text-xs font-mono text-gray-500">
-          {stats.count} Points | {Math.round(stats.minT)}K - {Math.round(stats.maxT)}K
+        <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
+          <button onClick={() => setActiveVariable('temperature')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${activeVariable === 'temperature' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-white'}`}>Température</button>
+          <button onClick={() => setActiveVariable('pressure')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${activeVariable === 'pressure' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-white'}`}>Pression</button>
         </div>
       </div>
       
-      {/* Conteneur principal avec visualiseur et échelles */}
-      <div className="relative flex gap-4">
-        {/* Visualiseur 3D */}
-        <div ref={containerRef} className="flex-1 h-[600px] bg-slate-950 rounded-3xl border border-white/10 overflow-hidden shadow-2xl" />
+      <div className="relative flex flex-col lg:flex-row gap-6">
+        <div ref={containerRef} className="flex-1 h-[600px] bg-black/40 rounded-2xl border border-white/5 overflow-hidden" />
         
-        {/* Panneau des échelles de couleurs */}
-        <div className="w-32 space-y-6 flex flex-col">
-          {/* Sélecteur de variable */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-3 space-y-2">
-            <p className="text-[10px] text-gray-500 uppercase font-black">Variable</p>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => setActiveVariable('temperature')}
-                className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                  activeVariable === 'temperature'
-                    ? 'bg-red-500/30 border border-red-500/50 text-red-400'
-                    : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'
-                }`}
-              >
-                Température
-              </button>
-              <button
-                onClick={() => setActiveVariable('pressure')}
-                className={`px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                  activeVariable === 'pressure'
-                    ? 'bg-blue-500/30 border border-blue-500/50 text-blue-400'
-                    : 'bg-white/5 border border-white/10 text-gray-400 hover:bg-white/10'
-                }`}
-              >
-                Pression
-              </button>
+        <div className="lg:w-48 space-y-6">
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-4">
+            <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest text-center">Échelle Industrielle</p>
+            <div className="flex flex-col items-center gap-2">
+              <div className="text-xs font-bold text-red-500">{activeVariable === 'temperature' ? `${Math.round(stats.maxT)}K` : `${(stats.maxP/1000).toFixed(1)}MPa`}</div>
+              <div className="w-full h-64 rounded-xl border border-white/10 shadow-inner" style={{ background: 'linear-gradient(to top, #3b82f6, #10b981, #ef4444)' }} />
+              <div className="text-xs font-bold text-blue-500">{activeVariable === 'temperature' ? `${Math.round(stats.minT)}K` : `${(stats.minP/1000).toFixed(1)}MPa`}</div>
             </div>
           </div>
-
-          {/* Échelle Température */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-3 space-y-2">
-            <p className="text-[10px] text-gray-500 uppercase font-black">Température (K)</p>
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-8 h-48 rounded-lg overflow-hidden border border-white/20 shadow-lg"
-                style={{
-                  background: 'linear-gradient(to top, rgb(0, 0, 255), rgb(0, 255, 0), rgb(255, 0, 0))'
-                }}
-              />
-              <div className="text-center w-full">
-                <p className="text-xs font-bold text-red-400">{Math.round(stats.maxT)}</p>
-                <p className="text-[10px] text-gray-500">—</p>
-                <p className="text-xs font-bold text-blue-400">{Math.round(stats.minT)}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Échelle Pression */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-3 space-y-2">
-            <p className="text-[10px] text-gray-500 uppercase font-black">Pression (kPa)</p>
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-8 h-48 rounded-lg overflow-hidden border border-white/20 shadow-lg"
-                style={{
-                  background: 'linear-gradient(to top, rgb(0, 0, 255), rgb(0, 255, 0), rgb(255, 0, 0))'
-                }}
-              />
-              <div className="text-center w-full">
-                <p className="text-xs font-bold text-red-400">{Math.round(stats.maxP)}</p>
-                <p className="text-[10px] text-gray-500">—</p>
-                <p className="text-xs font-bold text-blue-400">{Math.round(stats.minP)}</p>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="p-3 bg-white/5 rounded-xl border border-white/5"><p className="text-[8px] text-gray-500 uppercase font-black">Points</p><p className="text-lg font-black text-white">{stats.count.toLocaleString()}</p></div>
+            <div className="p-3 bg-white/5 rounded-xl border border-white/5"><p className="text-[8px] text-gray-500 uppercase font-black">Domaine</p><p className="text-xs font-bold text-white">[-1.0, 1.0]³</p></div>
           </div>
         </div>
       </div>
