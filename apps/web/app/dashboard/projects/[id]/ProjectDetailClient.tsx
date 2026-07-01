@@ -152,21 +152,15 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
           </div>
 
           <div className="flex flex-col gap-3 min-w-[240px]">
-            <Link href={`/dashboard/projects/${id}/analyses/new`} className="w-full">
-              <button className="w-full px-6 py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
-                <Activity className="w-5 h-5" /> New Analysis
-              </button>
+            <Link href={`/dashboard/projects/${id}/analyses/new`} className="w-full px-6 py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 inline-flex">
+              <Activity className="w-5 h-5" /> New Analysis
             </Link>
             <div className="grid grid-cols-2 gap-3">
-              <Link href={`/dashboard/projects/${id}/analyses`} className="flex-1">
-                <button className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2">
-                  <BarChart3 className="w-4 h-4" /> Analyses
-                </button>
+              <Link href={`/dashboard/projects/${id}/analyses`} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2 inline-flex">
+                <BarChart3 className="w-4 h-4" /> Analyses
               </Link>
-              <Link href={`/dashboard/projects/${id}/reports`} className="flex-1">
-                <button className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2">
-                  <FileText className="w-4 h-4" /> Reports
-                </button>
+              <Link href={`/dashboard/projects/${id}/reports`} className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2 inline-flex">
+                <FileText className="w-4 h-4" /> Reports
               </Link>
             </div>
           </div>
