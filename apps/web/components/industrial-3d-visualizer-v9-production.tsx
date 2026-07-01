@@ -12,6 +12,7 @@ interface DataPoint {
 interface Props {
   data?: DataPoint[];
   title?: string;
+  colorVariable?: 'temperature' | 'pressure' | 'velocity';
   maxPointsDisplay?: number;
 }
 
@@ -26,6 +27,7 @@ interface Props {
 const Industrial3DVisualizerV9: React.FC<Props> = ({ 
   data = [], 
   title = "Hydrogen Flow Trajectory",
+  colorVariable = 'temperature',
   maxPointsDisplay = 50000
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -45,7 +47,7 @@ const Industrial3DVisualizerV9: React.FC<Props> = ({
     points: null
   })
 
-  const [activeVariable, setActiveVariable] = useState<'temperature' | 'pressure' | 'velocity'>('temperature')
+  const [activeVariable, setActiveVariable] = useState<'temperature' | 'pressure' | 'velocity'>(colorVariable)
   const [stats, setStats] = useState({ 
     minT: 180, maxT: 380, minP: 0, maxP: 3.5, minV: 0, maxV: 20,
     xMin: 0, xMax: 12, yMin: -1, yMax: 1, zMin: 0, zMax: 12,
