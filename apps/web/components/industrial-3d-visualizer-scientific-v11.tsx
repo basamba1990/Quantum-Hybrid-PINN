@@ -117,7 +117,7 @@ const Industrial3DVisualizerScientificV11: React.FC<Props> = ({
         renderer.setSize(width, height)
         renderer.setPixelRatio(window.devicePixelRatio)
         renderer.shadowMap.enabled = true
-        renderer.shadowMap.type = THREE.PCFShadowShadowMap
+        renderer.shadowMap.type = THREE.PCFShadowMap
 
         containerRef.current!.innerHTML = ''
         containerRef.current!.appendChild(renderer.domElement)
