@@ -490,7 +490,13 @@ const Industrial3DVisualizerScientificV11: React.FC<Props> = ({
     if (engineRef.current.points) {
       engineRef.current.scene!.remove(engineRef.current.points)
       engineRef.current.points.geometry.dispose()
-      engineRef.current.points.material.dispose()
+      // Handle both single material and array of materials
+      const mat = engineRef.current.points.material
+      if (Array.isArray(mat)) {
+        mat.forEach(m => m.dispose())
+      } else {
+        mat.dispose()
+      }
     }
 
     const points = new THREE.Points(geometry, material)
