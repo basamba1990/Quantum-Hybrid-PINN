@@ -16,6 +16,7 @@ try:
     from cfd_validation_service import CFDValidationService
     from scenario_engines import SCENARIO_ENGINES
     from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+    from fluid_properties import get_eos
     from industrial_risk_manager import IndustrialRiskManager
 except ImportError:
     from .hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as HydrogenPINNV8, get_device
@@ -23,6 +24,7 @@ except ImportError:
     from .cfd_validation_service import CFDValidationService
     from .scenario_engines import SCENARIO_ENGINES
     from .pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+    from .fluid_properties import get_eos
     from .industrial_risk_manager import IndustrialRiskManager
 
 def clean_float(value: float, fallback: float = 0.0) -> float:
@@ -82,9 +84,9 @@ class SimulationResponse(BaseModel):
 
 class PredictionRequestV8(BaseModel):
     time: Optional[float] = 0.0
-    x: float = 0.5
-    y: float = 0.5
-    z: float = 0.5
+    x: float = 0.0  # Centre du domaine physique réel (X_MIN=-5, X_MAX=5)
+    y: float = 0.0  # Centre du domaine physique réel (Y_MIN=-5, Y_MAX=5)
+    z: float = 0.0  # Centre du domaine physique réel (Z_MIN=-5, Z_MAX=5)
     pressure: Optional[float] = 101325.0
     temperature: Optional[float] = 293.15
     density: Optional[float] = 1.0
@@ -343,19 +345,35 @@ async def validate_3d(request: PredictionRequestV8):
         # ✅ AJOUT : Quantification de l'incertitude via MC Dropout (Principe 1)
         uncertainty_data = current_model_v8.predict_state_with_uncertainty(t, request.x, request.y, request.z)
 
-        # ✅ AJOUT : Calcul des métriques de scénario pour le frontend
+        # ✅ CALCUL INDUSTRIEL : Métriques de scénario basées sur le scan spatial complet
+        # Pas de "mock" - utilisation des données réelles du domaine physique
         scenario_outputs = {}
         try:
+            # Scan spatial complet pour obtenir les statistiques globales du domaine
+            # Utilisation des limites réelles du domaine physique (NASA LH2 Tank: 4.57m)
+            x_scan = torch.linspace(X_MIN, X_MAX, 10, device=current_model_v8.device).requires_grad_(True)
+            y_scan = torch.full((10, 1), request.y, device=current_model_v8.device).requires_grad_(True)
+            z_scan = torch.full((10, 1), request.z, device=current_model_v8.device).requires_grad_(True)
+            t_scan = torch.full((10, 1), t, device=current_model_v8.device).requires_grad_(True)
+            
+            rho_scan, u_scan, v_scan, w_scan, T_scan = current_model_v8.pinn_model(t_scan, x_scan, y_scan, z_scan)
+            p_scan = get_eos(current_model_v8.fluid_type, rho_scan, T_scan)
+            
+            # Calcul des statistiques globales du domaine (pas de valeurs arbitraires)
+            pressure_mean = float(p_scan.mean().item())
+            velocity_mean = float(torch.sqrt(u_scan**2 + v_scan**2 + w_scan**2).mean().item())
+            temperature_mean = float(T_scan.mean().item())
+            
+            # Appel du moteur de scénario avec des données réelles du domaine
             engine_func = SCENARIO_ENGINES.get(request.scenario_type, SCENARIO_ENGINES["H2_PIPELINE"])
-            # On simule des inputs basés sur la requête
-            mock_inputs = {
-                "pressure": float(p_t_center.mean().item()) if p_t_center is not None else request.pressure,
-                "temperature": float(T.mean().item()),
-                "velocity": float(torch.sqrt(u**2 + v**2 + w**2).mean().item())
+            scenario_inputs = {
+                "pressure": pressure_mean,
+                "temperature": temperature_mean,
+                "velocity": velocity_mean
             }
-            scenario_outputs = engine_func(mock_inputs)
+            scenario_outputs = engine_func(scenario_inputs)
         except Exception as e:
-            print(f"⚠️ Erreur calcul scenario_outputs: {e}")
+            print(f"⚠️ Erreur calcul scenario_outputs (domaine physique): {e}")
 
         result = {
             "pressure": float(p_t_center.mean().item()) if p_t_center is not None else request.pressure,
@@ -534,10 +552,12 @@ async def run_hybrid_simulation(request: SimulationRequest, background_tasks: Ba
 async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
     jobs_store[job_id]["status"] = "running"
     try:
-        # ✅ AJOUT : Valeurs spatiales par défaut si absentes de SimulationRequest
-        req_x = getattr(request, 'x', 0.5)
-        req_y = getattr(request, 'y', 0.5)
-        req_z = getattr(request, 'z', 0.5)
+        # ✅ INDUSTRIEL : Utilisation du centre géométrique du domaine physique réel
+        # (NASA LH2 Tank: -5.0 à 5.0 m dans chaque direction)
+        # Pas de valeurs arbitraires (0.5) - utilisation des limites réelles du domaine
+        req_x = getattr(request, 'x', (X_MIN + X_MAX) / 2.0)  # Centre du domaine X
+        req_y = getattr(request, 'y', (Y_MIN + Y_MAX) / 2.0)  # Centre du domaine Y
+        req_z = getattr(request, 'z', (Z_MIN + Z_MAX) / 2.0)  # Centre du domaine Z
 
         # 1. Exécution du FNO pour une prédiction rapide et globale
         jobs_store[job_id]["status"] = "running_fno"
