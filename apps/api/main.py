@@ -109,8 +109,10 @@ class PredictionResponseV8(BaseModel):
     y: float
     z: float
     credibility_score: Optional[float] = 100.0
+    uncertainty_score: Optional[float] = 0.0
     residuals: Optional[Dict[str, float]] = None
     predictions3d: Optional[List[Dict]] = None
+    scenario_outputs: Optional[Dict] = None
     timestamp: str
 
 class AssimilationResponseV8(BaseModel):
@@ -341,6 +343,20 @@ async def validate_3d(request: PredictionRequestV8):
         # ✅ AJOUT : Quantification de l'incertitude via MC Dropout (Principe 1)
         uncertainty_data = current_model_v8.predict_state_with_uncertainty(t, request.x, request.y, request.z)
 
+        # ✅ AJOUT : Calcul des métriques de scénario pour le frontend
+        scenario_outputs = {}
+        try:
+            engine_func = SCENARIO_ENGINES.get(request.scenario_type, SCENARIO_ENGINES["H2_PIPELINE"])
+            # On simule des inputs basés sur la requête
+            mock_inputs = {
+                "pressure": float(p_t_center.mean().item()) if p_t_center is not None else request.pressure,
+                "temperature": float(T.mean().item()),
+                "velocity": float(torch.sqrt(u**2 + v**2 + w**2).mean().item())
+            }
+            scenario_outputs = engine_func(mock_inputs)
+        except Exception as e:
+            print(f"⚠️ Erreur calcul scenario_outputs: {e}")
+
         result = {
             "pressure": float(p_t_center.mean().item()) if p_t_center is not None else request.pressure,
             "velocity_u": float(u.mean().item()),
@@ -352,7 +368,8 @@ async def validate_3d(request: PredictionRequestV8):
             "time": t,
             "x": request.x,
             "y": request.y,
-            "z": request.z
+            "z": request.z,
+            "scenario_outputs": clean_json(scenario_outputs)
         }
         
         # Correction pour les résidus max
