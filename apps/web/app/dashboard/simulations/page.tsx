@@ -26,9 +26,9 @@ import dynamic from 'next/dynamic'
 import { HybridSimulationPanel } from "@/components/HybridSimulationPanel"
 
 // Import dynamique du nouveau visualiseur industriel V9
-const Industrial3DVisualizerV9 = dynamic(
-  () => import('@/components/industrial-3d-visualizer-v9-production'),
-  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur 3D Industriel...</div> }
+const Industrial3DVisualizerV10Gold = dynamic(
+  () => import('@/components/industrial-3d-visualizer-v10-gold'),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur 3D Gold...</div> }
 )
 
 export default function SimulationsPage() {
@@ -193,7 +193,7 @@ export default function SimulationsPage() {
                   </div>
                 ) : (
                   <div className="p-6">
-                    <Industrial3DVisualizerV9 
+                    <Industrial3DVisualizerV10Gold 
                       data={predictions3d} 
                       title={selectedAnalysis?.name || "3D Isosurface"} 
                       colorVariable="temperature"
