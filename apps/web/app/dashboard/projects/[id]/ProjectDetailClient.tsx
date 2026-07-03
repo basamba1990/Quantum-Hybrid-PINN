@@ -64,7 +64,17 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
   }, [latestAnalysis])
 
   const predictions3d = useMemo(() => {
-    return Array.isArray(results?.predictions3d) ? (results.predictions3d as { temperature?: number; pressure?: number; density?: number; velocity_magnitude?: number }[]) : []
+    return Array.isArray(results?.predictions3d) 
+      ? (results.predictions3d as any[]).map((p, i) => ({
+          x: p.x ?? (i % 10) * 0.1,
+          y: p.y ?? (Math.floor(i / 10) % 10) * 0.1,
+          z: p.z ?? (Math.floor(i / 100) % 10) * 0.1,
+          temperature: p.temperature ?? 0,
+          pressure: p.pressure ?? 0,
+          density: p.density ?? 1.225,
+          velocity_magnitude: p.velocity_magnitude ?? 0
+        }))
+      : []
   }, [results])
 
   const scenarioType = useMemo(() => {
