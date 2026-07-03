@@ -28,7 +28,8 @@ interface Props {
  * CORRECTIONS APPORTÉES:
  * - Gestion améliorée des données vides (génération de données par défaut)
  * - Chargement dynamique sécurisé d'OrbitControls
- * - Rendu initial même sans données
+ * - Attente des dimensions du conteneur avant initialisation
+ * - ResizeObserver pour détecter les changements de taille
  * - Gestion des erreurs robuste
  * - Canvas toujours visible et fonctionnel
  */
@@ -50,6 +51,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   const frameIdRef = useRef<number | null>(null)
   const controlsRef = useRef<any>(null)
   const pointsGroupRef = useRef<THREE.Group | null>(null)
+  const resizeObserverRef = useRef<ResizeObserver | null>(null)
   
   const [stats, setStats] = useState({ 
     minT: 0, maxT: 1, minP: 0, maxP: 1, minD: 0, maxD: 1, count: 0,
@@ -59,6 +61,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   const [showStreamlines, setShowStreamlines] = useState(true)
   const [pointDensity, setPointDensity] = useState(1.0)
   const [renderError, setRenderError] = useState<string | null>(null)
+  const [isReady, setIsReady] = useState(false)
 
   // Générer des données par défaut si aucune donnée n'est fournie
   const effectiveData = useMemo(() => {
@@ -107,18 +110,16 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     }))
   }, [effectiveData])
 
-  // Fonction pour créer les streamlines (trajectoires nettes)
+  // Fonction pour créer les streamlines
   const createStreamlines = (points: DataPoint[], variable: string) => {
     const group = new THREE.Group()
     
-    // Trier les points par la variable active pour créer des trajectoires
     const sortedPoints = [...points].sort((a, b) => {
       const aVal = variable === 'temperature' ? a.temperature : variable === 'pressure' ? a.pressure : (a.density || 0)
       const bVal = variable === 'temperature' ? b.temperature : variable === 'pressure' ? b.pressure : (b.density || 0)
       return aVal - bVal
     })
 
-    // Créer des lignes de courant avec épaisseur variable
     for (let i = 0; i < sortedPoints.length - 1; i++) {
       const p1 = sortedPoints[i]
       const p2 = sortedPoints[i + 1]
@@ -129,7 +130,6 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         3
       ))
 
-      // Gradient de couleur basé sur la variable
       const val1 = variable === 'temperature' ? p1.temperature : variable === 'pressure' ? p1.pressure : (p1.density || 0)
       const val2 = variable === 'temperature' ? p2.temperature : variable === 'pressure' ? p2.pressure : (p2.density || 0)
       
@@ -140,20 +140,16 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
       const norm1 = (val1 - vMin) / vRange
       const norm2 = (val2 - vMin) / vRange
 
-      const color1 = new THREE.Color()
-      const color2 = new THREE.Color()
-      
-      // Gradient: Bleu (froid) -> Vert -> Jaune -> Rouge (chaud)
       const getColor = (norm: number) => {
         const c = new THREE.Color()
         if (norm < 0.25) {
-          c.setRGB(0, norm * 4, 1) // Bleu à Cyan
+          c.setRGB(0, norm * 4, 1)
         } else if (norm < 0.5) {
-          c.setRGB(0, 1, 1 - (norm - 0.25) * 4) // Cyan à Vert
+          c.setRGB(0, 1, 1 - (norm - 0.25) * 4)
         } else if (norm < 0.75) {
-          c.setRGB((norm - 0.5) * 4, 1, 0) // Vert à Jaune
+          c.setRGB((norm - 0.5) * 4, 1, 0)
         } else {
-          c.setRGB(1, 1 - (norm - 0.75) * 4, 0) // Jaune à Rouge
+          c.setRGB(1, 1 - (norm - 0.75) * 4, 0)
         }
         return c
       }
@@ -191,7 +187,6 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
 
   // Fonction pour mettre à jour les points affichés
   const updateVisualization = (scene: THREE.Scene, filteredData: DataPoint[]) => {
-    // Supprimer les anciens points
     if (pointsGroupRef.current) {
       scene.remove(pointsGroupRef.current)
     }
@@ -199,7 +194,6 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     const pointsGroup = new THREE.Group()
     pointsGroupRef.current = pointsGroup
 
-    // Créer la géométrie des points
     const geometry = new THREE.BufferGeometry()
     const posArr = new Float32Array(filteredData.length * 3)
     const colArr = new Float32Array(filteredData.length * 3)
@@ -243,7 +237,6 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     points.castShadow = true
     pointsGroup.add(points)
 
-    // Ajouter les streamlines si activées
     if (showStreamlines && filteredData.length > 1) {
       const streamlines = createStreamlines(filteredData, activeVariable)
       pointsGroup.add(streamlines)
@@ -253,6 +246,29 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     setStats(prev => ({ ...prev, pointsRendered: filteredData.length }))
   }
 
+  // Attendre que le conteneur ait des dimensions valides
+  const waitForDimensions = (): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!containerRef.current) {
+        resolve()
+        return
+      }
+
+      const checkDimensions = () => {
+        const width = containerRef.current?.clientWidth || 0
+        const height = containerRef.current?.clientHeight || 0
+        
+        if (width > 0 && height > 0) {
+          resolve()
+        } else {
+          setTimeout(checkDimensions, 100)
+        }
+      }
+
+      checkDimensions()
+    })
+  }
+
   useEffect(() => {
     if (!containerRef.current) return
 
@@ -260,31 +276,35 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     let lastFrameTime = Date.now()
     let frameCount = 0
     let animationId: number
+    let isInitialized = false
 
     const init = async () => {
       try {
+        // Attendre que le conteneur ait des dimensions valides
+        await waitForDimensions()
+
         // Charger OrbitControls de manière sécurisée
         let OrbitControls: any = null
         try {
           const module = await import('three/examples/jsm/controls/OrbitControls.js')
           OrbitControls = module.OrbitControls
         } catch (e) {
-          console.warn('OrbitControls import failed, using fallback camera controls', e)
+          console.warn('OrbitControls import failed, using fallback', e)
         }
 
         if (!containerRef.current) return
-
-        scene = new THREE.Scene()
-        scene.background = new THREE.Color(0x0a0e27)
-        sceneRef.current = scene
 
         const width = containerRef.current.clientWidth
         const height = containerRef.current.clientHeight
 
         if (width === 0 || height === 0) {
-          setRenderError('Container dimensions invalid')
+          setRenderError('Container dimensions still invalid')
           return
         }
+
+        scene = new THREE.Scene()
+        scene.background = new THREE.Color(0x0a0e27)
+        sceneRef.current = scene
 
         camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
         camera.position.set(4, 3, 4)
@@ -301,7 +321,6 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         renderer.shadowMap.enabled = true
         renderer.shadowMap.type = THREE.PCFShadowMap
         
-        // Nettoyer le conteneur et ajouter le renderer
         containerRef.current.innerHTML = ''
         containerRef.current.appendChild(renderer.domElement)
         rendererRef.current = renderer
@@ -315,7 +334,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
           controlsRef.current = controls
         }
 
-        // Éclairage professionnel
+        // Éclairage
         scene.add(new THREE.AmbientLight(0xffffff, 0.6))
         
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9)
@@ -366,10 +385,31 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         animate()
         frameIdRef.current = animationId
 
+        // ResizeObserver pour détecter les changements de taille
+        if (resizeObserverRef.current) {
+          resizeObserverRef.current.disconnect()
+        }
+
+        resizeObserverRef.current = new ResizeObserver(() => {
+          if (!containerRef.current || !renderer) return
+          const newWidth = containerRef.current.clientWidth
+          const newHeight = containerRef.current.clientHeight
+          
+          if (newWidth > 0 && newHeight > 0) {
+            camera.aspect = newWidth / newHeight
+            camera.updateProjectionMatrix()
+            renderer.setSize(newWidth, newHeight)
+          }
+        })
+
+        resizeObserverRef.current.observe(containerRef.current)
+
         setRenderError(null)
+        setIsReady(true)
+        isInitialized = true
       } catch (e) { 
         console.error('3D Visualizer initialization error:', e)
-        setRenderError(`Erreur d'initialisation: ${String(e).substring(0, 100)}`)
+        setRenderError(`Erreur: ${String(e).substring(0, 80)}`)
       }
     }
 
@@ -380,19 +420,22 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
       if (rendererRef.current) {
         rendererRef.current.dispose()
       }
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect()
+      }
     }
   }, [effectiveData, pointDensity])
 
   // Mettre à jour les points quand la variable active ou les streamlines changent
   useEffect(() => {
-    if (!sceneRef.current || !effectiveData.length) return
+    if (!sceneRef.current || !effectiveData.length || !isReady) return
 
     const filteredData = pointDensity < 1.0 
       ? effectiveData.filter(() => Math.random() < pointDensity)
       : effectiveData
 
     updateVisualization(sceneRef.current, filteredData)
-  }, [activeVariable, showStreamlines, effectiveData, pointDensity])
+  }, [activeVariable, showStreamlines, effectiveData, pointDensity, isReady])
 
   return (
     <div className="w-full space-y-6 bg-slate-950 p-6 rounded-[32px] border border-white/5 shadow-2xl">
@@ -414,15 +457,26 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
       </div>
       
       <div className="relative flex flex-col lg:flex-row gap-6">
-        <div ref={containerRef} className="flex-1 h-[600px] bg-black/60 rounded-2xl border border-white/5 overflow-hidden" />
-        
-        <div className="lg:w-64 space-y-4 bg-white/5 p-4 rounded-2xl border border-white/10">
+        <div ref={containerRef} className="flex-1 h-[600px] bg-black/60 rounded-2xl border border-white/5 overflow-hidden relative">
           {renderError && (
-            <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-xs text-red-400">
-              {renderError}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/90 text-red-400 text-xs p-4 text-center z-50">
+              <div>
+                <p className="font-bold mb-2">⚠️ Render Error</p>
+                <p>{renderError}</p>
+              </div>
             </div>
           )}
-          
+          {!isReady && !renderError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-blue-400 text-xs z-40">
+              <div className="text-center">
+                <div className="animate-spin mb-2">⚙️</div>
+                <p>Initializing 3D Engine...</p>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        <div className="lg:w-64 space-y-4 bg-white/5 p-4 rounded-2xl border border-white/10">
           <div className="space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase">Paramètres</p>
             <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
