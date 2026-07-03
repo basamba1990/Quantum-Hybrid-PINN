@@ -132,13 +132,17 @@ export default function AssistantPage() {
       }
 
       // Call Edge Function with real data
+      const { data: { session } } = await supabase.auth.getSession()
+      const userToken = session?.access_token
+      if (!userToken) throw new Error('Session expirée')
+      
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/verify-physics-logic`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             projectId: context.projectId,
@@ -154,8 +158,7 @@ export default function AssistantPage() {
         throw new Error(`Vérification échouée: ${errorText}`)
       }
 
-      const result = await response.json()
-      const data = result.data
+      const data = await response.json()
 
       // Update context with results
       setContext(prev => ({

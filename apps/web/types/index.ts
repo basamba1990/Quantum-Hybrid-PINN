@@ -38,10 +38,18 @@ export interface AnalysisResults {
   anomalies: string[];
   extractedData: any;
   predictions3d: Prediction3D[];
+  residuals?: {
+    continuity?: number;
+    momentum?: number;
+    energy?: number;
+  };
+  scenario_outputs?: Record<string, any>;
+  residual_history?: Array<{ iteration: number; residuals: Record<string, number> }>;
   assimilation?: {
     initial_state: number[];
     observation: number[];
     assimilated_state: number[];
+    residuals?: Record<string, number>;
   };
 }
 
@@ -88,6 +96,7 @@ export interface Report {
   file_type?: string
   file_size_kb?: number
   file_name?: string
+  type?: string
 }
 
 export interface User {
