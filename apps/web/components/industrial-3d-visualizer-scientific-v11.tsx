@@ -524,10 +524,10 @@ const Industrial3DVisualizerScientificV11: React.FC<Props> = ({
       engineRef.current.clippingPlanes[0].constant = clippingValues.z
     }
 
-    const activePlanes = []
-    if (clippingEnabled.x) activePlanes.push(engineRef.current.clippingPlanes[2])
-    if (clippingEnabled.y) activePlanes.push(engineRef.current.clippingPlanes[1])
-    if (clippingEnabled.z) activePlanes.push(engineRef.current.clippingPlanes[0])
+    const activePlanes: THREE.Plane[] = []
+    if (clippingEnabled.x && engineRef.current.clippingPlanes) activePlanes.push(engineRef.current.clippingPlanes[2])
+    if (clippingEnabled.y && engineRef.current.clippingPlanes) activePlanes.push(engineRef.current.clippingPlanes[1])
+    if (clippingEnabled.z && engineRef.current.clippingPlanes) activePlanes.push(engineRef.current.clippingPlanes[0])
 
     if (engineRef.current.points && engineRef.current.points.material) {
       (engineRef.current.points.material as any).clippingPlanes = activePlanes
