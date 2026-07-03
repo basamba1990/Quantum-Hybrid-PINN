@@ -55,7 +55,8 @@ export default function AnalysesPage() {
                 // ✅ Correction: Recherche approfondie du score dans l'objet d'analyse ou ses résultats
                 const results = typeof a.results === 'string' ? (function() { try { return JSON.parse(a.results); } catch(e) { return {}; } })() : (a.results || {});
                 const score = (a as any).credibility_score ?? (a as any).credibilityScore ?? results.credibility_score ?? results.credibilityScore ?? 0;
-                const scoreColor = score >= 80 ? 'text-green-600' : score >= 60 ? 'text-amber-600' : 'text-red-600'
+                const scoreLabel = score >= 90 ? 'Excellent' : score >= 75 ? 'Acceptable' : score >= 60 ? 'Moyen' : 'Critique';
+                const scoreColor = score >= 90 ? 'text-green-600' : score >= 75 ? 'text-green-500' : score >= 60 ? 'text-amber-600' : 'text-red-600'
                 return (
                   <tr key={a.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 text-sm text-gray-900 font-medium">{a.title || (a as any).name}</td>
@@ -69,7 +70,12 @@ export default function AnalysesPage() {
                       </span>
                     </td>
                     <td className={`px-4 py-3 text-center text-sm font-bold ${scoreColor}`}>
-                      {a.status === 'completed' ? `${score.toFixed(1)}/100` : '-'}
+                      {a.status === 'completed' ? (
+                        <div>
+                          <div>{score.toFixed(1)}/100</div>
+                          <div className="text-xs font-normal opacity-75">{scoreLabel}</div>
+                        </div>
+                      ) : '-'}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {format(new Date(a.created_at), 'dd/MM/yyyy HH:mm')}

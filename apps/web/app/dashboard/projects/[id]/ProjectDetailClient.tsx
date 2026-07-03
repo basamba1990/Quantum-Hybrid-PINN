@@ -48,7 +48,7 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
-  const [latestAnalysis, setLatestAnalysis] = useState<any>(null)
+  const [latestAnalysis, setLatestAnalysis] = useState<{ results?: any; scenario_type?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
@@ -64,7 +64,7 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
   }, [latestAnalysis])
 
   const predictions3d = useMemo(() => {
-    return Array.isArray(results?.predictions3d) ? results.predictions3d : []
+    return Array.isArray(results?.predictions3d) ? (results.predictions3d as { temperature?: number; pressure?: number; density?: number; velocity_magnitude?: number }[]) : []
   }, [results])
 
   const scenarioType = useMemo(() => {
@@ -214,7 +214,7 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
           {/* 2D Analysis Charts with Export */}
           {predictions3d.length > 0 && (
             <HybridChartVisualizerExport
-              data={predictions3d.map((p, i) => ({
+              data={predictions3d.map((p: { temperature?: number; pressure?: number; density?: number; velocity_magnitude?: number }, i: number) => ({
                 name: `Point ${i + 1}`,
                 temperature: p.temperature,
                 pressure: p.pressure,
