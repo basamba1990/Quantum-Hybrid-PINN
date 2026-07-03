@@ -25,10 +25,10 @@ import { Badge } from "@/components/ui/badge"
 import dynamic from 'next/dynamic'
 import { HybridSimulationPanel } from "@/components/HybridSimulationPanel"
 
-// Import dynamique du nouveau visualiseur industriel V9
-const Industrial3DVisualizerV10Gold = dynamic(
-  () => import('@/components/industrial-3d-visualizer-v10-gold'),
-  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur 3D Gold...</div> }
+// Import dynamique du nouveau visualiseur industriel V5
+const Industrial3DVisualizerEnhancedV5 = dynamic(
+  () => import('@/components/industrial-3d-visualizer-enhanced-v5'),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur 3D...</div> }
 )
 
 export default function SimulationsPage() {
@@ -83,7 +83,7 @@ export default function SimulationsPage() {
   }, [selectedProject])
 
   // Extraction des données 3D pour le visualiseur
-  const get3DData = () => {
+  const predictions3d = useMemo(() => {
     let results = selectedAnalysis?.results as any;
     if (typeof results === 'string') {
       try {
@@ -92,10 +92,19 @@ export default function SimulationsPage() {
         results = {};
       }
     }
-    return results?.predictions3d || [];
-  }
-
-  const predictions3d = get3DData();
+    const rawData = results?.predictions3d || [];
+    return Array.isArray(rawData) 
+      ? rawData.map((p: any, i: number) => ({
+          x: p.x ?? (i % 10) * 0.1,
+          y: p.y ?? (Math.floor(i / 10) % 10) * 0.1,
+          z: p.z ?? (Math.floor(i / 100) % 10) * 0.1,
+          temperature: p.temperature ?? 0,
+          pressure: p.pressure ?? 0,
+          density: p.density ?? 1.225,
+          velocity_magnitude: p.velocity_magnitude ?? 0
+        }))
+      : [];
+  }, [selectedAnalysis])
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
@@ -193,7 +202,7 @@ export default function SimulationsPage() {
                   </div>
                 ) : (
                   <div className="p-6">
-                    <Industrial3DVisualizerV10Gold 
+                    <Industrial3DVisualizerEnhancedV5 
                       data={predictions3d} 
                       title={selectedAnalysis?.name || "3D Isosurface"} 
                       colorVariable="temperature"

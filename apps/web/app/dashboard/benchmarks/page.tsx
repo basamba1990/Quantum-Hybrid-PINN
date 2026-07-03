@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import Industrial3DVisualizerEnhanced from '@/components/industrial-3d-visualizer-enhanced'
+import Industrial3DVisualizerEnhancedV5 from '@/components/industrial-3d-visualizer-enhanced-v5'
 import { 
   Zap, 
   ShieldCheck, 
@@ -229,7 +229,18 @@ export default function IndustrialBenchmarksPage() {
             </div>
 
             <div className="h-[650px] rounded-[32px] overflow-hidden">
-              <Industrial3DVisualizerEnhanced data={simData} />
+              <Industrial3DVisualizerEnhancedV5 
+                data={simData.map((p, i) => ({
+                  ...p,
+                  x: p.x ?? (i % 10) * 0.1,
+                  y: p.y ?? (Math.floor(i / 10) % 10) * 0.1,
+                  z: p.z ?? (Math.floor(i / 100) % 10) * 0.1,
+                  temperature: p.temperature ?? 0,
+                  pressure: p.pressure ?? 0,
+                  density: p.density ?? 1.225,
+                  velocity_magnitude: p.velocity_magnitude ?? 0
+                }))} 
+              />
             </div>
           </div>
 
