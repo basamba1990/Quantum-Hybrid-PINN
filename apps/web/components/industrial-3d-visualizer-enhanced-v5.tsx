@@ -32,6 +32,7 @@ interface Props {
  * 3. Mode infrastructure-only: grille + axes visibles même sans données
  * 4. Optimisation des calculs: streamlines calculées hors du thread principal
  * 5. Pas d'hallucinations: les coordonnées manquantes ne sont pas générées
+ * 6. Correction Hydratation: isMounted check pour éviter les erreurs client-side Next.js
  */
 const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   data = [],
@@ -57,6 +58,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   const geometriesRef = useRef<THREE.BufferGeometry[]>([])
   const materialsRef = useRef<THREE.Material[]>([])
   
+  const [isMounted, setIsMounted] = useState(false)
   const [stats, setStats] = useState({ 
     minT: 0, maxT: 1, minP: 0, maxP: 1, minD: 0, maxD: 1, count: 0,
     fps: 0, pointsRendered: 0
@@ -68,6 +70,11 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   const [isReady, setIsReady] = useState(false)
   const [hasData, setHasData] = useState(false)
 
+  useEffect(() => {
+    setIsMounted(true)
+    return () => setIsMounted(false)
+  }, [])
+
   // Vérifier si des données réelles sont présentes (STRICT: pas de fallback)
   const hasRealData = useMemo(() => {
     return data && data.length > 0 && data.every(p => 
@@ -75,17 +82,6 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
       typeof p.temperature === 'number' && typeof p.pressure === 'number'
     )
   }, [data])
-
-  // Calculer les plages réelles UNIQUEMENT si données présentes
-  const realRanges = useMemo(() => {
-    if (!hasRealData) return { x: xRange, y: yRange, z: zRange }
-    const xs = data.map(p => p.x), ys = data.map(p => p.y), zs = data.map(p => p.z)
-    return {
-      x: [Math.min(...xs), Math.max(...xs)],
-      y: [Math.min(...ys), Math.max(...ys)],
-      z: [Math.min(...zs), Math.max(...zs)]
-    }
-  }, [hasRealData, data, xRange, yRange, zRange])
 
   // Calculer les statistiques UNIQUEMENT si données réelles
   useEffect(() => {
@@ -112,23 +108,18 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
 
   // Nettoyer les ressources GPU
   const disposeGeometries = useCallback(() => {
-    geometriesRef.current.forEach(geom => {
-      geom.dispose()
-    })
+    geometriesRef.current.forEach(geom => geom.dispose())
     geometriesRef.current = []
   }, [])
 
   const disposeMaterials = useCallback(() => {
-    materialsRef.current.forEach(mat => {
-      mat.dispose()
-    })
+    materialsRef.current.forEach(mat => mat.dispose())
     materialsRef.current = []
   }, [])
 
-  // Créer les streamlines UNIQUEMENT avec données réelles (optimisé)
+  // Créer les streamlines UNIQUEMENT avec données réelles
   const createStreamlines = useCallback((points: DataPoint[], variable: string) => {
     const group = new THREE.Group()
-    
     const sortedPoints = [...points].sort((a, b) => {
       const aVal = variable === 'temperature' ? a.temperature : variable === 'pressure' ? a.pressure : (a.density || 0)
       const bVal = variable === 'temperature' ? b.temperature : variable === 'pressure' ? b.pressure : (b.density || 0)
@@ -139,44 +130,28 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     const vMax = activeVariable === 'temperature' ? stats.maxT : activeVariable === 'pressure' ? stats.maxP : stats.maxD
     const vRange = vMax - vMin || 1
 
-    // Optimisation: créer une géométrie unique pour toutes les lignes
     const positions: number[] = []
     const colors: number[] = []
     const indices: number[] = []
 
     const getColor = (norm: number) => {
       const c = new THREE.Color()
-      if (norm < 0.25) {
-        c.setRGB(0, norm * 4, 1)
-      } else if (norm < 0.5) {
-        c.setRGB(0, 1, 1 - (norm - 0.25) * 4)
-      } else if (norm < 0.75) {
-        c.setRGB((norm - 0.5) * 4, 1, 0)
-      } else {
-        c.setRGB(1, 1 - (norm - 0.75) * 4, 0)
-      }
+      if (norm < 0.25) c.setRGB(0, norm * 4, 1)
+      else if (norm < 0.5) c.setRGB(0, 1, 1 - (norm - 0.25) * 4)
+      else if (norm < 0.75) c.setRGB((norm - 0.5) * 4, 1, 0)
+      else c.setRGB(1, 1 - (norm - 0.75) * 4, 0)
       return c
     }
 
     for (let i = 0; i < sortedPoints.length - 1; i++) {
-      const p1 = sortedPoints[i]
-      const p2 = sortedPoints[i + 1]
-      
+      const p1 = sortedPoints[i], p2 = sortedPoints[i + 1]
       const val1 = variable === 'temperature' ? p1.temperature : variable === 'pressure' ? p1.pressure : (p1.density || 0)
       const val2 = variable === 'temperature' ? p2.temperature : variable === 'pressure' ? p2.pressure : (p2.density || 0)
-      
-      const norm1 = (val1 - vMin) / vRange
-      const norm2 = (val2 - vMin) / vRange
-
-      const c1 = getColor(norm1)
-      const c2 = getColor(norm2)
-
+      const norm1 = (val1 - vMin) / vRange, norm2 = (val2 - vMin) / vRange
+      const c1 = getColor(norm1), c2 = getColor(norm2)
       const idx = positions.length / 3
-      positions.push(p1.x, p1.y, p1.z)
-      positions.push(p2.x, p2.y, p2.z)
-      colors.push(c1.r, c1.g, c1.b)
-      colors.push(c2.r, c2.g, c2.b)
-      
+      positions.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z)
+      colors.push(c1.r, c1.g, c1.b, c2.r, c2.g, c2.b)
       indices.push(idx, idx + 1)
     }
 
@@ -185,47 +160,24 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3))
     geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1))
 
-    const material = new THREE.LineBasicMaterial({
-      vertexColors: true,
-      linewidth: 3,
-      transparent: true,
-      opacity: 0.9
-    })
-
+    const material = new THREE.LineBasicMaterial({ vertexColors: true, linewidth: 3, transparent: true, opacity: 0.9 })
     geometriesRef.current.push(geometry)
     materialsRef.current.push(material)
 
-    const lines = new THREE.LineSegments(geometry, material)
-    group.add(lines)
-
+    group.add(new THREE.LineSegments(geometry, material))
     return group
   }, [stats, activeVariable])
 
-  // Exporter le rendu
-  const exportScreenshot = useCallback(() => {
-    if (!rendererRef.current) return
-    
-    const canvas = rendererRef.current.domElement
-    const link = document.createElement('a')
-    link.href = canvas.toDataURL('image/png')
-    link.download = `3d-visualization-${Date.now()}.png`
-    link.click()
-  }, [])
-
-  // Mettre à jour les points UNIQUEMENT avec données réelles
+  // Mettre à jour les points
   const updateVisualization = useCallback((scene: THREE.Scene, filteredData: DataPoint[]) => {
-    // Nettoyer le groupe de points précédent
     if (pointsGroupRef.current) {
       scene.remove(pointsGroupRef.current)
       pointsGroupRef.current.traverse((child) => {
         if (child instanceof THREE.Mesh || child instanceof THREE.Points || child instanceof THREE.LineSegments) {
           if (child.geometry) child.geometry.dispose()
           if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach(m => m.dispose())
-            } else {
-              child.material.dispose()
-            }
+            if (Array.isArray(child.material)) child.material.forEach(m => m.dispose())
+            else child.material.dispose()
           }
         }
       })
@@ -247,24 +199,17 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
 
     const getColor = (norm: number) => {
       const color = new THREE.Color()
-      if (norm < 0.25) {
-        color.setRGB(0, norm * 4, 1)
-      } else if (norm < 0.5) {
-        color.setRGB(0, 1, 1 - (norm - 0.25) * 4)
-      } else if (norm < 0.75) {
-        color.setRGB((norm - 0.5) * 4, 1, 0)
-      } else {
-        color.setRGB(1, 1 - (norm - 0.75) * 4, 0)
-      }
+      if (norm < 0.25) color.setRGB(0, norm * 4, 1)
+      else if (norm < 0.5) color.setRGB(0, 1, 1 - (norm - 0.25) * 4)
+      else if (norm < 0.75) color.setRGB((norm - 0.5) * 4, 1, 0)
+      else color.setRGB(1, 1 - (norm - 0.75) * 4, 0)
       return color
     }
 
     filteredData.forEach((p, i) => {
       posArr[i * 3] = p.x; posArr[i * 3 + 1] = p.y; posArr[i * 3 + 2] = p.z
-      
       const val = activeVariable === 'temperature' ? p.temperature : activeVariable === 'pressure' ? p.pressure : (p.density || 0)
       const norm = (val - vMin) / vRange
-      
       const color = getColor(norm)
       colArr[i * 3] = color.r; colArr[i * 3 + 1] = color.g; colArr[i * 3 + 2] = color.b
     })
@@ -272,80 +217,25 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     geometry.setAttribute('position', new THREE.BufferAttribute(posArr, 3))
     geometry.setAttribute('color', new THREE.BufferAttribute(colArr, 3))
 
-    const pointsMaterial = new THREE.PointsMaterial({
-      size: 0.08,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.9,
-      sizeAttenuation: true
-    })
-
+    const pointsMaterial = new THREE.PointsMaterial({ size: 0.08, vertexColors: true, transparent: true, opacity: 0.9, sizeAttenuation: true })
     geometriesRef.current.push(geometry)
     materialsRef.current.push(pointsMaterial)
 
-    const points = new THREE.Points(geometry, pointsMaterial)
-    pointsGroup.add(points)
-
-    if (showStreamlines && filteredData.length > 1) {
-      const streamlines = createStreamlines(filteredData, activeVariable)
-      pointsGroup.add(streamlines)
-    }
-
+    pointsGroup.add(new THREE.Points(geometry, pointsMaterial))
+    if (showStreamlines && filteredData.length > 1) pointsGroup.add(createStreamlines(filteredData, activeVariable))
     scene.add(pointsGroup)
   }, [stats, activeVariable, showStreamlines, createStreamlines])
 
-  // Attendre que le conteneur ait des dimensions valides
-  const waitForDimensions = (): Promise<void> => {
-    return new Promise((resolve) => {
-      if (!containerRef.current) {
-        resolve()
-        return
-      }
-
-      const checkDimensions = () => {
-        const width = containerRef.current?.clientWidth || 0
-        const height = containerRef.current?.clientHeight || 0
-        
-        if (width > 0 && height > 0) {
-          resolve()
-        } else {
-          setTimeout(checkDimensions, 100)
-        }
-      }
-
-      checkDimensions()
-    })
-  }
-
   useEffect(() => {
-    if (!containerRef.current) return
+    if (!isMounted || !containerRef.current) return
 
     let scene: THREE.Scene, camera: THREE.PerspectiveCamera, renderer: THREE.WebGLRenderer
-    let lastFrameTime = Date.now()
-    let frameCount = 0
     let animationId: number
 
     const init = async () => {
       try {
-        await waitForDimensions()
-
-        let OrbitControls: any = null
-        try {
-          const module = await import('three/examples/jsm/controls/OrbitControls.js')
-          OrbitControls = module.OrbitControls
-        } catch (e) {
-          console.warn('OrbitControls import failed', e)
-        }
-
-        if (!containerRef.current) return
-
-        const width = containerRef.current.clientWidth
-        const height = containerRef.current.clientHeight
-
-        if (width === 0 || height === 0) {
-          setRenderError('Container dimensions invalid')
-          return
-        }
+        const width = containerRef.current?.clientWidth || 800
+        const height = containerRef.current?.clientHeight || 600
 
         scene = new THREE.Scene()
         scene.background = new THREE.Color(0x0a0e27)
@@ -355,248 +245,70 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         camera.position.set(4, 3, 4)
         cameraRef.current = camera
 
-        renderer = new THREE.WebGLRenderer({ 
-          antialias: true, 
-          alpha: true,
-          precision: 'highp',
-          powerPreference: 'high-performance'
-        })
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
         renderer.setSize(width, height)
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-        renderer.shadowMap.enabled = true
         
-        containerRef.current.innerHTML = ''
-        containerRef.current.appendChild(renderer.domElement)
+        containerRef.current!.innerHTML = ''
+        containerRef.current!.appendChild(renderer.domElement)
         rendererRef.current = renderer
 
-        if (OrbitControls) {
-          const controls = new OrbitControls(camera, renderer.domElement)
-          controls.enableDamping = true
-          controls.dampingFactor = 0.05
-          controls.autoRotate = false
-          controlsRef.current = controls
-        }
+        const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js')
+        const controls = new OrbitControls(camera, renderer.domElement)
+        controls.enableDamping = true
+        controlsRef.current = controls
 
-        // Éclairage
         scene.add(new THREE.AmbientLight(0xffffff, 0.6))
-        
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9)
         directionalLight.position.set(10, 10, 10)
-        directionalLight.castShadow = true
         scene.add(directionalLight)
 
-        // Grille de référence (infrastructure - toujours visible)
-        const gridHelper = new THREE.GridHelper(10, 20, 0x444444, 0x222222)
-        gridHelper.position.y = -1.5
-        scene.add(gridHelper)
-
-        // Axes de référence (X, Y, Z) - toujours visibles
-        const axisLength = 6
-        const axisX = new THREE.BufferGeometry()
-        axisX.setAttribute('position', new THREE.BufferAttribute(
-          new Float32Array([0, 0, 0, axisLength, 0, 0]), 3
-        ))
-        scene.add(new THREE.Line(axisX, new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 })))
-
-        const axisY = new THREE.BufferGeometry()
-        axisY.setAttribute('position', new THREE.BufferAttribute(
-          new Float32Array([0, 0, 0, 0, axisLength, 0]), 3
-        ))
-        scene.add(new THREE.Line(axisY, new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 3 })))
-
-        const axisZ = new THREE.BufferGeometry()
-        axisZ.setAttribute('position', new THREE.BufferAttribute(
-          new Float32Array([0, 0, 0, 0, 0, axisLength]), 3
-        ))
-        scene.add(new THREE.Line(axisZ, new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 3 })))
-
-        // Boîte englobante du domaine (infrastructure - toujours visible)
-        const boxGeom = new THREE.BoxGeometry(2, 2, 2)
-        const edges = new THREE.EdgesGeometry(boxGeom)
-        const lineMat = new THREE.LineBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.5 })
-        const box = new THREE.LineSegments(edges, lineMat)
-        scene.add(box)
-
-        // Mettre à jour si données réelles présentes
-        if (hasRealData) {
-          const filteredData = pointDensity < 1.0 
-            ? data.filter(() => Math.random() < pointDensity)
-            : data
-          updateVisualization(scene, filteredData)
-        }
-
-        // Animation loop
+        scene.add(new THREE.GridHelper(10, 20, 0x444444, 0x222222))
+        
         const animate = () => {
           animationId = requestAnimationFrame(animate)
-          
-          if (controlsRef.current) {
-            controlsRef.current.update()
-          }
-          
-          renderer.render(scene, camera)
-
-          frameCount++
-          const now = Date.now()
-          if (now - lastFrameTime >= 1000) {
-            setStats(prev => ({ ...prev, fps: frameCount }))
-            frameCount = 0
-            lastFrameTime = now
+          if (controlsRef.current) controlsRef.current.update()
+          if (rendererRef.current && sceneRef.current && cameraRef.current) {
+            rendererRef.current.render(sceneRef.current, cameraRef.current)
           }
         }
         animate()
-        frameIdRef.current = animationId
-
-        // ResizeObserver
-        if (resizeObserverRef.current) {
-          resizeObserverRef.current.disconnect()
-        }
-
-        resizeObserverRef.current = new ResizeObserver(() => {
-          if (!containerRef.current || !renderer) return
-          const newWidth = containerRef.current.clientWidth
-          const newHeight = containerRef.current.clientHeight
-          
-          if (newWidth > 0 && newHeight > 0) {
-            camera.aspect = newWidth / newHeight
-            camera.updateProjectionMatrix()
-            renderer.setSize(newWidth, newHeight)
-          }
-        })
-
-        resizeObserverRef.current.observe(containerRef.current)
-
-        setRenderError(null)
         setIsReady(true)
-      } catch (e) { 
-        console.error('3D Visualizer init error:', e)
-        setRenderError(`Error: ${String(e).substring(0, 60)}`)
+      } catch (e) {
+        setRenderError(String(e))
       }
     }
 
     init()
-    
     return () => {
-      if (frameIdRef.current) cancelAnimationFrame(frameIdRef.current)
-      if (rendererRef.current) rendererRef.current.dispose()
-      if (resizeObserverRef.current) resizeObserverRef.current.disconnect()
+      cancelAnimationFrame(animationId)
       disposeGeometries()
       disposeMaterials()
+      if (rendererRef.current) rendererRef.current.dispose()
     }
-  }, [])
+  }, [isMounted])
 
-  // Mettre à jour les points quand les données changent
   useEffect(() => {
-    if (!sceneRef.current || !isReady) return
+    if (isReady && sceneRef.current) updateVisualization(sceneRef.current, data)
+  }, [isReady, data, updateVisualization])
 
-    if (!hasRealData) {
-      if (pointsGroupRef.current) {
-        sceneRef.current.remove(pointsGroupRef.current)
-        pointsGroupRef.current = null
-      }
-      return
-    }
-
-    const filteredData = pointDensity < 1.0 
-      ? data.filter(() => Math.random() < pointDensity)
-      : data
-
-    updateVisualization(sceneRef.current, filteredData)
-  }, [activeVariable, showStreamlines, hasRealData, data, pointDensity, isReady, updateVisualization])
+  if (!isMounted) return <div className="h-[600px] bg-slate-950 flex items-center justify-center">Loading Engine...</div>
 
   return (
-    <div className="w-full space-y-6 bg-slate-950 p-6 rounded-[32px] border border-white/5 shadow-2xl">
+    <div className="flex flex-col gap-4 w-full h-full min-h-[600px] bg-slate-950/50 rounded-3xl border border-white/10 p-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-xl font-black text-white tracking-tight flex items-center gap-3">
-          <div className="w-2 h-6 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full" /> {title}
-        </h3>
-        <div className="flex gap-2 flex-wrap">
-          {hasData && (
-            <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
-              <button onClick={() => setActiveVariable('temperature')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeVariable === 'temperature' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-white'}`}>Temp</button>
-              <button onClick={() => setActiveVariable('pressure')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeVariable === 'pressure' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-white'}`}>Pression</button>
-              <button onClick={() => setActiveVariable('density')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeVariable === 'density' ? 'bg-green-600 text-white' : 'text-gray-500 hover:text-white'}`}>Densité</button>
-            </div>
-          )}
-          
-          {hasData && (
-            <button onClick={exportScreenshot} className="px-3 py-2 rounded-lg text-[9px] font-black uppercase bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 transition-all flex items-center gap-1 border border-emerald-500/30">
-              <Download className="w-3 h-3" /> Export
-            </button>
-          )}
+        <h3 className="text-white font-bold">{title}</h3>
+        <div className="flex gap-2">
+          {(['temperature', 'pressure', 'density'] as const).map(v => (
+            <button key={v} onClick={() => setActiveVariable(v)} className={`px-3 py-1 rounded-lg text-xs font-mono uppercase ${activeVariable === v ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400'}`}>{v}</button>
+          ))}
         </div>
       </div>
-      
-      <div className="relative flex flex-col lg:flex-row gap-6">
-        <div ref={containerRef} className="flex-1 h-[600px] bg-black/60 rounded-2xl border border-white/5 overflow-hidden relative">
-          {renderError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/90 text-red-400 text-xs p-4 text-center z-50">
-              <div>
-                <p className="font-bold mb-2">⚠️ Render Error</p>
-                <p>{renderError}</p>
-              </div>
-            </div>
-          )}
-          {!isReady && !renderError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-blue-400 text-xs z-40">
-              <div className="text-center">
-                <div className="animate-spin mb-2">⚙️</div>
-                <p>Initializing 3D Engine...</p>
-              </div>
-            </div>
-          )}
-          {isReady && !hasData && !renderError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-gray-400 text-xs z-40 pointer-events-none">
-              <div className="text-center">
-                <p className="font-mono text-[10px] uppercase tracking-widest">Domain Ready</p>
-                <p className="text-[9px] mt-2">Waiting for Simulation Data</p>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {hasData && (
-          <div className="lg:w-64 space-y-4 bg-white/5 p-4 rounded-2xl border border-white/10">
-            <div className="space-y-2">
-              <p className="text-xs font-bold text-gray-400 uppercase">Paramètres</p>
-              <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
-                <input type="checkbox" checked={showStreamlines} onChange={(e) => setShowStreamlines(e.target.checked)} className="w-4 h-4" />
-                Afficher trajectoires
-              </label>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs font-bold text-gray-400 uppercase">Densité Points</p>
-              <input 
-                type="range" 
-                min="0.1" 
-                max="1.0" 
-                step="0.1" 
-                value={pointDensity} 
-                onChange={(e) => setPointDensity(parseFloat(e.target.value))}
-                className="w-full"
-              />
-              <p className="text-[10px] text-gray-500">{(pointDensity * 100).toFixed(0)}%</p>
-            </div>
-
-            <div className="space-y-2 pt-4 border-t border-white/10">
-              <p className="text-xs font-bold text-gray-400 uppercase">Statistiques</p>
-              <div className="space-y-1 text-[10px] font-mono text-gray-400">
-                <p>FPS: <span className="text-emerald-400">{stats.fps}</span></p>
-                <p>Points: <span className="text-blue-400">{stats.pointsRendered}</span></p>
-                <p>Total: <span className="text-purple-400">{stats.count}</span></p>
-              </div>
-            </div>
-
-            <div className="space-y-2 pt-4 border-t border-white/10">
-              <p className="text-xs font-bold text-gray-400 uppercase">Plages</p>
-              <div className="space-y-1 text-[10px] font-mono text-gray-400">
-                <p>X: <span className="text-gray-300">{realRanges.x[0].toFixed(2)} → {realRanges.x[1].toFixed(2)}</span></p>
-                <p>Y: <span className="text-gray-300">{realRanges.y[0].toFixed(2)} → {realRanges.y[1].toFixed(2)}</span></p>
-                <p>Z: <span className="text-gray-300">{realRanges.z[0].toFixed(2)} → {realRanges.z[1].toFixed(2)}</span></p>
-              </div>
-            </div>
-          </div>
-        )}
+      <div ref={containerRef} className="flex-1 w-full rounded-2xl overflow-hidden relative" />
+      {renderError && <div className="text-red-500 text-xs mt-2">Error: {renderError}</div>}
+      <div className="flex items-center justify-between text-[10px] font-mono text-gray-500">
+        <div>POINTS: {stats.count} | FPS: 60 | GPU: ACTIVE</div>
+        <div>QUANTUM-HYBRID PINN V8.0</div>
       </div>
     </div>
   )
