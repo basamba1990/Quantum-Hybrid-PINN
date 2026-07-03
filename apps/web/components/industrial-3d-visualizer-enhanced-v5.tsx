@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react'
 import * as THREE from 'three'
-import { Download, Image as ImageIcon } from 'lucide-react'
+import { Download } from 'lucide-react'
 
 interface DataPoint {
   x: number; y: number; z: number;
@@ -24,14 +24,11 @@ interface Props {
 }
 
 /**
- * Industrial 3D Visualizer V5 - Enhanced Clarity Edition
- * CORRECTIONS APPORTÉES:
- * - Gestion améliorée des données vides (génération de données par défaut)
- * - Chargement dynamique sécurisé d'OrbitControls
- * - Attente des dimensions du conteneur avant initialisation
- * - ResizeObserver pour détecter les changements de taille
- * - Gestion des erreurs robuste
- * - Canvas toujours visible et fonctionnel
+ * Industrial 3D Visualizer V5 - Strict & Professional Mode
+ * MODE: Production-Grade - Aucune donnée fictive
+ * - Affiche UNIQUEMENT les données réelles du solver
+ * - Grille/Axes visibles même sans données (infrastructure)
+ * - Intégrité garantie: pas d'hallucinations
  */
 const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   data = [],
@@ -55,62 +52,55 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   
   const [stats, setStats] = useState({ 
     minT: 0, maxT: 1, minP: 0, maxP: 1, minD: 0, maxD: 1, count: 0,
-    fps: 60, pointsRendered: 0
+    fps: 0, pointsRendered: 0
   })
   const [activeVariable, setActiveVariable] = useState<'temperature' | 'pressure' | 'density'>(colorVariable)
   const [showStreamlines, setShowStreamlines] = useState(true)
   const [pointDensity, setPointDensity] = useState(1.0)
   const [renderError, setRenderError] = useState<string | null>(null)
   const [isReady, setIsReady] = useState(false)
+  const [hasData, setHasData] = useState(false)
 
-  // Générer des données par défaut si aucune donnée n'est fournie
-  const effectiveData = useMemo(() => {
-    if (data && data.length > 0) return data
-    
-    // Générer des données de démonstration
-    const demoPoints: DataPoint[] = []
-    const segments = 200
-    for (let i = 0; i < segments; i++) {
-      const t = i / 20
-      demoPoints.push({
-        x: t * 5,
-        y: Math.cos(t * 1.5) * 5,
-        z: Math.sin(t * 1.5) * 5,
-        temperature: 293 + Math.sin(t) * 10,
-        velocity_magnitude: 2.5 * (1 + Math.cos(t * 0.5) * 0.3),
-        pressure: 120 - (t * 0.5),
-        density: 1.225
-      })
-    }
-    return demoPoints
+  // Vérifier si des données réelles sont présentes
+  const hasRealData = useMemo(() => {
+    return data && data.length > 0
   }, [data])
 
-  // Calcul des statistiques
+  // Calculer les plages réelles UNIQUEMENT si données présentes
   const realRanges = useMemo(() => {
-    if (!effectiveData.length) return { x: [-1, 1], y: [-1, 1], z: [-1, 1] }
-    const xs = effectiveData.map(p => p.x), ys = effectiveData.map(p => p.y), zs = effectiveData.map(p => p.z)
+    if (!hasRealData) return { x: xRange, y: yRange, z: zRange }
+    const xs = data.map(p => p.x), ys = data.map(p => p.y), zs = data.map(p => p.z)
     return {
       x: [Math.min(...xs), Math.max(...xs)],
       y: [Math.min(...ys), Math.max(...ys)],
       z: [Math.min(...zs), Math.max(...zs)]
     }
-  }, [effectiveData])
+  }, [hasRealData, data, xRange, yRange, zRange])
 
+  // Calculer les statistiques UNIQUEMENT si données réelles
   useEffect(() => {
-    if (!effectiveData.length) return
-    const temps = effectiveData.map(p => p.temperature)
-    const press = effectiveData.map(p => p.pressure)
-    const dens = effectiveData.map(p => p.density || 1.0)
+    if (!hasRealData) {
+      setStats(prev => ({ ...prev, count: 0, pointsRendered: 0 }))
+      setHasData(false)
+      return
+    }
+
+    const temps = data.map(p => p.temperature)
+    const press = data.map(p => p.pressure)
+    const dens = data.map(p => p.density || 1.0)
+    
     setStats(prev => ({
       ...prev,
       minT: Math.min(...temps), maxT: Math.max(...temps),
       minP: Math.min(...press), maxP: Math.max(...press),
       minD: Math.min(...dens), maxD: Math.max(...dens),
-      count: effectiveData.length
+      count: data.length,
+      pointsRendered: data.length
     }))
-  }, [effectiveData])
+    setHasData(true)
+  }, [hasRealData, data])
 
-  // Fonction pour créer les streamlines
+  // Créer les streamlines UNIQUEMENT avec données réelles
   const createStreamlines = (points: DataPoint[], variable: string) => {
     const group = new THREE.Group()
     
@@ -174,7 +164,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     return group
   }
 
-  // Fonction pour exporter l'image 3D
+  // Exporter le rendu
   const exportScreenshot = () => {
     if (!rendererRef.current) return
     
@@ -185,11 +175,13 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     link.click()
   }
 
-  // Fonction pour mettre à jour les points affichés
+  // Mettre à jour les points UNIQUEMENT avec données réelles
   const updateVisualization = (scene: THREE.Scene, filteredData: DataPoint[]) => {
     if (pointsGroupRef.current) {
       scene.remove(pointsGroupRef.current)
     }
+
+    if (filteredData.length === 0) return
 
     const pointsGroup = new THREE.Group()
     pointsGroupRef.current = pointsGroup
@@ -234,7 +226,6 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     })
 
     const points = new THREE.Points(geometry, pointsMaterial)
-    points.castShadow = true
     pointsGroup.add(points)
 
     if (showStreamlines && filteredData.length > 1) {
@@ -243,7 +234,6 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     }
 
     scene.add(pointsGroup)
-    setStats(prev => ({ ...prev, pointsRendered: filteredData.length }))
   }
 
   // Attendre que le conteneur ait des dimensions valides
@@ -276,20 +266,17 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     let lastFrameTime = Date.now()
     let frameCount = 0
     let animationId: number
-    let isInitialized = false
 
     const init = async () => {
       try {
-        // Attendre que le conteneur ait des dimensions valides
         await waitForDimensions()
 
-        // Charger OrbitControls de manière sécurisée
         let OrbitControls: any = null
         try {
           const module = await import('three/examples/jsm/controls/OrbitControls.js')
           OrbitControls = module.OrbitControls
         } catch (e) {
-          console.warn('OrbitControls import failed, using fallback', e)
+          console.warn('OrbitControls import failed', e)
         }
 
         if (!containerRef.current) return
@@ -298,7 +285,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         const height = containerRef.current.clientHeight
 
         if (width === 0 || height === 0) {
-          setRenderError('Container dimensions still invalid')
+          setRenderError('Container dimensions invalid')
           return
         }
 
@@ -319,13 +306,11 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         renderer.setSize(width, height)
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
         renderer.shadowMap.enabled = true
-        renderer.shadowMap.type = THREE.PCFShadowMap
         
         containerRef.current.innerHTML = ''
         containerRef.current.appendChild(renderer.domElement)
         rendererRef.current = renderer
 
-        // Configurer les contrôles
         if (OrbitControls) {
           const controls = new OrbitControls(camera, renderer.domElement)
           controls.enableDamping = true
@@ -340,29 +325,47 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9)
         directionalLight.position.set(10, 10, 10)
         directionalLight.castShadow = true
-        directionalLight.shadow.mapSize.width = 2048
-        directionalLight.shadow.mapSize.height = 2048
         scene.add(directionalLight)
 
-        // Grille de référence
+        // Grille de référence (infrastructure)
         const gridHelper = new THREE.GridHelper(10, 20, 0x444444, 0x222222)
         gridHelper.position.y = -1.5
         scene.add(gridHelper)
 
-        // Boîte englobante
+        // Axes de référence (X, Y, Z)
+        const axisLength = 6
+        const axisX = new THREE.BufferGeometry()
+        axisX.setAttribute('position', new THREE.BufferAttribute(
+          new Float32Array([0, 0, 0, axisLength, 0, 0]), 3
+        ))
+        scene.add(new THREE.Line(axisX, new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 })))
+
+        const axisY = new THREE.BufferGeometry()
+        axisY.setAttribute('position', new THREE.BufferAttribute(
+          new Float32Array([0, 0, 0, 0, axisLength, 0]), 3
+        ))
+        scene.add(new THREE.Line(axisY, new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 3 })))
+
+        const axisZ = new THREE.BufferGeometry()
+        axisZ.setAttribute('position', new THREE.BufferAttribute(
+          new Float32Array([0, 0, 0, 0, 0, axisLength]), 3
+        ))
+        scene.add(new THREE.Line(axisZ, new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 3 })))
+
+        // Boîte englobante du domaine
         const boxGeom = new THREE.BoxGeometry(2, 2, 2)
         const edges = new THREE.EdgesGeometry(boxGeom)
         const lineMat = new THREE.LineBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.5 })
         const box = new THREE.LineSegments(edges, lineMat)
         scene.add(box)
 
-        // Filtrer les données selon la densité
-        const filteredData = pointDensity < 1.0 
-          ? effectiveData.filter(() => Math.random() < pointDensity)
-          : effectiveData
-
-        // Mettre à jour la visualisation
-        updateVisualization(scene, filteredData)
+        // Mettre à jour si données réelles présentes
+        if (hasRealData) {
+          const filteredData = pointDensity < 1.0 
+            ? data.filter(() => Math.random() < pointDensity)
+            : data
+          updateVisualization(scene, filteredData)
+        }
 
         // Animation loop
         const animate = () => {
@@ -385,7 +388,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         animate()
         frameIdRef.current = animationId
 
-        // ResizeObserver pour détecter les changements de taille
+        // ResizeObserver
         if (resizeObserverRef.current) {
           resizeObserverRef.current.disconnect()
         }
@@ -406,10 +409,9 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
 
         setRenderError(null)
         setIsReady(true)
-        isInitialized = true
       } catch (e) { 
-        console.error('3D Visualizer initialization error:', e)
-        setRenderError(`Erreur: ${String(e).substring(0, 80)}`)
+        console.error('3D Visualizer init error:', e)
+        setRenderError(`Error: ${String(e).substring(0, 60)}`)
       }
     }
 
@@ -417,25 +419,29 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     
     return () => {
       if (frameIdRef.current) cancelAnimationFrame(frameIdRef.current)
-      if (rendererRef.current) {
-        rendererRef.current.dispose()
-      }
-      if (resizeObserverRef.current) {
-        resizeObserverRef.current.disconnect()
-      }
+      if (rendererRef.current) rendererRef.current.dispose()
+      if (resizeObserverRef.current) resizeObserverRef.current.disconnect()
     }
-  }, [effectiveData, pointDensity])
+  }, [])
 
-  // Mettre à jour les points quand la variable active ou les streamlines changent
+  // Mettre à jour les points quand les données changent
   useEffect(() => {
-    if (!sceneRef.current || !effectiveData.length || !isReady) return
+    if (!sceneRef.current || !isReady) return
+
+    if (!hasRealData) {
+      if (pointsGroupRef.current) {
+        sceneRef.current.remove(pointsGroupRef.current)
+        pointsGroupRef.current = null
+      }
+      return
+    }
 
     const filteredData = pointDensity < 1.0 
-      ? effectiveData.filter(() => Math.random() < pointDensity)
-      : effectiveData
+      ? data.filter(() => Math.random() < pointDensity)
+      : data
 
     updateVisualization(sceneRef.current, filteredData)
-  }, [activeVariable, showStreamlines, effectiveData, pointDensity, isReady])
+  }, [activeVariable, showStreamlines, hasRealData, data, pointDensity, isReady])
 
   return (
     <div className="w-full space-y-6 bg-slate-950 p-6 rounded-[32px] border border-white/5 shadow-2xl">
@@ -444,15 +450,19 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
           <div className="w-2 h-6 bg-gradient-to-b from-blue-600 to-purple-600 rounded-full" /> {title}
         </h3>
         <div className="flex gap-2 flex-wrap">
-          <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
-            <button onClick={() => setActiveVariable('temperature')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeVariable === 'temperature' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-white'}`}>Temp</button>
-            <button onClick={() => setActiveVariable('pressure')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeVariable === 'pressure' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-white'}`}>Pression</button>
-            <button onClick={() => setActiveVariable('density')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeVariable === 'density' ? 'bg-green-600 text-white' : 'text-gray-500 hover:text-white'}`}>Densité</button>
-          </div>
+          {hasData && (
+            <div className="flex gap-2 bg-white/5 p-1 rounded-xl border border-white/10">
+              <button onClick={() => setActiveVariable('temperature')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeVariable === 'temperature' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-white'}`}>Temp</button>
+              <button onClick={() => setActiveVariable('pressure')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeVariable === 'pressure' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-white'}`}>Pression</button>
+              <button onClick={() => setActiveVariable('density')} className={`px-3 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${activeVariable === 'density' ? 'bg-green-600 text-white' : 'text-gray-500 hover:text-white'}`}>Densité</button>
+            </div>
+          )}
           
-          <button onClick={exportScreenshot} className="px-3 py-2 rounded-lg text-[9px] font-black uppercase bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 transition-all flex items-center gap-1 border border-emerald-500/30">
-            <Download className="w-3 h-3" /> Export
-          </button>
+          {hasData && (
+            <button onClick={exportScreenshot} className="px-3 py-2 rounded-lg text-[9px] font-black uppercase bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/40 transition-all flex items-center gap-1 border border-emerald-500/30">
+              <Download className="w-3 h-3" /> Export
+            </button>
+          )}
         </div>
       </div>
       
@@ -474,49 +484,59 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
               </div>
             </div>
           )}
+          {isReady && !hasData && !renderError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-gray-400 text-xs z-40 pointer-events-none">
+              <div className="text-center">
+                <p className="font-mono text-[10px] uppercase tracking-widest">Domain Ready</p>
+                <p className="text-[9px] mt-2">Waiting for Simulation Data</p>
+              </div>
+            </div>
+          )}
         </div>
         
-        <div className="lg:w-64 space-y-4 bg-white/5 p-4 rounded-2xl border border-white/10">
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-gray-400 uppercase">Paramètres</p>
-            <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
-              <input type="checkbox" checked={showStreamlines} onChange={(e) => setShowStreamlines(e.target.checked)} className="w-4 h-4" />
-              Afficher trajectoires
-            </label>
-          </div>
+        {hasData && (
+          <div className="lg:w-64 space-y-4 bg-white/5 p-4 rounded-2xl border border-white/10">
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-gray-400 uppercase">Paramètres</p>
+              <label className="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                <input type="checkbox" checked={showStreamlines} onChange={(e) => setShowStreamlines(e.target.checked)} className="w-4 h-4" />
+                Afficher trajectoires
+              </label>
+            </div>
 
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-gray-400 uppercase">Densité Points</p>
-            <input 
-              type="range" 
-              min="0.1" 
-              max="1.0" 
-              step="0.1" 
-              value={pointDensity} 
-              onChange={(e) => setPointDensity(parseFloat(e.target.value))}
-              className="w-full"
-            />
-            <p className="text-[10px] text-gray-500">{(pointDensity * 100).toFixed(0)}%</p>
-          </div>
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-gray-400 uppercase">Densité Points</p>
+              <input 
+                type="range" 
+                min="0.1" 
+                max="1.0" 
+                step="0.1" 
+                value={pointDensity} 
+                onChange={(e) => setPointDensity(parseFloat(e.target.value))}
+                className="w-full"
+              />
+              <p className="text-[10px] text-gray-500">{(pointDensity * 100).toFixed(0)}%</p>
+            </div>
 
-          <div className="space-y-2 pt-4 border-t border-white/10">
-            <p className="text-xs font-bold text-gray-400 uppercase">Statistiques</p>
-            <div className="space-y-1 text-[10px] font-mono text-gray-400">
-              <p>FPS: <span className="text-emerald-400">{stats.fps}</span></p>
-              <p>Points: <span className="text-blue-400">{stats.pointsRendered}</span></p>
-              <p>Total: <span className="text-purple-400">{stats.count}</span></p>
+            <div className="space-y-2 pt-4 border-t border-white/10">
+              <p className="text-xs font-bold text-gray-400 uppercase">Statistiques</p>
+              <div className="space-y-1 text-[10px] font-mono text-gray-400">
+                <p>FPS: <span className="text-emerald-400">{stats.fps}</span></p>
+                <p>Points: <span className="text-blue-400">{stats.pointsRendered}</span></p>
+                <p>Total: <span className="text-purple-400">{stats.count}</span></p>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-4 border-t border-white/10">
+              <p className="text-xs font-bold text-gray-400 uppercase">Plages</p>
+              <div className="space-y-1 text-[10px] font-mono text-gray-400">
+                <p>X: <span className="text-gray-300">{realRanges.x[0].toFixed(2)} → {realRanges.x[1].toFixed(2)}</span></p>
+                <p>Y: <span className="text-gray-300">{realRanges.y[0].toFixed(2)} → {realRanges.y[1].toFixed(2)}</span></p>
+                <p>Z: <span className="text-gray-300">{realRanges.z[0].toFixed(2)} → {realRanges.z[1].toFixed(2)}</span></p>
+              </div>
             </div>
           </div>
-
-          <div className="space-y-2 pt-4 border-t border-white/10">
-            <p className="text-xs font-bold text-gray-400 uppercase">Plages</p>
-            <div className="space-y-1 text-[10px] font-mono text-gray-400">
-              <p>X: <span className="text-gray-300">{realRanges.x[0].toFixed(2)} → {realRanges.x[1].toFixed(2)}</span></p>
-              <p>Y: <span className="text-gray-300">{realRanges.y[0].toFixed(2)} → {realRanges.y[1].toFixed(2)}</span></p>
-              <p>Z: <span className="text-gray-300">{realRanges.z[0].toFixed(2)} → {realRanges.z[1].toFixed(2)}</span></p>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )
