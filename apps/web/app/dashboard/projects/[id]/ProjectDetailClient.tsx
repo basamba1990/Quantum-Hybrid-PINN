@@ -19,9 +19,14 @@ import {
 } from 'lucide-react'
 
 // Imports dynamiques pour optimiser le chargement
-const Industrial3DVisualizerAdvanced = dynamic(
-  () => import('@/components/industrial-3d-visualizer-v9-production'),
+const Industrial3DVisualizerEnhancedV5 = dynamic(
+  () => import('@/components/industrial-3d-visualizer-enhanced-v5'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse">Initializing 3D Engine...</div> }
+)
+
+const HybridChartVisualizerExport = dynamic(
+  () => import('@/components/hybrid-chart-visualizer-export'),
+  { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
 const PINNPerformanceMonitor = dynamic(
@@ -197,13 +202,28 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
 
         {/* Center - 3D Visualizer & Metrics */}
         <div className="xl:col-span-3 space-y-8">
-          {/* 3D Visualizer with LOD and Color Bars */}
+          {/* 3D Visualizer with Enhanced Clarity and Streamlines */}
           {predictions3d.length > 0 && (
-            <Industrial3DVisualizerAdvanced 
+            <Industrial3DVisualizerEnhancedV5 
               data={predictions3d} 
-              title="3D Isosurface Visualization"
+              title="3D Isosurface Visualization - Enhanced Clarity"
               colorVariable="temperature"
-              maxPointsDisplay={100000}
+            />
+          )}
+
+          {/* 2D Analysis Charts with Export */}
+          {predictions3d.length > 0 && (
+            <HybridChartVisualizerExport
+              data={predictions3d.map((p, i) => ({
+                name: `Point ${i + 1}`,
+                temperature: p.temperature,
+                pressure: p.pressure,
+                density: p.density || 1.0,
+                velocity: p.velocity_magnitude || 0.0
+              }))}
+              title="2D Analysis - Temperature, Pressure, Density & Velocity"
+              variables={['temperature', 'pressure', 'density', 'velocity']}
+              showExport={true}
             />
           )}
 
