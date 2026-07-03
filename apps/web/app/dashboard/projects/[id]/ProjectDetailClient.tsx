@@ -49,6 +49,11 @@ const Industrial3DVisualizerExport = dynamic(
   { ssr: false, loading: () => <div className="h-12 bg-slate-950 rounded-xl border border-white/10 animate-pulse" /> }
 )
 
+/**
+ * CORRECTION: Suppression des fallbacks de coordonnées fictives
+ * Les données sans x/y/z ne sont JAMAIS générées - elles sont simplement ignorées
+ * Cela garantit l'intégrité industrielle: pas d'hallucinations de données
+ */
 export default function ProjectDetailClientV2({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
@@ -64,22 +69,35 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
       if (typeof parsedResults === 'string') parsedResults = JSON.parse(parsedResults)
       return parsedResults || {}
     } catch (e) {
+      console.error('Error parsing results:', e)
       return {}
     }
   }, [latestAnalysis])
 
+  /**
+   * STRICT: Filtrer UNIQUEMENT les points avec coordonnées réelles
+   * Pas de génération de coordonnées fictives (x, y, z)
+   * Pas de valeurs par défaut pour les champs manquants
+   */
   const predictions3d = useMemo(() => {
-    return Array.isArray(results?.predictions3d) 
-      ? (results.predictions3d as any[]).map((p, i) => ({
-          x: p.x ?? (i % 10) * 0.1,
-          y: p.y ?? (Math.floor(i / 10) % 10) * 0.1,
-          z: p.z ?? (Math.floor(i / 100) % 10) * 0.1,
-          temperature: p.temperature ?? 0,
-          pressure: p.pressure ?? 0,
-          density: p.density ?? 1.225,
-          velocity_magnitude: p.velocity_magnitude ?? 0
-        }))
-      : []
+    if (!Array.isArray(results?.predictions3d)) return []
+    
+    return (results.predictions3d as any[]).filter(p => {
+      // Vérifier que les coordonnées spatiales sont présentes et valides
+      return typeof p.x === 'number' && 
+             typeof p.y === 'number' && 
+             typeof p.z === 'number' &&
+             typeof p.temperature === 'number' &&
+             typeof p.pressure === 'number'
+    }).map(p => ({
+      x: p.x,
+      y: p.y,
+      z: p.z,
+      temperature: p.temperature,
+      pressure: p.pressure,
+      density: typeof p.density === 'number' ? p.density : undefined,
+      velocity_magnitude: typeof p.velocity_magnitude === 'number' ? p.velocity_magnitude : undefined
+    }))
   }, [results])
 
   const scenarioType = useMemo(() => {
@@ -118,7 +136,10 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
           let processed = { ...analysisData }
           try {
             if (typeof processed.results === 'string') processed.results = JSON.parse(processed.results)
-          } catch (e) { processed.results = {} }
+          } catch (e) { 
+            console.error('Error parsing analysis results:', e)
+            processed.results = {} 
+          }
           setLatestAnalysis(processed)
         }
 
@@ -219,7 +240,7 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
         {/* Center - 3D Visualizer & Metrics */}
         <div className="xl:col-span-3 space-y-8">
           {/* 3D Visualizer with Enhanced Clarity and Streamlines */}
-          {predictions3d.length > 0 && (
+          {predictions3d.length > 0 ? (
             <div className="space-y-4">
               <Industrial3DVisualizerEnhancedV5 
                 data={predictions3d} 
@@ -233,12 +254,20 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
                 onExport={(format) => console.log(`Exported to ${format}`)}
               />
             </div>
+          ) : (
+            <div className="h-[600px] bg-slate-950 rounded-3xl border border-white/10 flex items-center justify-center">
+              <div className="text-center space-y-4">
+                <div className="text-6xl">📊</div>
+                <p className="text-gray-400 font-mono text-sm uppercase tracking-widest">No 3D Data Available</p>
+                <p className="text-gray-600 text-xs max-w-xs">Run an analysis to generate 3D simulation results with complete spatial coordinates.</p>
+              </div>
+            </div>
           )}
 
           {/* 2D Analysis Charts with Export */}
           {predictions3d.length > 0 && (
             <HybridChartVisualizerExport
-              data={predictions3d.map((p: { temperature?: number; pressure?: number; density?: number; velocity_magnitude?: number }, i: number) => ({
+              data={predictions3d.map((p: any, i: number) => ({
                 name: `Point ${i + 1}`,
                 temperature: p.temperature,
                 pressure: p.pressure,
@@ -279,5 +308,3 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
     </div>
   )
 }
-
-

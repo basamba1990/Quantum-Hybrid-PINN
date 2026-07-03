@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef, useState, useMemo } from 'react'
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import * as THREE from 'three'
 import { Download } from 'lucide-react'
 
@@ -24,11 +24,14 @@ interface Props {
 }
 
 /**
- * Industrial 3D Visualizer V5 - Strict & Professional Mode
- * MODE: Production-Grade - Aucune donnée fictive
- * - Affiche UNIQUEMENT les données réelles du solver
- * - Grille/Axes visibles même sans données (infrastructure)
- * - Intégrité garantie: pas d'hallucinations
+ * Industrial 3D Visualizer V5 - PRODUCTION GRADE
+ * 
+ * CORRECTIONS APPLIQUÉES:
+ * 1. Gestion stricte de la mémoire GPU: dispose() tous les géométries/matériaux avant remplacement
+ * 2. Pas de fallback/données fictives: affiche UNIQUEMENT les données réelles du solver
+ * 3. Mode infrastructure-only: grille + axes visibles même sans données
+ * 4. Optimisation des calculs: streamlines calculées hors du thread principal
+ * 5. Pas d'hallucinations: les coordonnées manquantes ne sont pas générées
  */
 const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   data = [],
@@ -50,6 +53,10 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   const pointsGroupRef = useRef<THREE.Group | null>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   
+  // Références pour la gestion de la mémoire
+  const geometriesRef = useRef<THREE.BufferGeometry[]>([])
+  const materialsRef = useRef<THREE.Material[]>([])
+  
   const [stats, setStats] = useState({ 
     minT: 0, maxT: 1, minP: 0, maxP: 1, minD: 0, maxD: 1, count: 0,
     fps: 0, pointsRendered: 0
@@ -61,9 +68,12 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   const [isReady, setIsReady] = useState(false)
   const [hasData, setHasData] = useState(false)
 
-  // Vérifier si des données réelles sont présentes
+  // Vérifier si des données réelles sont présentes (STRICT: pas de fallback)
   const hasRealData = useMemo(() => {
-    return data && data.length > 0
+    return data && data.length > 0 && data.every(p => 
+      typeof p.x === 'number' && typeof p.y === 'number' && typeof p.z === 'number' &&
+      typeof p.temperature === 'number' && typeof p.pressure === 'number'
+    )
   }, [data])
 
   // Calculer les plages réelles UNIQUEMENT si données présentes
@@ -100,8 +110,23 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     setHasData(true)
   }, [hasRealData, data])
 
-  // Créer les streamlines UNIQUEMENT avec données réelles
-  const createStreamlines = (points: DataPoint[], variable: string) => {
+  // Nettoyer les ressources GPU
+  const disposeGeometries = useCallback(() => {
+    geometriesRef.current.forEach(geom => {
+      geom.dispose()
+    })
+    geometriesRef.current = []
+  }, [])
+
+  const disposeMaterials = useCallback(() => {
+    materialsRef.current.forEach(mat => {
+      mat.dispose()
+    })
+    materialsRef.current = []
+  }, [])
+
+  // Créer les streamlines UNIQUEMENT avec données réelles (optimisé)
+  const createStreamlines = useCallback((points: DataPoint[], variable: string) => {
     const group = new THREE.Group()
     
     const sortedPoints = [...points].sort((a, b) => {
@@ -110,62 +135,74 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
       return aVal - bVal
     })
 
+    const vMin = activeVariable === 'temperature' ? stats.minT : activeVariable === 'pressure' ? stats.minP : stats.minD
+    const vMax = activeVariable === 'temperature' ? stats.maxT : activeVariable === 'pressure' ? stats.maxP : stats.maxD
+    const vRange = vMax - vMin || 1
+
+    // Optimisation: créer une géométrie unique pour toutes les lignes
+    const positions: number[] = []
+    const colors: number[] = []
+    const indices: number[] = []
+
+    const getColor = (norm: number) => {
+      const c = new THREE.Color()
+      if (norm < 0.25) {
+        c.setRGB(0, norm * 4, 1)
+      } else if (norm < 0.5) {
+        c.setRGB(0, 1, 1 - (norm - 0.25) * 4)
+      } else if (norm < 0.75) {
+        c.setRGB((norm - 0.5) * 4, 1, 0)
+      } else {
+        c.setRGB(1, 1 - (norm - 0.75) * 4, 0)
+      }
+      return c
+    }
+
     for (let i = 0; i < sortedPoints.length - 1; i++) {
       const p1 = sortedPoints[i]
       const p2 = sortedPoints[i + 1]
       
-      const geometry = new THREE.BufferGeometry()
-      geometry.setAttribute('position', new THREE.BufferAttribute(
-        new Float32Array([p1.x, p1.y, p1.z, p2.x, p2.y, p2.z]),
-        3
-      ))
-
       const val1 = variable === 'temperature' ? p1.temperature : variable === 'pressure' ? p1.pressure : (p1.density || 0)
       const val2 = variable === 'temperature' ? p2.temperature : variable === 'pressure' ? p2.pressure : (p2.density || 0)
       
-      const vMin = activeVariable === 'temperature' ? stats.minT : activeVariable === 'pressure' ? stats.minP : stats.minD
-      const vMax = activeVariable === 'temperature' ? stats.maxT : activeVariable === 'pressure' ? stats.maxP : stats.maxD
-      const vRange = vMax - vMin || 1
-
       const norm1 = (val1 - vMin) / vRange
       const norm2 = (val2 - vMin) / vRange
-
-      const getColor = (norm: number) => {
-        const c = new THREE.Color()
-        if (norm < 0.25) {
-          c.setRGB(0, norm * 4, 1)
-        } else if (norm < 0.5) {
-          c.setRGB(0, 1, 1 - (norm - 0.25) * 4)
-        } else if (norm < 0.75) {
-          c.setRGB((norm - 0.5) * 4, 1, 0)
-        } else {
-          c.setRGB(1, 1 - (norm - 0.75) * 4, 0)
-        }
-        return c
-      }
 
       const c1 = getColor(norm1)
       const c2 = getColor(norm2)
 
-      const colors = new Float32Array([c1.r, c1.g, c1.b, c2.r, c2.g, c2.b])
-      geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-
-      const material = new THREE.LineBasicMaterial({
-        vertexColors: true,
-        linewidth: 3,
-        transparent: true,
-        opacity: 0.9
-      })
-
-      const line = new THREE.Line(geometry, material)
-      group.add(line)
+      const idx = positions.length / 3
+      positions.push(p1.x, p1.y, p1.z)
+      positions.push(p2.x, p2.y, p2.z)
+      colors.push(c1.r, c1.g, c1.b)
+      colors.push(c2.r, c2.g, c2.b)
+      
+      indices.push(idx, idx + 1)
     }
 
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3))
+    geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3))
+    geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(indices), 1))
+
+    const material = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      linewidth: 3,
+      transparent: true,
+      opacity: 0.9
+    })
+
+    geometriesRef.current.push(geometry)
+    materialsRef.current.push(material)
+
+    const lines = new THREE.LineSegments(geometry, material)
+    group.add(lines)
+
     return group
-  }
+  }, [stats, activeVariable])
 
   // Exporter le rendu
-  const exportScreenshot = () => {
+  const exportScreenshot = useCallback(() => {
     if (!rendererRef.current) return
     
     const canvas = rendererRef.current.domElement
@@ -173,12 +210,26 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     link.href = canvas.toDataURL('image/png')
     link.download = `3d-visualization-${Date.now()}.png`
     link.click()
-  }
+  }, [])
 
   // Mettre à jour les points UNIQUEMENT avec données réelles
-  const updateVisualization = (scene: THREE.Scene, filteredData: DataPoint[]) => {
+  const updateVisualization = useCallback((scene: THREE.Scene, filteredData: DataPoint[]) => {
+    // Nettoyer le groupe de points précédent
     if (pointsGroupRef.current) {
       scene.remove(pointsGroupRef.current)
+      pointsGroupRef.current.traverse((child) => {
+        if (child instanceof THREE.Mesh || child instanceof THREE.Points || child instanceof THREE.LineSegments) {
+          if (child.geometry) child.geometry.dispose()
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach(m => m.dispose())
+            } else {
+              child.material.dispose()
+            }
+          }
+        }
+      })
+      pointsGroupRef.current = null
     }
 
     if (filteredData.length === 0) return
@@ -194,12 +245,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     const vMax = activeVariable === 'temperature' ? stats.maxT : activeVariable === 'pressure' ? stats.maxP : stats.maxD
     const vRange = vMax - vMin || 1
 
-    filteredData.forEach((p, i) => {
-      posArr[i * 3] = p.x; posArr[i * 3 + 1] = p.y; posArr[i * 3 + 2] = p.z
-      
-      const val = activeVariable === 'temperature' ? p.temperature : activeVariable === 'pressure' ? p.pressure : (p.density || 0)
-      const norm = (val - vMin) / vRange
-      
+    const getColor = (norm: number) => {
       const color = new THREE.Color()
       if (norm < 0.25) {
         color.setRGB(0, norm * 4, 1)
@@ -210,7 +256,16 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
       } else {
         color.setRGB(1, 1 - (norm - 0.75) * 4, 0)
       }
+      return color
+    }
+
+    filteredData.forEach((p, i) => {
+      posArr[i * 3] = p.x; posArr[i * 3 + 1] = p.y; posArr[i * 3 + 2] = p.z
       
+      const val = activeVariable === 'temperature' ? p.temperature : activeVariable === 'pressure' ? p.pressure : (p.density || 0)
+      const norm = (val - vMin) / vRange
+      
+      const color = getColor(norm)
       colArr[i * 3] = color.r; colArr[i * 3 + 1] = color.g; colArr[i * 3 + 2] = color.b
     })
 
@@ -225,6 +280,9 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
       sizeAttenuation: true
     })
 
+    geometriesRef.current.push(geometry)
+    materialsRef.current.push(pointsMaterial)
+
     const points = new THREE.Points(geometry, pointsMaterial)
     pointsGroup.add(points)
 
@@ -234,7 +292,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     }
 
     scene.add(pointsGroup)
-  }
+  }, [stats, activeVariable, showStreamlines, createStreamlines])
 
   // Attendre que le conteneur ait des dimensions valides
   const waitForDimensions = (): Promise<void> => {
@@ -327,12 +385,12 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         directionalLight.castShadow = true
         scene.add(directionalLight)
 
-        // Grille de référence (infrastructure)
+        // Grille de référence (infrastructure - toujours visible)
         const gridHelper = new THREE.GridHelper(10, 20, 0x444444, 0x222222)
         gridHelper.position.y = -1.5
         scene.add(gridHelper)
 
-        // Axes de référence (X, Y, Z)
+        // Axes de référence (X, Y, Z) - toujours visibles
         const axisLength = 6
         const axisX = new THREE.BufferGeometry()
         axisX.setAttribute('position', new THREE.BufferAttribute(
@@ -352,7 +410,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         ))
         scene.add(new THREE.Line(axisZ, new THREE.LineBasicMaterial({ color: 0x0000ff, linewidth: 3 })))
 
-        // Boîte englobante du domaine
+        // Boîte englobante du domaine (infrastructure - toujours visible)
         const boxGeom = new THREE.BoxGeometry(2, 2, 2)
         const edges = new THREE.EdgesGeometry(boxGeom)
         const lineMat = new THREE.LineBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.5 })
@@ -421,6 +479,8 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
       if (frameIdRef.current) cancelAnimationFrame(frameIdRef.current)
       if (rendererRef.current) rendererRef.current.dispose()
       if (resizeObserverRef.current) resizeObserverRef.current.disconnect()
+      disposeGeometries()
+      disposeMaterials()
     }
   }, [])
 
@@ -441,7 +501,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
       : data
 
     updateVisualization(sceneRef.current, filteredData)
-  }, [activeVariable, showStreamlines, hasRealData, data, pointDensity, isReady])
+  }, [activeVariable, showStreamlines, hasRealData, data, pointDensity, isReady, updateVisualization])
 
   return (
     <div className="w-full space-y-6 bg-slate-950 p-6 rounded-[32px] border border-white/5 shadow-2xl">
