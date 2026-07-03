@@ -44,6 +44,11 @@ const ResidualsChart = dynamic(
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
+const Industrial3DVisualizerExport = dynamic(
+  () => import('@/components/industrial-3d-visualizer-export'),
+  { ssr: false, loading: () => <div className="h-12 bg-slate-950 rounded-xl border border-white/10 animate-pulse" /> }
+)
+
 export default function ProjectDetailClientV2({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
@@ -215,11 +220,19 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
         <div className="xl:col-span-3 space-y-8">
           {/* 3D Visualizer with Enhanced Clarity and Streamlines */}
           {predictions3d.length > 0 && (
-            <Industrial3DVisualizerEnhancedV5 
-              data={predictions3d} 
-              title="3D Isosurface Visualization - Enhanced Clarity"
-              colorVariable="temperature"
-            />
+            <div className="space-y-4">
+              <Industrial3DVisualizerEnhancedV5 
+                data={predictions3d} 
+                title="3D Isosurface Visualization - Enhanced Clarity"
+                colorVariable="temperature"
+              />
+              <Industrial3DVisualizerExport
+                data={predictions3d}
+                title="3D Isosurface Visualization - Enhanced Clarity"
+                colorVariable="temperature"
+                onExport={(format) => console.log(`Exported to ${format}`)}
+              />
+            </div>
           )}
 
           {/* 2D Analysis Charts with Export */}

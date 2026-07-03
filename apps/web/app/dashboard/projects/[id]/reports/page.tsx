@@ -90,8 +90,8 @@ export default function ReportsPage() {
     }
   }
 
-  // ✅ FIX: Support multi-format (PDF, JSON, HDF5, VTK)
-  const SUPPORTED_FORMATS = ['pdf', 'json', 'h5', 'hdf5', 'vtk', 'vtu', 'csv']
+  // ✅ FIX: Support multi-format (PDF, PNG, JSON, HDF5, VTK)
+  const SUPPORTED_FORMATS = ['pdf', 'png', 'jpg', 'jpeg', 'json', 'h5', 'hdf5', 'vtk', 'vtu', 'csv']
   
   const getFileExtension = (fileName: string) => {
     return fileName.split('.').pop()?.toLowerCase() || ''
@@ -244,13 +244,13 @@ export default function ReportsPage() {
                 
                 <div>
                   <label htmlFor="file" className="block mb-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                    Fichier (PDF, JSON, HDF5, VTK)
+                    Fichier (PDF, PNG, JSON, HDF5, VTK)
                   </label>
                   <div className="relative group">
                     <input
                       id="file"
                       type="file"
-                      accept=".pdf,.json,.h5,.hdf5,.vtk,.vtu,.csv"
+                      accept=".pdf,.png,.jpg,.jpeg,.json,.h5,.hdf5,.vtk,.vtu,.csv"
                       {...register('file', { required: true })}
                       className="hidden"
                       required
@@ -261,7 +261,7 @@ export default function ReportsPage() {
                     >
                       <Upload className="w-6 h-6 text-gray-500 group-hover:text-blue-500 mb-2 transition-colors" />
                       <span className="text-xs font-bold text-gray-400 group-hover:text-white transition-colors">Sélectionner Fichier</span>
-                      <span className="text-[10px] text-gray-600 mt-1 uppercase">Max 100MB // PDF, JSON, HDF5, VTK, CSV</span>
+                      <span className="text-[10px] text-gray-600 mt-1 uppercase">Max 100MB // PDF, PNG, JPG, JSON, HDF5, VTK, CSV</span>
                     </label>
                   </div>
                 </div>
