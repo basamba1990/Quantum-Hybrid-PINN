@@ -416,19 +416,43 @@ async def validate_3d(request: PredictionRequestV8):
                 residuals[k] = 1e-6
             residuals[k] = clean_float(residuals[k], 1e-6)
 
+        # ✅ CORRECTION V8.1 : Calcul robuste du score de crédibilité avec normalisation
         tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
         weighted_sum = 0.0
         for k in tolerances:
-            val = residuals[k]
+            val = residuals.get(k, 1e-6)
+            if val == 0.0: val = 1e-6
             tol = tolerances[k]
-            weighted_sum += val / tol if tol != 0 else val
-        weighted_res = weighted_sum / len(tolerances)
+            weighted_sum += (val / tol) if tol > 0 else val
+        weighted_res_normalized = weighted_sum / len(tolerances)
+        
+        # Pénalité d'incertitude (MC Dropout)
+        uncertainty_score = uncertainty_data.get("uncertainty_score", 0.5)
+        uncertainty_penalty = 1.0 + 0.1 * (1.0 - uncertainty_score)
+        
+        # Comptage des violations physiques
+        physics_violations = 0
+        if result["temperature"] < 0 or result["temperature"] > 1000:
+            physics_violations += 1
+        if result["pressure"] < 0 or result["pressure"] > 100e6:
+            physics_violations += 1
+            logger.warning(f"⚠️ Pression irréaliste détectée: {result['pressure']:.2e} Pa (> 1000 bar)")
+        if result["density"] < 0 or result["density"] > 1000:
+            physics_violations += 1
+        physics_violation_penalty = 1.0 + (physics_violations * 0.3)
+        
+        # Score final avec tous les facteurs
+        credibility_score = 100.0 / (1.0 + 0.3 * weighted_res_normalized * uncertainty_penalty * physics_violation_penalty)
+        credibility_score = min(100, max(5.0, credibility_score))
+        
         # ✅ AJOUT : Certification de décision (Principe 3) via IndustrialRiskManager
         critical_res = {"continuity": residuals["max_continuity"]} # Exemple de focus local
         cred_score, risk_eval, compliance = risk_manager.compute_risk_score(
             residuals, current_model_v8.fluid_type, critical_regions_residuals=critical_res
         )
-        credibility_score = cred_score
+        # Utiliser le score du gestionnaire de risques si disponible
+        if cred_score > 0:
+            credibility_score = 0.7 * credibility_score + 0.3 * cred_score
 
         # ✅ Génération du profil 3D Industriel (Scan Temporel ET Spatial)
         # FIX: Ne pas rester figé sur x,y,z = 0.5. On génère une trajectoire spatio-temporelle.

@@ -1,10 +1,14 @@
 import torch
 import numpy as np
 from typing import Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
 
 """
 Fluid Properties and Equations of State (EOS) Factory
 Supports: Hydrogen (H2), Ammonia (NH3), Methane (CH4), and Supercritical CO2 (sCO2)
+V8.1: Added CoolProp fallback and validation for H2 liquid
 """
 
 FLUID_CONFIGS = {
@@ -78,9 +82,38 @@ FLUID_CONFIGS = {
 }
 
 def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
+    """
+    Équation d'État avec validation et fallback (V8.1)
+    
+    ✅ CORRECTION V8.1 : 
+    - Essayer CoolProp (REFPROP) en premier pour H2 liquide
+    - Fallback à Silvera-Goldman avec avertissement
+    - Validation des résultats (pression non-physique)
+    """
     config = FLUID_CONFIGS.get(fluid_type, FLUID_CONFIGS['H2'])
     R = config.get('R_specific', 8.314) # Default gas constant if not specified
     params = config['params']
+    
+    # ✅ CORRECTION V8.1 : Essayer CoolProp en premier pour H2 (si disponible)
+    if fluid_type == 'H2':
+        try:
+            import CoolProp.CoolProp as CP
+            
+            # Convertir tensors en numpy
+            rho_np = rho.cpu().detach().numpy() if rho.is_cuda else rho.detach().numpy()
+            T_np = T.cpu().detach().numpy() if T.is_cuda else T.detach().numpy()
+            
+            # Calculer la pression via CoolProp (REFPROP backend)
+            p_np = np.array([CP.PropsSI('P', 'T', T_np[i], 'Dmass', rho_np[i], 'H2') 
+                             for i in range(len(rho_np))])
+            
+            logger.info(f"✅ EOS H2 : CoolProp utilisé (pression moyenne: {np.mean(p_np):.2e} Pa)")
+            return torch.from_numpy(p_np).to(rho.device).float()
+            
+        except ImportError:
+            logger.warning("⚠️ CoolProp not installed. Using Silvera-Goldman fallback (may be non-physical).")
+        except Exception as e:
+            logger.warning(f"⚠️ CoolProp failed: {e}. Falling back to Silvera-Goldman.")
     
     if config['eos_type'] == 'silvera_goldman':
         # Silvera-Goldman for H2 (Quantum EOS Implementation)
@@ -98,7 +131,14 @@ def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor
         quantum_corr = params['C'] * (rho**3) / (T + 1e-6)
         
         # Somme des contributions de pression
-        return p_ideal + repulsion + attraction + quantum_corr
+        p = p_ideal + repulsion + attraction + quantum_corr
+        
+        # ✅ CORRECTION V8.1 : Avertissement si pression irréaliste
+        if (p > 100e6).any():
+            logger.warning(f"⚠️ Silvera-Goldman: Pression > 100 MPa détectée (non-physique pour H2 liquide)")
+            logger.warning(f"   Valeurs: min={p.min().item():.2e}, max={p.max().item():.2e} Pa")
+        
+        return p
         
     elif config['eos_type'] == 'peng_robinson':
         # Peng-Robinson for NH3, CH4
