@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     if (event.type === 'subscription.created' || event.type === 'subscription.updated') {
       const { data } = event
 
-      const supabase = createClient()
+      const supabase = await createClient()
 
       // Récupérer les informations du client
       const { customer_id, items, custom_data } = data
