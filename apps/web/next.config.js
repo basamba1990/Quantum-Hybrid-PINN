@@ -2,8 +2,7 @@
 const nextConfig = {
   distDir: 'dist',
   
-  // Optimisations de performance
-  swcMinify: true,
+  // Optimisations de performance (SWC est activé par défaut dans Next.js 15+)
   compress: true,
   
   // Optimisations pour les ressources statiques
