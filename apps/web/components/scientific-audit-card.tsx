@@ -11,6 +11,7 @@ import {
   Activity
 } from 'lucide-react'
 import Industrial3DVisualizer from './industrial-3d-visualizer-enhanced'
+import Industrial3DFieldVisualizer from './industrial-3d-field-visualizer'
 import HybridChartVisualizer from './hybrid-chart-visualizer'
 import type { Prediction3D } from '@/types'
 
@@ -58,6 +59,7 @@ export default function ScientificAuditCard({
   isLoading = false,
 }: ScientificAuditCardProps) {
   const [showDetails, setShowDetails] = useState(false)
+  const [visualizationType, setVisualizationType] = useState<'trajectory' | 'field'>('field')
   const [show3D, setShow3D] = useState(true)
 
   const getCredibilityLevel = (score: number) => {
@@ -172,9 +174,41 @@ export default function ScientificAuditCard({
                 {/* Courbes 2D Temporelles */}
                 <HybridChartVisualizer predictions={auditData.predictions3d} title="Audit Scientifique PINN V8" />
                 
+                {/* Sélection du type de visualisation */}
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={() => setVisualizationType('field')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      visualizationType === 'field'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                    }`}
+                  >
+                    Champ 3D Scientifique (V8.1)
+                  </button>
+                  <button
+                    onClick={() => setVisualizationType('trajectory')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      visualizationType === 'trajectory'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                    }`}
+                  >
+                    Trajectoire 3D
+                  </button>
+                </div>
+                
                 {/* Visualisation 3D Cadrée Industrielle */}
                 <div className="max-w-4xl mx-auto border border-slate-200 rounded-2xl overflow-hidden shadow-inner bg-slate-900">
-                  <Industrial3DVisualizer data={auditData.predictions3d} />
+                  {visualizationType === 'field' ? (
+                    <Industrial3DFieldVisualizer 
+                      data={auditData.predictions3d} 
+                      title="Analyse de Simulation 3D - Champ Scalaire (V8.1)"
+                      colorVariable="temperature"
+                    />
+                  ) : (
+                    <Industrial3DVisualizer data={auditData.predictions3d} />
+                  )}
                 </div>
                 
                 {/* Confidence Metrics */}
@@ -306,9 +340,12 @@ export default function ScientificAuditCard({
         </div>
 
         {/* Footer */}
-        <div className="border-t pt-4 text-[10px] text-slate-500 italic">
+        <div className="border-t pt-4 text-[10px] text-slate-500 italic space-y-2">
           <p>
-            Analyse certifiée par le moteur Quantum-Hybrid PINN V8. Utilise l'équation d'état de Silvera-Goldman rigoureuse pour l'hydrogène liquide et l'assimilation de données par Deep Kalman Filter.
+            Analyse certifiée par le moteur Quantum-Hybrid PINN V8.1. Utilise l'équation d'état de Silvera-Goldman avec validation CoolProp pour l'hydrogène liquide et l'assimilation de données par Deep Kalman Filter.
+          </p>
+          <p className="text-amber-600 font-semibold">
+            ⚠️ V8.1 : Validation EOS en cours. Les pressions peuvent être non-physiques si CoolProp n'est pas disponible. Consultez les rapports de diagnostic.
           </p>
         </div>
       </div>
