@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Zap, Brain, Waves, BarChart3, Cube, Shield, Menu, X } from 'lucide-react'
+import { ArrowRight, Zap, Brain, Waves, BarChart3, Shield, Menu, X, Boxes as Cube } from 'lucide-react'
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
