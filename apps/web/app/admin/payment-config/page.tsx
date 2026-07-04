@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertCircle, CheckCircle, Eye, EyeOff, Save, RefreshCw } from 'lucide-react'
+import { AlertCircle, CheckCircle, Eye, EyeOff, Save, RefreshCw, ExternalLink } from 'lucide-react'
 import { useAdmin } from '@/hooks/use-admin'
-import { createClient } from '@/utils/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 
 export default function PaymentConfigPage() {
   const router = useRouter()
@@ -18,10 +18,10 @@ export default function PaymentConfigPage() {
   const [errorMessage, setErrorMessage] = useState('')
 
   const [config, setConfig] = useState({
-    paystack_public_key: '',
-    paystack_secret_key: '',
+    paddle_vendor_id: '',
+    paddle_client_token: '',
+    paddle_webhook_secret: '',
     webhook_url: '',
-    test_mode: true,
   })
 
   // Vérifier l'accès admin
@@ -38,7 +38,7 @@ export default function PaymentConfigPage() {
         const { data, error } = await supabase
           .from('payment_config')
           .select('*')
-          .eq('key', 'paystack')
+          .eq('key', 'paddle')
           .single()
 
         if (data) {
@@ -57,10 +57,10 @@ export default function PaymentConfigPage() {
   }, [isAdmin, supabase])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target as HTMLInputElement
+    const { name, value } = e.target
     setConfig(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
+      [name]: value,
     }))
   }
 
@@ -71,47 +71,27 @@ export default function PaymentConfigPage() {
 
     try {
       // Valider les clés
-      if (!config.paystack_public_key || !config.paystack_secret_key) {
-        throw new Error('Les clés Paystack sont obligatoires')
+      if (!config.paddle_vendor_id || !config.paddle_client_token) {
+        throw new Error('Les identifiants Paddle sont obligatoires')
       }
 
       // Sauvegarder dans Supabase
       const { error } = await supabase
         .from('payment_config')
         .upsert({
-          key: 'paystack',
+          key: 'paddle',
           value: JSON.stringify(config),
           updated_at: new Date(),
         })
 
       if (error) throw error
 
-      setSuccessMessage('✅ Configuration Paystack sauvegardée avec succès!')
+      setSuccessMessage('✅ Configuration Paddle sauvegardée avec succès!')
       setTimeout(() => setSuccessMessage(''), 5000)
     } catch (err) {
       setErrorMessage(`❌ Erreur : ${err instanceof Error ? err.message : 'Erreur inconnue'}`)
     } finally {
       setIsSaving(false)
-    }
-  }
-
-  const handleTestConnection = async () => {
-    try {
-      const response = await fetch('/api/payment/test-paystack', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setSuccessMessage('✅ Connexion Paystack réussie!')
-      } else {
-        setErrorMessage(`❌ Erreur de connexion : ${data.message}`)
-      }
-    } catch (err) {
-      setErrorMessage(`❌ Erreur : ${err instanceof Error ? err.message : 'Erreur inconnue'}`)
     }
   }
 
@@ -144,9 +124,9 @@ export default function PaymentConfigPage() {
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 py-12">
         <div className="bg-slate-800/50 border border-blue-500/20 rounded-lg p-8">
-          <h2 className="text-3xl font-bold mb-2">Configuration Paystack</h2>
+          <h2 className="text-3xl font-bold mb-2">Configuration Paddle</h2>
           <p className="text-slate-400 mb-8">
-            Configurez vos identifiants Paystack pour activer les paiements internationaux par carte bancaire et Mobile Money.
+            Configurez vos identifiants Paddle pour activer les paiements internationaux par carte bancaire, PayPal et Apple Pay.
           </p>
 
           {/* Messages */}
@@ -166,28 +146,43 @@ export default function PaymentConfigPage() {
 
           {/* Info Box */}
           <div className="mb-8 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-            <h3 className="font-semibold mb-2 text-blue-300">Comment obtenir vos clés Paystack ?</h3>
+            <h3 className="font-semibold mb-2 text-blue-300">Comment obtenir vos identifiants Paddle ?</h3>
             <ol className="text-sm text-slate-300 space-y-2 list-decimal list-inside">
-              <li>Créez un compte sur <a href="https://dashboard.paystack.com/#/signup" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">dashboard.paystack.com</a></li>
+              <li>Créez un compte sur <a href="https://www.paddle.com/" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline flex items-center gap-1 inline-flex">paddle.com <ExternalLink className="w-3 h-3" /></a></li>
               <li>Choisissez <strong>Sénégal</strong> comme pays</li>
-              <li>Allez dans Settings → API Keys & Webhooks</li>
-              <li>Copiez votre <strong>Public Key</strong> et <strong>Secret Key</strong></li>
-              <li>Collez-les ci-dessous et cliquez sur "Tester la Connexion"</li>
+              <li>Allez dans Developer Tools → Authentication</li>
+              <li>Copiez votre <strong>Vendor ID</strong> et <strong>Client Token</strong></li>
+              <li>Allez dans Webhooks et enregistrez : <code className="bg-slate-900 px-2 py-1 rounded text-xs">https://quantum-hybrid-pinn-web.vercel.app/api/webhooks/paddle</code></li>
+              <li>Copiez le <strong>Webhook Secret</strong> généré</li>
             </ol>
           </div>
 
           {/* Form */}
           <form className="space-y-6">
-            {/* Public Key */}
+            {/* Vendor ID */}
             <div>
-              <label className="block text-sm font-semibold mb-2">Public Key *</label>
+              <label className="block text-sm font-semibold mb-2">Vendor ID *</label>
+              <input
+                type="text"
+                name="paddle_vendor_id"
+                value={config.paddle_vendor_id}
+                onChange={handleChange}
+                placeholder="123456"
+                className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-blue-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              />
+              <p className="text-xs text-slate-500 mt-1">Trouvez cet ID dans Developer Tools → Authentication</p>
+            </div>
+
+            {/* Client Token */}
+            <div>
+              <label className="block text-sm font-semibold mb-2">Client Token *</label>
               <div className="relative">
                 <input
                   type={showKeys ? 'text' : 'password'}
-                  name="paystack_public_key"
-                  value={config.paystack_public_key}
+                  name="paddle_client_token"
+                  value={config.paddle_client_token}
                   onChange={handleChange}
-                  placeholder="pk_live_xxxxxxxxxxxxxxxx"
+                  placeholder="ctk_live_xxxxxxxxxxxxxxxx"
                   className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-blue-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                 />
                 <button
@@ -198,23 +193,23 @@ export default function PaymentConfigPage() {
                   {showKeys ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              <p className="text-xs text-slate-500 mt-1">Trouvez cette clé dans Settings → API Keys & Webhooks</p>
+              <p className="text-xs text-slate-500 mt-1">Clé publique pour le frontend Paddle Checkout</p>
             </div>
 
-            {/* Secret Key */}
+            {/* Webhook Secret */}
             <div>
-              <label className="block text-sm font-semibold mb-2">Secret Key *</label>
+              <label className="block text-sm font-semibold mb-2">Webhook Secret *</label>
               <div className="relative">
                 <input
                   type={showKeys ? 'text' : 'password'}
-                  name="paystack_secret_key"
-                  value={config.paystack_secret_key}
+                  name="paddle_webhook_secret"
+                  value={config.paddle_webhook_secret}
                   onChange={handleChange}
-                  placeholder="sk_live_xxxxxxxxxxxxxxxx"
+                  placeholder="whk_live_xxxxxxxxxxxxxxxx"
                   className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-blue-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                 />
               </div>
-              <p className="text-xs text-slate-500 mt-1">Clé secrète pour les requêtes backend</p>
+              <p className="text-xs text-slate-500 mt-1">Clé secrète pour vérifier les webhooks</p>
             </div>
 
             {/* Webhook URL */}
@@ -225,37 +220,15 @@ export default function PaymentConfigPage() {
                 name="webhook_url"
                 value={config.webhook_url}
                 onChange={handleChange}
-                placeholder="https://votre-domaine.com/api/webhooks/paystack"
-                className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-blue-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                placeholder="https://quantum-hybrid-pinn-web.vercel.app/api/webhooks/paddle"
+                disabled
+                className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-blue-500/30 text-slate-400 placeholder-slate-500 cursor-not-allowed"
               />
-              <p className="text-xs text-slate-500 mt-1">URL pour recevoir les notifications de paiement</p>
-            </div>
-
-            {/* Test Mode */}
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                name="test_mode"
-                checked={config.test_mode}
-                onChange={handleChange}
-                className="w-5 h-5 rounded bg-slate-900 border border-blue-500/30 cursor-pointer"
-              />
-              <label className="text-sm font-semibold cursor-pointer">
-                Mode Test (Désactiver pour la production)
-              </label>
+              <p className="text-xs text-slate-500 mt-1">URL automatique pour recevoir les notifications</p>
             </div>
 
             {/* Buttons */}
             <div className="flex gap-4 pt-6 border-t border-slate-700">
-              <button
-                type="button"
-                onClick={handleTestConnection}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-6 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 font-semibold transition disabled:opacity-50"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Tester la Connexion
-              </button>
               <button
                 type="button"
                 onClick={handleSave}
@@ -278,20 +251,21 @@ export default function PaymentConfigPage() {
 
         {/* Documentation */}
         <div className="mt-12 bg-slate-800/50 border border-blue-500/20 rounded-lg p-8">
-          <h3 className="text-2xl font-bold mb-6">Documentation Paystack</h3>
+          <h3 className="text-2xl font-bold mb-6">Pourquoi Paddle ?</h3>
           <div className="space-y-4 text-slate-300">
             <p>
-              <strong>Paystack</strong> est une plateforme de paiement africaine, propriété de Stripe, qui vous permet de recevoir des paiements par carte bancaire de clients du monde entier, tout en recevant vos fonds directement au Sénégal.
+              <strong>Paddle</strong> est la solution idéale pour les entrepreneurs au Sénégal qui veulent vendre un SaaS à l'international. Contrairement à Stripe ou Paystack, Paddle agit comme "Merchant of Record".
             </p>
             <ul className="list-disc list-inside space-y-2 text-sm">
-              <li><strong>Accepte :</strong> Cartes Visa/Mastercard, Orange Money, Wave, Airtel Money</li>
-              <li><strong>Couverture :</strong> 150+ pays</li>
-              <li><strong>Frais :</strong> Environ 1.5% + 100 FCFA par transaction</li>
-              <li><strong>Délai de virement :</strong> 24-48h vers votre compte bancaire sénégalais</li>
-              <li><strong>Avantage :</strong> Propriété de Stripe, donc très fiable et sécurisé</li>
+              <li><strong>Accepte :</strong> Cartes Visa/Mastercard, PayPal, Apple Pay, Google Pay</li>
+              <li><strong>Couverture :</strong> 200+ pays</li>
+              <li><strong>Frais :</strong> 5% + frais de paiement (transparents)</li>
+              <li><strong>Délai de virement :</strong> Flexible (hebdomadaire, mensuel)</li>
+              <li><strong>Avantage :</strong> Gère les taxes, la conformité et les paiements pour vous</li>
+              <li><strong>Disponibilité :</strong> ✅ Accessible depuis le Sénégal</li>
             </ul>
             <p className="mt-4">
-              Pour plus d'informations, consultez la <a href="https://paystack.com/docs" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">documentation officielle Paystack</a>.
+              Pour plus d'informations, consultez la <a href="https://developer.paddle.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">documentation officielle Paddle</a>.
             </p>
           </div>
         </div>
