@@ -125,7 +125,9 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         const sphereMesh = new THREE.Mesh(sphereGeom, industrialMat)
         sphereMesh.position.copy(center)
         group.add(sphereMesh)
-        group.add(new THREE.LineSegments(new THREE.EdgesGeometry(sphereGeom), wireframeMat).clone().translate(center.x, center.y, center.z))
+        const wireframe = new THREE.LineSegments(new THREE.EdgesGeometry(sphereGeom), wireframeMat)
+        wireframe.position.copy(center)
+        group.add(wireframe)
         break
       default:
         const boxGeom = new THREE.BoxGeometry(size.x, size.y, size.z)
