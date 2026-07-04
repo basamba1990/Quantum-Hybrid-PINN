@@ -6,7 +6,7 @@ interface PaddleCheckoutProps {
   planId: string
   planName: string
   price: number
-  email: string
+  email?: string
   onSuccess?: () => void
   onError?: (error: Error) => void
 }
@@ -36,7 +36,9 @@ export function PaddleCheckout({
     }
 
     return () => {
-      document.body.removeChild(script)
+      if (document.body.contains(script)) {
+        document.body.removeChild(script)
+      }
     }
   }, [])
 
@@ -46,17 +48,13 @@ export function PaddleCheckout({
         throw new Error('Paddle not loaded')
       }
 
-      // Ouvrir le Paddle Checkout
-      window.Paddle.Checkout.open({
+      const checkoutConfig: any = {
         items: [
           {
             priceId: planId,
             quantity: 1,
           },
         ],
-        customer: {
-          email,
-        },
         settings: {
           displayMode: 'overlay',
           theme: 'dark',
@@ -69,7 +67,17 @@ export function PaddleCheckout({
           console.log('Checkout completed:', data)
           onSuccess?.()
         },
-      })
+      }
+
+      // Ajouter l'email si fourni
+      if (email && email.trim()) {
+        checkoutConfig.customer = {
+          email,
+        }
+      }
+
+      // Ouvrir le Paddle Checkout
+      window.Paddle.Checkout.open(checkoutConfig)
     } catch (error) {
       console.error('Paddle checkout error:', error)
       onError?.(error instanceof Error ? error : new Error('Unknown error'))
@@ -79,7 +87,7 @@ export function PaddleCheckout({
   return (
     <button
       onClick={handleCheckout}
-      className="px-8 py-4 rounded-lg bg-blue-600 hover:bg-blue-700 font-semibold text-white transition"
+      className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 font-semibold text-white transition flex items-center justify-center gap-2 mb-8"
     >
       Start Free Trial - ${price}/month
     </button>
