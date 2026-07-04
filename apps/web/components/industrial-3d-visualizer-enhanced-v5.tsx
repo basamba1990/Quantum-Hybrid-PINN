@@ -129,7 +129,9 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         const sphereMesh = new THREE.Mesh(sphereGeom, industrialMat)
         sphereMesh.position.copy(center)
         group.add(sphereMesh)
-        group.add(new THREE.Mesh(sphereGeom, wireframeMat).clone().translate(center.x, center.y, center.z))
+        const wireframeSphere = new THREE.Mesh(sphereGeom, wireframeMat)
+        wireframeSphere.position.copy(center)
+        group.add(wireframeSphere)
         break
 
       case 'ROCK_ELAST_STRESS':
