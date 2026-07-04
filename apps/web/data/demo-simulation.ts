@@ -298,7 +298,7 @@ export const DEMO_SIMULATION_DATA = {
   ],
   confidence_metrics: {
     model_confidence: 0.94,
-    uncertainty_range: [0.02, 0.08],
+    uncertainty_range: [0.02, 0.08] as [number, number],
     anomaly_z_score: 0.3,
     ood_detected: false,
     physics_violations: 0,
