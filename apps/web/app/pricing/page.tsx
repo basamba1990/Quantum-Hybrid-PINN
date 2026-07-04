@@ -1,8 +1,9 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { Check, X, ArrowRight, Zap } from 'lucide-react'
+import { PaddleCheckout } from '@/components/paddle-checkout'
 
 export default function PricingPage() {
   const plans = [
@@ -152,17 +153,18 @@ export default function PricingPage() {
                     )}
                   </div>
 
-                  <Link
-                    href={plan.ctaLink}
-                    className={`w-full block text-center py-3 rounded-lg font-semibold mb-8 transition flex items-center justify-center gap-2 ${
-                      plan.highlight
-                        ? 'bg-white text-blue-600 hover:bg-slate-100'
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    }`}
-                  >
-                    {plan.cta}
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
+                  <PaddleCheckout
+                    planId={process.env.NEXT_PUBLIC_PADDLE_PRICE_ID || ''}
+                    planName={plan.name}
+                    price={parseInt(plan.price.replace('$', ''))}
+                    email=""
+                    onSuccess={() => {
+                      alert(`Welcome to ${plan.name}! Your subscription is active.`)
+                    }}
+                    onError={(error) => {
+                      alert(`Payment failed: ${error.message}`)
+                    }}
+                  />
 
                   <div className="space-y-4">
                     {plan.features.map((feature, fidx) => (
