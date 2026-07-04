@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
- * API Route pour initier un paiement Flutterwave
+ * API Route pour initier un paiement Paystack
  * POST /api/payment/initiate
  * 
  * Body:
@@ -9,23 +9,22 @@ import { NextRequest, NextResponse } from 'next/server'
  *   plan: 'researcher' | 'professional' | 'enterprise',
  *   email: string,
  *   name: string,
- *   phone: string,
  * }
  */
 
 const PLAN_PRICES: Record<string, { amount: number; currency: string; description: string }> = {
-  researcher: { amount: 99, currency: 'USD', description: 'Researcher Plan - Monthly' },
-  professional: { amount: 499, currency: 'USD', description: 'Professional Plan - Monthly' },
-  enterprise: { amount: 1500, currency: 'USD', description: 'Enterprise Plan - Monthly' },
+  researcher: { amount: 9900, currency: 'NGN', description: 'Researcher Plan - Monthly' }, // $99 en NGN (approximatif)
+  professional: { amount: 49900, currency: 'NGN', description: 'Professional Plan - Monthly' }, // $499 en NGN
+  enterprise: { amount: 150000, currency: 'NGN', description: 'Enterprise Plan - Monthly' }, // $1500 en NGN
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { plan, email, name, phone } = body
+    const { plan, email, name } = body
 
     // Valider les données
-    if (!plan || !email || !name || !phone) {
+    if (!plan || !email || !name) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -39,11 +38,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Récupérer les clés Flutterwave depuis les variables d'environnement
-    const publicKey = process.env.FLUTTERWAVE_PUBLIC_KEY
-    const secretKey = process.env.FLUTTERWAVE_SECRET_KEY
+    // Récupérer la clé secrète Paystack
+    const secretKey = process.env.PAYSTACK_SECRET_KEY
 
-    if (!publicKey || !secretKey) {
+    if (!secretKey) {
       return NextResponse.json(
         { error: 'Payment configuration not set up' },
         { status: 500 }
@@ -53,30 +51,20 @@ export async function POST(request: NextRequest) {
     const planInfo = PLAN_PRICES[plan]
     const reference = `QHP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-    // Préparer le payload pour Flutterwave
+    // Préparer le payload pour Paystack
     const payload = {
-      tx_ref: reference,
-      amount: planInfo.amount,
-      currency: planInfo.currency,
-      redirect_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/callback`,
-      customer: {
-        email,
-        name,
-        phone_number: phone,
-      },
-      customizations: {
-        title: 'Quantum-Hybrid PINN',
-        description: planInfo.description,
-        logo: `${process.env.NEXT_PUBLIC_APP_URL}/logo.png`,
-      },
-      meta: {
+      email,
+      amount: planInfo.amount, // Paystack utilise les centimes (ou l'unité minimale)
+      reference,
+      metadata: {
         plan,
+        user_name: name,
         user_email: email,
       },
     }
 
-    // Appeler l'API Flutterwave pour initialiser le paiement
-    const response = await fetch('https://api.flutterwave.com/v3/payments', {
+    // Appeler l'API Paystack pour initialiser le paiement
+    const response = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -87,10 +75,10 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json()
 
-    if (!response.ok) {
-      console.error('Flutterwave error:', data)
+    if (!response.ok || !data.status) {
+      console.error('Paystack error:', data)
       return NextResponse.json(
-        { error: 'Failed to initiate payment' },
+        { error: 'Failed to initiate payment', details: data.message },
         { status: 500 }
       )
     }
@@ -98,7 +86,8 @@ export async function POST(request: NextRequest) {
     // Retourner l'URL de paiement
     return NextResponse.json({
       success: true,
-      payment_link: data.data.link,
+      payment_link: data.data.authorization_url,
+      access_code: data.data.access_code,
       reference,
     })
   } catch (error) {
