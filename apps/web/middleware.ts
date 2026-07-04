@@ -76,11 +76,37 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
+    // ✅ CORRECTION V8.1 : Vérifier le rôle de l'utilisateur pour les routes Premium
+    if (user && (pathname.startsWith('/dashboard') || pathname.startsWith('/simulations'))) {
+      // Récupérer le rôle de l'utilisateur depuis les métadonnées
+      const userRole = user.user_metadata?.role || 'free'
+      const subscription = user.user_metadata?.subscription || 'demo'
+      
+      // Seuls les utilisateurs Premium peuvent accéder aux simulations
+      if (subscription === 'demo' || userRole === 'free') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/pricing'
+        url.searchParams.set('upgrade_required', 'true')
+        return NextResponse.redirect(url)
+      }
+    }
+
     if (user && isLoginPage) {
       const url = request.nextUrl.clone()
       // Rediriger vers la page demandée initialement ou le dashboard
       const next = request.nextUrl.searchParams.get('next') || '/dashboard'
-      url.pathname = next
+      
+      // ✅ CORRECTION V8.1 : Vérifier si l'utilisateur a accès au dashboard
+      const userRole = user.user_metadata?.role || 'free'
+      const subscription = user.user_metadata?.subscription || 'demo'
+      
+      if ((subscription === 'demo' || userRole === 'free') && next === '/dashboard') {
+        // Rediriger vers la page de démo gratuite au lieu du dashboard
+        url.pathname = '/demo'
+      } else {
+        url.pathname = next
+      }
+      
       url.searchParams.delete('next')
       return NextResponse.redirect(url)
     }
@@ -88,6 +114,11 @@ export async function middleware(request: NextRequest) {
     // En cas d'erreur dans le middleware, on laisse passer la requête
     // pour éviter de bloquer l'utilisateur avec un 403/500
     console.error('Middleware error:', e)
+    // ✅ CORRECTION V8.1 : Log détaillé pour le diagnostic
+    console.error('Middleware diagnostic:', {
+      pathname,
+      error: e instanceof Error ? e.message : String(e),
+    })
     return NextResponse.next()
   }
 
