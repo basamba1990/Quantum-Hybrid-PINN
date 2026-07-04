@@ -14,6 +14,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ✅ ÉTAPE 4 : Vérifier si c'est l'administrateur développeur (accès illimité)
+  const adminEmail = 'basamba1990@yahoo.fr'
+  const userEmail = request.cookies.get('user_email')?.value
+
   // Initialiser la réponse
   let response = NextResponse.next({
     request: {
@@ -31,6 +35,12 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
+    // ✅ ÉTAPE 4 : Si c'est l'admin, lui donner accès complet
+    if (userEmail === adminEmail) {
+      // L'admin peut accéder à toutes les routes
+      return NextResponse.next()
+    }
+
     const supabase = createServerClient(
       supabaseUrl,
       supabaseAnonKey,
