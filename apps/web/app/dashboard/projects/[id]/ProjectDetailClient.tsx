@@ -244,8 +244,9 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
             <div className="space-y-4">
               <Industrial3DVisualizerEnhancedV5 
                 data={predictions3d} 
-                title="3D Isosurface Visualization - Enhanced Clarity"
-                colorVariable="temperature"
+                title="3D Industrial Simulation - Adaptive Geometry"
+                scenarioType={scenarioType}
+                colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'stress' : 'temperature'}
               />
               <Industrial3DVisualizerExport
                 data={predictions3d}
