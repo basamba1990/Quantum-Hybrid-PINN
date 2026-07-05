@@ -76,15 +76,22 @@ export default function PaymentConfigPage() {
       }
 
       // Sauvegarder dans Supabase
+      console.log('Tentative de sauvegarde dans payment_config:', config)
+      
       const { error } = await supabase
         .from('payment_config')
         .upsert({
           key: 'paddle',
           value: JSON.stringify(config),
-          updated_at: new Date(),
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'key'
         })
 
-      if (error) throw error
+      if (error) {
+        console.error('Erreur Supabase détaillée:', error)
+        throw new Error(`Supabase Error: ${error.message} (${error.code})`)
+      }
 
       setSuccessMessage('✅ Configuration Paddle sauvegardée avec succès!')
       setTimeout(() => setSuccessMessage(''), 5000)

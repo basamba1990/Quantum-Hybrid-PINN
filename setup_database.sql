@@ -62,3 +62,33 @@ CREATE POLICY "Allow authenticated users to read their own simulation_jobs" ON p
     FOR SELECT
     TO authenticated
     USING (true);
+
+-- Table pour la configuration des paiements (Paddle, etc.)
+CREATE TABLE IF NOT EXISTS public.payment_config (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key TEXT UNIQUE NOT NULL,
+    value TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Activation de la RLS
+ALTER TABLE public.payment_config ENABLE ROW LEVEL SECURITY;
+
+-- Politiques pour payment_config
+CREATE POLICY "Allow all for service role on payment_config" ON public.payment_config
+    FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated users to read payment_config" ON public.payment_config
+    FOR SELECT
+    TO authenticated
+    USING (true);
+
+CREATE POLICY "Allow authenticated users to upsert payment_config" ON public.payment_config
+    FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
