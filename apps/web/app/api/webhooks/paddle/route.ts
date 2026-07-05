@@ -63,40 +63,40 @@ export async function POST(request: NextRequest) {
         plan = 'enterprise'
       }
 
-      // Mettre à jour le profil utilisateur avec le nouvel abonnement
-      const { error: userError } = await supabase
-        .from('profiles')
-        .update({
+      // Mettre à jour l'utilisateur avec le nouvel abonnement
+      // Note: On utilise les colonnes 'role' ou on peut ajouter des colonnes de métadonnées
+      const { error: userError } = await supabase.auth.admin.updateUserByEmail(userEmail, {
+        user_metadata: { 
           subscription: plan,
           subscription_status: 'active',
-          subscription_start_date: new Date(),
-          subscription_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 jours
-          last_payment_reference: data.id,
+          paddle_subscription_id: data.id
+        }
+      })
+
+      if (userError) {
+        console.error('Error updating user subscription metadata:', userError)
+        // On continue quand même pour essayer de mettre à jour la table users
+      }
+
+      const { error: dbError } = await supabase
+        .from('users')
+        .update({
+          role: plan === 'enterprise' ? 'admin' : 'user',
+          updated_at: new Date()
         })
         .eq('email', userEmail)
 
-      if (userError) {
-        console.error('Error updating user subscription:', userError)
-        return NextResponse.json(
-          { error: 'Failed to update subscription' },
-          { status: 500 }
-        )
+      if (dbError) {
+        console.error('Error updating users table:', dbError)
       }
 
-      // Enregistrer la transaction
-      await supabase.from('transactions').insert({
+      // Enregistrer dans la table subscriptions (LemonSqueezy legacy ou Paddle)
+      await supabase.from('subscriptions').insert({
         user_email: userEmail,
-        plan,
-        amount: items[0]?.price?.amount / 100, // Paddle retourne les montants en centimes
-        currency: items[0]?.price?.currency_code || 'USD',
-        status: 'completed',
-        payment_reference: data.id,
-        payment_method: 'paddle',
-        metadata: {
-          paddle_subscription_id: data.id,
-          paddle_customer_id: customer_id,
-          items: items,
-        },
+        lemon_subscription_id: data.id, // On réutilise cette colonne pour stocker l'ID Paddle
+        status: 'active',
+        plan: plan,
+        created_at: new Date()
       })
 
       console.log(`Subscription activated for ${userEmail} - Plan: ${plan}`)
