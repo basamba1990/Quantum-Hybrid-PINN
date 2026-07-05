@@ -63,21 +63,7 @@ export async function POST(request: NextRequest) {
         plan = 'enterprise'
       }
 
-      // Mettre à jour l'utilisateur avec le nouvel abonnement
-      // Note: On utilise les colonnes 'role' ou on peut ajouter des colonnes de métadonnées
-      const { error: userError } = await supabase.auth.admin.updateUserByEmail(userEmail, {
-        user_metadata: { 
-          subscription: plan,
-          subscription_status: 'active',
-          paddle_subscription_id: data.id
-        }
-      })
-
-      if (userError) {
-        console.error('Error updating user subscription metadata:', userError)
-        // On continue quand même pour essayer de mettre à jour la table users
-      }
-
+      // Mettre à jour l'utilisateur dans la table users
       const { error: dbError } = await supabase
         .from('users')
         .update({
@@ -88,6 +74,10 @@ export async function POST(request: NextRequest) {
 
       if (dbError) {
         console.error('Error updating users table:', dbError)
+        return NextResponse.json(
+          { error: 'Failed to update user role' },
+          { status: 500 }
+        )
       }
 
       // Enregistrer dans la table subscriptions (LemonSqueezy legacy ou Paddle)
