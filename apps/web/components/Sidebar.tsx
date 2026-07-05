@@ -9,7 +9,8 @@ import {
   Settings,
   LogOut,
   ChevronRight,
-  Zap
+  Zap,
+  BarChart3
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -19,7 +20,7 @@ import type { User } from '@supabase/supabase-js'
 const menuItems = [
   { icon: LayoutDashboard, label: 'Tableau de bord', href: '/dashboard' },
   { icon: FlaskConical, label: 'Simulations', href: '/dashboard/simulations' },
-  { icon: Zap, label: 'Analyses', href: '/dashboard/simulations' },
+  { icon: BarChart3, label: 'Benchmark 3D', href: '/dashboard/benchmarks' },
   { icon: MessageSquare, label: 'Assistant IA', href: '/dashboard/assistant' },
   { icon: History, label: 'Projets', href: '/dashboard' },
   { icon: Settings, label: 'Paramètres', href: '/dashboard/settings' },
