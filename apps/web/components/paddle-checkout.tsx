@@ -26,12 +26,28 @@ export function PaddleCheckout({
     script.async = true
     document.body.appendChild(script)
 
-    script.onload = () => {
+    script.onload = async () => {
       // Initialiser Paddle
       if (window.Paddle) {
-        window.Paddle.Setup({
-          token: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || '',
-        })
+        try {
+          // Essayer de récupérer le token depuis les variables d'environnement d'abord
+          let token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN
+          
+          // Si pas de token, essayer de le récupérer depuis l'API de config
+          if (!token) {
+            const response = await fetch('/api/admin/payment-config-public')
+            const data = await response.json()
+            token = data.paddle_client_token
+          }
+
+          if (token) {
+            window.Paddle.Setup({
+              token: token,
+            })
+          }
+        } catch (err) {
+          console.error('Failed to load Paddle token:', err)
+        }
       }
     }
 

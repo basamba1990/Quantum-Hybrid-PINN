@@ -154,17 +154,21 @@ export default function PricingPage() {
                   </div>
 
                   <PaddleCheckout
-                    planId={process.env.NEXT_PUBLIC_PADDLE_PRICE_ID || ''}
-                    planName={plan.name}
-                    price={parseInt(plan.price.replace('$', ''))}
-                    email=""
-                    onSuccess={() => {
-                      alert(`Welcome to ${plan.name}! Your subscription is active.`)
-                    }}
-                    onError={(error) => {
-                      alert(`Payment failed: ${error.message}`)
-                    }}
-                  />
+	                    planId={
+                        plan.name === 'Researcher' ? 'pri_01j1xxxxxxxxxxxxxx' : 
+                        plan.name === 'Professional' ? 'pri_01j2xxxxxxxxxxxxxx' : 
+                        'pri_01j3xxxxxxxxxxxxxx'
+                      }
+	                    planName={plan.name}
+	                    price={plan.price === 'Custom' ? 0 : parseInt(plan.price.replace('$', ''))}
+	                    email=""
+	                    onSuccess={() => {
+	                      window.location.href = '/dashboard?payment=success'
+	                    }}
+	                    onError={(error) => {
+	                      alert(`Erreur de paiement : ${error.message}`)
+	                    }}
+	                  />
 
                   <div className="space-y-4">
                     {plan.features.map((feature, fidx) => (
@@ -239,7 +243,7 @@ export default function PricingPage() {
               },
               {
                 q: 'What payment methods do you accept?',
-                a: 'We accept all major credit cards (Visa, Mastercard) via Flutterwave. You can also pay via bank transfer for Enterprise plans.'
+                a: 'Nous acceptons les cartes bancaires (Visa, Mastercard), PayPal et Apple Pay via Paddle.'
               },
               {
                 q: 'Is there a free trial?',
@@ -295,7 +299,7 @@ export default function PricingPage() {
       {/* Footer */}
       <footer className="border-t border-blue-500/20 py-12 px-4 sm:px-6 lg:px-8 bg-slate-900">
         <div className="max-w-6xl mx-auto text-center text-slate-400 text-sm">
-          <p>© 2026 Quantum-Hybrid PINN. All rights reserved. Payments processed securely via Flutterwave.</p>
+          <p>© 2026 Quantum-Hybrid PINN. All rights reserved. Paiements sécurisés via Paddle.</p>
         </div>
       </footer>
     </div>
