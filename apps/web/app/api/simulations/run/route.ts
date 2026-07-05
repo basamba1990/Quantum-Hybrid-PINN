@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     }
 
     // Verify subscription access
-    const hasAccess = await verifySubscriptionAccess(userEmail, 'starter');
+    const hasAccess = await verifySubscriptionAccess(userEmail, 'researcher');
 
     if (!hasAccess) {
       return NextResponse.json(
