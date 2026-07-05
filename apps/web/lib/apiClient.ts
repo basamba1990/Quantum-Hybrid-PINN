@@ -144,12 +144,28 @@ export class APIClient {
   ): Promise<T> {
     const { retryOptions, ...fetchOptions } = options ?? {}
 
+    // Validation de l'URL
+    if (!url || url === 'undefined') {
+      console.error('❌ CRITICAL: URL API non définie.');
+      throw new Error('URL API non définie');
+    }
+
     const fetchFn = async () => {
-      const response = await fetch(url, fetchOptions)
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      try {
+        const response = await fetch(url, fetchOptions)
+        if (!response.ok) {
+          let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.message || errorData.error || errorMsg;
+          } catch (e) {}
+          throw new Error(errorMsg)
+        }
+        return response.json() as Promise<T>
+      } catch (error) {
+        if (error instanceof Error) throw error;
+        throw new Error('Erreur réseau ou serveur');
       }
-      return response.json() as Promise<T>
     }
 
     return this.circuitBreaker.execute(() => retryWithBackoff(fetchFn, retryOptions))

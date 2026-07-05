@@ -54,12 +54,14 @@ export async function POST(request: NextRequest) {
       }
 
       // Déterminer le plan basé sur le prix
-      let plan = 'professional'
+      let plan = 'researcher' // Par défaut
       const priceId = items[0]?.price_id
 
-      if (priceId?.includes('researcher')) {
+      if (priceId?.includes('pri_01kws7mnzam0jvm7aha7s7txj3') || priceId?.toLowerCase().includes('researcher')) {
         plan = 'researcher'
-      } else if (priceId?.includes('enterprise')) {
+      } else if (priceId?.includes('pri_01kws7wp26ngs9vf08wg7w2ny7') || priceId?.toLowerCase().includes('professional')) {
+        plan = 'professional'
+      } else if (priceId?.includes('pri_01kws84eg5bpffg4m6r2pm85fv') || priceId?.toLowerCase().includes('enterprise')) {
         plan = 'enterprise'
       }
 

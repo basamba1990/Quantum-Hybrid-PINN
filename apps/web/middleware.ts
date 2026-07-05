@@ -87,20 +87,24 @@ export async function middleware(request: NextRequest) {
     }
 
     // ✅ CORRECTION V8.1 : Vérifier le rôle de l'utilisateur pour les routes Premium
-    // Désactivé temporairement pour permettre l'accès au dashboard
-    /*
     if (user && (pathname.startsWith('/dashboard') || pathname.startsWith('/simulations'))) {
       const userRole = user.user_metadata?.role || 'free'
-      const subscription = user.user_metadata?.subscription || 'demo'
+      const subscription = user.user_metadata?.subscription || 'free'
       
-      if (subscription === 'demo' || userRole === 'free') {
-        const url = request.nextUrl.clone()
-        url.pathname = '/pricing'
-        url.searchParams.set('upgrade_required', 'true')
-        return NextResponse.redirect(url)
+      // L'admin a toujours accès
+      if (userEmail === adminEmail) return NextResponse.next()
+
+      // Si l'utilisateur est sur un plan gratuit et tente d'accéder au dashboard/simulations
+      if (subscription === 'free' || userRole === 'free') {
+        // Autoriser uniquement la page de démo pour les utilisateurs gratuits
+        if (pathname === '/dashboard' || pathname.startsWith('/dashboard/projects')) {
+           const url = request.nextUrl.clone()
+           url.pathname = '/pricing'
+           url.searchParams.set('upgrade_required', 'true')
+           return NextResponse.redirect(url)
+        }
       }
     }
-    */
 
     if (user && isLoginPage) {
       const url = request.nextUrl.clone()
