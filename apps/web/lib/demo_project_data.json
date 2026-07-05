@@ -1,0 +1,2087 @@
+{
+  "project": {
+    "name": "LH2-STORAGE-SPHERE-V8",
+    "description": "Simulation haute fid\u00e9lit\u00e9 d'un r\u00e9servoir de stockage d'hydrog\u00e8ne liquide (LH2) de 50m3. Analyse de la stratification thermique et du taux d'\u00e9vaporation (Boil-off rate) sous conditions ambiantes variables.",
+    "user_id": "9f2b8e4a-5c3d-4e2b-8a1f-7c6d5e4b3a2f",
+    "status": "active"
+  },
+  "analysis": {
+    "title": "LH2 Thermal Stratification Analysis",
+    "scenario_type": "LH2_STORAGE",
+    "results": {
+      "predictions3d": [
+        {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": 0.779,
+          "y": 0.0,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": 1.482,
+          "y": 0.0,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": 2.021,
+          "y": 0.0,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": 2.325,
+          "y": 0.0,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": 2.353,
+          "y": 0.0,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": 2.093,
+          "y": 0.0,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": 1.571,
+          "y": 0.0,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": 0.846,
+          "y": 0.0,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": 0.732,
+          "y": 0.266,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": 1.393,
+          "y": 0.507,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": 1.899,
+          "y": 0.691,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": 2.185,
+          "y": 0.795,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": 2.211,
+          "y": 0.805,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": 1.967,
+          "y": 0.716,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": 1.477,
+          "y": 0.537,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": 0.795,
+          "y": 0.289,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": 0.597,
+          "y": 0.501,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": 1.135,
+          "y": 0.953,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": 1.548,
+          "y": 1.299,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": 1.781,
+          "y": 1.495,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": 1.802,
+          "y": 1.512,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": 1.603,
+          "y": 1.345,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": 1.204,
+          "y": 1.01,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": 0.648,
+          "y": 0.544,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": 0.39,
+          "y": 0.675,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": 0.741,
+          "y": 1.283,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": 1.01,
+          "y": 1.75,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": 1.163,
+          "y": 2.014,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": 1.176,
+          "y": 2.037,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": 1.046,
+          "y": 1.812,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": 0.786,
+          "y": 1.361,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": 0.423,
+          "y": 0.732,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": 0.135,
+          "y": 0.767,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": 0.257,
+          "y": 1.459,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": 0.351,
+          "y": 1.99,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": 0.404,
+          "y": 2.29,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": 0.409,
+          "y": 2.317,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": 0.363,
+          "y": 2.061,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": 0.273,
+          "y": 1.547,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": 0.147,
+          "y": 0.833,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": -0.0,
+          "y": 0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": -0.135,
+          "y": 0.767,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": -0.257,
+          "y": 1.459,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": -0.351,
+          "y": 1.99,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": -0.404,
+          "y": 2.29,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": -0.409,
+          "y": 2.317,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": -0.363,
+          "y": 2.061,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": -0.273,
+          "y": 1.547,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": -0.147,
+          "y": 0.833,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": -0.0,
+          "y": 0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": -0.39,
+          "y": 0.675,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": -0.741,
+          "y": 1.283,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": -1.01,
+          "y": 1.75,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": -1.163,
+          "y": 2.014,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": -1.176,
+          "y": 2.037,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": -1.046,
+          "y": 1.813,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": -0.786,
+          "y": 1.361,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": -0.423,
+          "y": 0.732,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": -0.0,
+          "y": 0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": -0.597,
+          "y": 0.501,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": -1.135,
+          "y": 0.953,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": -1.548,
+          "y": 1.299,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": -1.781,
+          "y": 1.495,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": -1.802,
+          "y": 1.512,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": -1.603,
+          "y": 1.345,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": -1.204,
+          "y": 1.01,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": -0.648,
+          "y": 0.544,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": -0.0,
+          "y": 0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": -0.732,
+          "y": 0.266,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": -1.393,
+          "y": 0.507,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": -1.899,
+          "y": 0.691,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": -2.185,
+          "y": 0.795,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": -2.211,
+          "y": 0.805,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": -1.967,
+          "y": 0.716,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": -1.477,
+          "y": 0.537,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": -0.795,
+          "y": 0.289,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": -0.0,
+          "y": 0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": -0.779,
+          "y": 0.0,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": -1.482,
+          "y": 0.0,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": -2.021,
+          "y": 0.0,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": -2.325,
+          "y": 0.0,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": -2.353,
+          "y": 0.0,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": -2.093,
+          "y": 0.0,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": -1.571,
+          "y": 0.0,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": -0.846,
+          "y": 0.0,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": -0.0,
+          "y": -0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": -0.732,
+          "y": -0.266,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": -1.393,
+          "y": -0.507,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": -1.899,
+          "y": -0.691,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": -2.185,
+          "y": -0.795,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": -2.211,
+          "y": -0.805,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": -1.967,
+          "y": -0.716,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": -1.477,
+          "y": -0.537,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": -0.795,
+          "y": -0.289,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": -0.0,
+          "y": -0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": -0.597,
+          "y": -0.501,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": -1.135,
+          "y": -0.953,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": -1.548,
+          "y": -1.299,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": -1.781,
+          "y": -1.495,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": -1.802,
+          "y": -1.512,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": -1.603,
+          "y": -1.345,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": -1.204,
+          "y": -1.01,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": -0.648,
+          "y": -0.544,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": -0.0,
+          "y": -0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": -0.39,
+          "y": -0.675,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": -0.741,
+          "y": -1.283,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": -1.01,
+          "y": -1.75,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": -1.163,
+          "y": -2.014,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": -1.176,
+          "y": -2.037,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": -1.046,
+          "y": -1.812,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": -0.786,
+          "y": -1.361,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": -0.423,
+          "y": -0.732,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": -0.0,
+          "y": -0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": -0.135,
+          "y": -0.767,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": -0.257,
+          "y": -1.459,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": -0.351,
+          "y": -1.99,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": -0.404,
+          "y": -2.29,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": -0.409,
+          "y": -2.317,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": -0.363,
+          "y": -2.061,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": -0.273,
+          "y": -1.547,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": -0.147,
+          "y": -0.833,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": 0.135,
+          "y": -0.767,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": 0.257,
+          "y": -1.459,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": 0.351,
+          "y": -1.99,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": 0.404,
+          "y": -2.29,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": 0.409,
+          "y": -2.317,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": 0.363,
+          "y": -2.061,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": 0.273,
+          "y": -1.547,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": 0.147,
+          "y": -0.833,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": 0.39,
+          "y": -0.675,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": 0.741,
+          "y": -1.283,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": 1.01,
+          "y": -1.75,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": 1.163,
+          "y": -2.014,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": 1.176,
+          "y": -2.037,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": 1.046,
+          "y": -1.812,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": 0.786,
+          "y": -1.361,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": 0.423,
+          "y": -0.732,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": 0.597,
+          "y": -0.501,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": 1.135,
+          "y": -0.953,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": 1.548,
+          "y": -1.299,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": 1.781,
+          "y": -1.495,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": 1.802,
+          "y": -1.512,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": 1.603,
+          "y": -1.345,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": 1.204,
+          "y": -1.01,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": 0.648,
+          "y": -0.544,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        },
+        {
+          "x": 0.0,
+          "y": -0.0,
+          "z": 2.25,
+          "temperature": 22.68,
+          "pressure": 120175.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.0
+        },
+        {
+          "x": 0.732,
+          "y": -0.266,
+          "z": 2.14,
+          "temperature": 22.62,
+          "pressure": 120252.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00011
+        },
+        {
+          "x": 1.393,
+          "y": -0.507,
+          "z": 1.766,
+          "temperature": 22.43,
+          "pressure": 120514.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00022
+        },
+        {
+          "x": 1.899,
+          "y": -0.691,
+          "z": 1.167,
+          "temperature": 22.13,
+          "pressure": 120933.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00033
+        },
+        {
+          "x": 2.185,
+          "y": -0.795,
+          "z": 0.41,
+          "temperature": 21.76,
+          "pressure": 121463.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00044
+        },
+        {
+          "x": 2.211,
+          "y": -0.805,
+          "z": -0.415,
+          "temperature": 21.34,
+          "pressure": 122040.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00056
+        },
+        {
+          "x": 1.967,
+          "y": -0.716,
+          "z": -1.208,
+          "temperature": 20.95,
+          "pressure": 122596.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00067
+        },
+        {
+          "x": 1.477,
+          "y": -0.537,
+          "z": -1.873,
+          "temperature": 20.61,
+          "pressure": 123061.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00078
+        },
+        {
+          "x": 0.795,
+          "y": -0.289,
+          "z": -2.323,
+          "temperature": 20.39,
+          "pressure": 123376.0,
+          "density": 70.8,
+          "velocity_magnitude": 0.00089
+        }
+      ],
+      "residual_history": [
+        {
+          "iteration": 0,
+          "continuity": 0.001,
+          "momentum": 0.01,
+          "energy": 0.005
+        },
+        {
+          "iteration": 1,
+          "continuity": 0.0009000000000000001,
+          "momentum": 0.0085,
+          "energy": 0.0044
+        },
+        {
+          "iteration": 2,
+          "continuity": 0.0008100000000000001,
+          "momentum": 0.007225,
+          "energy": 0.003872
+        },
+        {
+          "iteration": 3,
+          "continuity": 0.0007290000000000002,
+          "momentum": 0.006141249999999999,
+          "energy": 0.00340736
+        },
+        {
+          "iteration": 4,
+          "continuity": 0.0006561000000000001,
+          "momentum": 0.005220062499999999,
+          "energy": 0.0029984768
+        },
+        {
+          "iteration": 5,
+          "continuity": 0.00059049,
+          "momentum": 0.004437053125,
+          "energy": 0.002638659584
+        },
+        {
+          "iteration": 6,
+          "continuity": 0.000531441,
+          "momentum": 0.003771495156249999,
+          "energy": 0.0023220204339200004
+        },
+        {
+          "iteration": 7,
+          "continuity": 0.0004782969000000001,
+          "momentum": 0.0032057708828124995,
+          "energy": 0.0020433779818496
+        },
+        {
+          "iteration": 8,
+          "continuity": 0.0004304672100000001,
+          "momentum": 0.0027249052503906246,
+          "energy": 0.001798172624027648
+        },
+        {
+          "iteration": 9,
+          "continuity": 0.0003874204890000001,
+          "momentum": 0.002316169462832031,
+          "energy": 0.0015823919091443304
+        },
+        {
+          "iteration": 10,
+          "continuity": 0.0003486784401000001,
+          "momentum": 0.001968744043407226,
+          "energy": 0.0013925048800470109
+        },
+        {
+          "iteration": 11,
+          "continuity": 0.0003138105960900001,
+          "momentum": 0.001673432436896142,
+          "energy": 0.0012254042944413695
+        },
+        {
+          "iteration": 12,
+          "continuity": 0.0002824295364810001,
+          "momentum": 0.0014224175713617208,
+          "energy": 0.001078355779108405
+        },
+        {
+          "iteration": 13,
+          "continuity": 0.0002541865828329001,
+          "momentum": 0.0012090549356574625,
+          "energy": 0.0009489530856153965
+        },
+        {
+          "iteration": 14,
+          "continuity": 0.0002287679245496101,
+          "momentum": 0.001027696695308843,
+          "energy": 0.0008350787153415489
+        },
+        {
+          "iteration": 15,
+          "continuity": 0.0002058911320946491,
+          "momentum": 0.0008735421910125167,
+          "energy": 0.0007348692695005631
+        },
+        {
+          "iteration": 16,
+          "continuity": 0.00018530201888518417,
+          "momentum": 0.0007425108623606391,
+          "energy": 0.0006466849571604955
+        },
+        {
+          "iteration": 17,
+          "continuity": 0.00016677181699666576,
+          "momentum": 0.0006311342330065432,
+          "energy": 0.0005690827623012361
+        },
+        {
+          "iteration": 18,
+          "continuity": 0.00015009463529699917,
+          "momentum": 0.0005364640980555618,
+          "energy": 0.0005007928308250878
+        },
+        {
+          "iteration": 19,
+          "continuity": 0.0001350851717672993,
+          "momentum": 0.0004559944833472275,
+          "energy": 0.0004406976911260772
+        },
+        {
+          "iteration": 20,
+          "continuity": 0.00012157665459056935,
+          "momentum": 0.0003875953108451433,
+          "energy": 0.00038781396819094797
+        },
+        {
+          "iteration": 21,
+          "continuity": 0.00010941898913151242,
+          "momentum": 0.0003294560142183718,
+          "energy": 0.0003412762920080342
+        },
+        {
+          "iteration": 22,
+          "continuity": 9.847709021836118e-05,
+          "momentum": 0.0002800376120856161,
+          "energy": 0.0003003231369670701
+        },
+        {
+          "iteration": 23,
+          "continuity": 8.862938119652506e-05,
+          "momentum": 0.00023803197027277368,
+          "energy": 0.0002642843605310217
+        },
+        {
+          "iteration": 24,
+          "continuity": 7.976644307687256e-05,
+          "momentum": 0.0002023271747318576,
+          "energy": 0.00023257023726729907
+        },
+        {
+          "iteration": 25,
+          "continuity": 7.17897987691853e-05,
+          "momentum": 0.00017197809852207896,
+          "energy": 0.00020466180879522318
+        },
+        {
+          "iteration": 26,
+          "continuity": 6.461081889226677e-05,
+          "momentum": 0.00014618138374376712,
+          "energy": 0.0001801023917397964
+        },
+        {
+          "iteration": 27,
+          "continuity": 5.8149737003040094e-05,
+          "momentum": 0.00012425417618220204,
+          "energy": 0.00015849010473102082
+        },
+        {
+          "iteration": 28,
+          "continuity": 5.233476330273609e-05,
+          "momentum": 0.00010561604975487173,
+          "energy": 0.00013947129216329834
+        },
+        {
+          "iteration": 29,
+          "continuity": 4.7101286972462485e-05,
+          "momentum": 8.977364229164097e-05,
+          "energy": 0.00012273473710370253
+        },
+        {
+          "iteration": 30,
+          "continuity": 4.239115827521624e-05,
+          "momentum": 7.630759594789482e-05,
+          "energy": 0.00010800656865125822
+        },
+        {
+          "iteration": 31,
+          "continuity": 3.8152042447694614e-05,
+          "momentum": 6.48614565557106e-05,
+          "energy": 9.504578041310723e-05
+        },
+        {
+          "iteration": 32,
+          "continuity": 3.433683820292515e-05,
+          "momentum": 5.5132238072354006e-05,
+          "energy": 8.364028676353438e-05
+        },
+        {
+          "iteration": 33,
+          "continuity": 3.090315438263264e-05,
+          "momentum": 4.68624023615009e-05,
+          "energy": 7.360345235191025e-05
+        },
+        {
+          "iteration": 34,
+          "continuity": 2.7812838944369376e-05,
+          "momentum": 3.983304200727577e-05,
+          "energy": 6.477103806968103e-05
+        },
+        {
+          "iteration": 35,
+          "continuity": 2.5031555049932436e-05,
+          "momentum": 3.38580857061844e-05,
+          "energy": 5.6998513501319305e-05
+        },
+        {
+          "iteration": 36,
+          "continuity": 2.2528399544939195e-05,
+          "momentum": 2.877937285025674e-05,
+          "energy": 5.015869188116098e-05
+        },
+        {
+          "iteration": 37,
+          "continuity": 2.0275559590445276e-05,
+          "momentum": 2.446246692271823e-05,
+          "energy": 4.413964885542167e-05
+        },
+        {
+          "iteration": 38,
+          "continuity": 1.824800363140075e-05,
+          "momentum": 2.0793096884310493e-05,
+          "energy": 3.8842890992771064e-05
+        },
+        {
+          "iteration": 39,
+          "continuity": 1.6423203268260675e-05,
+          "momentum": 1.7674132351663917e-05,
+          "energy": 3.418174407363854e-05
+        },
+        {
+          "iteration": 40,
+          "continuity": 1.4780882941434608e-05,
+          "momentum": 1.502301249891433e-05,
+          "energy": 3.0079934784801914e-05
+        },
+        {
+          "iteration": 41,
+          "continuity": 1.3302794647291146e-05,
+          "momentum": 1.276956062407718e-05,
+          "energy": 2.6470342610625684e-05
+        },
+        {
+          "iteration": 42,
+          "continuity": 1.1972515182562033e-05,
+          "momentum": 1.0854126530465604e-05,
+          "energy": 2.32939014973506e-05
+        },
+        {
+          "iteration": 43,
+          "continuity": 1.077526366430583e-05,
+          "momentum": 9.226007550895762e-06,
+          "energy": 2.049863331766853e-05
+        },
+        {
+          "iteration": 44,
+          "continuity": 9.697737297875246e-06,
+          "momentum": 7.842106418261399e-06,
+          "energy": 1.8038797319548308e-05
+        },
+        {
+          "iteration": 45,
+          "continuity": 8.727963568087722e-06,
+          "momentum": 6.665790455522189e-06,
+          "energy": 1.5874141641202508e-05
+        },
+        {
+          "iteration": 46,
+          "continuity": 7.85516721127895e-06,
+          "momentum": 5.665921887193859e-06,
+          "energy": 1.3969244644258208e-05
+        },
+        {
+          "iteration": 47,
+          "continuity": 7.069650490151056e-06,
+          "momentum": 4.81603360411478e-06,
+          "energy": 1.2292935286947223e-05
+        },
+        {
+          "iteration": 48,
+          "continuity": 6.36268544113595e-06,
+          "momentum": 4.093628563497564e-06,
+          "energy": 1.0817783052513558e-05
+        },
+        {
+          "iteration": 49,
+          "continuity": 5.726416897022355e-06,
+          "momentum": 3.479584278972929e-06,
+          "energy": 9.51964908621193e-06
+        },
+        {
+          "iteration": 50,
+          "continuity": 5.15377520732012e-06,
+          "momentum": 2.9576466371269897e-06,
+          "energy": 8.377291195866498e-06
+        },
+        {
+          "iteration": 51,
+          "continuity": 4.638397686588108e-06,
+          "momentum": 2.513999641557941e-06,
+          "energy": 7.372016252362518e-06
+        },
+        {
+          "iteration": 52,
+          "continuity": 4.174557917929297e-06,
+          "momentum": 2.13689969532425e-06,
+          "energy": 6.487374302079017e-06
+        },
+        {
+          "iteration": 53,
+          "continuity": 3.7571021261363675e-06,
+          "momentum": 1.8163647410256121e-06,
+          "energy": 5.7088893858295345e-06
+        },
+        {
+          "iteration": 54,
+          "continuity": 3.381391913522731e-06,
+          "momentum": 1.5439100298717703e-06,
+          "energy": 5.0238226595299904e-06
+        },
+        {
+          "iteration": 55,
+          "continuity": 3.0432527221704577e-06,
+          "momentum": 1.3123235253910048e-06,
+          "energy": 4.420963940386392e-06
+        },
+        {
+          "iteration": 56,
+          "continuity": 2.7389274499534123e-06,
+          "momentum": 1.1154749965823539e-06,
+          "energy": 3.890448267540025e-06
+        },
+        {
+          "iteration": 57,
+          "continuity": 2.465034704958071e-06,
+          "momentum": 9.481537470950009e-07,
+          "energy": 3.4235944754352217e-06
+        },
+        {
+          "iteration": 58,
+          "continuity": 2.218531234462264e-06,
+          "momentum": 8.059306850307507e-07,
+          "energy": 3.012763138382995e-06
+        },
+        {
+          "iteration": 59,
+          "continuity": 1.9966781110160375e-06,
+          "momentum": 6.850410822761381e-07,
+          "energy": 2.6512315617770356e-06
+        },
+        {
+          "iteration": 60,
+          "continuity": 1.797010299914434e-06,
+          "momentum": 5.822849199347174e-07,
+          "energy": 2.3330837743637913e-06
+        },
+        {
+          "iteration": 61,
+          "continuity": 1.6173092699229906e-06,
+          "momentum": 4.949421819445097e-07,
+          "energy": 2.0531137214401365e-06
+        },
+        {
+          "iteration": 62,
+          "continuity": 1.4555783429306915e-06,
+          "momentum": 4.207008546528333e-07,
+          "energy": 1.8067400748673201e-06
+        },
+        {
+          "iteration": 63,
+          "continuity": 1.3100205086376223e-06,
+          "momentum": 3.575957264549083e-07,
+          "energy": 1.5899312658832417e-06
+        },
+        {
+          "iteration": 64,
+          "continuity": 1.1790184577738603e-06,
+          "momentum": 3.03956367486672e-07,
+          "energy": 1.3991395139772528e-06
+        },
+        {
+          "iteration": 65,
+          "continuity": 1.061116611996474e-06,
+          "momentum": 2.5836291236367123e-07,
+          "energy": 1.2312427722999825e-06
+        },
+        {
+          "iteration": 66,
+          "continuity": 9.550049507968267e-07,
+          "momentum": 2.1960847550912053e-07,
+          "energy": 1.0834936396239844e-06
+        },
+        {
+          "iteration": 67,
+          "continuity": 8.595044557171441e-07,
+          "momentum": 1.8666720418275245e-07,
+          "energy": 9.534744028691065e-07
+        },
+        {
+          "iteration": 68,
+          "continuity": 7.735540101454298e-07,
+          "momentum": 1.5866712355533957e-07,
+          "energy": 8.390574745248136e-07
+        },
+        {
+          "iteration": 69,
+          "continuity": 6.961986091308867e-07,
+          "momentum": 1.3486705502203863e-07,
+          "energy": 7.38370577581836e-07
+        },
+        {
+          "iteration": 70,
+          "continuity": 6.265787482177981e-07,
+          "momentum": 1.1463699676873283e-07,
+          "energy": 6.497661082720156e-07
+        },
+        {
+          "iteration": 71,
+          "continuity": 5.639208733960184e-07,
+          "momentum": 9.744144725342291e-08,
+          "energy": 5.717941752793738e-07
+        },
+        {
+          "iteration": 72,
+          "continuity": 5.075287860564166e-07,
+          "momentum": 8.282523016540948e-08,
+          "energy": 5.031788742458489e-07
+        },
+        {
+          "iteration": 73,
+          "continuity": 4.5677590745077486e-07,
+          "momentum": 7.040144564059804e-08,
+          "energy": 4.427974093363471e-07
+        },
+        {
+          "iteration": 74,
+          "continuity": 4.110983167056974e-07,
+          "momentum": 5.984122879450833e-08,
+          "energy": 3.8966172021598546e-07
+        },
+        {
+          "iteration": 75,
+          "continuity": 3.699884850351277e-07,
+          "momentum": 5.086504447533209e-08,
+          "energy": 3.429023137900672e-07
+        },
+        {
+          "iteration": 76,
+          "continuity": 3.329896365316149e-07,
+          "momentum": 4.323528780403227e-08,
+          "energy": 3.0175403613525913e-07
+        },
+        {
+          "iteration": 77,
+          "continuity": 2.996906728784534e-07,
+          "momentum": 3.674999463342743e-08,
+          "energy": 2.6554355179902804e-07
+        },
+        {
+          "iteration": 78,
+          "continuity": 2.6972160559060813e-07,
+          "momentum": 3.1237495438413314e-08,
+          "energy": 2.3367832558314467e-07
+        },
+        {
+          "iteration": 79,
+          "continuity": 2.427494450315473e-07,
+          "momentum": 2.6551871122651317e-08,
+          "energy": 2.0563692651316731e-07
+        },
+        {
+          "iteration": 80,
+          "continuity": 2.1847450052839256e-07,
+          "momentum": 2.256909045425362e-08,
+          "energy": 1.8096049533158724e-07
+        },
+        {
+          "iteration": 81,
+          "continuity": 1.966270504755533e-07,
+          "momentum": 1.9183726886115577e-08,
+          "energy": 1.5924523589179676e-07
+        },
+        {
+          "iteration": 82,
+          "continuity": 1.7696434542799797e-07,
+          "momentum": 1.630616785319824e-08,
+          "energy": 1.4013580758478116e-07
+        },
+        {
+          "iteration": 83,
+          "continuity": 1.5926791088519817e-07,
+          "momentum": 1.3860242675218502e-08,
+          "energy": 1.2331951067460742e-07
+        },
+        {
+          "iteration": 84,
+          "continuity": 1.4334111979667837e-07,
+          "momentum": 1.1781206273935728e-08,
+          "energy": 1.0852116939365453e-07
+        },
+        {
+          "iteration": 85,
+          "continuity": 1.2900700781701054e-07,
+          "momentum": 1.0014025332845368e-08,
+          "energy": 9.549862906641598e-08
+        },
+        {
+          "iteration": 86,
+          "continuity": 1.1610630703530949e-07,
+          "momentum": 8.511921532918563e-09,
+          "energy": 8.403879357844607e-08
+        },
+        {
+          "iteration": 87,
+          "continuity": 1.0449567633177854e-07,
+          "momentum": 7.235133302980778e-09,
+          "energy": 7.395413834903254e-08
+        },
+        {
+          "iteration": 88,
+          "continuity": 9.404610869860068e-08,
+          "momentum": 6.1498633075336615e-09,
+          "energy": 6.507964174714863e-08
+        },
+        {
+          "iteration": 89,
+          "continuity": 8.464149782874062e-08,
+          "momentum": 5.227383811403612e-09,
+          "energy": 5.72700847374908e-08
+        },
+        {
+          "iteration": 90,
+          "continuity": 7.617734804586657e-08,
+          "momentum": 4.44327623969307e-09,
+          "energy": 5.03976745689919e-08
+        },
+        {
+          "iteration": 91,
+          "continuity": 6.85596132412799e-08,
+          "momentum": 3.776784803739109e-09,
+          "energy": 4.434995362071287e-08
+        },
+        {
+          "iteration": 92,
+          "continuity": 6.170365191715192e-08,
+          "momentum": 3.2102670831782427e-09,
+          "energy": 3.902795918622733e-08
+        },
+        {
+          "iteration": 93,
+          "continuity": 5.5533286725436726e-08,
+          "momentum": 2.728727020701506e-09,
+          "energy": 3.434460408388005e-08
+        },
+        {
+          "iteration": 94,
+          "continuity": 4.997995805289306e-08,
+          "momentum": 2.3194179675962802e-09,
+          "energy": 3.022325159381445e-08
+        },
+        {
+          "iteration": 95,
+          "continuity": 4.498196224760375e-08,
+          "momentum": 1.9715052724568383e-09,
+          "energy": 2.659646140255671e-08
+        },
+        {
+          "iteration": 96,
+          "continuity": 4.048376602284338e-08,
+          "momentum": 1.6757794815883124e-09,
+          "energy": 2.3404886034249906e-08
+        },
+        {
+          "iteration": 97,
+          "continuity": 3.643538942055904e-08,
+          "momentum": 1.4244125593500657e-09,
+          "energy": 2.059629971013992e-08
+        },
+        {
+          "iteration": 98,
+          "continuity": 3.279185047850314e-08,
+          "momentum": 1.2107506754475558e-09,
+          "energy": 1.8124743744923128e-08
+        },
+        {
+          "iteration": 99,
+          "continuity": 2.9512665430652826e-08,
+          "momentum": 1.0291380741304223e-09,
+          "energy": 1.594977449553235e-08
+        }
+      ],
+      "scenario_outputs": {
+        "boilOffRate": 0.12,
+        "internalPressure": 1.25,
+        "convectionVelocity": 0.0045,
+        "stabilityScore": 94.2
+      },
+      "credibility_score": 98.7,
+      "uncertainty": 0.0012,
+      "reynolds": 1200000.0,
+      "mach": 0.001
+    },
+    "status": "completed"
+  }
+}

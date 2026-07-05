@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertCircle, CheckCircle, Eye, EyeOff, Save, RefreshCw, ExternalLink } from 'lucide-react'
+import { AlertCircle, CheckCircle, Eye, EyeOff, Save, RefreshCw, ExternalLink, Database } from 'lucide-react'
 import { useAdmin } from '@/hooks/use-admin'
 import { createClient } from '@/lib/supabase/client'
 
@@ -237,6 +237,21 @@ export default function PaymentConfigPage() {
               >
                 <Save className="w-4 h-4" />
                 {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/admin/inject-demo', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) alert('Projet démo industriel injecté !');
+                    else alert('Erreur: ' + data.error);
+                  } catch (e) { alert('Erreur réseau'); }
+                }}
+                className="flex items-center gap-2 px-6 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 font-semibold transition"
+              >
+                <Database className="w-4 h-4" />
+                Injecter Projet Démo
               </button>
             </div>
           </form>
