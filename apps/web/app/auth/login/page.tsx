@@ -81,8 +81,8 @@ export default function LoginPage() {
     const { error, data } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=/pricing`,
         data: { full_name: fullName }
       },
     })
@@ -90,10 +90,11 @@ export default function LoginPage() {
     if (error) {
       setErrorMsg(error.message)
     } else if (data.user && data.session) {
-      setSuccessMsg("Inscription réussie ! Redirection...")
-      setTimeout(() => router.push('/dashboard'), 1500)
+      setSuccessMsg("Inscription réussie ! Redirection vers les offres...")
+      // Rediriger vers pricing pour choisir un plan immédiatement
+      setTimeout(() => router.push('/pricing?welcome=true'), 1500)
     } else {
-      setSuccessMsg("Un email de confirmation a été envoyé. Veuillez activer votre compte.")
+      setSuccessMsg("Un email de confirmation a été envoyé à votre boîte de réception. Veuillez cliquer sur le lien pour activer votre nexus.")
     }
     setLoading(false)
   }

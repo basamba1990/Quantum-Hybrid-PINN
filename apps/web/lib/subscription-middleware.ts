@@ -7,7 +7,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export interface SubscriptionStatus {
   isActive: boolean;
-  plan: 'free' | 'starter' | 'pro' | 'enterprise';
+  plan: 'free' | 'researcher' | 'professional' | 'enterprise';
   status: 'free' | 'active' | 'past_due' | 'cancelled' | 'expired';
 }
 
@@ -48,7 +48,7 @@ export async function checkSubscription(
 
 export async function verifySubscriptionAccess(
   userEmail: string,
-  requiredPlan: 'free' | 'starter' | 'pro' | 'enterprise' = 'free'
+  requiredPlan: 'free' | 'researcher' | 'professional' | 'enterprise' = 'free'
 ): Promise<boolean> {
   const subscription = await checkSubscription(userEmail);
 
@@ -56,8 +56,15 @@ export async function verifySubscriptionAccess(
     return requiredPlan === 'free';
   }
 
-    // Since we only have the Starter plan now, any active subscription grants access
-    return subscription.plan === 'starter';
+  // Hierarchy: enterprise > professional > researcher > free
+  const planWeights = {
+    free: 0,
+    researcher: 1,
+    professional: 2,
+    enterprise: 3
+  };
+
+  return planWeights[subscription.plan] >= planWeights[requiredPlan];
 }
 
 export async function incrementSimulationCount(
@@ -79,11 +86,13 @@ export async function getSimulationQuota(
     const subscription = await checkSubscription(userEmail);
 
     const quotas = {
-      free: { used: 0, limit: 0 },
-      starter: { used: 0, limit: -1 }, // Unlimited for Starter plan
+      free: { used: 0, limit: 1 }, // 1 demo simulation
+      researcher: { used: 0, limit: 10 },
+      professional: { used: 0, limit: -1 }, // Unlimited
+      enterprise: { used: 0, limit: -1 }, // Unlimited
     };
 
-    return quotas[subscription.plan as 'free' | 'starter'] || quotas.free;
+    return quotas[subscription.plan] || quotas.free;
   } catch (error) {
     console.error('Error getting simulation quota:', error);
     return { used: 0, limit: 0 };

@@ -3,7 +3,7 @@ import { useAuth } from './useAuth';
 
 interface SubscriptionData {
   status: 'free' | 'active' | 'past_due' | 'cancelled' | 'expired';
-  plan: 'free' | 'starter' | 'pro' | 'enterprise';
+  plan: 'free' | 'researcher' | 'professional' | 'enterprise';
   subscription_id?: string;
 }
 
@@ -52,8 +52,8 @@ export function useSubscription() {
   }, [user?.email]);
 
   const isActive = subscription.status === 'active';
-  const isPro = subscription.plan === 'pro' || subscription.plan === 'enterprise';
-  const isStarter = subscription.plan === 'starter';
+  const isPro = subscription.plan === 'professional' || subscription.plan === 'enterprise';
+  const isResearcher = subscription.plan === 'researcher';
 
   return {
     subscription,
@@ -61,6 +61,6 @@ export function useSubscription() {
     error,
     isActive,
     isPro,
-    isStarter,
+    isResearcher,
   };
 }

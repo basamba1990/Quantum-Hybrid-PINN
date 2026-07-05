@@ -1,67 +1,41 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const lemonSqueezyApiKey = process.env.LEMON_SQUEEZY_API_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
+/**
+ * Génère une URL pour le portail de gestion d'abonnement (Paddle)
+ * POST /api/subscriptions/portal
+ */
 export async function POST(req: Request) {
   try {
     const { userEmail } = await req.json();
 
     if (!userEmail) {
       return NextResponse.json(
-        { error: 'Email required' },
+        { error: 'Email requis' },
         { status: 400 }
       );
     }
 
-    // Get subscription info from Supabase
-    const { data: subscription, error } = await supabase
-      .from('subscriptions')
-      .select('lemon_subscription_id')
-      .eq('user_email', userEmail)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (error || !subscription) {
-      return NextResponse.json(
-        { error: 'No subscription found' },
-        { status: 404 }
-      );
-    }
-
-    // Get customer portal URL from Lemon Squeezy
-    // Note: This assumes you have a way to retrieve the customer portal URL
-    // You may need to use the Lemon Squeezy API to fetch this
-    const response = await fetch('https://api.lemonsqueezy.com/v1/customers', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${lemonSqueezyApiKey}`,
-        'Accept': 'application/vnd.api+json',
-      },
-    });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: 'Failed to fetch customer portal' },
-        { status: 500 }
-      );
-    }
-
-    const data = await response.json();
+    const supabase = await createClient();
     
-    // Return portal URL (you'll need to construct this based on Lemon Squeezy's API)
+    // Vérifier si l'utilisateur existe
+    const { data: user, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+
+    // Paddle v2 gère le portail client via des liens générés ou le tableau de bord direct.
+    // Pour une solution industrielle, nous redirigeons vers le portail Paddle standard.
+    // Note: Dans une version avancée, on utiliserait l'API Paddle pour obtenir un lien sécurisé.
+    
     return NextResponse.json({
-      portalUrl: `https://quantum-hybrid-pinn.lemonsqueezy.com/customer-portal`,
+      portalUrl: `https://checkout.paddle.com/subscription-management`,
+      provider: 'paddle'
     });
   } catch (error) {
-    console.error('Portal error:', error);
+    console.error('Erreur portail abonnement:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Erreur serveur interne' },
       { status: 500 }
     );
   }
