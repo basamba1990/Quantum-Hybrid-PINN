@@ -53,8 +53,8 @@ export default function PricingPage() {
     },
     {
       name: 'Enterprise',
-      price: 'Custom',
-      period: 'contact us',
+      price: '$2,499',
+      period: '/month',
       description: 'For large organizations and multinationals',
       features: [
         { text: 'Everything in Professional', included: true },
@@ -68,8 +68,8 @@ export default function PricingPage() {
         { text: 'SLA guarantee (99.9% uptime)', included: true },
         { text: 'Dedicated account manager', included: true },
       ],
-      cta: 'Contact Sales',
-      ctaLink: '/contact?type=enterprise',
+      cta: 'Start Free Trial',
+      ctaLink: '/auth/login?plan=enterprise',
       highlight: false,
       badge: null,
     },
@@ -155,12 +155,12 @@ export default function PricingPage() {
 
                   <PaddleCheckout
 	                    planId={
-                        plan.name === 'Researcher' ? 'pri_01j1xxxxxxxxxxxxxx' : 
-                        plan.name === 'Professional' ? 'pri_01j2xxxxxxxxxxxxxx' : 
-                        'pri_01j3xxxxxxxxxxxxxx'
+                        plan.name === 'Researcher' ? 'pri_01kws7mnzam0jvm7aha7s7txj3' : 
+                        plan.name === 'Professional' ? 'pri_01kws7wp26ngs9vf08wg7w2ny7' : 
+                        'pri_01kws84eg5bpffg4m6r2pm85fv'
                       }
 	                    planName={plan.name}
-	                    price={plan.price === 'Custom' ? 0 : parseInt(plan.price.replace('$', ''))}
+	                    price={plan.price === 'Custom' ? 2499 : parseInt(plan.price.replace('$', '').replace(',', ''))}
 	                    email=""
 	                    onSuccess={() => {
 	                      window.location.href = '/dashboard?payment=success'
@@ -284,7 +284,7 @@ export default function PricingPage() {
               <Zap className="w-5 h-5" />
               Try Demo First
             </Link>
-            <Link href="/auth/signup" className="px-8 py-4 rounded-lg bg-white text-blue-600 font-semibold hover:bg-slate-100 transition flex items-center justify-center gap-2">
+            <Link href="/auth/login?tab=signup" className="px-8 py-4 rounded-lg bg-white text-blue-600 font-semibold hover:bg-slate-100 transition flex items-center justify-center gap-2">
               <ArrowRight className="w-5 h-5" />
               Start Free Trial
             </Link>
