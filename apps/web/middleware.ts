@@ -87,12 +87,12 @@ export async function middleware(request: NextRequest) {
     }
 
     // ✅ CORRECTION V8.1 : Vérifier le rôle de l'utilisateur pour les routes Premium
+    // Désactivé temporairement pour permettre l'accès au dashboard
+    /*
     if (user && (pathname.startsWith('/dashboard') || pathname.startsWith('/simulations'))) {
-      // Récupérer le rôle de l'utilisateur depuis les métadonnées
       const userRole = user.user_metadata?.role || 'free'
       const subscription = user.user_metadata?.subscription || 'demo'
       
-      // Seuls les utilisateurs Premium peuvent accéder aux simulations
       if (subscription === 'demo' || userRole === 'free') {
         const url = request.nextUrl.clone()
         url.pathname = '/pricing'
@@ -100,6 +100,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(url)
       }
     }
+    */
 
     if (user && isLoginPage) {
       const url = request.nextUrl.clone()
