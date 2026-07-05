@@ -31,10 +31,10 @@ export default function LandingPage() {
             {/* CTA Buttons */}
             <div className="hidden md:flex items-center gap-4">
               <Link href="/demo" className="px-4 py-2 rounded-lg border border-blue-400 text-blue-400 hover:bg-blue-400/10 transition">
-                Try Demo
+                Démo
               </Link>
-              <Link href="/auth/signup" className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition font-medium">
-                Get Started
+              <Link href="/pricing" className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 transition font-medium">
+                S'abonner
               </Link>
             </div>
 
@@ -252,12 +252,12 @@ export default function LandingPage() {
             Join early adopters and experience the future of industrial simulation
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/demo" className="px-8 py-4 rounded-lg bg-white text-blue-600 font-semibold hover:bg-slate-100 transition">
-              Try the Demo First
+              Essayer la Démo
             </Link>
-            <Link href="/auth/signup" className="px-8 py-4 rounded-lg border-2 border-white text-white font-semibold hover:bg-white/10 transition">
-              Create Account
+            <Link href="/pricing" className="px-8 py-4 rounded-lg border-2 border-white text-white font-semibold hover:bg-white/10 transition">
+              Voir les Tarifs
             </Link>
           </div>
         </div>
