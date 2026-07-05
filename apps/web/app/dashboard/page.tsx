@@ -22,33 +22,59 @@ import { Input } from '@/components/ui/input'
 
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([])
+  const [analysesCount, setAnalysesCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchData = async () => {
       try {
         const { data: { user }, error: userError } = await supabase.auth.getUser()
         if (userError || !user) {
           setLoading(false)
           return
         }
-        const { data, error } = await supabase
+
+        // Fetch projects
+        const { data: projectsData, error: projectsError } = await supabase
           .from('projects')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
         
-        if (error) console.error('Fetch projects error:', error)
-        setProjects(data || [])
+        if (projectsError) console.error('Fetch projects error:', projectsError)
+        setProjects(projectsData || [])
+
+        // Fetch total analyses count
+        const { count, error: analysesError } = await supabase
+          .from('analyses')
+          .select('*', { count: 'exact', head: true })
+          .eq('userId', user.id) // Note: schema uses userId (int) but types/index.ts uses user_id (string). Based on schema.ts, it's userId.
+        
+        if (analysesError) {
+          // Try with user_id if userId fails, as Supabase often uses user_id by default
+          const { count: countAlt, error: errorAlt } = await supabase
+            .from('analyses')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+          
+          if (!errorAlt) {
+            setAnalysesCount(countAlt || 0)
+          } else {
+            console.error('Fetch analyses count error:', analysesError)
+          }
+        } else {
+          setAnalysesCount(count || 0)
+        }
+
       } catch (err) {
         console.error('Dashboard fetch error:', err)
       } finally {
         setLoading(false)
       }
     }
-    fetchProjects()
+    fetchData()
   }, [supabase])
 
   const filteredProjects = projects.filter(p => 
@@ -99,7 +125,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: 'Projets Actifs', value: projects.length, icon: Layers, color: 'blue' },
-          { label: 'Analyses PINN', value: projects.reduce((acc, p) => acc + (p.analyses?.length || 0), 0), icon: Activity, color: 'emerald' },
+          { label: 'Analyses PINN', value: analysesCount, icon: Activity, color: 'emerald' },
           { label: 'Score Moyen', value: projects.length > 0 ? '98.7%' : '--', icon: ShieldCheck, color: 'purple' },
           { label: 'Temps Calcul', value: '2.45s', icon: Clock, color: 'orange' },
         ].map((stat, i) => (
