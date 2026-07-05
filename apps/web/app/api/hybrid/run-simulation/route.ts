@@ -52,16 +52,25 @@ export async function POST(req: NextRequest) {
       residual_threshold: body.residual_threshold || 0.01,
       fields: body.fields || ['U', 'p', 'T'],
       ml_weight: body.ml_weight || 0.5,
-      fluid: body.fluid || scenarioInputs.fluid || null,
-      pressure: body.pressure !== undefined ? body.pressure : (scenarioInputs.pressure !== undefined ? scenarioInputs.pressure : null),
-      temperature: body.temperature !== undefined ? body.temperature : (scenarioInputs.temperature !== undefined ? scenarioInputs.temperature : null),
-      flow_rate: body.flow_rate !== undefined ? body.flow_rate : (scenarioInputs.flowRate !== undefined ? scenarioInputs.flowRate : null),
-      length: body.length !== undefined ? body.length : (scenarioInputs.length !== undefined ? scenarioInputs.length : null),
-      diameter: body.diameter !== undefined ? body.diameter : (scenarioInputs.diameter !== undefined ? scenarioInputs.diameter : null),
-      pressure_in: scenarioInputs.pressure_in,
-      pressure_out: scenarioInputs.pressure_out,
-      temperature_in: scenarioInputs.temperature_in,
-      temperature_out: scenarioInputs.temperature_out,
+      
+      // Mapping intelligent des paramètres physiques
+      fluid: body.fluid || scenarioInputs.fluid || 'H2',
+      pressure: body.pressure ?? scenarioInputs.pressure ?? scenarioInputs.pressure_in ?? 80,
+      temperature: body.temperature ?? scenarioInputs.temperature ?? scenarioInputs.temperature_in ?? 300,
+      flow_rate: body.flow_rate ?? scenarioInputs.flowRate ?? 2.0,
+      length: body.length ?? scenarioInputs.length ?? 100,
+      diameter: body.diameter ?? scenarioInputs.diameter ?? 0.5,
+      
+      // Paramètres spécifiques aux scénarios
+      volume: scenarioInputs.volume,
+      ambient_temp: scenarioInputs.ambientTemp,
+      depth: scenarioInputs.depth,
+      rock_type: scenarioInputs.rockType,
+      cargo_type: scenarioInputs.cargoType,
+      port_location: scenarioInputs.portLocation,
+      ventilation_rate: scenarioInputs.ventilationRate,
+      sensor_interval: scenarioInputs.sensorInterval,
+      
       scenario_type: body.scenario_type || "H2_PIPELINE",
       scenario_inputs: scenarioInputs,
     };

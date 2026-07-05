@@ -207,15 +207,37 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
                   {input.label}
                   <span className="text-blue-500/50">{input.unit}</span>
                 </Label>
-                <Input
-                  type="number"
-                  value={config.scenarioInputs[input.name]}
-                  onChange={(e) => setConfig({
-                    ...config,
-                    scenarioInputs: { ...config.scenarioInputs, [input.name]: parseFloat(e.target.value) }
-                  })}
-                  className="bg-black/40 border-white/10 rounded-xl h-10"
-                />
+                {input.type === 'select' ? (
+                  <Select 
+                    value={String(config.scenarioInputs[input.name] || input.defaultValue)} 
+                    onValueChange={(val) => setConfig({
+                      ...config,
+                      scenarioInputs: { ...config.scenarioInputs, [input.name]: val }
+                    })}
+                  >
+                    <SelectTrigger className="bg-black/40 border-white/10 rounded-xl h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-900 text-white border-white/10">
+                      {input.options?.map(opt => (
+                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    type={input.type === 'number' ? 'number' : 'text'}
+                    value={config.scenarioInputs[input.name] ?? ''}
+                    onChange={(e) => setConfig({
+                      ...config,
+                      scenarioInputs: { 
+                        ...config.scenarioInputs, 
+                        [input.name]: input.type === 'number' ? parseFloat(e.target.value) : e.target.value 
+                      }
+                    })}
+                    className="bg-black/40 border-white/10 rounded-xl h-10"
+                  />
+                )}
               </div>
             ))}
           </div>

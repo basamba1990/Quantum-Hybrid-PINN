@@ -50,7 +50,9 @@ export default function SimulationsPage() {
         setProjects(sortedProjects)
         
         if (sortedProjects.length > 0) {
-          setSelectedProject(sortedProjects[0])
+          // Prioriser le projet de démonstration industriel s'il existe
+          const demoProject = sortedProjects.find(p => p.name.includes('LH2-STORAGE'))
+          setSelectedProject(demoProject || sortedProjects[0])
         }
       } catch (err) {
         console.error("Error fetching projects:", err)

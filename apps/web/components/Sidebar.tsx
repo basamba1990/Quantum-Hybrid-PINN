@@ -19,9 +19,9 @@ import type { User } from '@supabase/supabase-js'
 const menuItems = [
   { icon: LayoutDashboard, label: 'Tableau de bord', href: '/dashboard' },
   { icon: FlaskConical, label: 'Simulations', href: '/dashboard/simulations' },
-  { icon: Zap, label: 'Benchmarks 3D', href: '/dashboard/benchmarks' },
+  { icon: Zap, label: 'Analyses', href: '/dashboard/simulations' },
   { icon: MessageSquare, label: 'Assistant IA', href: '/dashboard/assistant' },
-  { icon: History, label: 'Historique', href: '/dashboard/history' },
+  { icon: History, label: 'Projets', href: '/dashboard' },
   { icon: Settings, label: 'Paramètres', href: '/dashboard/settings' },
 ]
 

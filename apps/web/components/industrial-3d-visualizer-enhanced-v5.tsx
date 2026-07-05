@@ -237,6 +237,23 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         const animate = () => {
           animationId = requestAnimationFrame(animate)
           if (controlsRef.current) controlsRef.current.update()
+          
+          // Animation des points pour simuler le mouvement industriel
+          if (pointsGroupRef.current) {
+            pointsGroupRef.current.children.forEach((child: any) => {
+              if (child instanceof THREE.Points) {
+                const positions = child.geometry.attributes.position.array as Float32Array
+                for (let i = 0; i < positions.length; i += 3) {
+                  // Petit mouvement brownien pour le réalisme de l'écoulement
+                  positions[i] += (Math.random() - 0.5) * 0.001
+                  positions[i+1] += (Math.random() - 0.5) * 0.001
+                  positions[i+2] += (Math.random() - 0.5) * 0.001
+                }
+                child.geometry.attributes.position.needsUpdate = true
+              }
+            })
+          }
+
           if (rendererRef.current && sceneRef.current && cameraRef.current) rendererRef.current.render(sceneRef.current, cameraRef.current)
         }
         animate()

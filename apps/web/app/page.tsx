@@ -298,9 +298,9 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-slate-400 text-sm">
-                <li><a href="#" className="hover:text-blue-400 transition">Privacy</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Terms</a></li>
-                <li><a href="#" className="hover:text-blue-400 transition">Security</a></li>
+                <li><Link href="/privacy" className="hover:text-blue-400 transition">Privacy</Link></li>
+                <li><Link href="/terms" className="hover:text-blue-400 transition">Terms</Link></li>
+                <li><Link href="/refunds" className="hover:text-blue-400 transition">Refunds</Link></li>
               </ul>
             </div>
           </div>
