@@ -282,11 +282,11 @@ export default function PricingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/demo" className="px-8 py-4 rounded-lg border border-white text-white hover:bg-white/10 font-semibold transition flex items-center justify-center gap-2">
               <Zap className="w-5 h-5" />
-              Try Demo First
+              Essayer la Démo
             </Link>
-            <Link href="/auth/login?tab=signup" className="px-8 py-4 rounded-lg bg-white text-blue-600 font-semibold hover:bg-slate-100 transition flex items-center justify-center gap-2">
+            <Link href="/dashboard" className="px-8 py-4 rounded-lg bg-white text-blue-600 font-semibold hover:bg-slate-100 transition flex items-center justify-center gap-2">
               <ArrowRight className="w-5 h-5" />
-              Start Free Trial
+              Accéder au Dashboard
             </Link>
           </div>
 
