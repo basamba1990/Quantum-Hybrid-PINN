@@ -5,7 +5,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
 
-  const next = searchParams.get('next') || '/dashboard'
+  // Force redirect to pricing after signup if no specific next is provided
+  // This ensures users go to plans immediately after email confirmation
+  const next = searchParams.get('next') || '/pricing'
 
   if (code) {
     const supabase = await createClient()
