@@ -22,7 +22,13 @@ export default function LoginPage() {
   const supabase = createClient()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState('login')
   
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'signup') setActiveTab('signup')
+  }, [searchParams])
+
   useEffect(() => {
     const error = searchParams.get('error')
     if (error) setErrorMsg(decodeURIComponent(error))
@@ -138,7 +144,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="login" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 bg-white/5 backdrop-blur-md border border-white/10 p-1 rounded-2xl mb-8">
             <TabsTrigger value="login" className="rounded-xl py-2.5 transition-all data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_rgba(37,99,235,0.4)]">
               Connexion

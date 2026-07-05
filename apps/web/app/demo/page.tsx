@@ -23,7 +23,7 @@ export default function DemoPage() {
               Demo Mode (Read-Only)
             </span>
             <Link
-              href="/auth/signup"
+              href="/auth/login?tab=signup"
               className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-semibold transition"
             >
               Upgrade to Premium
@@ -174,7 +174,7 @@ export default function DemoPage() {
                 View Pricing
               </Link>
               <Link
-                href="/auth/signup?plan=professional"
+                href="/auth/login?plan=professional"
                 className="px-8 py-4 rounded-lg border-2 border-white text-white font-semibold hover:bg-white/10 transition"
               >
                 Start Free Trial
