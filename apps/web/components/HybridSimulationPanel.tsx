@@ -219,8 +219,8 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-900 text-white border-white/10">
-                      {input.options?.map(opt => (
-                        <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                      {input.options?.map((opt, idx) => (
+                        <SelectItem key={`${input.name}-opt-${idx}`} value={String(opt.value)}>{opt.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
