@@ -57,11 +57,15 @@ export async function POST(request: NextRequest) {
       let plan = 'researcher' // Par défaut
       const priceId = items[0]?.price_id
 
-      if (priceId?.includes('pri_01kws7mnzam0jvm7aha7s7txj3') || priceId?.toLowerCase().includes('researcher')) {
+      const researcherPriceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_RESEARCHER || 'pri_01kws7mnzam0jvm7aha7s7txj3'
+      const professionalPriceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_PROFESSIONAL || 'pri_01kws7wp26ngs9vf08wg7w2ny7'
+      const enterprisePriceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_ENTERPRISE || 'pri_01kws84eg5bpffg4m6r2pm85fv'
+
+      if (priceId === researcherPriceId || priceId?.toLowerCase().includes('researcher')) {
         plan = 'researcher'
-      } else if (priceId?.includes('pri_01kws7wp26ngs9vf08wg7w2ny7') || priceId?.toLowerCase().includes('professional')) {
+      } else if (priceId === professionalPriceId || priceId?.toLowerCase().includes('professional')) {
         plan = 'professional'
-      } else if (priceId?.includes('pri_01kws84eg5bpffg4m6r2pm85fv') || priceId?.toLowerCase().includes('enterprise')) {
+      } else if (priceId === enterprisePriceId || priceId?.toLowerCase().includes('enterprise')) {
         plan = 'enterprise'
       }
 
