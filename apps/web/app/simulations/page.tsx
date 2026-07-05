@@ -52,7 +52,7 @@ export default function SimulationsPage() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-white mb-8">Simulations</h1>
 
-        <SubscriptionGuard requiredPlan="starter">
+        <SubscriptionGuard requiredPlan="researcher">
           <Card className="border-slate-700 bg-slate-800/50">
             <CardHeader>
               <CardTitle>Run a New Simulation</CardTitle>

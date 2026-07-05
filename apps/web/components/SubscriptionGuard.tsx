@@ -8,13 +8,13 @@ import { AlertCircle } from 'lucide-react';
 
 interface SubscriptionGuardProps {
   children: ReactNode;
-  requiredPlan?: 'starter' | 'pro' | 'enterprise';
+  requiredPlan?: 'researcher' | 'professional' | 'enterprise';
   fallback?: ReactNode;
 }
 
 export function SubscriptionGuard({
   children,
-  requiredPlan = 'starter',
+  requiredPlan = 'researcher',
   fallback,
 }: SubscriptionGuardProps) {
   const { subscription, loading, isActive, isPro } = useSubscription();
@@ -30,8 +30,8 @@ export function SubscriptionGuard({
   // Check if user has required subscription level
   const hasAccess =
     isActive &&
-    (requiredPlan === 'starter' ||
-      (requiredPlan === 'pro' && isPro) ||
+    (requiredPlan === 'researcher' ||
+      (requiredPlan === 'professional' && isPro) ||
       (requiredPlan === 'enterprise' && subscription.plan === 'enterprise'));
 
   if (!hasAccess) {
