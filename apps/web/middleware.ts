@@ -94,15 +94,12 @@ export async function middleware(request: NextRequest) {
       // L'admin a toujours accès
       if (userEmail === adminEmail) return NextResponse.next()
 
-      // Si l'utilisateur est sur un plan gratuit et tente d'accéder au dashboard/simulations
-      if (subscription === 'free' || userRole === 'free') {
-        // Autoriser uniquement la page de démo pour les utilisateurs gratuits
-        if (pathname === '/dashboard' || pathname.startsWith('/dashboard/projects')) {
-           const url = request.nextUrl.clone()
-           url.pathname = '/pricing'
-           url.searchParams.set('upgrade_required', 'true')
-           return NextResponse.redirect(url)
-        }
+      // Rediriger vers pricing si l'utilisateur n'a pas d'abonnement actif (free ou demo)
+      if (subscription === 'free' || subscription === 'demo' || userRole === 'free') {
+         const url = request.nextUrl.clone()
+         url.pathname = '/pricing'
+         url.searchParams.set('upgrade_required', 'true')
+         return NextResponse.redirect(url)
       }
     }
 

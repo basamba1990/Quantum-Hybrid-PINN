@@ -61,12 +61,20 @@ export async function POST(request: NextRequest) {
       const professionalPriceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_PROFESSIONAL || 'pri_01kws7wp26ngs9vf08wg7w2ny7'
       const enterprisePriceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_ENTERPRISE || 'pri_01kws84eg5bpffg4m6r2pm85fv'
 
-      if (priceId === researcherPriceId || priceId?.toLowerCase().includes('researcher')) {
+      // Log for debugging (only in development or secure logs)
+      console.log('Webhook Price ID received:', priceId);
+
+      if (priceId === researcherPriceId) {
         plan = 'researcher'
-      } else if (priceId === professionalPriceId || priceId?.toLowerCase().includes('professional')) {
+      } else if (priceId === professionalPriceId) {
         plan = 'professional'
-      } else if (priceId === enterprisePriceId || priceId?.toLowerCase().includes('enterprise')) {
+      } else if (priceId === enterprisePriceId) {
         plan = 'enterprise'
+      } else {
+        // Fallback checks for safety
+        if (priceId?.toLowerCase().includes('researcher')) plan = 'researcher'
+        else if (priceId?.toLowerCase().includes('professional')) plan = 'professional'
+        else if (priceId?.toLowerCase().includes('enterprise')) plan = 'enterprise'
       }
 
       // Mettre à jour l'utilisateur dans la table users
