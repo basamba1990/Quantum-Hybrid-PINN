@@ -59,3 +59,10 @@ stages:
     metrics:
       - metrics/eval_metrics.json:
           cache: false
+
+  verify_physics:
+    cmd: python3 dvc_mlops/src/test_physic_consistency.py --model models/pinn_model.pt --threshold 0.05
+    deps:
+      - dvc_mlops/src/test_physic_consistency.py
+      - models/pinn_model.pt
+      - apps/api/hydrogen_pinn_v8.py
