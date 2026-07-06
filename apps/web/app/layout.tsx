@@ -41,6 +41,7 @@ export default async function RootLayout({
             {children}
           </main>
         </Providers>
+        <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
       </body>
     </html>
   )
