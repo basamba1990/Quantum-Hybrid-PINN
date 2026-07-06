@@ -20,20 +20,12 @@ export function PaddleCheckout({
   onError,
 }: PaddleCheckoutProps) {
   useEffect(() => {
-    // Charger le script Paddle
-    const script = document.createElement('script')
-    script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js'
-    script.async = true
-    document.body.appendChild(script)
-
-    script.onload = async () => {
-      // Initialiser Paddle
-      if (window.Paddle) {
+    const initPaddle = async () => {
+      // Attendre que Paddle soit disponible sur window
+      if (typeof window !== 'undefined' && window.Paddle) {
         try {
-          // Essayer de récupérer le token depuis les variables d'environnement d'abord
           let token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN
           
-          // Si pas de token, essayer de le récupérer depuis l'API de config
           if (!token) {
             const response = await fetch('/api/admin/payment-config-public')
             const data = await response.json()
@@ -41,21 +33,22 @@ export function PaddleCheckout({
           }
 
           if (token) {
-            window.Paddle.Setup({
+            window.Paddle.Initialize({
               token: token,
+              eventCallback: (event: any) => {
+                if (event.name === 'checkout.completed') {
+                  onSuccess?.()
+                }
+              }
             })
           }
         } catch (err) {
-          console.error('Failed to load Paddle token:', err)
+          console.error('Failed to initialize Paddle:', err)
         }
       }
     }
 
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script)
-      }
-    }
+    initPaddle()
   }, [])
 
   const handleCheckout = async () => {
