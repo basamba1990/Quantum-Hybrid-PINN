@@ -11,18 +11,18 @@ export default function PricingPage() {
       name: 'Researcher',
       price: '$99',
       period: '/month',
-      description: 'Pour les chercheurs indépendants et consultants',
+      description: 'For independent researchers and consultants',
       features: [
-        { text: 'Jusqu\'à 10 simulations personnalisées/mois', included: true },
-        { text: 'Visualisation 3D interactive', included: true },
-        { text: 'Rapports d\'audit scientifique', included: true },
-        { text: 'Analyse paramétrique de base', included: true },
-        { text: 'Accès API REST (100 req/jour)', included: true },
-        { text: 'Support email (réponse 48h)', included: true },
-        { text: 'Export de données (CSV uniquement)', included: true },
-        { text: 'Analyse paramétrique avancée', included: false },
-        { text: 'Modèles EOS personnalisés', included: false },
-        { text: 'Support prioritaire', included: false },
+        { text: 'Up to 10 custom simulations/month', included: true },
+        { text: '3D visualization (interactive)', included: true },
+        { text: 'Scientific audit reports', included: true },
+        { text: 'Basic parametric analysis', included: true },
+        { text: 'REST API access (100 req/day)', included: true },
+        { text: 'Email support (48h response)', included: true },
+        { text: 'Data export (CSV only)', included: true },
+        { text: 'Advanced parametric analysis', included: false },
+        { text: 'Custom EOS models', included: false },
+        { text: 'Priority support', included: false },
       ],
       highlight: false,
       badge: null,
@@ -31,38 +31,38 @@ export default function PricingPage() {
       name: 'Professional',
       price: '$499',
       period: '/month',
-      description: 'Pour les équipes d\'ingénierie et départements R&D',
+      description: 'For engineering teams and R&D departments',
       features: [
-        { text: 'Simulations personnalisées illimitées', included: true },
-        { text: 'Visualisation 3D interactive', included: true },
-        { text: 'Audit scientifique avec certification', included: true },
-        { text: 'Analyse paramétrique avancée', included: true },
-        { text: 'Accès API REST (10k req/jour)', included: true },
-        { text: 'Support email (réponse 24h)', included: true },
-        { text: 'Export de données (CSV, JSON, Excel)', included: true },
-        { text: 'Traitement par lots (jusqu\'à 100 jobs)', included: true },
-        { text: 'Modèles EOS personnalisés', included: false },
-        { text: 'Support téléphonique', included: false },
+        { text: 'Unlimited custom simulations', included: true },
+        { text: '3D visualization (interactive)', included: true },
+        { text: 'Scientific audit with certification', included: true },
+        { text: 'Advanced parametric analysis', included: true },
+        { text: 'REST API access (10k req/day)', included: true },
+        { text: 'Email support (24h response)', included: true },
+        { text: 'Data export (CSV, JSON, Excel)', included: true },
+        { text: 'Batch processing (up to 100 jobs)', included: true },
+        { text: 'Custom EOS models', included: false },
+        { text: 'Phone support', included: false },
       ],
       highlight: true,
-      badge: 'Plus Populaire',
+      badge: 'Most Popular',
     },
     {
       name: 'Enterprise',
       price: '$2,499',
       period: '/month',
-      description: 'Pour les grandes organisations et multinationales',
+      description: 'For large organizations and multinationals',
       features: [
-        { text: 'Tout ce qui est dans Professional', included: true },
-        { text: 'Requêtes API illimitées', included: true },
-        { text: 'Infrastructure dédiée', included: true },
-        { text: 'Modèles EOS personnalisés & validation', included: true },
-        { text: 'Support 24/7 téléphone & email', included: true },
-        { text: 'Intégrations personnalisées (SAP, ANSYS)', included: true },
-        { text: 'Option de déploiement sur site', included: true },
-        { text: 'Sécurité avancée & conformité', included: true },
-        { text: 'Garantie SLA (99.9% disponibilité)', included: true },
-        { text: 'Gestionnaire de compte dédié', included: true },
+        { text: 'Everything in Professional', included: true },
+        { text: 'Unlimited API requests', included: true },
+        { text: 'Dedicated infrastructure', included: true },
+        { text: 'Custom EOS models & validation', included: true },
+        { text: '24/7 phone & email support', included: true },
+        { text: 'Custom integrations (SAP, ANSYS)', included: true },
+        { text: 'On-premise deployment option', included: true },
+        { text: 'Advanced security & compliance', included: true },
+        { text: 'SLA guarantee (99.9% uptime)', included: true },
+        { text: 'Dedicated account manager', included: true },
       ],
       highlight: false,
       badge: null,
@@ -78,7 +78,7 @@ export default function PricingPage() {
             Quantum-Hybrid PINN
           </Link>
           <div className="flex gap-4">
-            <Link href="/" className="hover:text-blue-400 transition">Retour à l'accueil</Link>
+            <Link href="/" className="hover:text-blue-400 transition">Back to Home</Link>
           </div>
         </div>
       </nav>
@@ -87,11 +87,11 @@ export default function PricingPage() {
       <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            Tarification Simple et
-            <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent"> Transparente</span>
+            Simple, Transparent
+            <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent"> Pricing</span>
           </h1>
           <p className="text-xl text-slate-300 mb-8">
-            Sélectionnez le plan adapté à vos besoins industriels. Tous nos plans incluent le moteur de simulation PINN V8.1.
+            Choose the plan that fits your industrial needs. All plans include our core PINN V8.1 simulation engine.
           </p>
         </div>
       </section>
@@ -163,24 +163,24 @@ export default function PricingPage() {
       {/* FAQ Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-4xl font-bold mb-12 text-center">Questions Fréquentes</h2>
+          <h2 className="text-4xl font-bold mb-12 text-center">Frequently Asked Questions</h2>
           <div className="space-y-6">
             {[
               {
-                q: 'Puis-je changer de plan à tout moment ?',
-                a: 'Oui, vous pouvez passer à un plan supérieur ou inférieur à tout moment. Les modifications prennent effet immédiatement.'
+                q: 'Can I change plans anytime?',
+                a: 'Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately, and we prorate charges accordingly.'
               },
               {
-                q: 'Quels modes de paiement acceptez-vous ?',
-                a: 'Nous acceptons les cartes bancaires (Visa, Mastercard), PayPal et Apple Pay via Paddle.'
+                q: 'What payment methods do you accept?',
+                a: 'We accept credit cards (Visa, Mastercard), PayPal, and Apple Pay via Paddle.'
               },
               {
-                q: 'Comment fonctionne la facturation ?',
-                a: 'La facturation est mensuelle par défaut. Les plans annuels bénéficient d\'une réduction de 20%.'
+                q: 'How does billing work?',
+                a: 'Billing is monthly by default. Annual plans include a 20% discount.'
               },
               {
-                q: 'Mes données sont-elles sécurisées ?',
-                a: 'Toutes les données sont cryptées au repos et en transit. Nous respectons les normes RGPD et ISO 27001.'
+                q: 'Is my data secure?',
+                a: 'All data is encrypted at rest and in transit. We comply with GDPR and ISO 27001 standards.'
               },
             ].map((item, idx) => (
               <div key={idx} className="border border-blue-500/20 rounded-lg p-6 hover:border-blue-500/50 transition">
@@ -195,19 +195,19 @@ export default function PricingPage() {
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-600 to-cyan-600">
         <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-4">Prêt à commencer ?</h2>
+          <h2 className="text-4xl font-bold mb-4">Ready to Get Started?</h2>
           <p className="text-blue-100 mb-8">
-            Rejoignez les équipes d'ingénierie qui transforment leurs flux de simulation avec Quantum-Hybrid PINN.
+            Join engineering teams worldwide who are transforming their simulation workflows with Quantum-Hybrid PINN.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/demo" className="px-8 py-4 rounded-lg border border-white text-white hover:bg-white/10 font-semibold transition flex items-center justify-center gap-2">
               <Zap className="w-5 h-5" />
-              Essayer la Démo
+              Try Demo First
             </Link>
             <a href="#plans" className="px-8 py-4 rounded-lg bg-white text-blue-600 font-semibold hover:bg-slate-100 transition flex items-center justify-center gap-2">
               <ArrowRight className="w-5 h-5" />
-              Sélectionner un Plan
+              Select a Plan
             </a>
           </div>
         </div>
@@ -216,7 +216,7 @@ export default function PricingPage() {
       {/* Footer */}
       <footer className="border-t border-blue-500/20 py-12 px-4 sm:px-6 lg:px-8 bg-slate-900">
         <div className="max-w-6xl mx-auto text-center text-slate-400 text-sm">
-          <p>© 2026 Quantum-Hybrid PINN. Tous droits réservés. Paiements sécurisés via Paddle.</p>
+          <p>© 2026 Quantum-Hybrid PINN. All rights reserved. Secure payments via Paddle.</p>
         </div>
       </footer>
     </div>
