@@ -35,9 +35,8 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // ✅ ÉTAPE 4 : Si c'est l'admin, lui donner accès complet
+    // ✅ ÉTAPE 4 : Si c'est l'admin, lui donner accès complet (via cookie)
     if (userEmail === adminEmail) {
-      // L'admin peut accéder à toutes les routes
       return NextResponse.next()
     }
 
@@ -67,6 +66,11 @@ export async function middleware(request: NextRequest) {
     // Vérification légère de l'utilisateur
     const { data: { user } } = await supabase.auth.getUser()
 
+    // ✅ CORRECTIF V8.2 : Bypass admin par email de session (Sécurité renforcée)
+    if (user?.email === adminEmail) {
+      return NextResponse.next()
+    }
+
     // 2. LOGIQUE DE REDIRECTION SIMPLIFIÉE
     const isDashboard = pathname.startsWith('/dashboard')
     const isLoginPage = pathname === '/auth/login' || pathname === '/login'
@@ -91,8 +95,8 @@ export async function middleware(request: NextRequest) {
       const userRole = user.user_metadata?.role || 'free'
       const subscription = user.user_metadata?.subscription || 'free'
       
-      // L'admin a toujours accès
-      if (userEmail === adminEmail) return NextResponse.next()
+      // L'admin a toujours accès (déjà vérifié au dessus, mais doublon de sécurité)
+      if (user.email === adminEmail || userEmail === adminEmail) return NextResponse.next()
 
       // Rediriger vers pricing si l'utilisateur n'a pas d'abonnement actif (free ou demo)
       if (subscription === 'free' || subscription === 'demo' || userRole === 'free') {
