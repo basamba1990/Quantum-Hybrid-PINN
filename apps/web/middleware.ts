@@ -92,11 +92,13 @@ export async function middleware(request: NextRequest) {
 
     // ✅ CORRECTION V8.1 : Vérifier le rôle de l'utilisateur pour les routes Premium
     if (user && (pathname.startsWith('/dashboard') || pathname.startsWith('/simulations'))) {
+      // ✅ CORRECTIF V8.3 : Vérifier l'admin EN PREMIER avant de vérifier l'abonnement
+      if (user.email === adminEmail || userEmail === adminEmail) {
+        return NextResponse.next()
+      }
+      
       const userRole = user.user_metadata?.role || 'free'
       const subscription = user.user_metadata?.subscription || 'free'
-      
-      // L'admin a toujours accès (déjà vérifié au dessus, mais doublon de sécurité)
-      if (user.email === adminEmail || userEmail === adminEmail) return NextResponse.next()
 
       // Rediriger vers pricing si l'utilisateur n'a pas d'abonnement actif (free ou demo)
       if (subscription === 'free' || subscription === 'demo' || userRole === 'free') {

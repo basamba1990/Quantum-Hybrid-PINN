@@ -45,7 +45,6 @@ export function PaddleCheckout({
             console.log('Initializing Paddle with token:', token.substring(0, 10) + '...');
             window.Paddle.Initialize({
               token: token,
-              environment: 'production', // Forcer le mode production
               eventCallback: (event: any) => {
                 console.log('Paddle Event:', event.name, event);
                 if (event.name === 'checkout.completed') {
