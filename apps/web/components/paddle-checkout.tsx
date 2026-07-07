@@ -48,6 +48,7 @@ export function PaddleCheckout({
           }
         } catch (err) {
           console.error('Failed to initialize Paddle:', err)
+          alert('Erreur d\'initialisation Paddle : ' + (err instanceof Error ? err.message : String(err)))
         }
       }
     }
@@ -101,6 +102,7 @@ export function PaddleCheckout({
       window.Paddle.Checkout.open(checkoutConfig)
     } catch (error) {
       console.error('Paddle checkout error:', error)
+      alert('Erreur de paiement : ' + (error instanceof Error ? error.message : String(error)))
       onError?.(error instanceof Error ? error : new Error('Unknown error'))
     }
   }
