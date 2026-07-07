@@ -1,0 +1,29 @@
+{
+  "case_study": "FPGA Heat Sink with Laminar Flow (NVIDIA Modulus/SimNet)",
+  "geometry": {
+    "heat_sink_base": {"length": 0.65, "width": 0.875, "height": 0.05},
+    "fin_dimension": {"length": 0.65, "width": 0.0075, "height": 0.8625},
+    "heat_source": {"length": 0.25, "width": 0.25},
+    "channel": {"length": 5.0, "width": 1.125, "height": 1.0}
+  },
+  "physics_parameters": {
+    "reynolds_number": 50,
+    "inlet_velocity": 1.0,
+    "density": 1.0,
+    "kinematic_viscosity": 0.02,
+    "thermal_diffusivity_fluid": 0.02,
+    "thermal_diffusivity_solid": 0.1,
+    "thermal_conductivity": 1.0,
+    "inlet_temperature": 273.15,
+    "heat_source_temp_gradient": 409.725
+  },
+  "scaling": {
+    "length_unit": "m (scaled to channel height)",
+    "temperature_scale": "theta = T / 273.15 - 1.0"
+  },
+  "validation_metrics": {
+    "target": "Pressure drop and peak temperature",
+    "method": "Correlation with CFD (OpenFOAM/Ansys) and Experimental Data",
+    "pinn_architecture": "Fourier Network / Modified Fourier Network"
+  }
+}

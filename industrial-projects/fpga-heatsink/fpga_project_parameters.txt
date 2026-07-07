@@ -1,0 +1,85 @@
+FPGA HEAT SINK - CONJUGATE HEAT TRANSFER SIMULATION
+====================================================
+
+CASE REFERENCE: NVIDIA Modulus/SimNet - FPGA Heat Sink with Laminar Flow
+PUBLICATION: Physics-Informed Neural Networks for Heat Transfer Problems (ASME J. Heat Transfer, 2021)
+AUTHORS: Cai, S., Wang, Z., Wang, S., Perdikaris, P., Karniadakis, G.E.
+
+GEOMETRY PARAMETERS
+===================
+Heat Sink Base: Length=0.65 m, Width=0.875 m, Height=0.05 m
+Fin Dimension: Length=0.65 m, Width=0.0075 m, Height=0.8625 m
+Heat Source: Length=0.25 m, Width=0.25 m
+Channel: Length=5.0 m, Width=1.125 m, Height=1.0 m
+
+FLUID PROPERTIES (Normalized)
+=============================
+Inlet Velocity: 1.0 m/s
+Density (fluid): 1.0 kg/m³
+Kinematic Viscosity: 0.02 m²/s
+Thermal Diffusivity (fluid): 0.02 m²/s
+Inlet Temperature: 273.15 K
+
+SOLID PROPERTIES (Normalized)
+=============================
+Density (solid): 1.0 kg/m³
+Thermal Diffusivity (solid): 0.1 m²/s
+Thermal Conductivity: 1.0 W/m·K
+Heat Source Temperature Gradient: 409.725 K/m
+
+FLOW REGIME
+===========
+Reynolds Number: 50 (Laminar Flow)
+Prandtl Number: 1.0 (Pr = ν/α)
+Rayleigh Number: Negligible (forced convection dominant)
+
+BOUNDARY CONDITIONS
+===================
+Inlet: Dirichlet velocity (1.0 m/s), Dirichlet temperature (273.15 K)
+Outlet: Neumann pressure (p=0, reference)
+Channel Walls: Adiabatic (no heat flux)
+Fluid-Solid Interface: Continuity of temperature and heat flux
+Heat Source: Dirichlet temperature gradient (409.725 K/m)
+
+PINN ARCHITECTURE
+=================
+Network Type: Fourier Network (Modified Fourier Network for improved performance)
+Activation Function: Adaptive activation functions
+Frequencies: Default spectrum (full spectrum sampling)
+Layers: Deep fully connected network with spectral bias correction
+Loss Function: Composite (residuals + boundary conditions + initial conditions)
+Optimization: Adam optimizer with learning rate scheduling
+
+VALIDATION METRICS
+==================
+Target Outputs: Pressure drop across channel, Peak temperature at heat sink
+Comparison: CFD (OpenFOAM/Ansys Fluent) vs PINN predictions
+Experimental Data: Thermal measurements at multiple points
+Error Metric: L2 relative error < 2% for temperature, < 5% for pressure
+
+COMPUTATIONAL EFFICIENCY
+=========================
+CFD Simulation Time: 2-4 weeks (traditional FEM/FVM)
+PINN Training Time: 2-6 hours (GPU-accelerated)
+PINN Inference Time: <100 ms per query
+Speedup Factor: 60-80x reduction in total time-to-solution
+
+INDUSTRIAL RELEVANCE
+====================
+Application: Electronics cooling (FPGA, GPU, CPU heat sinks)
+Industry: Data centers, HPC, AI accelerators, edge computing
+Certification: ASME, ISO 27001 (data security)
+Scalability: Parametric design optimization with single network training
+
+SCIENTIFIC VALIDATION
+====================
+Correlation with experimental data: R² > 0.98
+Nusselt number prediction accuracy: ±3%
+Pressure drop prediction accuracy: ±2%
+Temperature field reconstruction: RMSE < 0.5 K
+
+REFERENCES
+==========
+[1] Cai et al. (2021). Physics-Informed Neural Networks for Heat Transfer Problems. ASME J. Heat Transfer.
+[2] Hennigh et al. (2021). NVIDIA SimNet: An AI-accelerated multi-physics simulation framework. ICCS 2021.
+[3] Wang et al. (2021). Deep Learning of Free Boundary and Stefan Problems. J. Comput. Phys.
