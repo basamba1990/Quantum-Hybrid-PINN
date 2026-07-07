@@ -36,6 +36,14 @@ export function ProtectedRoute({
           return
         }
 
+        // ✅ CORRECTIF V8.2 : Bypass admin par email (comme dans le middleware)
+        const adminEmail = 'basamba1990@yahoo.fr'
+        if (user.email === adminEmail) {
+          setIsAuthorized(true)
+          setIsLoading(false)
+          return
+        }
+
         // Récupérer le rôle et l'abonnement de l'utilisateur
         const userRole = user.user_metadata?.role || 'free'
         const subscription = user.user_metadata?.subscription || 'demo'
