@@ -26,6 +26,11 @@ export function PaddleCheckout({
         try {
           let token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN
           
+          // ✅ CORRECTIF V8.2 : Fallback sur le token fourni par l'utilisateur
+          if (!token || token === 'undefined') {
+            token = 'live_ce999e230ab010638729f5f28bf'
+          }
+          
           if (!token) {
             try {
               const response = await fetch('/api/admin/payment-config-public')
