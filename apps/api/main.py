@@ -19,6 +19,7 @@ try:
     from fluid_properties import get_eos
     from industrial_risk_manager import IndustrialRiskManager
     from analysis_processor import router as analysis_router, init_processor
+    from pgd_pinn_api import router as pgd_pinn_router
 except ImportError:
     from .hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as HydrogenPINNV8, get_device
     from .deep_kalman_filter import DeepKalmanFilter
@@ -63,6 +64,7 @@ jobs_store = {}
 import os
 try:
     app.include_router(analysis_router)
+    app.include_router(pgd_pinn_router)
     supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
     supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
     if supabase_url and supabase_key:
