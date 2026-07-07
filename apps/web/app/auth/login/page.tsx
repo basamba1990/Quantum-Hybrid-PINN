@@ -57,6 +57,11 @@ export default function LoginPage() {
       setErrorMsg(error.message)
       setLoading(false)
     } else {
+      // ✅ CORRECTIF V8.2 : Forcer le cookie user_email pour le middleware admin
+      if (email === 'basamba1990@yahoo.fr') {
+        document.cookie = `user_email=${email}; path=/; max-age=86400; SameSite=Lax`
+      }
+      
       const next = searchParams.get('next') || '/dashboard'
       router.push(next)
       router.refresh()

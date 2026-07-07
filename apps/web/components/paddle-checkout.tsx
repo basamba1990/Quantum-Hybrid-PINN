@@ -27,9 +27,13 @@ export function PaddleCheckout({
           let token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN
           
           if (!token) {
-            const response = await fetch('/api/admin/payment-config-public')
-            const data = await response.json()
-            token = data.paddle_client_token
+            try {
+              const response = await fetch('/api/admin/payment-config-public')
+              const data = await response.json()
+              token = data.paddle_client_token
+            } catch (e) {
+              console.warn('Could not fetch payment config from API, using fallback if available')
+            }
           }
 
           if (token) {
@@ -57,10 +61,18 @@ export function PaddleCheckout({
         throw new Error('Paddle not loaded')
       }
 
+      // ✅ CORRECTIF V8.2 : Fallback sur les IDs de prix fournis par l'utilisateur
+      let finalPriceId = planId;
+      if (!finalPriceId || finalPriceId === 'undefined') {
+        if (planName === 'Researcher') finalPriceId = 'pri_01kws7mnzam0jvm7aha7s7txj3';
+        else if (planName === 'Professional') finalPriceId = 'pri_01kws7wp26ngs9vf08wg7w2ny7';
+        else if (planName === 'Enterprise') finalPriceId = 'pri_01kws84eg5bpffg4m6r2pm85fv';
+      }
+
       const checkoutConfig: any = {
         items: [
           {
-            priceId: planId,
+            priceId: finalPriceId,
             quantity: 1,
           },
         ],
