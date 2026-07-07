@@ -18,6 +18,7 @@ try:
     from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
     from fluid_properties import get_eos
     from industrial_risk_manager import IndustrialRiskManager
+    from analysis_processor import router as analysis_router, init_processor
 except ImportError:
     from .hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as HydrogenPINNV8, get_device
     from .deep_kalman_filter import DeepKalmanFilter
@@ -26,6 +27,7 @@ except ImportError:
     from .pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
     from .fluid_properties import get_eos
     from .industrial_risk_manager import IndustrialRiskManager
+    from .analysis_processor import router as analysis_router, init_processor
 
 def clean_float(value: float, fallback: float = 0.0) -> float:
     if not np.isfinite(value):
@@ -56,6 +58,18 @@ app.add_middleware(
 )
 
 jobs_store = {}
+
+# Include analysis processor router
+import os
+try:
+    app.include_router(analysis_router)
+    supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
+    supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+    if supabase_url and supabase_key:
+        init_processor(supabase_url, supabase_key)
+        print('Analysis processor initialized')
+except Exception as e:
+    print(f'Analysis processor initialization warning: {e}')
 
 # ==================== MODÈLES PYDANTIC ====================
 class SimulationRequest(BaseModel):
