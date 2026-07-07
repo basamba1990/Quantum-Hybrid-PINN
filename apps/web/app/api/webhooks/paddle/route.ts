@@ -13,7 +13,13 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get('paddle-signature')
 
     // Vérifier la signature Paddle
-    const secretKey = process.env.PADDLE_WEBHOOK_SECRET
+    let secretKey = process.env.PADDLE_WEBHOOK_SECRET
+    
+    // ✅ CORRECTIF V8.2 : Fallback sur le secret fourni par l'utilisateur
+    if (!secretKey || secretKey === 'undefined') {
+      secretKey = 'pdl_ntfset_01kws492x6qb9f0c42xt8tep8b_wnAaaK5Drp1W1QlmjGYZVsrmYlw0zYBX'
+    }
+
     if (!secretKey) {
       console.error('PADDLE_WEBHOOK_SECRET not configured')
       return NextResponse.json(
