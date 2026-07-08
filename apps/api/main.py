@@ -31,9 +31,9 @@ except ImportError:
     from .analysis_processor import router as analysis_router, init_processor
 
 def clean_float(value: float, fallback: float = 0.0) -> float:
-    if not np.isfinite(value):
+    if value is None or not np.isfinite(value):
         return fallback
-    return value
+    return float(value)
 
 def clean_json(obj):
     if isinstance(obj, float):
@@ -42,12 +42,16 @@ def clean_json(obj):
         return {k: clean_json(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [clean_json(i) for i in obj]
+    elif isinstance(obj, (np.float32, np.float64)):
+        return clean_float(obj)
+    elif isinstance(obj, (np.int32, np.int64)):
+        return int(obj)
     else:
         return obj
 
 app = FastAPI(
     title="Quantum-Hybrid PINN API (V8)",
-    version="8.0.11",
+    version="8.0.12",
     description="API Industrielle pour la simulation hybride PINN-FNO-PGD avec certification de sécurité."
 )
 
@@ -69,8 +73,11 @@ app.include_router(pgd_pinn_router)
 supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', 'https://ivhxnaxhgfbiqlhgfkik.supabase.co')
 supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
 if supabase_url and supabase_key:
-    init_processor(supabase_url, supabase_key)
-    print('✅ Analysis processor initialized')
+    try:
+        init_processor(supabase_url, supabase_key)
+        print('✅ Analysis processor initialized')
+    except Exception as e:
+        print(f'⚠️ Analysis processor initialization error: {e}')
 
 # ==================== MODÈLES PYDANTIC ====================
 class SimulationRequest(BaseModel):
@@ -100,9 +107,9 @@ class SimulationResponse(BaseModel):
 
 class PredictionRequestV8(BaseModel):
     time: Optional[float] = 0.0
-    x: float = 0.0
-    y: float = 0.0
-    z: float = 0.0
+    x: Optional[float] = 0.0
+    y: Optional[float] = 0.0
+    z: Optional[float] = 0.0
     pressure: Optional[float] = 101325.0
     temperature: Optional[float] = 293.15
     density: Optional[float] = 1.0
@@ -114,6 +121,8 @@ class PredictionRequestV8(BaseModel):
     project_id: Optional[str] = None
     transcription: Optional[str] = None
     scenario_type: Optional[str] = "H2_PIPELINE"
+    scan_spatial: Optional[bool] = False
+    n_points: Optional[int] = 10
 
 class PredictionResponseV8(BaseModel):
     pressure: float
@@ -255,7 +264,7 @@ async def root():
     return clean_json({
         "message": "Quantum-Hybrid PINN API (V8) is running",
         "status": "operational",
-        "version": "8.0.11",
+        "version": "8.0.12",
         "device": str(get_device()),
         "endpoints": {
             "core": ["/health", "/jobs", "/jobs/{job_id}"],
@@ -265,33 +274,13 @@ async def root():
         }
     })
 
-@app.get("/api/projects")
-async def get_projects():
-    try:
-        if supabase_client:
-            response = supabase_client.table("projects").select("*").execute()
-            return clean_json(response.data)
-        return []
-    except Exception:
-        return []
-
-@app.get("/api/projects/{project_id}/analyses")
-async def get_project_analyses(project_id: str):
-    try:
-        if supabase_client:
-            response = supabase_client.table("analyses").select("*").eq("project_id", project_id).execute()
-            return clean_json(response.data)
-        return []
-    except Exception:
-        return []
-
 @app.get("/health")
 async def health_check():
     return clean_json({
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "Quantum-Hybrid PINN API (V8)",
-        "version": "8.0.11"
+        "version": "8.0.12"
     })
 
 @app.get("/jobs")
@@ -309,10 +298,18 @@ async def get_job_status(job_id: str):
 async def validate_3d(request: PredictionRequestV8):
     try:
         t = request.time if request.time is not None else 0.0
-        N_points = 10
-        x_samples = torch.linspace(X_MIN, X_MAX, N_points, device=current_model_v8.device).view(-1, 1).requires_grad_(True)
-        y_samples = torch.full((N_points, 1), request.y, device=current_model_v8.device).requires_grad_(True)
-        z_samples = torch.full((N_points, 1), request.z, device=current_model_v8.device).requires_grad_(True)
+        N_points = request.n_points or 10
+        
+        # Définition des points d'échantillonnage
+        if request.scan_spatial:
+            x_samples = torch.linspace(X_MIN, X_MAX, N_points, device=current_model_v8.device).view(-1, 1).requires_grad_(True)
+            y_samples = torch.full((N_points, 1), request.y or 0.0, device=current_model_v8.device).requires_grad_(True)
+            z_samples = torch.full((N_points, 1), request.z or 0.0, device=current_model_v8.device).requires_grad_(True)
+        else:
+            x_samples = torch.full((N_points, 1), request.x or 0.0, device=current_model_v8.device).requires_grad_(True)
+            y_samples = torch.full((N_points, 1), request.y or 0.0, device=current_model_v8.device).requires_grad_(True)
+            z_samples = torch.full((N_points, 1), request.z or 0.0, device=current_model_v8.device).requires_grad_(True)
+            
         t_samples = torch.full((N_points, 1), t, device=current_model_v8.device).requires_grad_(True)
 
         rho_s, u_s, v_s, w_s, T_s = current_model_v8.pinn_model(t_samples, x_samples, y_samples, z_samples)
@@ -338,40 +335,26 @@ async def validate_3d(request: PredictionRequestV8):
         credibility_score = float(100.0 / (1.0 + 0.05 * weighted_res))
         credibility_score = min(100.0, max(0.0, clean_float(credibility_score, 85.0)))
 
-        result = {
-            "pressure": p_t_center.item(),
-            "velocity_u": u.item(),
-            "velocity_v": v.item(),
-            "velocity_w": w.item(),
-            "temperature": T.item(),
-            "density": rho.item(),
-            "time": t, "x": request.x, "y": request.y, "z": request.z
-        }
-
         predictions_profile = []
         for i in range(N_points):
             u_raw, v_raw, w_raw, T_raw, rho_raw = u_s[i], v_s[i], w_s[i], T_s[i], rho_s[i]
             p_raw = get_eos(current_model_v8.fluid_type, rho_raw.unsqueeze(0), T_raw.unsqueeze(0))
-            raw_p, raw_t = p_raw.item(), T_raw.item()
             predictions_profile.append({
-                "time": float(t), "x": float(x_samples[i].item()), "y": float(request.y), "z": float(request.z),
-                "pressure": clean_float(raw_p), "velocity_u": clean_float(u_raw.item()),
+                "time": float(t), "x": float(x_samples[i].item()), "y": float(y_samples[i].item()), "z": float(z_samples[i].item()),
+                "pressure": clean_float(p_raw.item()), "velocity_u": clean_float(u_raw.item()),
                 "velocity_v": clean_float(v_raw.item()), "velocity_w": clean_float(w_raw.item()),
-                "temperature": clean_float(raw_t), "density": clean_float(rho_raw.item()),
+                "temperature": clean_float(T_raw.item()), "density": clean_float(rho_raw.item()),
                 "velocity_magnitude": clean_float(torch.sqrt(u_raw**2 + v_raw**2 + w_raw**2).item())
             })
 
         return PredictionResponseV8(
-            pressure=clean_float(result["pressure"]),
-            velocity_u=clean_float(result["velocity_u"]),
-            velocity_v=clean_float(result["velocity_v"]),
-            velocity_w=clean_float(result["velocity_w"]),
-            temperature=clean_float(result["temperature"]),
-            density=clean_float(result["density"]),
-            time=clean_float(result["time"]),
-            x=clean_float(result["x"]),
-            y=clean_float(result["y"]),
-            z=clean_float(result["z"]),
+            pressure=clean_float(p_t_center.item()),
+            velocity_u=clean_float(u.item()),
+            velocity_v=clean_float(v.item()),
+            velocity_w=clean_float(w.item()),
+            temperature=clean_float(T.item()),
+            density=clean_float(rho.item()),
+            time=clean_float(t), x=clean_float(request.x or 0.0), y=clean_float(request.y or 0.0), z=clean_float(request.z or 0.0),
             credibility_score=credibility_score,
             residuals=residuals,
             predictions3d=predictions_profile,
@@ -387,16 +370,26 @@ async def assimilate_data(request: PredictionRequestV8):
     try:
         if current_model_v8 is None or current_model_v8.pinn_model is None:
             raise HTTPException(status_code=500, detail="Modèle PINN non chargé.")
+        
+        # Vérification des entrées
+        density = request.density if request.density is not None else 1.0
+        u = request.velocity_u if request.velocity_u is not None else 0.0
+        v = request.velocity_v if request.velocity_v is not None else 0.0
+        w = request.velocity_w if request.velocity_w is not None else 0.0
+        temp = request.temperature if request.temperature is not None else 293.15
+        
         observed_state_tensor = torch.tensor(
-            [request.density, request.velocity_u, request.velocity_v, request.velocity_w, request.temperature],
+            [density, u, v, w, temp],
             dtype=torch.float32, device=current_model_v8.device
         ).unsqueeze(0)
+        
         if kalman_filter:
             with torch.no_grad():
                 assimilated_state = kalman_filter.assimilate_batch(observed_state_tensor, observed_state_tensor)
                 final_assimilated_state = assimilated_state.flatten().tolist()
         else:
             final_assimilated_state = observed_state_tensor.flatten().tolist()
+            
         return AssimilationResponseV8(assimilated_state=final_assimilated_state, timestamp=datetime.now().isoformat())
     except Exception as e:
         import traceback
