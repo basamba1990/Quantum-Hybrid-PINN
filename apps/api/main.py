@@ -47,7 +47,8 @@ def clean_json(obj):
 
 app = FastAPI(
     title="Quantum-Hybrid PINN API (V8)",
-    version="8.0.10",
+    version="8.0.11",
+    description="API Industrielle pour la simulation hybride PINN-FNO-PGD avec certification de sécurité."
 )
 
 app.add_middleware(
@@ -60,17 +61,16 @@ app.add_middleware(
 
 jobs_store = {}
 
-# Include analysis processor router
-try:
-    app.include_router(analysis_router)
-    app.include_router(pgd_pinn_router)
-    supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
-    supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
-    if supabase_url and supabase_key:
-        init_processor(supabase_url, supabase_key)
-        print('Analysis processor initialized')
-except Exception as e:
-    print(f'Analysis processor initialization warning: {e}')
+# Include routers
+app.include_router(analysis_router)
+app.include_router(pgd_pinn_router)
+
+# Initialize analysis processor
+supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', 'https://ivhxnaxhgfbiqlhgfkik.supabase.co')
+supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+if supabase_url and supabase_key:
+    init_processor(supabase_url, supabase_key)
+    print('✅ Analysis processor initialized')
 
 # ==================== MODÈLES PYDANTIC ====================
 class SimulationRequest(BaseModel):
@@ -91,7 +91,7 @@ class SimulationRequest(BaseModel):
     temperature_out: Optional[float] = None
     transcription: Optional[str] = None
     description: Optional[str] = None
-    analysis_id: Optional[str] = None # Link to Supabase analysis record
+    analysis_id: Optional[str] = None
 
 class SimulationResponse(BaseModel):
     job_id: str
@@ -178,7 +178,7 @@ model_path = os.getenv("MODEL_PATH", "models/pinn_model.pt")
 @app.on_event("startup")
 async def load_pinn_model():
     global current_model_v8, risk_manager, fno_orchestrator, kalman_filter
-    print("Chargement des orchestrateurs industriels...")
+    print("🚀 Démarrage de l'API Industrielle...")
     
     try:
         from fno_pipeline_orchestrator import FNOPipelineOrchestrator
@@ -195,27 +195,27 @@ async def load_pinn_model():
     except Exception as e:
         print(f"⚠️ Erreur initialisation Kalman: {e}")
 
-    print("Chargement modèle PINN...")
+    print("📦 Chargement du modèle PINN...")
     try:
         downloaded = await download_model_from_supabase(model_path)
         if downloaded and os.path.exists(model_path):
             current_model_v8 = HydrogenPINNV8(layers=[4, 128, 128, 128, 5], geometry_type="pipeline")
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
-            print("Modèle chargé depuis Supabase (strict=False).")
+            print("✅ Modèle PINN chargé depuis Supabase.")
         elif os.path.exists(model_path):
             current_model_v8 = HydrogenPINNV8(layers=[4, 128, 128, 128, 5], geometry_type="pipeline")
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
-            print("Modèle chargé localement (strict=False).")
+            print("✅ Modèle PINN chargé localement.")
         else:
             current_model_v8 = HydrogenPINNV8()
-            print("Modèle initialisé par défaut (poids aléatoires).")
+            print("⚠️ Modèle initialisé par défaut (poids aléatoires).")
     except Exception as e:
-        print(f"Erreur: {e}, utilisation modèle par défaut.")
+        print(f"❌ Erreur chargement modèle: {e}, utilisation fallback.")
         current_model_v8 = HydrogenPINNV8()
 
-    print("Calcul des échelles de normalisation...")
+    print("⚖️ Calcul des échelles de normalisation...")
     device = current_model_v8.device
     N_samples = 200
     with torch.enable_grad():
@@ -237,14 +237,14 @@ async def load_pinn_model():
         await download_file_from_supabase("ood_stats.npz", ood_stats_path)
         if os.path.exists(ood_stats_path):
             risk_manager.load_ood_stats(ood_stats_path)
-            print(f"✅ Statistiques OOD chargées depuis {ood_stats_path}")
+            print(f"✅ Statistiques OOD chargées.")
         else:
-            print("⚠️ Statistiques OOD non trouvées, initialisation OOD par défaut...")
+            print("⚠️ Statistiques OOD non trouvées, initialisation fallback...")
             dummy_features = np.random.randn(10, 6)
             risk_manager.fit_ood(dummy_features)
-            print("✅ Détecteur OOD initialisé en mode fallback.")
+            print("✅ Détecteur OOD initialisé.")
             
-        print("✅ Industrial Risk Manager initialisé.")
+    print("✅ API prête pour les requêtes industrielles.")
     gc.collect()
 
 analysis_service = CFDValidationService()
@@ -255,8 +255,14 @@ async def root():
     return clean_json({
         "message": "Quantum-Hybrid PINN API (V8) is running",
         "status": "operational",
+        "version": "8.0.11",
         "device": str(get_device()),
-        "endpoints": ["/health", "/jobs", "/hybrid/run-simulation", "/v2/validate-3d", "/v2/assimilate"]
+        "endpoints": {
+            "core": ["/health", "/jobs", "/jobs/{job_id}"],
+            "hybrid": ["/hybrid/run-simulation", "/v2/validate-3d", "/v2/assimilate"],
+            "analysis_v2": ["/v2/submit-analysis", "/v2/analysis-status/{job_id}", "/v2/analysis-result/{job_id}"],
+            "pgd_v2": ["/v2/hybrid/submit-hybrid-simulation", "/v2/hybrid/hybrid-status/{job_id}", "/v2/hybrid/hybrid-result/{job_id}", "/v2/hybrid/upload-mesh"]
+        }
     })
 
 @app.get("/api/projects")
@@ -285,7 +291,7 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "Quantum-Hybrid PINN API (V8)",
-        "version": "8.0.10"
+        "version": "8.0.11"
     })
 
 @app.get("/jobs")
@@ -398,7 +404,7 @@ async def assimilate_data(request: PredictionRequestV8):
         raise HTTPException(status_code=500, detail=f"Erreur lors de l'assimilation des données: {str(e)}")
 
 @app.post("/hybrid/run-simulation", response_model=SimulationResponse)
-async def run_hybrid_simulation(request: SimulationRequest, background_tasks: BackgroundTasks):
+async def run_hybrid_simulation_endpoint(request: SimulationRequest, background_tasks: BackgroundTasks):
     job_id = f"job_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     jobs_store[job_id] = {
         "job_id": job_id,
@@ -487,7 +493,6 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             "status": "completed", "updated_at": datetime.utcnow().isoformat()
         }
         
-        # Rapport PDF
         try:
             report_filename = f"report_{job_id}.pdf"
             report_path = os.path.join("/tmp", report_filename)
@@ -500,14 +505,12 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                 supabase_client.table("reports").insert({"project_id": request.project_id, "name": f"Rapport - {request.job_name}", "file_url": report_url, "file_type": "PDF"}).execute()
         except Exception as e: print(f"Report error: {e}")
 
-        # ✅ CRITIQUE : Mise à jour du statut de l'analyse dans Supabase
         if supabase_client and request.analysis_id:
             supabase_client.table("analyses").update({
                 "status": "completed",
                 "credibility_score": credibility_score,
                 "results": final_result
             }).eq("id", request.analysis_id).execute()
-            print(f"✅ Supabase Analysis {request.analysis_id} marked as completed.")
 
         jobs_store[job_id].update({"status": "completed", "results": final_result})
     except Exception as e:
