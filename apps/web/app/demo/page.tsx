@@ -171,13 +171,13 @@ export default function DemoPage() {
                 href="/pricing"
                 className="px-8 py-4 rounded-lg bg-white text-blue-600 font-semibold hover:bg-slate-100 transition"
               >
-                Choisir mon Plan
+                Choose my Plan
               </Link>
               <Link
                 href="/pricing"
                 className="px-8 py-4 rounded-lg border-2 border-white text-white font-semibold hover:bg-white/10 transition"
               >
-                Voir les Tarifs
+                View Pricing
               </Link>
             </div>
           </div>
