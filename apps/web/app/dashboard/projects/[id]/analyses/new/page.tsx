@@ -147,7 +147,8 @@ export default function NewAnalysisPage() {
           flowRate: extract(/débit\s*:?\s*(\d+(?:[.,]\d+)?)/i, 2),
           length: extract(/longueur\s*:?\s*(\d+(?:[.,]\d+)?)/i, 100),
         },
-        n_steps: 100
+        n_steps: 100,
+        analysis_id: newAnalysis.id
       };
 
       // Appel sans attendre la fin de la simulation (on attend juste la création du job)

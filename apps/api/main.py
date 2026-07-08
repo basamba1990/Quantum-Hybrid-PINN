@@ -228,10 +228,10 @@ async def load_pinn_model():
     device = current_model_v8.device
     N_samples = 200
     with torch.enable_grad():
-        t_temp = (torch.rand(N_samples, 1, device=device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
-        x_temp = (torch.rand(N_samples, 1, device=device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
-        y_temp = (torch.rand(N_samples, 1, device=device) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
-        z_temp = (torch.rand(N_samples, 1, device=device) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
+        t_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
+        x_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
+        y_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
+        z_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
         rho_t, u_t, v_t, w_t, T_t = current_model_v8.pinn_model(t_temp, x_temp, y_temp, z_temp)
         _, _, _, _, _, scales = current_model_v8.pinn_model.compute_residuals(
             t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t, scale_dict=None
@@ -302,15 +302,15 @@ async def validate_3d(request: PredictionRequestV8):
         
         # Définition des points d'échantillonnage
         if request.scan_spatial:
-            x_samples = torch.linspace(X_MIN, X_MAX, N_points, device=current_model_v8.device).view(-1, 1).requires_grad_(True)
-            y_samples = torch.full((N_points, 1), request.y or 0.0, device=current_model_v8.device).requires_grad_(True)
-            z_samples = torch.full((N_points, 1), request.z or 0.0, device=current_model_v8.device).requires_grad_(True)
+            x_samples = torch.linspace(X_MIN, X_MAX, N_points, device=current_model_v8.device).to(torch.float32).view(-1, 1).requires_grad_(True)
+            y_samples = torch.full((N_points, 1), request.y or 0.0, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
+            z_samples = torch.full((N_points, 1), request.z or 0.0, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
         else:
-            x_samples = torch.full((N_points, 1), request.x or 0.0, device=current_model_v8.device).requires_grad_(True)
-            y_samples = torch.full((N_points, 1), request.y or 0.0, device=current_model_v8.device).requires_grad_(True)
-            z_samples = torch.full((N_points, 1), request.z or 0.0, device=current_model_v8.device).requires_grad_(True)
+            x_samples = torch.full((N_points, 1), request.x or 0.0, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
+            y_samples = torch.full((N_points, 1), request.y or 0.0, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
+            z_samples = torch.full((N_points, 1), request.z or 0.0, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
             
-        t_samples = torch.full((N_points, 1), t, device=current_model_v8.device).requires_grad_(True)
+        t_samples = torch.full((N_points, 1), t, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
 
         rho_s, u_s, v_s, w_s, T_s = current_model_v8.pinn_model(t_samples, x_samples, y_samples, z_samples)
         res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
@@ -434,10 +434,10 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
         for i in range(num_steps):
             simulated_time = i * 0.1
             simulated_x, simulated_y, simulated_z = req_x, req_y, req_z
-            t_tensor = torch.tensor([[simulated_time]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
-            x_tensor = torch.tensor([[simulated_x]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
-            y_tensor = torch.tensor([[simulated_y]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
-            z_tensor = torch.tensor([[simulated_z]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
+            t_tensor = torch.tensor([[float(simulated_time)]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
+            x_tensor = torch.tensor([[float(simulated_x)]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
+            y_tensor = torch.tensor([[float(simulated_y)]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
+            z_tensor = torch.tensor([[float(simulated_z)]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
 
             rho_pinn, u_pinn, v_pinn, w_pinn, T_pinn = current_model_v8.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
             res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
@@ -461,8 +461,10 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                     for z_pos in z_levels:
                         for theta in theta_steps:
                             x_pos, y_pos = radius * np.cos(theta), radius * np.sin(theta)
-                            t_p = torch.tensor([[simulated_time]], dtype=torch.float32, device=current_model_v8.device)
-                            x_p, y_p, z_p = torch.tensor([[x_pos]], device=current_model_v8.device), torch.tensor([[y_pos]], device=current_model_v8.device), torch.tensor([[z_pos]], device=current_model_v8.device)
+                            t_p = torch.tensor([[float(simulated_time)]], dtype=torch.float32, device=current_model_v8.device)
+                            x_p = torch.tensor([[float(x_pos)]], dtype=torch.float32, device=current_model_v8.device)
+                            y_p = torch.tensor([[float(y_pos)]], dtype=torch.float32, device=current_model_v8.device)
+                            z_p = torch.tensor([[float(z_pos)]], dtype=torch.float32, device=current_model_v8.device)
                             rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
                             p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
                             predictions_list.append({
