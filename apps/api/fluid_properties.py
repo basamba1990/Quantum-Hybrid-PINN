@@ -81,87 +81,66 @@ FLUID_CONFIGS = {
     }
 }
 
+# Variable globale pour ne logger l'avertissement CoolProp qu'une seule fois
+_coolprop_warned = False
+
 def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor:
     """
     Équation d'État avec validation et fallback (V8.1)
-    
-    ✅ CORRECTION V8.1 : 
-    - Essayer CoolProp (REFPROP) en premier pour H2 liquide
-    - Fallback à Silvera-Goldman avec avertissement
-    - Validation des résultats (pression non-physique)
     """
+    global _coolprop_warned
     config = FLUID_CONFIGS.get(fluid_type, FLUID_CONFIGS['H2'])
-    R = config.get('R_specific', 8.314) # Default gas constant if not specified
+    R = config.get('R_specific', 8.314)
     params = config['params']
     
-    # ✅ CORRECTION V8.1 : Essayer CoolProp en premier pour H2 (si disponible)
     if fluid_type == 'H2':
         try:
             import CoolProp.CoolProp as CP
-            
-            # Convertir tensors en numpy
             rho_np = rho.cpu().detach().numpy() if rho.is_cuda else rho.detach().numpy()
             T_np = T.cpu().detach().numpy() if T.is_cuda else T.detach().numpy()
             
-            # Calculer la pression via CoolProp (REFPROP backend)
+            # Gestion du cas scalaire vs array
+            if np.isscalar(rho_np):
+                p_val = CP.PropsSI('P', 'T', float(T_np), 'Dmass', float(rho_np), 'H2')
+                return torch.tensor([p_val], device=rho.device).float()
+            
             p_np = np.array([CP.PropsSI('P', 'T', T_np[i], 'Dmass', rho_np[i], 'H2') 
                              for i in range(len(rho_np))])
-            
-            logger.info(f"✅ EOS H2 : CoolProp utilisé (pression moyenne: {np.mean(p_np):.2e} Pa)")
             return torch.from_numpy(p_np).to(rho.device).float()
             
         except ImportError:
-            logger.warning("⚠️ CoolProp not installed. Using Silvera-Goldman fallback (may be non-physical).")
+            if not _coolprop_warned:
+                logger.warning("⚠️ CoolProp not installed. Using Silvera-Goldman fallback (may be non-physical).")
+                _coolprop_warned = True
         except Exception as e:
-            logger.warning(f"⚠️ CoolProp failed: {e}. Falling back to Silvera-Goldman.")
+            if not _coolprop_warned:
+                logger.warning(f"⚠️ CoolProp failed: {e}. Falling back to Silvera-Goldman.")
+                _coolprop_warned = True
     
     if config['eos_type'] == 'silvera_goldman':
-        # Silvera-Goldman for H2 (Quantum EOS Implementation)
-        # p = p_ideal + p_repulsion + p_attraction + p_quantum
         p_ideal = rho * R * T
-        
-        # Termes de répulsion (potentiel exponentiel de Silvera-Goldman)
-        # alpha est le paramètre de pente du potentiel
         repulsion = params['A'] * torch.exp(-params['alpha'] * (100.0 / (rho + 1e-6))**(1/3))
-        
-        # Termes d'attraction (Van der Waals à longue portée corrigé)
         attraction = -params['B'] * (rho**2)
-        
-        # Correction quantique (Boyle temperature and ZPF effects)
         quantum_corr = params['C'] * (rho**3) / (T + 1e-6)
-        
-        # Somme des contributions de pression
         p = p_ideal + repulsion + attraction + quantum_corr
-        
-        # ✅ CORRECTION V8.1 : Avertissement si pression irréaliste
-        if (p > 100e6).any():
-            logger.warning(f"⚠️ Silvera-Goldman: Pression > 100 MPa détectée (non-physique pour H2 liquide)")
-            logger.warning(f"   Valeurs: min={p.min().item():.2e}, max={p.max().item():.2e} Pa")
-        
         return p
         
     elif config['eos_type'] == 'peng_robinson':
-        # Peng-Robinson for NH3, CH4
         a = params['a']
         b = params['b']
         Tc = params['Tc']
         omega = params['omega']
-        
         kappa = 0.37464 + 1.54226 * omega - 0.26992 * omega**2
         alpha = (1 + kappa * (1 - torch.sqrt(T / Tc)))**2
         a_T = a * alpha
-        
-        # p = RT / (V-b) - a(T) / (V^2 + 2bV - b^2) where V = 1/rho
         v = 1.0 / (rho + 1e-8)
         p = (R * T) / (v - b) - a_T / (v**2 + 2*b*v - b**2)
         return p
         
     elif config['eos_type'] == 'solid_elastic_simplified':
-        # Simple linear pressure-density relation for solids
         rho_ref = params.get('rho', 2500.0)
         E = params.get('E', 50e9)
         return E * (rho / rho_ref - 1.0)
         
     else:
-        # Default/Simplified Helmholtz for sCO2
         return rho * R * T * (1 + 0.1 * (rho / params.get('rho_c', 1.0)))

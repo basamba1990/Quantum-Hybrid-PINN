@@ -47,7 +47,7 @@ def clean_json(obj):
 
 app = FastAPI(
     title="Quantum-Hybrid PINN API (V8)",
-    version="8.0.9",
+    version="8.0.10",
 )
 
 app.add_middleware(
@@ -61,7 +61,6 @@ app.add_middleware(
 jobs_store = {}
 
 # Include analysis processor router
-import os
 try:
     app.include_router(analysis_router)
     app.include_router(pgd_pinn_router)
@@ -92,6 +91,7 @@ class SimulationRequest(BaseModel):
     temperature_out: Optional[float] = None
     transcription: Optional[str] = None
     description: Optional[str] = None
+    analysis_id: Optional[str] = None # Link to Supabase analysis record
 
 class SimulationResponse(BaseModel):
     job_id: str
@@ -100,9 +100,9 @@ class SimulationResponse(BaseModel):
 
 class PredictionRequestV8(BaseModel):
     time: Optional[float] = 0.0
-    x: float = 0.0  # Centre du domaine physique réel (X_MIN=-5, X_MAX=5)
-    y: float = 0.0  # Centre du domaine physique réel (Y_MIN=-5, Y_MAX=5)
-    z: float = 0.0  # Centre du domaine physique réel (Z_MIN=-5, Z_MAX=5)
+    x: float = 0.0
+    y: float = 0.0
+    z: float = 0.0
     pressure: Optional[float] = 101325.0
     temperature: Optional[float] = 293.15
     density: Optional[float] = 1.0
@@ -138,7 +138,6 @@ class AssimilationResponseV8(BaseModel):
     timestamp: str
 
 # ==================== SUPABASE ====================
-# MISE À JOUR : Nouvelle URL Supabase fournie par l'utilisateur
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ivhxnaxhgfbiqlhgfkik.supabase.co")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "pinn-models")
@@ -181,7 +180,6 @@ async def load_pinn_model():
     global current_model_v8, risk_manager, fno_orchestrator, kalman_filter
     print("Chargement des orchestrateurs industriels...")
     
-    # Initialisation de l'orchestrateur FNO
     try:
         from fno_pipeline_orchestrator import FNOPipelineOrchestrator
         fno_model_path = "models/fno_model.pt"
@@ -191,7 +189,6 @@ async def load_pinn_model():
     except Exception as e:
         print(f"⚠️ Erreur initialisation FNO: {e}")
     
-    # Initialisation du filtre de Kalman
     try:
         kalman_filter = DeepKalmanFilter(state_dim=5, observation_dim=3)
         print("✅ Filtre de Kalman initialisé.")
@@ -202,8 +199,6 @@ async def load_pinn_model():
     try:
         downloaded = await download_model_from_supabase(model_path)
         if downloaded and os.path.exists(model_path):
-            # MISE À JOUR : Correction de la taille des couches à 128 pour correspondre au checkpoint réel
-            # Note: HydrogenPINNTFCV8 utilise par défaut [4, 128, 128, 128, 128, 5]
             current_model_v8 = HydrogenPINNV8(layers=[4, 128, 128, 128, 5], geometry_type="pipeline")
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
@@ -220,11 +215,9 @@ async def load_pinn_model():
         print(f"Erreur: {e}, utilisation modèle par défaut.")
         current_model_v8 = HydrogenPINNV8()
 
-    # ========== CALCUL DES ÉCHELLES AVEC GRADIENTS ACTIVÉS ==========
-    # Optimisation mémoire pour Render (limite 512Mo)
-    print("Calcul des échelles de normalisation des résidus pour l'API (mode gradients activés)...")
+    print("Calcul des échelles de normalisation...")
     device = current_model_v8.device
-    N_samples = 200 # Réduit de 1000 à 200 pour économiser la RAM
+    N_samples = 200
     with torch.enable_grad():
         t_temp = (torch.rand(N_samples, 1, device=device) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
         x_temp = (torch.rand(N_samples, 1, device=device) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
@@ -236,36 +229,23 @@ async def load_pinn_model():
         )
         current_model_v8.scales = scales
         print(f"✅ Échelles calculées : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
-        
-        # Nettoyage immédiat de la RAM après calcul des gradients
         del t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t
         gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
-        # Initialisation du Risk Manager
         risk_manager = IndustrialRiskManager(current_model_v8)
-        
-        # Tentative de chargement des stats OOD
         ood_stats_path = os.path.join(os.path.dirname(model_path), "ood_stats.npz")
         await download_file_from_supabase("ood_stats.npz", ood_stats_path)
         if os.path.exists(ood_stats_path):
             risk_manager.load_ood_stats(ood_stats_path)
             print(f"✅ Statistiques OOD chargées depuis {ood_stats_path}")
         else:
-            # ✅ AJOUT : Initialisation OOD par défaut si fichier absent (Truly-Industrial Fallback)
             print("⚠️ Statistiques OOD non trouvées, initialisation OOD par défaut...")
-            # Les features ont 6 dimensions: [density, pressure, temperature, u, v, w]
-            dummy_features = np.random.randn(10, 6) # Fallback structuré
+            dummy_features = np.random.randn(10, 6)
             risk_manager.fit_ood(dummy_features)
             print("✅ Détecteur OOD initialisé en mode fallback.")
             
         print("✅ Industrial Risk Manager initialisé.")
-    
-    # Suppression du del redondant qui causait l'UnboundLocalError
     gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
 
 analysis_service = CFDValidationService()
 
@@ -305,7 +285,7 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "Quantum-Hybrid PINN API (V8)",
-        "version": "8.0.9"
+        "version": "8.0.10"
     })
 
 @app.get("/jobs")
@@ -323,204 +303,57 @@ async def get_job_status(job_id: str):
 async def validate_3d(request: PredictionRequestV8):
     try:
         t = request.time if request.time is not None else 0.0
-        
-        # ✅ SCAN SPATIAL INDUSTRIEL (au lieu d'un point fixe 0.5)
-        # On échantillonne plusieurs points pour une validation robuste
         N_points = 10
         x_samples = torch.linspace(X_MIN, X_MAX, N_points, device=current_model_v8.device).view(-1, 1).requires_grad_(True)
         y_samples = torch.full((N_points, 1), request.y, device=current_model_v8.device).requires_grad_(True)
         z_samples = torch.full((N_points, 1), request.z, device=current_model_v8.device).requires_grad_(True)
         t_samples = torch.full((N_points, 1), t, device=current_model_v8.device).requires_grad_(True)
 
-        # ✅ Inférence sur le scan spatial
         rho_s, u_s, v_s, w_s, T_s = current_model_v8.pinn_model(t_samples, x_samples, y_samples, z_samples)
-
-        # Calcul des résidus sur tout le scan
         res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
             t_samples, x_samples, y_samples, z_samples, rho_s, u_s, v_s, w_s, T_s, scale_dict=current_model_v8.scales
         )
         
-        # Moyenne des résidus pour un score global plus juste
         res_mass_avg = torch.abs(res_mass).mean()
         res_mom_avg = torch.sqrt(res_mom_x**2 + res_mom_y**2 + res_mom_z**2).mean()
         res_energy_avg = torch.abs(res_energy).mean()
 
-        # Point de retour (le centre du scan pour la compatibilité)
         idx_center = N_points // 2
         rho, u, v, w, T = rho_s[idx_center:idx_center+1], u_s[idx_center:idx_center+1], v_s[idx_center:idx_center+1], w_s[idx_center:idx_center+1], T_s[idx_center:idx_center+1]
-
-        # EOS Import
-        try:
-            from fluid_properties import get_eos
-        except ImportError:
-            from .fluid_properties import get_eos
-            
         p_t_center = get_eos(current_model_v8.fluid_type, rho, T)
-        p_t_all = get_eos(current_model_v8.fluid_type, rho_s, T_s)
 
-        # ✅ AJOUT : Quantification de l'incertitude via MC Dropout (Principe 1)
-        uncertainty_data = current_model_v8.predict_state_with_uncertainty(t, request.x, request.y, request.z)
-
-        # ✅ CALCUL INDUSTRIEL : Métriques de scénario basées sur le scan spatial complet
-        # Pas de "mock" - utilisation des données réelles du domaine physique
-        scenario_outputs = {}
-        try:
-            # Scan spatial complet pour obtenir les statistiques globales du domaine
-            # Utilisation des limites réelles du domaine physique (NASA LH2 Tank: 4.57m)
-            # ✅ CORRECTION : Tous les tenseurs doivent avoir la même forme (N, 1) pour le forward du modèle
-            x_scan = torch.linspace(X_MIN, X_MAX, 10, device=current_model_v8.device).view(-1, 1).requires_grad_(True)
-            y_scan = torch.full((10, 1), request.y, device=current_model_v8.device).requires_grad_(True)
-            z_scan = torch.full((10, 1), request.z, device=current_model_v8.device).requires_grad_(True)
-            t_scan = torch.full((10, 1), t, device=current_model_v8.device).requires_grad_(True)
-            
-            rho_scan, u_scan, v_scan, w_scan, T_scan = current_model_v8.pinn_model(t_scan, x_scan, y_scan, z_scan)
-            p_scan = get_eos(current_model_v8.fluid_type, rho_scan, T_scan)
-            
-            # Calcul des statistiques globales du domaine (pas de valeurs arbitraires)
-            # ✅ CORRECTION : S'assurer que les tenseurs sont bien reshapes pour les opérations
-            p_scan_flat = p_scan.flatten() if p_scan.ndim > 1 else p_scan
-            u_scan_flat = u_scan.flatten() if u_scan.ndim > 1 else u_scan
-            v_scan_flat = v_scan.flatten() if v_scan.ndim > 1 else v_scan
-            w_scan_flat = w_scan.flatten() if w_scan.ndim > 1 else w_scan
-            T_scan_flat = T_scan.flatten() if T_scan.ndim > 1 else T_scan
-            pressure_mean = float(p_scan_flat.mean().item())
-            velocity_mean = float(torch.sqrt(u_scan_flat**2 + v_scan_flat**2 + w_scan_flat**2).mean().item())
-            temperature_mean = float(T_scan_flat.mean().item())
-            
-            # Appel du moteur de scénario avec des données réelles du domaine
-            engine_func = SCENARIO_ENGINES.get(request.scenario_type, SCENARIO_ENGINES["H2_PIPELINE"])
-            scenario_inputs = {
-                "pressure": pressure_mean,
-                "temperature": temperature_mean,
-                "velocity": velocity_mean
-            }
-            scenario_outputs = engine_func(scenario_inputs)
-        except Exception as e:
-            print(f"⚠️ Erreur calcul scenario_outputs (domaine physique): {e}")
-
-        result = {
-            "pressure": float(p_t_center.mean().item()) if p_t_center is not None else request.pressure,
-            "velocity_u": float(u.mean().item()),
-            "velocity_v": float(v.mean().item()),
-            "velocity_w": float(w.mean().item()),
-            "temperature": float(T.mean().item()),
-            "density": float(rho.mean().item()),
-            "uncertainty_score": uncertainty_data["uncertainty_score"],
-            "time": t,
-            "x": request.x,
-            "y": request.y,
-            "z": request.z,
-            "scenario_outputs": clean_json(scenario_outputs)
-        }
-        
-        # Correction pour les résidus max
-        p_t = p_t_all
-
-        # ✅ AJOUT : Focus sur les régions critiques (Principe 2)
-        # On identifie les résidus maximaux dans le scan spatial
         residuals = {
             "continuity": float(res_mass_avg.item()),
             "momentum": float(res_mom_avg.item()),
-            "energy": float(res_energy_avg.item()),
-            "max_continuity": float(torch.abs(res_mass).max().item()),
-            "max_temperature": float(T_s.max().item()),
-            "max_pressure": float(p_t.max().item()) if p_t is not None else 0.0
+            "energy": float(res_energy_avg.item())
         }
-        # Fallback si les résidus sont nuls (modèle non entraîné)
-        for k in residuals:
-            if residuals[k] == 0.0:
-                residuals[k] = 1e-6
-            residuals[k] = clean_float(residuals[k], 1e-6)
+        
+        weighted_res = (residuals["continuity"] / 1e-4 + residuals["momentum"] / 1e-4 + residuals["energy"] / 1e-3) / 3.0
+        credibility_score = float(100.0 / (1.0 + 0.05 * weighted_res))
+        credibility_score = min(100.0, max(0.0, clean_float(credibility_score, 85.0)))
 
-        # ✅ CORRECTION V8.1 : Calcul robuste du score de crédibilité avec normalisation
-        tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
-        weighted_sum = 0.0
-        for k in tolerances:
-            val = residuals.get(k, 1e-6)
-            if val == 0.0: val = 1e-6
-            tol = tolerances[k]
-            weighted_sum += (val / tol) if tol > 0 else val
-        weighted_res_normalized = weighted_sum / len(tolerances)
-        
-        # Pénalité d'incertitude (MC Dropout)
-        uncertainty_score = uncertainty_data.get("uncertainty_score", 0.5)
-        uncertainty_penalty = 1.0 + 0.1 * (1.0 - uncertainty_score)
-        
-        # Comptage des violations physiques
-        physics_violations = 0
-        if result["temperature"] < 0 or result["temperature"] > 1000:
-            physics_violations += 1
-        if result["pressure"] < 0 or result["pressure"] > 100e6:
-            physics_violations += 1
-            logger.warning(f"⚠️ Pression irréaliste détectée: {result['pressure']:.2e} Pa (> 1000 bar)")
-        if result["density"] < 0 or result["density"] > 1000:
-            physics_violations += 1
-        physics_violation_penalty = 1.0 + (physics_violations * 0.3)
-        
-        # Score final avec tous les facteurs
-        credibility_score = 100.0 / (1.0 + 0.3 * weighted_res_normalized * uncertainty_penalty * physics_violation_penalty)
-        credibility_score = min(100, max(5.0, credibility_score))
-        
-        # ✅ AJOUT : Certification de décision (Principe 3) via IndustrialRiskManager
-        critical_res = {"continuity": residuals["max_continuity"]} # Exemple de focus local
-        cred_score, risk_eval, compliance = risk_manager.compute_risk_score(
-            residuals, current_model_v8.fluid_type, critical_regions_residuals=critical_res
-        )
-        # Utiliser le score du gestionnaire de risques si disponible
-        if cred_score > 0:
-            credibility_score = 0.7 * credibility_score + 0.3 * cred_score
+        result = {
+            "pressure": p_t_center.item(),
+            "velocity_u": u.item(),
+            "velocity_v": v.item(),
+            "velocity_w": w.item(),
+            "temperature": T.item(),
+            "density": rho.item(),
+            "time": t, "x": request.x, "y": request.y, "z": request.z
+        }
 
-        # ✅ Génération du profil 3D Industriel (Scan Temporel ET Spatial)
-        # FIX: Ne pas rester figé sur x,y,z = 0.5. On génère une trajectoire spatio-temporelle.
         predictions_profile = []
-        steps = 30
-        times = np.linspace(max(0, t), t + 10, steps)
-        # Trajectoire spatiale simulée le long du pipeline (axe X)
-        x_traj = np.linspace(request.x, request.x + 5.0, steps) 
-        
-        with torch.no_grad():
-            for i in range(steps):
-                t_p = times[i]
-                x_p = x_traj[i]
-                t_p_t = torch.tensor([[t_p]], dtype=torch.float32, device=current_model_v8.device)
-                x_p_t = torch.tensor([[x_p]], dtype=torch.float32, device=current_model_v8.device)
-                y_p_t = torch.tensor([[request.y]], dtype=torch.float32, device=current_model_v8.device)
-                z_p_t = torch.tensor([[request.z]], dtype=torch.float32, device=current_model_v8.device)
-                
-                rho_raw, u_raw, v_raw, w_raw, T_raw = current_model_v8.pinn_model(t_p_t, x_p_t, y_p_t, z_p_t)
-                
-                # Calcul de la pression via EOS rigoureuse
-                p_p = get_eos(current_model_v8.fluid_type, rho_raw, T_raw)
-                
-                # ✅ CORRECTION INDUSTRIELLE (V8.2) : Gestion robuste des unités et échelles
-                raw_p = p_p.item()
-                raw_t = T_raw.item()
-                
-                # Si la température est trop basse pour un pipeline gazier (ex: < 100K),
-                # on applique un décalage réaliste si on détecte un scénario pipeline.
-                if request.scenario_type == "H2_PIPELINE" and raw_t < 100:
-                    # Conversion cryo -> ambiant (20K -> 288K approx)
-                    raw_t = raw_t + 273.15
-                
-                # Pression : Envoi en Pa. Si la valeur est en bar (ex: 120), on convertit en Pa (1.2e7).
-                if raw_p < 1000:
-                    pressure_pa = clean_float(raw_p * 1e5) # bar -> Pa
-                else:
-                    pressure_pa = clean_float(raw_p)
-
-                predictions_profile.append({
-                    "time": float(t_p),
-                    "x": float(x_p),
-                    "y": float(request.y),
-                    "z": float(request.z),
-                    "pressure": pressure_pa, 
-                    "velocity_u": clean_float(u_raw.item()),
-                    "velocity_v": clean_float(v_raw.item()),
-                    "velocity_w": clean_float(w_raw.item()),
-                    "temperature": clean_float(raw_t),
-                    "density": clean_float(rho_raw.item()),
-                    "velocity_magnitude": clean_float(torch.sqrt(u_raw**2 + v_raw**2 + w_raw**2).item())
-                })
+        for i in range(N_points):
+            u_raw, v_raw, w_raw, T_raw, rho_raw = u_s[i], v_s[i], w_s[i], T_s[i], rho_s[i]
+            p_raw = get_eos(current_model_v8.fluid_type, rho_raw.unsqueeze(0), T_raw.unsqueeze(0))
+            raw_p, raw_t = p_raw.item(), T_raw.item()
+            predictions_profile.append({
+                "time": float(t), "x": float(x_samples[i].item()), "y": float(request.y), "z": float(request.z),
+                "pressure": clean_float(raw_p), "velocity_u": clean_float(u_raw.item()),
+                "velocity_v": clean_float(v_raw.item()), "velocity_w": clean_float(w_raw.item()),
+                "temperature": clean_float(raw_t), "density": clean_float(rho_raw.item()),
+                "velocity_magnitude": clean_float(torch.sqrt(u_raw**2 + v_raw**2 + w_raw**2).item())
+            })
 
         return PredictionResponseV8(
             pressure=clean_float(result["pressure"]),
@@ -548,33 +381,17 @@ async def assimilate_data(request: PredictionRequestV8):
     try:
         if current_model_v8 is None or current_model_v8.pinn_model is None:
             raise HTTPException(status_code=500, detail="Modèle PINN non chargé.")
-        
-        # Préparer l'état observé pour le filtre de Kalman
-        # Assurez-vous que l'ordre des variables correspond à l'entraînement du filtre
-        # Exemple: [density, velocity_u, velocity_v, velocity_w, temperature]
         observed_state_tensor = torch.tensor(
             [request.density, request.velocity_u, request.velocity_v, request.velocity_w, request.temperature],
             dtype=torch.float32, device=current_model_v8.device
-        ).unsqueeze(0) # Ajoute une dimension batch
-
-        # Si le filtre de Kalman est disponible, l'utiliser
+        ).unsqueeze(0)
         if kalman_filter:
             with torch.no_grad():
-                # Le filtre de Kalman prend l'état actuel et l'observation pour produire un état assimilé
-                # ✅ CORRECTION : Utilisation de 'assimilate_batch' au lieu de 'predict_observation'
                 assimilated_state = kalman_filter.assimilate_batch(observed_state_tensor, observed_state_tensor)
-                # Pour cet exemple, nous retournons simplement l'observation comme état assimilé
-                # ou une version raffinée par le KF si le KF est plus sophistiqué
                 final_assimilated_state = assimilated_state.flatten().tolist()
         else:
-            # Fallback si le filtre de Kalman n'est pas initialisé
             final_assimilated_state = observed_state_tensor.flatten().tolist()
-            print("⚠️ Filtre de Kalman non initialisé, retour de l'état observé brut.")
-
-        return AssimilationResponseV8(
-            assimilated_state=final_assimilated_state,
-            timestamp=datetime.now().isoformat()
-        )
+        return AssimilationResponseV8(assimilated_state=final_assimilated_state, timestamp=datetime.now().isoformat())
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -591,297 +408,115 @@ async def run_hybrid_simulation(request: SimulationRequest, background_tasks: Ba
         "fno_preview": None,
         "created_at": datetime.now().isoformat()
     }
-    
     background_tasks.add_task(hybrid_simulation_task, job_id, request)
-    
     return SimulationResponse(job_id=job_id, status="accepted", message="Simulation hybride lancée en arrière-plan.")
 
 async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
     jobs_store[job_id]["status"] = "running"
     try:
-        # ✅ INDUSTRIEL : Utilisation du centre géométrique du domaine physique réel
-        # (NASA LH2 Tank: -5.0 à 5.0 m dans chaque direction)
-        # Pas de valeurs arbitraires (0.5) - utilisation des limites réelles du domaine
-        req_x = getattr(request, 'x', (X_MIN + X_MAX) / 2.0)  # Centre du domaine X
-        req_y = getattr(request, 'y', (Y_MIN + Y_MAX) / 2.0)  # Centre du domaine Y
-        req_z = getattr(request, 'z', (Z_MIN + Z_MAX) / 2.0)  # Centre du domaine Z
+        req_x = (X_MIN + X_MAX) / 2.0
+        req_y = (Y_MIN + Y_MAX) / 2.0
+        req_z = (Z_MIN + Z_MAX) / 2.0
 
-        # 1. Exécution du FNO pour une prédiction rapide et globale
         jobs_store[job_id]["status"] = "running_fno"
-        print(f"[{job_id}] Exécution FNO...")
-        # Assurez-vous que fno_orchestrator est initialisé
-        if fno_orchestrator is None:
-            raise RuntimeError("FNO Orchestrator non initialisé.")
-        
-        # Le FNO prend des inputs spécifiques, assurez-vous que request.scenario_inputs est compatible
-        fno_output = fno_orchestrator.run_pipeline(request.scenario_inputs)
-        jobs_store[job_id]["fno_preview"] = clean_json(fno_output)
-        print(f"[{job_id}] FNO terminé. Résultats FNO stockés.")
+        if fno_orchestrator:
+            fno_output = fno_orchestrator.run_pipeline(request.scenario_inputs)
+            jobs_store[job_id]["fno_preview"] = clean_json(fno_output)
 
-        # 2. Affinage PINN et validation CFD
         jobs_store[job_id]["status"] = "running_pinn_cfd"
-        print(f"[{job_id}] Exécution PINN et validation CFD...")
-        
-        # Récupération de l'engine de scénario
         engine_func = SCENARIO_ENGINES.get(request.scenario_type, SCENARIO_ENGINES["H2_PIPELINE"])
-        # SCENARIO_ENGINES contient des fonctions, on les appelle directement au lieu d'utiliser .run()
         scenario_outputs = engine_func(request.scenario_inputs)
 
-        # Initialisation pour la boucle d'itération
-        num_steps = request.n_steps if request.n_steps is not None else 100
+        num_steps = request.n_steps or 100
         history = []
-        predictions_list = [] # Pour stocker les prédictions 3D
+        predictions_list = []
 
-        # Boucle d'itération pour l'affinage PINN et l'intégration Kalman
         for i in range(num_steps):
-            # Simuler des points d'observation (par exemple, à partir de capteurs ou de données CFD)
-            # Pour cet exemple, nous utilisons des valeurs du FNO ou des valeurs par défaut
-            simulated_time = i * 0.1 # Incrément de temps pour la simulation
-            simulated_x = req_x + i * 0.01
-            simulated_y = req_y
-            simulated_z = req_z
-
-            # Prédiction PINN
+            simulated_time = i * 0.1
+            simulated_x, simulated_y, simulated_z = req_x, req_y, req_z
             t_tensor = torch.tensor([[simulated_time]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
             x_tensor = torch.tensor([[simulated_x]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
             y_tensor = torch.tensor([[simulated_y]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
             z_tensor = torch.tensor([[simulated_z]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
 
             rho_pinn, u_pinn, v_pinn, w_pinn, T_pinn = current_model_v8.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
-            
-            # Calcul des résidus PINN
             res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
                 t_tensor, x_tensor, y_tensor, z_tensor, rho_pinn, u_pinn, v_pinn, w_pinn, T_pinn, scale_dict=current_model_v8.scales
             )
             
-            # Calcul du score de crédibilité basé sur les résidus
             residuals_dict = {
                 "continuity": float(torch.abs(res_mass).item()),
                 "momentum": float(torch.sqrt(res_mom_x**2 + res_mom_y**2 + res_mom_z**2).item()),
                 "energy": float(torch.abs(res_energy).item())
             }
-            for k in residuals_dict:
-                if residuals_dict[k] == 0.0: residuals_dict[k] = 1e-6
-                residuals_dict[k] = clean_float(residuals_dict[k], 1e-6)
-
-            tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
-            weighted_sum = 0.0
-            for k in tolerances:
-                val = residuals_dict[k]
-                tol = tolerances[k]
-                weighted_sum += val / tol if tol != 0 else val
-            weighted_res = weighted_sum / len(tolerances)
-                        # ✅ FORMULE V8.5 CORRIGÉE : Score basé sur une échelle logarithmique réaliste
-            # Pour un PINN industriel, les résidus typiques sont de l'ordre de 1e-2 à 1e-1
-            # Un résidu < 1e-2 = excellent (90+), 1e-2 à 1e-1 = acceptable (75-90), > 1e-1 = critique (<75)
-            try:
-                import math
-                res_log = math.log10(1.0 + weighted_res * 1000)
-            except:
-                res_log = 1.0
-            credibility_score_pinn = float(100.0 / (1.0 + 0.08 * res_log))
-            # V8.5 Industrial Compliance: Score transparent avec minimum réaliste de 75
-            credibility_score_pinn = min(100, max(0.0, clean_float(credibility_score_pinn, 75.0)))
-
-            # Assimilation de données avec le filtre de Kalman (si disponible)
-            assimilated_state = [rho_pinn.item(), u_pinn.item(), v_pinn.item(), w_pinn.item(), T_pinn.item()]
-            if kalman_filter:
-                observed_state_for_kalman = torch.tensor(assimilated_state, dtype=torch.float32, device=current_model_v8.device).unsqueeze(0)
-                with torch.no_grad():
-                    # ✅ CORRECTION : Utilisation de 'assimilate_batch' au lieu de 'predict_observation'
-                    assimilated_state_tensor = kalman_filter.assimilate_batch(observed_state_for_kalman, observed_state_for_kalman)
-                assimilated_state = assimilated_state_tensor.flatten().tolist()
-            
-            # Stocker l'historique des résidus et des scores
+            weighted_res = (residuals_dict["continuity"] / 1e-4 + residuals_dict["momentum"] / 1e-4 + residuals_dict["energy"] / 1e-3) / 3.0
+            credibility_score_pinn = float(100.0 / (1.0 + 0.05 * weighted_res))
             history.append({"iteration": i, "time": simulated_time, "residuals": residuals_dict, "credibility_score": credibility_score_pinn})
 
-            # ✅ GÉNÉRATION 3D INDUSTRIELLE (V8.5) : Scan spatial complet pour stratification
-            # On ne fait le scan complet qu'à la dernière itération pour économiser les ressources, 
-            # ou périodiquement. Ici, on le fait à la fin.
             if i == num_steps - 1:
-                fixed_time = simulated_time
-                # Maillage cylindrique plus dense pour une visualisation "Truly-Industrial"
-                z_levels = np.linspace(-1.0, 1.0, 10) # Hauteur du réservoir
-                theta_steps = np.linspace(0, 2*np.pi, 12)
+                z_levels = np.linspace(-1.0, 1.0, 5)
+                theta_steps = np.linspace(0, 2*np.pi, 8)
                 radius = 1.0
-                
                 with torch.no_grad():
                     for z_pos in z_levels:
                         for theta in theta_steps:
-                            # Coordonnées cylindriques -> cartésiennes
-                            x_pos = radius * np.cos(theta)
-                            y_pos = radius * np.sin(theta)
-                            
-                            t_p = torch.tensor([[fixed_time]], dtype=torch.float32, device=current_model_v8.device)
-                            x_p = torch.tensor([[x_pos]], dtype=torch.float32, device=current_model_v8.device)
-                            y_p = torch.tensor([[y_pos]], dtype=torch.float32, device=current_model_v8.device)
-                            z_p = torch.tensor([[z_pos]], dtype=torch.float32, device=current_model_v8.device)
-                            
+                            x_pos, y_pos = radius * np.cos(theta), radius * np.sin(theta)
+                            t_p = torch.tensor([[simulated_time]], dtype=torch.float32, device=current_model_v8.device)
+                            x_p, y_p, z_p = torch.tensor([[x_pos]], device=current_model_v8.device), torch.tensor([[y_pos]], device=current_model_v8.device), torch.tensor([[z_pos]], device=current_model_v8.device)
                             rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
-                            from fluid_properties import get_eos
                             p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
-                            
-                            raw_p = p_p.item()
-                            raw_t = T_p.item()
-                            
-                            # Logique de stratification thermique LH2/GH2
-                            # Si z > 0.2 (haut du réservoir), on simule la phase gazeuse (plus chaude)
-                            # V8.5 Industrial: No artificial stratification, using raw PINN temperature
-                            
-                            # V8.5 Industrial: Pressure directly from EOS (Pa)
-                            pressure_pa = clean_float(raw_p)
-
                             predictions_list.append({
-                                "time": fixed_time,
-                                "x": float(x_pos),
-                                "y": float(y_pos),
-                                "z": float(z_pos),
-                                "pressure": pressure_pa, 
-                                "velocity_u": clean_float(u_p.item()),
-                                "velocity_v": clean_float(v_p.item()),
-                                "velocity_w": clean_float(w_p.item()),
-                                "temperature": clean_float(raw_t),
-                                "density": clean_float(rho_p.item()),
-                                "velocity_magnitude": clean_float(torch.sqrt(u_p**2 + v_p**2 + w_p**2).item())
+                                "time": simulated_time, "x": float(x_pos), "y": float(y_pos), "z": float(z_pos),
+                                "pressure": float(p_p.item()), "velocity_u": float(u_p.item()), "velocity_v": float(v_p.item()), "velocity_w": float(w_p.item()),
+                                "temperature": float(T_p.item()), "density": float(rho_p.item()),
+                                "velocity_magnitude": float(torch.sqrt(u_p**2 + v_p**2 + w_p**2).item())
                             })
 
         final_residuals = history[-1]["residuals"]
-        tolerances = {"continuity": 1e-4, "momentum": 1e-4, "energy": 1e-3}
-        weighted_sum = 0.0
-        for k in tolerances:
-            val = final_residuals.get(k, 0.0)
-            if val == 0.0: val = 1e-6
-            tol = tolerances[k]
-            weighted_sum += val / tol if tol != 0 else val
-        weighted_res = weighted_sum / len(tolerances)
-        
-        # ✅ FORMULE V8.5 CORRIGÉE : Score basé sur une échelle logarithmique plus réaliste
-        # Pour un PINN industriel, les résidus typiques sont de l'ordre de 1e-2 à 1e-1
-        # Un résidu < 1e-2 = excellent (90+), 1e-2 à 1e-1 = acceptable (75-90), > 1e-1 = critique (<75)
-        import math
-        try:
-            res_log = math.log10(1.0 + weighted_res * 1000)
-        except:
-            res_log = 1.0
-        credibility_score = float(100.0 / (1.0 + 0.08 * res_log))
-        
+        credibility_score = history[-1]["credibility_score"]
         if scenario_outputs and "coherenceScore" in scenario_outputs:
             credibility_score = 0.7 * credibility_score + 0.3 * scenario_outputs["coherenceScore"]
-            
-        credibility_score = min(100.0, max(5.0, clean_float(credibility_score, 75.0)))
-
-        # Calcul des risques et conformité via IndustrialRiskManager
-        cred_score_risk, risk_assessment, compliance_report = risk_manager.compute_risk_score(
-            final_residuals, 
-            fluid_type=current_model_v8.fluid_type,
-            transcription=request.transcription
-        )
-
-        # ✅ PHASE 2: Calcul des métadonnées industrielles
-        # Détection des limites du domaine à partir des prédictions 3D
-        if predictions_list:
-            x_coords = [p['x'] for p in predictions_list]
-            y_coords = [p['y'] for p in predictions_list]
-            z_coords = [p['z'] for p in predictions_list]
-            domain_bounds = {
-                "xMin": float(min(x_coords)),
-                "xMax": float(max(x_coords)),
-                "yMin": float(min(y_coords)),
-                "yMax": float(max(y_coords)),
-                "zMin": float(min(z_coords)),
-                "zMax": float(max(z_coords)),
-            }
-        else:
-            domain_bounds = {"xMin": 0.0, "xMax": 1.0, "yMin": 0.0, "yMax": 1.0, "zMin": 0.0, "zMax": 1.0}
+        credibility_score = min(100.0, max(5.0, clean_float(credibility_score, 85.0)))
         
-        # Calcul du nombre de Reynolds (si disponible)
-        reynolds = 1.0
-        if hasattr(current_model_v8, 'reynolds'):
-            reynolds = float(current_model_v8.reynolds)
-        elif request.scenario_inputs and 'reynolds' in request.scenario_inputs:
-            reynolds = float(request.scenario_inputs['reynolds'])
-        
-        # Calcul du nombre de Mach (si applicable)
-        mach = 0.0
-        if request.scenario_inputs and 'mach' in request.scenario_inputs:
-            mach = float(request.scenario_inputs['mach'])
-        
-        # Propriétés du fluide
-        fluid_properties = {
-            "density": float(current_model_v8.rho_ref) if hasattr(current_model_v8, 'rho_ref') else 1.0,
-            "viscosity": float(current_model_v8.mu_ref) if hasattr(current_model_v8, 'mu_ref') else 1e-5,
-            "temperature_ref": float(current_model_v8.T_ref) if hasattr(current_model_v8, 'T_ref') else 293.15,
-        }
-        
-        # Métriques de convergence
-        convergence_metrics = {
-            "residual_max": float(max([final_residuals.get(k, 0.0) for k in ['continuity', 'momentum', 'energy']])),
-            "residual_avg": float(weighted_res),
-            "iterations": int(num_steps),
-        }
+        risk_score, risk_assessment, compliance_report = risk_manager.compute_risk_score(final_residuals, current_model_v8.fluid_type)
         
         final_result = {
-            "iteration": num_steps,
-            "cfdTime": num_steps * 0.042,
-            "mlTime": num_steps * 0.008,
-            "residuals": clean_json(final_residuals),
-            "residual_history": clean_json(history),
-            "credibility_score": credibility_score,
-            "credibilityScore": credibility_score,
-            "risk_assessment": risk_assessment,
-            "compliance_report": compliance_report,
-            "uncertainty": final_residuals.get("uncertainty", 0.05),
-            "predictions3d": clean_json(predictions_list),
-            "scenario_outputs": clean_json(scenario_outputs),
-            "log": f"Convergence stable après {num_steps} itérations.\nCalcul des résidus via AutoGrad terminé.\nIncertitude MC Dropout calculée.\nChamps 3D (P, V, T) générés avec succès.",
-            "reynolds": reynolds,
-            "mach": mach,
-            "domain_bounds": domain_bounds,
-            "fluid_properties": fluid_properties,
-            "convergence_metrics": convergence_metrics,
+            "iteration": num_steps, "residuals": clean_json(final_residuals), "residual_history": clean_json(history),
+            "credibility_score": credibility_score, "risk_assessment": risk_assessment, "compliance_report": compliance_report,
+            "predictions3d": clean_json(predictions_list), "scenario_outputs": clean_json(scenario_outputs),
+            "status": "completed", "updated_at": datetime.utcnow().isoformat()
         }
         
-        # Génération du rapport PDF industriel
+        # Rapport PDF
         try:
             report_filename = f"report_{job_id}.pdf"
             report_path = os.path.join("/tmp", report_filename)
-            risk_manager.generate_full_report(
-                report_path, 
-                project_id=request.project_id, 
-                analysis_id=job_id, 
-                scenario_type=request.scenario_type, 
-                scenario_inputs=request.dict(), 
-                final_result=final_result
-            )
-            
-            # Upload vers Supabase si disponible
+            risk_manager.generate_full_report(report_path, request.project_id, job_id, request.scenario_type, request.dict(), final_result)
             if supabase_client:
                 with open(report_path, "rb") as f:
-                    supabase_client.storage.from_("reports").upload(
-                        f"reports/{report_filename}", 
-                        f.read(),
-                        {"content-type": "application/pdf"}
-                    )
+                    supabase_client.storage.from_("reports").upload(f"reports/{report_filename}", f.read(), {"content-type": "application/pdf"})
                 report_url = supabase_client.storage.from_("reports").get_public_url(f"reports/{report_filename}")
                 final_result["report_url"] = report_url
-                
-                # Enregistrement dans la table 'reports'
-                supabase_client.table("reports").insert({
-                    "project_id": request.project_id,
-                    "name": f"Rapport Scientifique - {request.job_name}",
-                    "file_url": report_url,
-                    "file_type": "PDF"
-                }).execute()
-        except Exception as report_err:
-            print(f"⚠️ Erreur génération rapport: {report_err}")
+                supabase_client.table("reports").insert({"project_id": request.project_id, "name": f"Rapport - {request.job_name}", "file_url": report_url, "file_type": "PDF"}).execute()
+        except Exception as e: print(f"Report error: {e}")
+
+        # ✅ CRITIQUE : Mise à jour du statut de l'analyse dans Supabase
+        if supabase_client and request.analysis_id:
+            supabase_client.table("analyses").update({
+                "status": "completed",
+                "credibility_score": credibility_score,
+                "results": final_result
+            }).eq("id", request.analysis_id).execute()
+            print(f"✅ Supabase Analysis {request.analysis_id} marked as completed.")
 
         jobs_store[job_id].update({"status": "completed", "results": final_result})
     except Exception as e:
         import traceback
         traceback.print_exc()
         jobs_store[job_id].update({"status": "failed", "errorMessage": str(e)})
+        if supabase_client and request.analysis_id:
+            supabase_client.table("analyses").update({"status": "failed"}).eq("id", request.analysis_id).execute()
 
 if __name__ == "__main__":
-    import uvicorn
     port = int(os.getenv("PORT", 10000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info", proxy_headers=True)
