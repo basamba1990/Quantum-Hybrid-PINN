@@ -10,6 +10,24 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib import colors
 
+# Import sécurisé pour MahalanobisOODDetector
+try:
+    from hydrogen_pinn_v8 import MahalanobisOODDetector
+except (ImportError, ValueError):
+    try:
+        from .hydrogen_pinn_v8 import MahalanobisOODDetector
+    except (ImportError, ValueError):
+        try:
+            import hydrogen_pinn_v8
+            MahalanobisOODDetector = hydrogen_pinn_v8.MahalanobisOODDetector
+        except ImportError:
+            # Fallback minimal si l'import échoue complètement
+            class MahalanobisOODDetector:
+                def __init__(self, *args, **kwargs):
+                    self.fitted = False
+                def fit(self, *args, **kwargs): pass
+                def is_out_of_distribution(self, *args, **kwargs): return False, 0.0
+
 logger = logging.getLogger(__name__)
 
 class IndustrialRiskManager:
@@ -28,11 +46,6 @@ class IndustrialRiskManager:
         
     def fit_ood(self, training_features: np.ndarray):
         """Ajuste le détecteur OOD sur les données d'entraînement"""
-        try:
-            from hydrogen_pinn_v8 import MahalanobisOODDetector
-        except ImportError:
-            from .hydrogen_pinn_v8 import MahalanobisOODDetector
-            
         self.ood_detector = MahalanobisOODDetector(threshold_percentile=self.threshold_percentile)
         self.ood_detector.fit(training_features)
         self.is_fitted = True
@@ -41,10 +54,6 @@ class IndustrialRiskManager:
     def load_ood_stats(self, stats_path: str):
         """Charge les statistiques OOD pré-calculées"""
         try:
-            try:
-                from hydrogen_pinn_v8 import MahalanobisOODDetector
-            except ImportError:
-                from .hydrogen_pinn_v8 import MahalanobisOODDetector
             data = np.load(stats_path)
             self.ood_detector = MahalanobisOODDetector(threshold_percentile=self.threshold_percentile)
             self.ood_detector.mean = data["mean"]
@@ -239,27 +248,28 @@ class IndustrialRiskManager:
         story.append(Paragraph(f"Quantum-Hybrid PINN V8 - Projet : {project_id}", styles['Heading1']))
         story.append(Paragraph(f"Analyse ID : {analysis_id}", styles['Heading2']))
         story.append(Paragraph(f"Date : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['BodyText']))
-        story.append(Spacer(1, 0.2 * 2.54 * 72)) # 0.2 inch spacer
+        story.append(Spacer(1, 14.4))
 
         # Section Résumé de l'Analyse
         story.append(Paragraph("1. Résumé de l'Analyse", styles['Heading1']))
         story.append(Paragraph(f"Type de Scénario : {scenario_type}", styles['BodyText']))
         story.append(Paragraph(f"Description : {scenario_inputs.get('description', 'N/A')}", styles['BodyText']))
         story.append(Paragraph(f"Nombre d'Étapes : {final_result.get('iteration', 'N/A')}", styles['BodyText']))
-        story.append(Spacer(1, 0.1 * 2.54 * 72))
+        story.append(Spacer(1, 7.2))
 
         # Section Score de Crédibilité
         credibility_score = final_result.get('credibility_score', 0.0)
+        color = 'green' if credibility_score > 80 else ('orange' if credibility_score > 60 else 'red')
         story.append(Paragraph("2. Score de Crédibilité du Modèle", styles['Heading1']))
-        story.append(Paragraph(f"Le modèle a obtenu un score de crédibilité de <font color='{'green' if credibility_score > 80 else ('orange' if credibility_score > 60 else 'red')}'><b>{credibility_score:.2f}%</b></font>. Ce score reflète la cohérence physique des prédictions par rapport aux équations de Navier-Stokes et l'incertitude associée.", styles['BodyText']))
-        story.append(Spacer(1, 0.1 * 2.54 * 72))
+        story.append(Paragraph(f"Le modèle a obtenu un score de crédibilité de <font color='{color}'><b>{credibility_score:.2f}%</b></font>.", styles['BodyText']))
+        story.append(Spacer(1, 7.2))
 
         # Section Évaluation des Risques
         risk_assessment = final_result.get('risk_assessment', {})
         story.append(Paragraph("3. Évaluation des Risques", styles['Heading1']))
         story.append(Paragraph(f"Niveau de Risque : <b>{risk_assessment.get('level', 'N/A')}</b>", styles['BodyText']))
         story.append(Paragraph(f"Détails : {risk_assessment.get('details', 'N/A')}", styles['BodyText']))
-        story.append(Spacer(1, 0.1 * 2.54 * 72))
+        story.append(Spacer(1, 7.2))
 
         # Section Rapport de Conformité
         compliance_report = final_result.get('compliance_report', {})
@@ -267,7 +277,7 @@ class IndustrialRiskManager:
         story.append(Paragraph(f"Statut : <b>{compliance_report.get('status', 'N/A')}</b>", styles['BodyText']))
         story.append(Paragraph(f"Normes Appliquées : {', '.join(compliance_report.get('standards', ['N/A']))}", styles['BodyText']))
         story.append(Paragraph(f"Recommandations : {compliance_report.get('recommendations', 'N/A')}", styles['BodyText']))
-        story.append(Spacer(1, 0.1 * 2.54 * 72))
+        story.append(Spacer(1, 7.2))
 
         # Section Détails des Résidus Physiques
         residuals = final_result.get('residuals', {})
@@ -284,51 +294,6 @@ class IndustrialRiskManager:
             ('GRID', (0, 0), (-1, -1), 1, colors.black)
         ]))
         story.append(table_residuals)
-        story.append(Spacer(1, 0.1 * 2.54 * 72))
-
-        # Section Historique des Résidus (simplifié)
-        residual_history = final_result.get('residual_history', [])
-        if residual_history:
-            story.append(Paragraph("6. Historique des Résidus (Dernière Étape)", styles['Heading1']))
-            last_step_residuals = residual_history[-1].get('residuals', {})
-            continuity_val = last_step_residuals.get('continuity', 0.0)
-            momentum_val = last_step_residuals.get('momentum', 0.0)
-            energy_val = last_step_residuals.get('energy', 0.0)
-            uncertainty_val = last_step_residuals.get('uncertainty', 0.0)
-            
-            # Formatage sécurisé avec gestion des valeurs None/string
-            cont_str = f"{float(continuity_val):.2e}" if isinstance(continuity_val, (int, float)) else "N/A"
-            mom_str = f"{float(momentum_val):.2e}" if isinstance(momentum_val, (int, float)) else "N/A"
-            ener_str = f"{float(energy_val):.2e}" if isinstance(energy_val, (int, float)) else "N/A"
-            unc_str = f"{float(uncertainty_val):.2e}" if isinstance(uncertainty_val, (int, float)) else "N/A"
-            
-            story.append(Paragraph(f"Continuité : {cont_str}", styles['BodyText']))
-            story.append(Paragraph(f"Momentum : {mom_str}", styles['BodyText']))
-            story.append(Paragraph(f"Énergie : {ener_str}", styles['BodyText']))
-            story.append(Paragraph(f"Incertitude : {unc_str}", styles['BodyText']))
-            story.append(Spacer(1, 0.1 * 2.54 * 72))
-
-        # Section Prédictions 3D (Résumé)
-        predictions3d = final_result.get('predictions3d', [])
-        if predictions3d:
-            story.append(Paragraph("7. Résumé des Prédictions 3D", styles['Heading1']))
-            story.append(Paragraph(f"Nombre de points 3D générés pour le profil : {len(predictions3d)}", styles['BodyText']))
-            # Afficher quelques points clés ou une moyenne
-            avg_pressure = np.mean([p['pressure'] for p in predictions3d]) if predictions3d else 'N/A'
-            avg_velocity = np.mean([p['velocity_u'] for p in predictions3d]) if predictions3d else 'N/A'
-            avg_temperature = np.mean([p['temperature'] for p in predictions3d]) if predictions3d else 'N/A'
-            story.append(Paragraph(f"Pression Moyenne : {avg_pressure:.2f} Pa", styles['BodyText']))
-            story.append(Paragraph(f"Vitesse Moyenne (u) : {avg_velocity:.2f} m/s", styles['BodyText']))
-            story.append(Paragraph(f"Température Moyenne : {avg_temperature:.2f} K", styles['BodyText']))
-            story.append(Spacer(1, 0.1 * 2.54 * 72))
-
-        # Pied de page
-        story.append(PageBreak())
-        story.append(Paragraph("Fin du Rapport", styles['TitleStyle']))
-        story.append(Paragraph("Ce rapport a été généré automatiquement par Quantum-Hybrid PINN V8.", styles['BodyText']))
-
+        
         doc.build(story)
-        logger.info(f"Rapport PDF généré à : {output_path}")
-        return output_path
-
-
+        return True
