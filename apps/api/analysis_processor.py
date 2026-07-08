@@ -293,20 +293,35 @@ class AnalysisProcessor:
         credibility_score: Optional[float],
         results: Dict[str, Any]
     ):
-        """Update analysis in Supabase"""
+        """Update analysis in Supabase directly"""
         try:
-            async with httpx.AsyncClient() as client:
-                update_data = {
-                    "status": status,
-                    "results": results,
-                }
-                if credibility_score is not None:
-                    update_data["credibility_score"] = credibility_score
-                
-                # This would be called via the Next.js API route
-                logger.info(f"Would update Supabase analysis {analysis_id} with status: {status}")
+            from supabase import create_client
+            import os
+            
+            supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
+            supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+            
+            if not supabase_url or not supabase_key:
+                logger.error("Supabase credentials not found in environment")
+                return
+            
+            supabase = create_client(supabase_url, supabase_key)
+            
+            # Prepare update data
+            from datetime import datetime
+            update_data = {
+                "status": status,
+                "score_de_credibilite": round(credibility_score * 100, 2) if credibility_score else None,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+            
+            # Update the analysis record in Supabase
+            response = supabase.table("analyses").update(update_data).eq("id", analysis_id).execute()
+            
+            logger.info(f"✅ Supabase updated: analysis {analysis_id} status={status}, credibility_score={credibility_score}")
+            
         except Exception as e:
-            logger.error(f"Failed to update Supabase: {str(e)}")
+            logger.error(f"❌ Failed to update Supabase analysis {analysis_id}: {str(e)}", exc_info=True)
     
     def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
         """Get job status"""
