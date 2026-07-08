@@ -254,10 +254,10 @@ export default function LandingPage() {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/demo" className="px-8 py-4 rounded-lg bg-white text-blue-600 font-semibold hover:bg-slate-100 transition">
-              Essayer la Démo
+              Try the Demo
             </Link>
             <Link href="/pricing" className="px-8 py-4 rounded-lg border-2 border-white text-white font-semibold hover:bg-white/10 transition">
-              Voir les Tarifs
+              View Pricing
             </Link>
           </div>
         </div>
