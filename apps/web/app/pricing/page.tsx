@@ -90,8 +90,11 @@ export default function PricingPage() {
             Simple, Transparent
             <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent"> Pricing</span>
           </h1>
-          <p className="text-xl text-slate-300 mb-8">
+          <p className="text-xl text-slate-300 mb-4">
             Choose the plan that fits your industrial needs. All plans include our core PINN V8.1 simulation engine.
+          </p>
+          <p className="text-sm text-slate-400 mb-8">
+            * Taxes may apply and will be calculated at checkout.
           </p>
         </div>
       </section>
