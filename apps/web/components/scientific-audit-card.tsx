@@ -199,7 +199,7 @@ export default function ScientificAuditCard({
                 </div>
                 
                 {/* Visualisation 3D Cadrée Industrielle */}
-                <div className="max-w-4xl mx-auto border border-slate-200 rounded-2xl overflow-hidden shadow-inner bg-slate-900">
+                <div className="w-full border border-slate-200 rounded-2xl overflow-hidden shadow-inner bg-slate-900">
                   {visualizationType === 'field' ? (
                     <Industrial3DFieldVisualizer 
                       data={auditData.predictions3d} 
