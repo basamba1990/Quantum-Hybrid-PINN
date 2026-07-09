@@ -114,10 +114,12 @@ export default function HybridChartVisualizer({
                 type: 'scatter',
                 mode: 'lines+markers',
                 name: 'Pression',
-                line: { color: '#4f46e5', width: 2 },
-                marker: { size: 5, color: '#4f46e5' },
+                line: { color: '#4f46e5', width: 3, shape: 'spline' },
+                marker: { size: 6, color: '#4f46e5', symbol: 'diamond' },
                 fill: 'tozeroy',
-                fillcolor: 'rgba(79, 70, 229, 0.1)',
+                fillcolor: 'rgba(79, 70, 229, 0.05)',
+                hoverinfo: 'x+y',
+                hovertemplate: '<b>Time</b>: %{x:.2f}s<br><b>Pressure</b>: %{y:.3f} bar<extra></extra>',
               },
             ]}
             layout={{

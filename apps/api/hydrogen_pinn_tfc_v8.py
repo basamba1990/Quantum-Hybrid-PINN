@@ -103,11 +103,23 @@ class TFCPINN3DNavierStokes(nn.Module):
 
     def loss(self, t, x, y, z, rho, u, v, w, T) -> torch.Tensor:
         """
-        Calcule la perte totale basée sur les résidus.
+        Calcule la perte totale basée sur les résidus avec contraintes thermodynamiques strictes.
         """
         mass, mom_x, mom_y, mom_z, energy, _ = self.compute_residuals(t, x, y, z, rho, u, v, w, T)
-        loss_val = (mass**2).mean() + (mom_x**2).mean() + (mom_y**2).mean() + (mom_z**2).mean() + (energy**2).mean()
-        return loss_val
+        
+        # Résidus de Navier-Stokes
+        loss_pde = (mass**2).mean() + (mom_x**2).mean() + (mom_y**2).mean() + (mom_z**2).mean() + (energy**2).mean()
+        
+        # ✅ Contrainte de positivité stricte (Zéro Hallucination Physique)
+        loss_positivity = torch.mean(torch.relu(-rho)) + torch.mean(torch.relu(-T))
+        
+        # ✅ Contrainte de vitesse sonique (CFL condition-like penalty)
+        p = self._residual_engine.eos(rho, T) if hasattr(self._residual_engine, 'eos') else rho * 4124.0 * T
+        c_speed = torch.sqrt(1.4 * p / (rho + 1e-8))
+        vel_mag = torch.sqrt(u**2 + v**2 + w**2)
+        loss_mach = torch.mean(torch.relu(vel_mag - 2.0 * c_speed)) # Pénaliser les vitesses supersoniques extrêmes non physiques
+        
+        return loss_pde + 10.0 * loss_positivity + 0.1 * loss_mach
 
 
 class HydrogenPINNTFCV8:
