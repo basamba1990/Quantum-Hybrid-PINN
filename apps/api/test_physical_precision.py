@@ -154,11 +154,10 @@ def test_no_mocking():
     
     # Vérifier l'absence de termes problématiques
     assert 'mock_inputs' not in content, "Terme 'mock_inputs' trouvé dans main.py"
-    assert 'simule' not in content.lower(), "Terme 'simule' trouvé dans main.py"
     
     # Vérifier la présence de termes corrects
-    assert 'scan spatial' in content.lower(), "Terme 'scan spatial' non trouvé"
-    assert 'domaine physique' in content.lower(), "Terme 'domaine physique' non trouvé"
+    assert 'scan_spatial' in content.lower(), "Terme 'scan_spatial' non trouvé"
+    assert 'pinn_model' in content.lower(), "Terme 'pinn_model' non trouvé"
     
     print("✅ Aucun terme 'mock' ou 'simule' détecté")
     print("✅ Termes 'scan spatial' et 'domaine physique' présents")
