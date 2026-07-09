@@ -44,16 +44,17 @@ class SilveraGoldmanEOS(nn.Module):
         # Ideal gas pressure
         p_ideal = rho_safe * self.R_specific * T_safe
 
-        # Exponential repulsion term (prevents unphysical high densities)
-        repulsion = self.A * rho_safe * torch.exp(self.alpha * rho_safe / 100.0)
+        # Silvera-Goldman potential terms (dimensionless scaling)
+        # repulsion: prevents unphysical high densities (short-range)
+        repulsion = self.A * rho_safe * torch.exp(self.alpha * rho_safe / 70.8) # Adjusted for LH2 density
 
-        # Attractive term (quadratic)
+        # attraction: long-range attractive forces (quadratic)
         attraction = -self.B * (rho_safe ** 2)
 
-        # Quantum correction (cubic, temperature-dependent)
-        quantum_corr = self.C * (rho_safe ** 3) / T_safe
+        # quantum_corr: Cubic correction for low-temperature quantum effects
+        quantum_corr = self.C * (rho_safe ** 3) / (T_safe + 1e-3)
 
-        # Total pressure
+        # Total pressure calculation with virial-like expansion
         pressure = p_ideal * (1.0 + repulsion + attraction + quantum_corr)
 
         # Ensure non-negative pressure (physical)
