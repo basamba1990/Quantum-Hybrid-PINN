@@ -48,34 +48,11 @@ const PINNPerformanceMonitor: React.FC<Props> = ({
     }
   )
 
-  // Simulation des métriques en temps réel
+  // Utiliser les métriques réelles fournies, ou rester statique si non disponibles
   useEffect(() => {
-    if (!isLive) return
-
-    const interval = setInterval(() => {
-      setDisplayMetrics(prev => {
-        const newMetrics: PerformanceMetrics = {
-          convergenceRate: Math.min(100, prev.convergenceRate + Math.random() * 0.5),
-          computationTime: prev.computationTime + Math.random() * 0.1,
-          memoryUsage: Math.max(512, Math.min(2048, prev.memoryUsage + (Math.random() - 0.5) * 50)),
-          gpuUtilization: Math.max(0, Math.min(100, prev.gpuUtilization + (Math.random() - 0.5) * 5)),
-          trainingLoss: Math.max(0.0001, prev.trainingLoss * (0.99 + Math.random() * 0.02)),
-          validationError: Math.max(0.0001, prev.validationError * (0.99 + Math.random() * 0.02)),
-          residualNorm: prev.residualNorm * (0.98 + Math.random() * 0.04),
-          quantumCoherence: Math.max(95, Math.min(100, prev.quantumCoherence + (Math.random() - 0.5) * 0.2)),
-          entanglementDepth: prev.entanglementDepth,
-          gateErrorRate: Math.max(0.0001, prev.gateErrorRate * (0.99 + Math.random() * 0.02)),
-          throughput: Math.max(1000000, prev.throughput + (Math.random() - 0.5) * 100000),
-          latency: Math.max(0.5, prev.latency + (Math.random() - 0.5) * 0.2),
-          status: prev.convergenceRate > 99 && prev.gpuUtilization < 85 ? 'optimal' : 'good'
-        }
-        onMetricsUpdate?.(newMetrics)
-        return newMetrics
-      })
-    }, 2000)
-
-    return () => clearInterval(interval)
-  }, [isLive, onMetricsUpdate])
+    if (!isLive || !metrics) return
+    setDisplayMetrics(metrics)
+  }, [isLive, metrics])
 
   const getStatusColor = (status: string) => {
     switch (status) {

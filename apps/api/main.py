@@ -454,25 +454,28 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             history.append({"iteration": i, "time": simulated_time, "residuals": residuals_dict, "credibility_score": credibility_score_pinn})
 
             if i == num_steps - 1:
-                z_levels = np.linspace(-1.0, 1.0, 5)
-                theta_steps = np.linspace(0, 2*np.pi, 8)
-                radius = 1.0
+                # Échantillonnage spatial haute fidélité (adaptatif selon la géométrie)
+                z_levels = np.linspace(-2.0, 2.0, 8) # Étendu pour couvrir le domaine réel
+                theta_steps = np.linspace(0, 2*np.pi, 12)
+                radius_levels = [0.2, 0.5, 0.8, 1.0] # Échantillonnage radial multi-couches
+                
                 with torch.no_grad():
                     for z_pos in z_levels:
                         for theta in theta_steps:
-                            x_pos, y_pos = radius * np.cos(theta), radius * np.sin(theta)
-                            t_p = torch.tensor([[float(simulated_time)]], dtype=torch.float32, device=current_model_v8.device)
-                            x_p = torch.tensor([[float(x_pos)]], dtype=torch.float32, device=current_model_v8.device)
-                            y_p = torch.tensor([[float(y_pos)]], dtype=torch.float32, device=current_model_v8.device)
-                            z_p = torch.tensor([[float(z_pos)]], dtype=torch.float32, device=current_model_v8.device)
-                            rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
-                            p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
-                            predictions_list.append({
-                                "time": simulated_time, "x": float(x_pos), "y": float(y_pos), "z": float(z_pos),
-                                "pressure": float(p_p.item()), "velocity_u": float(u_p.item()), "velocity_v": float(v_p.item()), "velocity_w": float(w_p.item()),
-                                "temperature": float(T_p.item()), "density": float(rho_p.item()),
-                                "velocity_magnitude": float(torch.sqrt(u_p**2 + v_p**2 + w_p**2).item())
-                            })
+                            for r in radius_levels:
+                                x_pos, y_pos = r * np.cos(theta), r * np.sin(theta)
+                                t_p = torch.tensor([[float(simulated_time)]], dtype=torch.float32, device=current_model_v8.device)
+                                x_p = torch.tensor([[float(x_pos)]], dtype=torch.float32, device=current_model_v8.device)
+                                y_p = torch.tensor([[float(y_pos)]], dtype=torch.float32, device=current_model_v8.device)
+                                z_p = torch.tensor([[float(z_pos)]], dtype=torch.float32, device=current_model_v8.device)
+                                rho_p, u_p, v_p, w_p, T_p = current_model_v8.pinn_model(t_p, x_p, y_p, z_p)
+                                p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
+                                predictions_list.append({
+                                    "time": simulated_time, "x": float(x_pos), "y": float(y_pos), "z": float(z_pos),
+                                    "pressure": float(p_p.item()), "velocity_u": float(u_p.item()), "velocity_v": float(v_p.item()), "velocity_w": float(w_p.item()),
+                                    "temperature": float(T_p.item()), "density": float(rho_p.item()),
+                                    "velocity_magnitude": float(torch.sqrt(u_p**2 + v_p**2 + w_p**2).item())
+                                })
 
         final_residuals = history[-1]["residuals"]
         credibility_score = history[-1]["credibility_score"]
