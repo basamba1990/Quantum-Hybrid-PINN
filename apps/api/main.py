@@ -337,9 +337,9 @@ async def validate_3d(request: PredictionRequestV8):
             T = torch.tensor([[request.temperature]], device=current_model_v8.device, dtype=torch.float32) + (T - 293.15) * 0.05
 
         residuals = {
-            "continuity": float(res_mass_avg.item()),
-            "momentum": float(res_mom_avg.item()),
-            "energy": float(res_energy_avg.item())
+            "continuity": float(res_mass_avg.reshape(-1)[0].item()),
+            "momentum": float(res_mom_avg.reshape(-1)[0].item()),
+            "energy": float(res_energy_avg.reshape(-1)[0].item())
         }
         
         weighted_res = (residuals["continuity"] / 1e-4 + residuals["momentum"] / 1e-4 + residuals["energy"] / 1e-3) / 3.0
@@ -356,20 +356,20 @@ async def validate_3d(request: PredictionRequestV8):
             T_val = T_raw.view(-1)[0].view(1, 1)
             p_raw = get_eos(current_model_v8.fluid_type, rho_val, T_val)
             predictions_profile.append({
-                "time": float(t), "x": float(x_samples[i].item()), "y": float(y_samples[i].item()), "z": float(z_samples[i].item()),
-                "pressure": clean_float(p_raw.item()), "velocity_u": clean_float(u_raw.item()),
-                "velocity_v": clean_float(v_raw.item()), "velocity_w": clean_float(w_raw.item()),
-                "temperature": clean_float(T_raw.item()), "density": clean_float(rho_raw.item()),
-                "velocity_magnitude": clean_float(torch.sqrt(u_raw**2 + v_raw**2 + w_raw**2).item())
+                "time": float(t), "x": float(x_samples[i].reshape(-1)[0].item()), "y": float(y_samples[i].reshape(-1)[0].item()), "z": float(z_samples[i].reshape(-1)[0].item()),
+                "pressure": clean_float(p_raw.reshape(-1)[0].item()), "velocity_u": clean_float(u_raw.reshape(-1)[0].item()),
+                "velocity_v": clean_float(v_raw.reshape(-1)[0].item()), "velocity_w": clean_float(w_raw.reshape(-1)[0].item()),
+                "temperature": clean_float(T_raw.reshape(-1)[0].item()), "density": clean_float(rho_raw.reshape(-1)[0].item()),
+                "velocity_magnitude": clean_float(torch.sqrt(u_raw**2 + v_raw**2 + w_raw**2).reshape(-1)[0].item())
             })
 
         return PredictionResponseV8(
-            pressure=clean_float(p_t_center.item()),
-            velocity_u=clean_float(u.item()),
-            velocity_v=clean_float(v.item()),
-            velocity_w=clean_float(w.item()),
-            temperature=clean_float(T.item()),
-            density=clean_float(rho.item()),
+            pressure=clean_float(p_t_center.reshape(-1)[0].item()),
+            velocity_u=clean_float(u.reshape(-1)[0].item()),
+            velocity_v=clean_float(v.reshape(-1)[0].item()),
+            velocity_w=clean_float(w.reshape(-1)[0].item()),
+            temperature=clean_float(T.reshape(-1)[0].item()),
+            density=clean_float(rho.reshape(-1)[0].item()),
             time=clean_float(t), x=clean_float(request.x or 0.0), y=clean_float(request.y or 0.0), z=clean_float(request.z or 0.0),
             credibility_score=credibility_score,
             residuals=residuals,
@@ -460,9 +460,9 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             )
             
             residuals_dict = {
-                "continuity": float(torch.abs(res_mass).item()),
-                "momentum": float(torch.sqrt(res_mom_x**2 + res_mom_y**2 + res_mom_z**2).item()),
-                "energy": float(torch.abs(res_energy).item())
+                "continuity": float(torch.abs(res_mass).reshape(-1)[0].item()),
+                "momentum": float(torch.sqrt(res_mom_x**2 + res_mom_y**2 + res_mom_z**2).reshape(-1)[0].item()),
+                "energy": float(torch.abs(res_energy).reshape(-1)[0].item())
             }
             weighted_res = (residuals_dict["continuity"] / 1e-4 + residuals_dict["momentum"] / 1e-4 + residuals_dict["energy"] / 1e-3) / 3.0
             credibility_score_pinn = float(100.0 / (1.0 + 0.05 * weighted_res))
@@ -487,9 +487,9 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                                 p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
                                 predictions_list.append({
                                     "time": simulated_time, "x": float(x_pos), "y": float(y_pos), "z": float(z_pos),
-                                    "pressure": float(p_p.item()), "velocity_u": float(u_p.item()), "velocity_v": float(v_p.item()), "velocity_w": float(w_p.item()),
-                                    "temperature": float(T_p.item()), "density": float(rho_p.item()),
-                                    "velocity_magnitude": float(torch.sqrt(u_p**2 + v_p**2 + w_p**2).item())
+                                    "pressure": float(p_p.reshape(-1)[0].item()), "velocity_u": float(u_p.reshape(-1)[0].item()), "velocity_v": float(v_p.reshape(-1)[0].item()), "velocity_w": float(w_p.reshape(-1)[0].item()),
+                                    "temperature": float(T_p.reshape(-1)[0].item()), "density": float(rho_p.reshape(-1)[0].item()),
+                                    "velocity_magnitude": float(torch.sqrt(u_p**2 + v_p**2 + w_p**2).reshape(-1)[0].item())
                                 })
 
         final_residuals = history[-1]["residuals"]

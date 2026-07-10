@@ -127,7 +127,7 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
       
       case 'ROCK_ELAST_STRESS':
         return {
-          title: 'Contrainte Élastique Rocheuse - Géomécanique',
+          title: 'Analyse de Contrainte Rocheuse - Deep Rock',
           icon: <AlertTriangle className="w-4 h-4" />,
           sections: [
             {
