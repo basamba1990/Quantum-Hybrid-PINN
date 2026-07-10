@@ -339,7 +339,8 @@ async def validate_3d(request: PredictionRequestV8):
         for i in range(N_points):
             u_raw, v_raw, w_raw, T_raw, rho_raw = u_s[i], v_s[i], w_s[i], T_s[i], rho_s[i]
             # ✅ FIX: Assurer que rho et T sont des tenseurs (1, 1) pour get_eos
-            p_raw = get_eos(current_model_v8.fluid_type, rho_raw.view(1, 1), T_raw.view(1, 1))
+            # On utilise reshape(-1, 1) ou view(-1, 1) pour s'assurer d'avoir la bonne forme même si l'entrée est un scalaire
+            p_raw = get_eos(current_model_v8.fluid_type, rho_raw.reshape(1, 1), T_raw.reshape(1, 1))
             predictions_profile.append({
                 "time": float(t), "x": float(x_samples[i].item()), "y": float(y_samples[i].item()), "z": float(z_samples[i].item()),
                 "pressure": clean_float(p_raw.item()), "velocity_u": clean_float(u_raw.item()),
