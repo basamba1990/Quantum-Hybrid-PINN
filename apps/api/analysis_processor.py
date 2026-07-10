@@ -104,14 +104,7 @@ class AnalysisProcessor:
             logger.info(f"[{job_id}] Running PINN simulation")
             job["progress"] = 40
             
-            pinn_results = await self._run_pinn_simulation(
-                physics_params,
-                request.projectId,
-                request.scenario_type
-            )
-                physics_params,
-                request.projectId
-            )
+            pinn_results = await self._run_pinn_simulation(physics_params, request.projectId, request.scenario_type)
             
             # Step 3: Validate results
             logger.info(f"[{job_id}] Validating simulation results")
