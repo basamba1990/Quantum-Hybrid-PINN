@@ -12,7 +12,7 @@ import Link from 'next/link'
 const SCENARIOS = [
   {
     id: 'H2_PIPELINE',
-    name: 'Pipeline Hydrogène',
+    name: 'Nouvelle Analyse',
     description: 'Simulation thermodynamique d\'un pipeline H₂ haute pression avec analyse de chute de pression et risque de fuite',
     icon: '🔬',
     color: 'from-blue-600 to-cyan-600'
