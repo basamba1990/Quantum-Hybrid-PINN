@@ -96,7 +96,9 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
       temperature: p.temperature,
       pressure: p.pressure,
       density: typeof p.density === 'number' ? p.density : undefined,
-      velocity_magnitude: typeof p.velocity_magnitude === 'number' ? p.velocity_magnitude : undefined
+      velocity_magnitude: typeof p.velocity_magnitude === 'number' ? p.velocity_magnitude : undefined,
+      stress: typeof p.stress === 'number' ? p.stress : undefined,
+      damage: typeof p.damage === 'number' ? p.damage : undefined
     }))
   }, [results])
 
