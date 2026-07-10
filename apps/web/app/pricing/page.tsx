@@ -6,6 +6,25 @@ import { Check, X, ArrowRight, Zap } from 'lucide-react'
 import { PaddleCheckout } from '@/components/paddle-checkout'
 
 export default function PricingPage() {
+  const [userEmail, setUserEmail] = React.useState('');
+
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const { createClient: createBrowserClient } = await import('@/lib/supabase/client');
+        const supabase = createBrowserClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserEmail(user.email || '');
+          console.log('✅ User email detected for Paddle:', user.email);
+        }
+      } catch (e) {
+        console.error('Failed to fetch user in PricingPage:', e);
+      }
+    };
+    fetchUser();
+  }, []);
+
   const plans = [
     {
       name: 'Researcher',
@@ -136,7 +155,7 @@ export default function PricingPage() {
                     }
                     planName={plan.name}
                     price={plan.price === 'Custom' ? 2499 : parseInt(plan.price.replace('$', '').replace(',', ''))}
-                    email=""
+                    email={userEmail}
                     onSuccess={() => {
                       window.location.href = '/dashboard?success=true'
                     }}

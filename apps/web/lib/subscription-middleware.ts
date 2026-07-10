@@ -24,6 +24,7 @@ export async function checkSubscription(
       .single();
 
     if (error || !data) {
+      // ✅ CORRECTIF V8.3 : Les nouveaux utilisateurs n'ont pas d'accès actif par défaut
       return {
         isActive: false,
         plan: 'free',
@@ -31,8 +32,11 @@ export async function checkSubscription(
       };
     }
 
+    // ✅ CORRECTIF V8.3 : Vérification stricte du statut actif
+    const isActive = data.status === 'active' || data.status === 'trialing';
+    
     return {
-      isActive: data.status === 'active',
+      isActive: isActive,
       plan: data.plan || 'free',
       status: data.status,
     };

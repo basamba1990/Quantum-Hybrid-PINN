@@ -130,23 +130,20 @@ export default function NewProjectPage() {
           if (newAnalysis) {
           try {
             const { data: { session } } = await supabase.auth.getSession();
-            // Appel asynchrone sans attendre la fin pour ne pas bloquer l'UI
-            fetch(
-              `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/verify-physics-logic`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-                },
-                body: JSON.stringify({
-                  projectId: newProject.id,
-                  analysisId: newAnalysis.id,
-                  transcription: formData.transcription,
-                  context: 'hydrogen_storage_auto',
-                }),
-              }
-            ).catch(err => console.error("Auto-analysis trigger failed:", err));
+            // ✅ CORRECTIF V8.3 : Utiliser l'API principale pour garantir l'unicité et le traitement réel
+            const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com';
+            
+            fetch(`${industrialApiUrl}/v2/submit-analysis`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                projectId: newProject.id,
+                analysisId: newAnalysis.id,
+                name: `Analyse auto: ${formData.name}`,
+                transcription: formData.transcription,
+                userId: user.id
+              })
+            }).catch(err => console.error("Auto-analysis trigger failed:", err));
             
             toast.info('Analyse physique PINN lancée en arrière-plan...');
           } catch (err) {
