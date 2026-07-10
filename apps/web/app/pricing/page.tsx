@@ -113,7 +113,7 @@ export default function PricingPage() {
             Choose the plan that fits your industrial needs. All plans include our core PINN V8.1 simulation engine.
           </p>
           <p className="text-sm text-slate-400 mb-8">
-            * Taxes may apply and will be calculated at checkout.
+            * All prices are in USD. Taxes may apply and will be calculated at checkout based on your billing country.
           </p>
         </div>
       </section>
@@ -238,7 +238,7 @@ export default function PricingPage() {
       {/* Footer */}
       <footer className="border-t border-blue-500/20 py-12 px-4 sm:px-6 lg:px-8 bg-slate-900">
         <div className="max-w-6xl mx-auto text-center text-slate-400 text-sm">
-          <p>© 2026 Quantum-Hybrid PINN. All rights reserved. Secure payments via Paddle.</p>
+          <p>© 2026 Quantum-Hybrid PINN. All rights reserved. Secure payments via Paddle. By subscribing, you agree to our Terms of Service and Privacy Policy.</p>
         </div>
       </footer>
     </div>
