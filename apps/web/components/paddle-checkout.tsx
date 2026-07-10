@@ -22,41 +22,34 @@ export function PaddleCheckout({
   useEffect(() => {
     const initPaddle = async () => {
       // Attendre que Paddle soit disponible sur window
-      if (typeof window !== 'undefined' && window.Paddle) {
-        try {
-          let token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN
-          
-          // ✅ CORRECTIF V8.2 : Fallback sur le token fourni par l'utilisateur
-          if (!token || token === 'undefined') {
-            token = 'live_ce999e230ab010638729f5f28bf'
-          }
-          
-          if (!token) {
+      if (typeof window !== 'undefined') {
+        // ✅ CORRECTIF V8.3 : Vérification plus robuste de l'objet Paddle
+        const checkPaddle = setInterval(async () => {
+          if (window.Paddle) {
+            clearInterval(checkPaddle);
             try {
-              const response = await fetch('/api/admin/payment-config-public')
-              const data = await response.json()
-              token = data.paddle_client_token
-            } catch (e) {
-              console.warn('Could not fetch payment config from API, using fallback if available')
+              let token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || 'live_ce999e230ab010638729f5f28bf';
+              
+              if (token) {
+                console.log('Initializing Paddle with token:', token.substring(0, 10) + '...');
+                window.Paddle.Initialize({
+                  token: token,
+                  eventCallback: (event: any) => {
+                    console.log('Paddle Event:', event.name, event);
+                    if (event.name === 'checkout.completed' || event.name === 'transaction.completed') {
+                      onSuccess?.()
+                    }
+                  }
+                });
+              }
+            } catch (err) {
+              console.error('Failed to initialize Paddle:', err);
             }
           }
-
-          if (token) {
-            console.log('Initializing Paddle with token:', token.substring(0, 10) + '...');
-            window.Paddle.Initialize({
-              token: token,
-              eventCallback: (event: any) => {
-                console.log('Paddle Event:', event.name, event);
-                if (event.name === 'checkout.completed') {
-                  onSuccess?.()
-                }
-              }
-            })
-          }
-        } catch (err) {
-          console.error('Failed to initialize Paddle:', err)
-          alert('Erreur d\'initialisation Paddle : ' + (err instanceof Error ? err.message : String(err)))
-        }
+        }, 500);
+        
+        // Timeout après 10s
+        setTimeout(() => clearInterval(checkPaddle), 10000);
       }
     }
 
@@ -98,11 +91,13 @@ export function PaddleCheckout({
         },
       }
 
-      // Ajouter l'email si fourni
+      // ✅ CORRECTIF V8.3 : S'assurer que l'email est passé
       if (email && email.trim()) {
         checkoutConfig.customer = {
-          email,
+          email: email.trim(),
         }
+      } else {
+        console.warn('Paddle: No user email provided for checkout tracking');
       }
 
       // Ouvrir le Paddle Checkout
