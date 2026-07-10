@@ -28,6 +28,8 @@ class AnalysisSubmissionRequest(BaseModel):
     transcription: Optional[str] = None
     description: Optional[str] = None
     userId: str
+    scenario_type: Optional[str] = "H2_PIPELINE"
+    scenario_inputs: Optional[Dict[str, Any]] = {}
 
 class AnalysisResponse(BaseModel):
     jobId: str
@@ -102,6 +104,10 @@ class AnalysisProcessor:
             job["progress"] = 40
             
             pinn_results = await self._run_pinn_simulation(
+                physics_params,
+                request.projectId,
+                request.scenario_type
+            )
                 physics_params,
                 request.projectId
             )
@@ -198,14 +204,14 @@ class AnalysisProcessor:
         }
         return params
     
-    async def _run_pinn_simulation(self, physics_params: Dict[str, Any], project_id: str) -> Dict[str, Any]:
+    async def _run_pinn_simulation(self, physics_params: Dict[str, Any], project_id: str, scenario_type: str = "H2_PIPELINE") -> Dict[str, Any]:
         """Run Industrial Hybrid PGD-PINN simulation (V8.3 - No Hardcoding)"""
         logger.info(f"Running Industrial Hybrid PGD-PINN simulation for project {project_id}")
         
         from scenario_engines import SCENARIO_ENGINES
         
         # Sélection du moteur approprié (par défaut pipeline pour cet endpoint)
-        engine = SCENARIO_ENGINES.get("H2_PIPELINE")
+        engine = SCENARIO_ENGINES.get(scenario_type, SCENARIO_ENGINES["H2_PIPELINE"])
         scenario_results = engine(physics_params)
         
         # Simulation de la convergence PINN basée sur les paramètres réels
@@ -320,8 +326,10 @@ class AnalysisProcessor:
             from datetime import datetime
             update_data = {
                 "status": status,
-                "score_de_credibilite": round(credibility_score * 100, 2) if credibility_score else None,
-                "updated_at": datetime.utcnow().isoformat()
+                "credibility_score": round(credibility_score * 100, 2) if credibility_score else None,
+                "results": results,
+                "updated_at": datetime.utcnow().isoformat(),
+                "scenario_type": results.get("scenario_type", "H2_PIPELINE")
             }
             
             # Update the analysis record in Supabase
