@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { Project, Report } from '@/types'
+import { Project, Report, Analysis } from '@/types'
 import dynamic from 'next/dynamic'
 import { format } from 'date-fns'
 import { 
@@ -63,19 +63,19 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
-  const [latestAnalysis, setLatestAnalysis] = useState<{ results?: any; scenario_type?: string } | null>(null)
+  const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
   const results = useMemo(() => {
     try {
-      if (!latestAnalysis?.results) return {}
+      if (!latestAnalysis?.results) return {} as any
       let parsedResults = latestAnalysis.results
       if (typeof parsedResults === 'string') parsedResults = JSON.parse(parsedResults)
-      return parsedResults || {}
+      return (parsedResults || {}) as any
     } catch (e) {
       console.error('Error parsing results:', e)
-      return {}
+      return {} as any
     }
   }, [latestAnalysis])
 
@@ -108,9 +108,9 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
   }, [results])
 
   const scenarioType = useMemo(() => {
-    const type = latestAnalysis?.scenario_type || (project?.category === 'Mining' ? 'ROCK_ELAST_STRESS' : (project?.description?.toLowerCase().includes('rock') ? 'ROCK_ELAST_STRESS' : 'H2_PIPELINE'))
+    const type = (latestAnalysis as any)?.scenario_type || (project?.category === 'Mining' ? 'ROCK_ELAST_STRESS' : (project?.description?.toLowerCase().includes('rock') ? 'ROCK_ELAST_STRESS' : 'H2_PIPELINE'))
     return type as 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION'
-  }, [latestAnalysis])
+  }, [latestAnalysis, project])
 
   const metricsData = useMemo(() => ({
     pressure: results?.pressure || 101.3,
