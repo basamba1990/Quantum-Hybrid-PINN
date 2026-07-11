@@ -77,11 +77,6 @@ function generatePipelineData(
     });
   }
   return data;
-});
-    }
-  }
-  
-  return data.slice(0, numPoints);
 }
 
 /**
