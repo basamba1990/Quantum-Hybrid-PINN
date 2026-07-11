@@ -333,7 +333,10 @@ export default function ScientificAuditCard({
             <Download className="w-4 h-4" />
             {isLoading ? 'Génération...' : 'Télécharger Rapport Scientifique'}
           </button>
-          <button className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors flex items-center justify-center gap-2">
+          <button
+            onClick={() => alert("Fonctionnalité 'Spécifications V8' à implémenter.")}
+            className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+          >
             <FileText className="w-4 h-4" />
             Spécifications V8
           </button>
