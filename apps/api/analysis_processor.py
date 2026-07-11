@@ -383,7 +383,7 @@ class AnalysisProcessor:
                 "credibility_score": round(credibility_score * 100, 2) if credibility_score else None,
                 "results": results,
                 "updated_at": datetime.utcnow().isoformat(),
-                "scenario_type": results.get("scenario_type", "H2_PIPELINE")
+                "scenario_type": results.get("scenario_outputs", {}).get("scenario_type", "H2_PIPELINE")
             }
             
             # Update the analysis record in Supabase
