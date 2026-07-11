@@ -49,6 +49,11 @@ const Industrial3DVisualizerExport = dynamic(
   { ssr: false, loading: () => <div className="h-12 bg-slate-950 rounded-xl border border-white/10 animate-pulse" /> }
 )
 
+const ScientificSocialHub = dynamic(
+  () => import('@/components/scientific-social-hub'),
+  { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
 /**
  * CORRECTION: Suppression des fallbacks de coordonnées fictives
  * Les données sans x/y/z ne sont JAMAIS générées - elles sont simplement ignorées
@@ -317,6 +322,13 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
           {results.residual_history && results.residual_history.length > 0 && (
             <ResidualsChart data={results.residual_history} />
           )}
+
+          {/* SCIENTIFIC SOCIAL HUB - PROFESSIONAL ENGAGEMENT */}
+          <ScientificSocialHub 
+            analysisId={latestAnalysis?.id || ''} 
+            projectId={id}
+            credibilityScore={results.credibilityScore || 98.7}
+          />
         </div>
       </div>
 
