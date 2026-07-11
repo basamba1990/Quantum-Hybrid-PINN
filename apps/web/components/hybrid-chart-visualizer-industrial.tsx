@@ -80,7 +80,7 @@ export default function HybridChartVisualizerIndustrial({
         const v = p.velocity_v ?? 0
         const w = p.velocity_w ?? 0
         return Math.sqrt(u ** 2 + v ** 2 + w ** 2)
-      }))
+      })
 
       // Densité
       const density = validPoints.map((p) => p.density ?? 1.0)
