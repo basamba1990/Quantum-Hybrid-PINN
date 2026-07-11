@@ -233,6 +233,7 @@ async def _process_hybrid_simulation(job_id: str, request: HybridSimulationReque
             "pgd_prediction_shape": str(results['pgd_prediction'].shape),
             "corrected_prediction_shape": str(results['corrected_prediction'].shape),
             "coherence_score": coherence_score,
+            "visualization_points": results.get('visualization_points', [])
         }
         job["coherence_score"] = coherence_score
         job["status"] = "completed"

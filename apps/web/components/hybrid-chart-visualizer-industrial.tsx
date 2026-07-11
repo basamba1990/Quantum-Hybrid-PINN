@@ -60,25 +60,27 @@ export default function HybridChartVisualizerIndustrial({
       const validPoints = predictions.filter(p => p !== null && typeof p === 'object')
       if (validPoints.length === 0) return null
 
-      // Extraction des données temporelles
-      const times = validPoints.map((p) => p.time ?? 0)
+            // Extraction des données temporelles
+      const times = validPoints.map((p, idx) => p.time ?? (idx * 0.1))
       
       // Pression (Pa -> bar)
       const pressure = validPoints.map((p) => {
         const rawP = p.pressure ?? 0
-        return rawP > 1000 ? rawP / 1e5 : rawP
+        // Si c'est déjà en bar (valeur faible), on garde, sinon on convertit
+        return rawP < 1000 ? rawP : rawP / 1e5
       })
 
-      // Température
-      const temperature = validPoints.map((p) => p.temperature ?? 0)
+      // Température (K)
+      const temperature = validPoints.map((p) => p.temperature ?? 293.15)
 
       // Vitesse (magnitude)
       const velocity = validPoints.map((p) => {
+        if (typeof p.velocity_magnitude === 'number') return p.velocity_magnitude
         const u = p.velocity_u ?? 0
         const v = p.velocity_v ?? 0
         const w = p.velocity_w ?? 0
         return Math.sqrt(u ** 2 + v ** 2 + w ** 2)
-      })
+      }))
 
       // Densité
       const density = validPoints.map((p) => p.density ?? 1.0)
@@ -167,19 +169,21 @@ export default function HybridChartVisualizerIndustrial({
     margin: { l: 70, r: 40, b: 70, t: 80 },
     autosize: true,
     hovermode: 'x unified' as const,
-    xaxis: {
+        xaxis: {
       zeroline: false,
-      gridcolor: 'rgba(100, 116, 139, 0.2)',
+      gridcolor: 'rgba(100, 116, 139, 0.1)',
       showgrid: true,
-      linecolor: '#64748b',
+      linecolor: '#1e293b',
       linewidth: 2,
+      title: { text: 'Temps (s)', font: { color: '#94a3b8' } }
     },
     yaxis: {
       zeroline: false,
-      gridcolor: 'rgba(100, 116, 139, 0.2)',
+      gridcolor: 'rgba(100, 116, 139, 0.1)',
       showgrid: true,
-      linecolor: '#64748b',
+      linecolor: '#1e293b',
       linewidth: 2,
+      title: { font: { color: '#94a3b8' } }
     },
   }
 
@@ -221,8 +225,22 @@ export default function HybridChartVisualizerIndustrial({
             layout={{
               ...industrialLayout,
               title: { text: `${title} – Pression (bar)`, font: { size: 16, color: '#ffffff' } },
-              xaxis: { ...industrialLayout.xaxis, title: 'Temps (s)' },
-              yaxis: { ...industrialLayout.yaxis, title: 'Pression (bar)' },
+                  xaxis: {
+      zeroline: false,
+      gridcolor: 'rgba(100, 116, 139, 0.1)',
+      showgrid: true,
+      linecolor: '#1e293b',
+      linewidth: 2,
+      title: { text: 'Temps (s)', font: { color: '#94a3b8' } }
+    },
+    yaxis: {
+      zeroline: false,
+      gridcolor: 'rgba(100, 116, 139, 0.1)',
+      showgrid: true,
+      linecolor: '#1e293b',
+      linewidth: 2,
+      title: { font: { color: '#94a3b8' } }
+    },
               annotations: generateAnnotations(chartData.pressure, statistics.pressureStd * 2, 'Anomalie Pression'),
             }}
             config={{ responsive: true, displayModeBar: true, toImageButtonOptions: { format: 'png', filename: 'pressure_analysis' } }}
@@ -251,8 +269,22 @@ export default function HybridChartVisualizerIndustrial({
             layout={{
               ...industrialLayout,
               title: { text: `${title} – Température (K)`, font: { size: 16, color: '#ffffff' } },
-              xaxis: { ...industrialLayout.xaxis, title: 'Temps (s)' },
-              yaxis: { ...industrialLayout.yaxis, title: 'Température (K)' },
+                  xaxis: {
+      zeroline: false,
+      gridcolor: 'rgba(100, 116, 139, 0.1)',
+      showgrid: true,
+      linecolor: '#1e293b',
+      linewidth: 2,
+      title: { text: 'Temps (s)', font: { color: '#94a3b8' } }
+    },
+    yaxis: {
+      zeroline: false,
+      gridcolor: 'rgba(100, 116, 139, 0.1)',
+      showgrid: true,
+      linecolor: '#1e293b',
+      linewidth: 2,
+      title: { font: { color: '#94a3b8' } }
+    },
               annotations: [
                 ...generateAnnotations(chartData.temperature, statistics.temperatureStd * 2, 'Anomalie Temp'),
                 ...(chartData.temperature[0] < 100 ? [{
@@ -296,8 +328,22 @@ export default function HybridChartVisualizerIndustrial({
             layout={{
               ...industrialLayout,
               title: { text: `${title} – Magnitude de Vitesse (m/s)`, font: { size: 16, color: '#ffffff' } },
-              xaxis: { ...industrialLayout.xaxis, title: 'Temps (s)' },
-              yaxis: { ...industrialLayout.yaxis, title: 'Vitesse (m/s)' },
+                  xaxis: {
+      zeroline: false,
+      gridcolor: 'rgba(100, 116, 139, 0.1)',
+      showgrid: true,
+      linecolor: '#1e293b',
+      linewidth: 2,
+      title: { text: 'Temps (s)', font: { color: '#94a3b8' } }
+    },
+    yaxis: {
+      zeroline: false,
+      gridcolor: 'rgba(100, 116, 139, 0.1)',
+      showgrid: true,
+      linecolor: '#1e293b',
+      linewidth: 2,
+      title: { font: { color: '#94a3b8' } }
+    },
               annotations: generateAnnotations(chartData.velocity, statistics.velocityStd * 2, 'Anomalie Vitesse'),
             }}
             config={{ responsive: true, displayModeBar: true, toImageButtonOptions: { format: 'png', filename: 'velocity_analysis' } }}
@@ -326,8 +372,22 @@ export default function HybridChartVisualizerIndustrial({
             layout={{
               ...industrialLayout,
               title: { text: `${title} – Densité (kg/m³)`, font: { size: 16, color: '#ffffff' } },
-              xaxis: { ...industrialLayout.xaxis, title: 'Temps (s)' },
-              yaxis: { ...industrialLayout.yaxis, title: 'Densité (kg/m³)' },
+                  xaxis: {
+      zeroline: false,
+      gridcolor: 'rgba(100, 116, 139, 0.1)',
+      showgrid: true,
+      linecolor: '#1e293b',
+      linewidth: 2,
+      title: { text: 'Temps (s)', font: { color: '#94a3b8' } }
+    },
+    yaxis: {
+      zeroline: false,
+      gridcolor: 'rgba(100, 116, 139, 0.1)',
+      showgrid: true,
+      linecolor: '#1e293b',
+      linewidth: 2,
+      title: { font: { color: '#94a3b8' } }
+    },
               annotations: generateAnnotations(chartData.density, statistics.densityStd * 2, 'Anomalie Densité'),
             }}
             config={{ responsive: true, displayModeBar: true, toImageButtonOptions: { format: 'png', filename: 'density_analysis' } }}

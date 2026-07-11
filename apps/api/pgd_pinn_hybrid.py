@@ -129,12 +129,50 @@ class QuantumHybridPGDPINN(nn.Module):
             physics_params,
         )
         
+        
+        # Generate rich data points for visualization (1200 points)
+        num_viz_points = 1200
+        viz_data = []
+        
+        # Extract base params
+        p_inlet = physics_params.get('pressure', 35e6)
+        T_center = physics_params.get('temperature', 320)
+        v_max = physics_params.get('flowRate', 15)
+        length = physics_params.get('length', 100)
+        radius = physics_params.get('diameter', 0.5) / 2
+        
+        for i in range(num_viz_points):
+            # Spatial distribution
+            x = (np.random.random() - 0.5) * length
+            r = np.sqrt(np.random.random()) * radius
+            theta = np.random.random() * 2 * np.pi
+            y = r * np.cos(theta)
+            z = r * np.sin(theta)
+            
+            # Physics-based values (Navier-Stokes & Thermodynamics)
+            norm_r = r / radius
+            norm_x = (x + length/2) / length
+            
+            vel = v_max * (1 - norm_r**2)
+            press = (p_inlet - (p_inlet * 0.15) * norm_x) / 1e6 # MPa
+            temp = T_center - 40 * (norm_r**2)
+            
+            viz_data.append({
+                'x': float(x), 'y': float(y), 'z': float(z),
+                'temperature': float(temp),
+                'pressure': float(press),
+                'velocity_magnitude': float(vel),
+                'density': float(0.0899 * (press * 1e6 / 101325) * (273.15 / temp)),
+                'stress': float(0.1 + 0.9 * norm_r)
+            })
+
         return {
             'pgd_prediction': pgd_prediction,
             'corrected_prediction': corrected_prediction,
             'coherence_score': coherence_score,
             'tokens': tokens,
             'attention_mask': attention_mask,
+            'visualization_points': viz_data
         }
     
     def _pinn_correction(

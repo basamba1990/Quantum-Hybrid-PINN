@@ -50,41 +50,34 @@ function generatePipelineData(
 ): DataPoint[] {
   const data: DataPoint[] = [];
   const radius = diameter / 2;
-  const pointsPerCross = Math.ceil(Math.sqrt(numPoints / (length / 10)));
-  const crossSections = Math.ceil(numPoints / pointsPerCross);
+  const v_max = 15;
+  const p_inlet = 35e6;
+  const p_outlet = 30e6;
   
-  const v_max = 15; // m/s - vitesse maximale au centre
-  const p_inlet = 35e6; // Pa - pression d'entrée (35 MPa)
-  const p_outlet = 30e6; // Pa - pression de sortie (30 MPa)
-  const T_base = 293.15; // K - température de base
-  
-  for (let i = 0; i < crossSections; i++) {
-    const x = (i / crossSections) * length - length / 2;
-    const axialPressure = p_inlet - (p_inlet - p_outlet) * (i / crossSections);
+  for (let i = 0; i < numPoints; i++) {
+    const x = (Math.random() - 0.5) * length;
+    const r = Math.sqrt(Math.random()) * radius;
+    const theta = Math.random() * 2 * Math.PI;
+    const y = r * Math.cos(theta);
+    const z = r * Math.sin(theta);
+    const normR = r / radius;
+    const velocity = v_max * (1 - normR * normR);
+    const normX = (x + length / 2) / length;
+    const pressure = p_inlet - (p_inlet - p_outlet) * normX;
+    const temp = 320 - 40 * (normR * normR);
     
-    for (let j = 0; j < pointsPerCross; j++) {
-      const angle = (j / pointsPerCross) * Math.PI * 2;
-      const radialDist = Math.random() * radius;
-      
-      // Profil parabolique de vitesse
-      const velocityProfile = v_max * (1 - Math.pow(radialDist / radius, 2));
-      
-      // Gradient thermique radial (refroidissement aux parois)
-      const wallTemp = 280; // K
-      const centerTemp = 320; // K
-      const tempProfile = centerTemp - (centerTemp - wallTemp) * Math.pow(radialDist / radius, 2);
-      
-      data.push({
-        x: x,
-        y: radialDist * Math.cos(angle),
-        z: radialDist * Math.sin(angle),
-        temperature: tempProfile,
-        pressure: axialPressure,
-        velocity_magnitude: velocityProfile,
-        velocity_u: velocityProfile,
-        density: 0.85, // kg/m³ - hydrogène
-        stress: 0.1 // MPa - contrainte faible
-      });
+    data.push({
+      x, y, z,
+      temperature: temp,
+      pressure: pressure / 1e6,
+      velocity_magnitude: velocity,
+      velocity_u: velocity,
+      density: 0.0899 * (pressure / 101325) * (273.15 / temp),
+      stress: 0.1 + 0.9 * normR
+    });
+  }
+  return data;
+});
     }
   }
   
@@ -103,42 +96,33 @@ function generateMiningData(
   numPoints: number = 1200
 ): DataPoint[] {
   const data: DataPoint[] = [];
-  
-  const rho = 2500; // kg/m³ - densité de la roche
-  const g = 9.81; // m/s²
-  const P0 = 101.3e3; // Pa - pression atmosphérique
-  const T_base = 293.15; // K
-  const geothermalGradient = 0.025; // K/m
-  
-  const galleryRadius = width * 0.15; // Rayon de la galerie
-  const galleryX = 0;
-  const galleryZ = -depth * 0.6;
+  const rho = 2500;
+  const g = 9.81;
+  const P0 = 101.3e3;
+  const T_base = 293.15;
+  const galleryRadius = width * 0.15;
   
   for (let i = 0; i < numPoints; i++) {
-    // Distribution uniforme dans le bloc
     const x = (Math.random() - 0.5) * width;
     const y = (Math.random() - 0.5) * height;
     const z = -Math.random() * depth;
+    const pressure = P0 + rho * g * Math.abs(z);
+    const temp = T_base + 0.025 * Math.abs(z);
+    const distToGallery = Math.sqrt(x*x + (z + depth*0.6)**2);
+    let stress = 10 * (1 + Math.max(0, 3 - distToGallery / galleryRadius));
+    let damage = distToGallery < galleryRadius * 1.5 ? 1 - distToGallery / (galleryRadius * 1.5) : 0;
     
-    // Gradient lithostatique
-    const lithostaticPressure = P0 + rho * g * Math.abs(z);
-    
-    // Gradient géothermique
-    const temperature = T_base + geothermalGradient * Math.abs(z);
-    
-    // Calcul de la distance à la galerie
-    const distToGallery = Math.sqrt(
-      Math.pow(x - galleryX, 2) + 
-      Math.pow(z - galleryZ, 2)
-    );
-    
-    // Concentration de contraintes autour de la galerie
-    let stress = 10; // MPa - contrainte de base
-    if (distToGallery < galleryRadius * 3) {
-      // Zone d'influence de la galerie
-      const stressConcentration = 1 + (3 - distToGallery / galleryRadius);
-      stress = 10 * Math.max(1, stressConcentration);
-    }
+    data.push({
+      x, y, z,
+      temperature: temp,
+      pressure: pressure / 1e6,
+      density: rho,
+      stress,
+      damage
+    });
+  }
+  return data;
+}
     
     // Dommages localisés
     let damage = 0;
