@@ -155,44 +155,37 @@ function generateLH2StorageData(
   numPoints: number = 1200
 ): DataPoint[] {
   const data: DataPoint[] = [];
-  
-  const T_center = 20; // K - centre extrêmement froid
-  const T_surface = 100; // K - surface légèrement moins froide
-  const P_base = 0.5e6; // Pa - pression de stockage (0.5 MPa)
-  const rho_lh2 = 71; // kg/m³ - densité du H2 liquide
+  const T_center = 20;
+  const T_surface = 100;
+  const P_base = 0.5e6;
+  const rho_lh2 = 71;
   
   for (let i = 0; i < numPoints; i++) {
-    // Distribution sphérique
     const u = Math.random();
     const v = Math.random();
     const theta = Math.acos(2 * u - 1);
     const phi = 2 * Math.PI * v;
-    
-    const r = Math.random() * radius;
+    const r = Math.pow(Math.random(), 1/3) * radius; // Distribution uniforme en volume
     
     const x = r * Math.sin(theta) * Math.cos(phi);
     const y = r * Math.sin(theta) * Math.sin(phi);
     const z = r * Math.cos(theta);
     
-    // Gradient thermique radial
-    const normalizedRadius = r / radius;
-    const temperature = T_surface - (T_surface - T_center) * Math.pow(1 - normalizedRadius, 2);
-    
-    // Pression quasi-uniforme (fluide)
-    const pressure = P_base + rho_lh2 * 9.81 * (radius - r) / 1000;
-    
-    // Stratification: densité augmente vers le centre (plus froid)
-    const density = rho_lh2 * (1 + 0.1 * (1 - normalizedRadius));
+    const normR = r / radius;
+    const temp = T_surface - (T_surface - T_center) * (1 - normR * normR);
+    const pressure = (P_base + rho_lh2 * 9.81 * (radius - z)) / 1e6; // MPa avec effet hydrostatique
+    const density = rho_lh2 * (1 + 0.05 * (1 - normR));
     
     data.push({
-      x: x,
-      y: y,
-      z: z,
-      temperature: temperature,
+      x, y, z,
+      temperature: temp,
       pressure: pressure,
       density: density,
-      velocity_magnitude: 0.1 // Mouvement de convection très faible
+      velocity_magnitude: 0.05 * (1 - normR) // Convection naturelle
     });
+  }
+  return data;
+});
   }
   
   return data;
@@ -208,17 +201,25 @@ function generateH2CompressionData(
   reservoirRadius: number,
   numPoints: number = 1200
 ): DataPoint[] {
-  const compressorPoints = Math.floor(numPoints * 0.6);
-  const reservoirPoints = numPoints - compressorPoints;
+  const compPoints = Math.floor(numPoints * 0.6);
+  const resPoints = numPoints - compPoints;
   
-  const compressorData = generatePipelineData(compressorLength, compressorDiameter, compressorPoints);
-  
-  // Décaler les points du compresseur
-  compressorData.forEach(p => {
+  const compData = generatePipelineData(compressorLength, compressorDiameter, compPoints);
+  compData.forEach(p => {
     p.x += compressorLength / 2 + reservoirRadius * 1.5;
-    p.pressure *= 1.5; // Augmentation de pression due à la compression
-    p.temperature += 50; // Échauffement dû à la compression
+    const normX = (p.x - reservoirRadius * 1.5) / compressorLength;
+    p.pressure *= (1 + 0.5 * normX); // Compression graduelle
+    p.temperature += 50 * normX; // Échauffement adiabatique
   });
+  
+  const resData = generateLH2StorageData(reservoirRadius, resPoints);
+  resData.forEach(p => {
+    p.x -= reservoirRadius * 1.5;
+    p.pressure *= 1.5; // Stockage haute pression
+  });
+  
+  return [...compData, ...resData];
+});
   
   const reservoirData = generateLH2StorageData(reservoirRadius, reservoirPoints);
   reservoirData.forEach(p => {
@@ -629,8 +630,9 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   useEffect(() => { if (isReady && sceneRef.current) { buildInfrastructure(sceneRef.current); updateDataLayers(sceneRef.current) } }, [isReady, buildInfrastructure, updateDataLayers])
 
   const formatVal = (v: number) => {
-    if (activeVariable === 'pressure') return `${(v / 1e6).toFixed(2)} MPa`
-    if (activeVariable === 'temperature') return `${(v - 273.15).toFixed(1)} °C`
+        if (activeVariable === 'pressure') return `${v.toFixed(2)} MPa`
+    if (activeVariable === 'temperature') return `${v.toFixed(1)} K`
+    if (activeVariable === 'density') return `${v.toFixed(2)} kg/m³`
     if (activeVariable === 'stress') return `${v.toFixed(2)} MPa`
     if (activeVariable === 'damage') return `${(v * 100).toFixed(1)} %`
     return v.toFixed(3)
