@@ -69,13 +69,13 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
 
   const results = useMemo(() => {
     try {
-      if (!latestAnalysis?.results) return {}
+      if (!latestAnalysis?.results) return {} as any
       let parsedResults = latestAnalysis.results
       if (typeof parsedResults === 'string') parsedResults = JSON.parse(parsedResults)
-      return parsedResults || {}
+      return (parsedResults || {}) as any
     } catch (e) {
       console.error('Error parsing results:', e)
-      return {}
+      return {} as any
     }
   }, [latestAnalysis])
 
