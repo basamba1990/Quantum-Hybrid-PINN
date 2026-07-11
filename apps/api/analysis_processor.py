@@ -367,8 +367,8 @@ class AnalysisProcessor:
             from supabase import create_client
             import os
             
-            supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL', '')
-            supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '')
+            supabase_url = os.environ.get('NEXT_PUBLIC_SUPABASE_URL') or os.environ.get('SUPABASE_URL', '')
+            supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or os.environ.get('SUPABASE_KEY') or os.environ.get('SUPABASE_SERVICE_KEY', '')
             
             if not supabase_url or not supabase_key:
                 logger.error("Supabase credentials not found in environment")
