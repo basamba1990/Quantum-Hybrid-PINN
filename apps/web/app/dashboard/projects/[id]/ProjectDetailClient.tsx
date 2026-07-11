@@ -254,7 +254,26 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
                 data={predictions3d}
                 title="3D Isosurface Visualization - Enhanced Clarity"
                 colorVariable="temperature"
-                onExport={(format) => console.log(`Exported to ${format}`)}
+                onExport={async (format) => {
+                  if (format === 'png') {
+                    // Logique d'export PNG (capture d'écran de la visualisation 3D)
+                    // Cela nécessiterait une interaction plus complexe avec le composant 3D lui-même
+                    // Pour l'instant, nous allons simuler un téléchargement ou une alerte
+                    alert('Export PNG 3D en cours de développement. Veuillez utiliser les outils de capture d\'écran de votre navigateur.');
+                  } else if (format === 'json') {
+                    const blob = new Blob([JSON.stringify(predictions3d, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${project.name.replace(/\s/g, '_')}_3d_data.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  } else if (format === 'pdf') {
+                    alert('Export PDF 3D en cours de développement. Nécessite un rendu côté serveur ou une bibliothèque plus avancée.');
+                  }
+                }}
               />
             </div>
           ) : (
@@ -284,16 +303,20 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
           )}
 
           {/* Scenario-Specific Metrics Panel */}
-          <ScenarioMetricsPanel 
-            scenarioType={scenarioType}
-            data={results}
-          />
+          {results.scenario_outputs && (
+            <ScenarioMetricsPanel 
+              scenarioType={scenarioType}
+              data={results.scenario_outputs}
+            />
+          )}
 
           {/* PINN Performance Monitor */}
           <PINNPerformanceMonitor isLive={true} />
 
           {/* Residuals Chart */}
-          <ResidualsChart />
+          {results.residual_history && results.residual_history.length > 0 && (
+            <ResidualsChart data={results.residual_history} />
+          )}
         </div>
       </div>
 

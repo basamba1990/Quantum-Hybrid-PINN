@@ -95,14 +95,40 @@ const Industrial3DVisualizerEnhanced: React.FC<Props> = ({ data = [] }) => {
         const mesh = new THREE.Mesh(geometry, material)
         scene.add(mesh)
 
-        data.filter((_, i) => i % 20 === 0).forEach(p => {
-          const v = p.velocity_magnitude || p.velocity || 1.0
-          const sphereGeo = new THREE.SphereGeometry(v * 0.2, 16, 16)
-          const sphereMat = new THREE.MeshPhongMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.3 })
-          const sphere = new THREE.Mesh(sphereGeo, sphereMat)
-          sphere.position.set(p.x, p.y, p.z)
-          scene.add(sphere)
-        })
+        // Rendu des points de données sans animation aléatoire
+        const pointsGeometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(data.length * 3);
+        const colors = new Float32Array(data.length * 3);
+
+        const tempRange = Math.max(...data.map(d => d.temperature)) - Math.min(...data.map(d => d.temperature));
+        const minTemp = Math.min(...data.map(d => d.temperature));
+
+        data.forEach((p, i) => {
+          positions[i * 3] = p.x;
+          positions[i * 3 + 1] = p.y;
+          positions[i * 3 + 2] = p.z;
+
+          const normalizedTemp = (p.temperature - minTemp) / tempRange;
+          const color = new THREE.Color();
+          color.setHSL(0.6 * (1 - normalizedTemp), 1, 0.5); // Bleu à Rouge
+          colors[i * 3] = color.r;
+          colors[i * 3 + 1] = color.g;
+          colors[i * 3 + 2] = color.b;
+        });
+
+        pointsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        pointsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const pointsMaterial = new THREE.PointsMaterial({
+          size: 0.1,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.8,
+          sizeAttenuation: true,
+        });
+
+        const points = new THREE.Points(pointsGeometry, pointsMaterial);
+        scene.add(points);
 
         const temps = data.map(d => d.temperature)
         const vels = data.map(d => d.velocity_magnitude || d.velocity || 0)
@@ -113,12 +139,16 @@ const Industrial3DVisualizerEnhanced: React.FC<Props> = ({ data = [] }) => {
         })
       }
 
-      const animate = () => {
-        animationFrameId = requestAnimationFrame(animate)
-        controls.update()
-        renderer.render(scene, camera)
-      }
-      animate()
+        const animate = () => {
+          animationFrameId = requestAnimationFrame(animate)
+          controls.update()
+          renderer.render(scene, camera)
+        }
+        // Exécuter l'animation une seule fois pour le rendu initial, puis mettre à jour via les contrôles
+        animate()
+        // Supprimer la mise à jour aléatoire des positions des points
+        // L'animation ne devrait plus modifier les données, seulement la vue
+
     }
 
     init()
