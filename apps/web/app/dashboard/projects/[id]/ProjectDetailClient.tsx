@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { Project, Report } from '@/types'
+import { Project, Report, Analysis } from '@/types'
 import dynamic from 'next/dynamic'
 import { format } from 'date-fns'
 import { 
@@ -63,7 +63,7 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
-  const [latestAnalysis, setLatestAnalysis] = useState<{ results?: any; scenario_type?: string } | null>(null)
+  const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
