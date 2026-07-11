@@ -96,16 +96,20 @@ def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor
     if fluid_type == 'H2':
         try:
             import CoolProp.CoolProp as CP
-            rho_np = rho.cpu().detach().numpy() if rho.is_cuda else rho.detach().numpy()
+                        rho_np = rho.cpu().detach().numpy() if rho.is_cuda else rho.detach().numpy()
             T_np = T.cpu().detach().numpy() if T.is_cuda else T.detach().numpy()
             
-            # Gestion du cas scalaire vs array
-            if np.isscalar(rho_np):
-                p_val = CP.PropsSI('P', 'T', float(T_np), 'Dmass', float(rho_np), 'H2')
-                return torch.tensor([p_val], device=rho.device).float()
+            # Aplatir les entrées pour CoolProp
+            original_shape = rho_np.shape
+            rho_flat = rho_np.flatten()
+            T_flat = T_np.flatten()
             
-            p_np = np.array([CP.PropsSI('P', 'T', T_np[i], 'Dmass', rho_np[i], 'H2') 
-                             for i in range(len(rho_np))])
+            # Calcul vectorisé ou boucle si nécessaire
+            p_flat = np.array([CP.PropsSI('P', 'T', T_flat[i], 'Dmass', rho_flat[i], 'H2') 
+                             for i in range(len(rho_flat))])
+            
+            # Remettre à la forme originale
+            p_np = p_flat.reshape(original_shape)
             return torch.from_numpy(p_np).to(rho.device).float()
             
         except ImportError:
