@@ -22,38 +22,16 @@ interface Props {
   colorVariable?: 'temperature' | 'pressure' | 'density' | 'stress' | 'damage';
 }
 
-/**
- * Industrial 3D Visualizer V10-GOLD - TRULY INDUSTRIAL PRODUCTION GRADE
- * 
- * CORRECTIONS INDUSTRIELLES RIGOUREUSES:
- * 1. Géométries Paramétriques Réelles: Cylindrique (pipeline), Bloc avec galerie (mining), Sphérique (LH2)
- * 2. Physique Spatiale Rigoureuse: Profil parabolique (pipeline), Gradient lithostatique (mining), Gradient thermique radial (LH2)
- * 3. 1200 Points de Données Fidèles: Chaque point reflète la réalité physique de l'infrastructure
- * 4. Suppression Animation Aléatoire: Stabilité industrielle garantie
- * 5. Exports PNG/PDF Opérationnels: Capture 3D complète avec rendu haute résolution
- * 6. Aucun Placeholder: Modèles mathématiques rigoureux uniquement
- */
-
 // ============================================================================
 // MODÈLES MATHÉMATIQUES INDUSTRIELS
 // ============================================================================
 
-/**
- * Génère des points de données pour un PIPELINE CYLINDRIQUE
- * Profil de vitesse parabolique: v(r) = v_max * (1 - (r/R)^2)
- * Chute de pression linéaire axiale
- */
-function generatePipelineData(
-  length: number,
-  diameter: number,
-  numPoints: number = 1200
-): DataPoint[] {
+function generatePipelineData(length: number, diameter: number, numPoints: number = 1200): DataPoint[] {
   const data: DataPoint[] = [];
   const radius = diameter / 2;
   const v_max = 15;
   const p_inlet = 35e6;
   const p_outlet = 30e6;
-  
   for (let i = 0; i < numPoints; i++) {
     const x = (Math.random() - 0.5) * length;
     const r = Math.sqrt(Math.random()) * radius;
@@ -65,7 +43,6 @@ function generatePipelineData(
     const normX = (x + length / 2) / length;
     const pressure = p_inlet - (p_inlet - p_outlet) * normX;
     const temp = 320 - 40 * (normR * normR);
-    
     data.push({
       x, y, z,
       temperature: temp,
@@ -79,24 +56,13 @@ function generatePipelineData(
   return data;
 }
 
-/**
- * Génère des points de données pour un BLOC MINIER AVEC GALERIE
- * Gradient de pression vertical (lithostatique): P(z) = P0 + ρ*g*z
- * Zones de dommages localisées autour des excavations
- */
-function generateMiningData(
-  depth: number,
-  width: number,
-  height: number,
-  numPoints: number = 1200
-): DataPoint[] {
+function generateMiningData(depth: number, width: number, height: number, numPoints: number = 1200): DataPoint[] {
   const data: DataPoint[] = [];
   const rho = 2500;
   const g = 9.81;
   const P0 = 101.3e3;
   const T_base = 293.15;
   const galleryRadius = width * 0.15;
-  
   for (let i = 0; i < numPoints; i++) {
     const x = (Math.random() - 0.5) * width;
     const y = (Math.random() - 0.5) * height;
@@ -106,7 +72,6 @@ function generateMiningData(
     const distToGallery = Math.sqrt(x*x + (z + depth*0.6)**2);
     let stress = 10 * (1 + Math.max(0, 3 - distToGallery / galleryRadius));
     let damage = distToGallery < galleryRadius * 1.5 ? 1 - distToGallery / (galleryRadius * 1.5) : 0;
-    
     data.push({
       x, y, z,
       temperature: temp,
@@ -118,115 +83,52 @@ function generateMiningData(
   }
   return data;
 }
-    
-    // Dommages localisés
-    let damage = 0;
-    if (distToGallery < galleryRadius * 1.5) {
-      damage = Math.max(0, 1 - distToGallery / (galleryRadius * 1.5));
-    }
-    
-    data.push({
-      x: x,
-      y: y,
-      z: z,
-      temperature: temperature,
-      pressure: lithostaticPressure,
-      density: rho,
-      stress: stress,
-      damage: damage
-    });
-  }
-  
-  return data;
-}
 
-/**
- * Génère des points de données pour un RÉSERVOIR SPHÉRIQUE LH2
- * Gradient thermique radial: T(r) = T_surface + (T_center - T_surface) * (1 - r/R)^2
- * Stratification cryogénique
- */
-function generateLH2StorageData(
-  radius: number,
-  numPoints: number = 1200
-): DataPoint[] {
+function generateLH2StorageData(radius: number, numPoints: number = 1200): DataPoint[] {
   const data: DataPoint[] = [];
   const T_center = 20;
   const T_surface = 100;
   const P_base = 0.5e6;
   const rho_lh2 = 71;
-  
   for (let i = 0; i < numPoints; i++) {
-    const u = Math.random();
-    const v = Math.random();
-    const theta = Math.acos(2 * u - 1);
-    const phi = 2 * Math.PI * v;
-    const r = Math.pow(Math.random(), 1/3) * radius; // Distribution uniforme en volume
-    
+    const theta = Math.acos(2 * Math.random() - 1);
+    const phi = 2 * Math.PI * Math.random();
+    const r = Math.pow(Math.random(), 1/3) * radius;
     const x = r * Math.sin(theta) * Math.cos(phi);
     const y = r * Math.sin(theta) * Math.sin(phi);
     const z = r * Math.cos(theta);
-    
     const normR = r / radius;
     const temp = T_surface - (T_surface - T_center) * (1 - normR * normR);
-    const pressure = (P_base + rho_lh2 * 9.81 * (radius - z)) / 1e6; // MPa avec effet hydrostatique
+    const pressure = (P_base + rho_lh2 * 9.81 * (radius - z)) / 1e6;
     const density = rho_lh2 * (1 + 0.05 * (1 - normR));
-    
     data.push({
       x, y, z,
       temperature: temp,
       pressure: pressure,
       density: density,
-      velocity_magnitude: 0.05 * (1 - normR) // Convection naturelle
+      velocity_magnitude: 0.05 * (1 - normR)
     });
   }
   return data;
-});
-  }
-  
-  return data;
 }
 
-/**
- * Génère des points de données pour une STATION DE COMPRESSION H2
- * Combinaison: cylindre (compresseur) + sphère (réservoir)
- */
-function generateH2CompressionData(
-  compressorLength: number,
-  compressorDiameter: number,
-  reservoirRadius: number,
-  numPoints: number = 1200
-): DataPoint[] {
+function generateH2CompressionData(compressorLength: number, compressorDiameter: number, reservoirRadius: number, numPoints: number = 1200): DataPoint[] {
   const compPoints = Math.floor(numPoints * 0.6);
   const resPoints = numPoints - compPoints;
-  
   const compData = generatePipelineData(compressorLength, compressorDiameter, compPoints);
   compData.forEach(p => {
     p.x += compressorLength / 2 + reservoirRadius * 1.5;
     const normX = (p.x - reservoirRadius * 1.5) / compressorLength;
-    p.pressure *= (1 + 0.5 * normX); // Compression graduelle
-    p.temperature += 50 * normX; // Échauffement adiabatique
+    p.pressure *= (1 + 0.5 * normX);
+    p.temperature += 50 * normX;
   });
-  
   const resData = generateLH2StorageData(reservoirRadius, resPoints);
   resData.forEach(p => {
     p.x -= reservoirRadius * 1.5;
-    p.pressure *= 1.5; // Stockage haute pression
+    p.pressure *= 1.5;
   });
-  
   return [...compData, ...resData];
-});
-  
-  const reservoirData = generateLH2StorageData(reservoirRadius, reservoirPoints);
-  reservoirData.forEach(p => {
-    p.x -= reservoirRadius * 1.5;
-  });
-  
-  return [...compressorData, ...reservoirData];
 }
-
-// ============================================================================
-// COMPOSANT PRINCIPAL
-// ============================================================================
 
 const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
   data = [],
