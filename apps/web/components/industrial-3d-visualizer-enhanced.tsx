@@ -72,35 +72,35 @@ const Industrial3DVisualizerEnhanced: React.FC<Props> = ({ data = [] }) => {
       scene.add(pointLight)
 
       if (data && data.length > 0) {
-        const points = data.map(p => new THREE.Vector3(p.x, p.y, p.z))
-        const curve = new THREE.CatmullRomCurve3(points)
-        const geometry = new THREE.TubeGeometry(curve, 100, 0.2, 8, false)
+        const curvePoints = data.map(p => new THREE.Vector3(p.x, p.y, p.z))
+        const curve = new THREE.CatmullRomCurve3(curvePoints)
+        const tubeGeometry = new THREE.TubeGeometry(curve, 100, 0.2, 8, false)
         
-        const colors = []
-        const color = new THREE.Color()
-        for (let i = 0; i < geometry.attributes.position.count; i++) {
-          const t = i / geometry.attributes.position.count
-          color.setHSL(0.6 * (1 - t), 1, 0.5)
-          colors.push(color.r, color.g, color.b)
+        const tubeColors = []
+        const tubeColor = new THREE.Color()
+        for (let i = 0; i < tubeGeometry.attributes.position.count; i++) {
+          const t = i / tubeGeometry.attributes.position.count
+          tubeColor.setHSL(0.6 * (1 - t), 1, 0.5)
+          tubeColors.push(tubeColor.r, tubeColor.g, tubeColor.b)
         }
-        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+        tubeGeometry.setAttribute('color', new THREE.Float32BufferAttribute(tubeColors, 3))
 
-        const material = new THREE.MeshPhongMaterial({ 
+        const tubeMaterial = new THREE.MeshPhongMaterial({ 
           vertexColors: true, 
           transparent: true, 
           opacity: 0.8,
           shininess: 100 
         })
         
-        const mesh = new THREE.Mesh(geometry, material)
-        scene.add(mesh)
+        const tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial)
+        scene.add(tubeMesh)
 
-        // Rendu des points de données sans animation aléatoire
+        // Rendu des points de données
         const pointsGeometry = new THREE.BufferGeometry();
         const positions = new Float32Array(data.length * 3);
         const colors = new Float32Array(data.length * 3);
 
-        const tempRange = Math.max(...data.map(d => d.temperature)) - Math.min(...data.map(d => d.temperature));
+        const tempRange = Math.max(...data.map(d => d.temperature)) - Math.min(...data.map(d => d.temperature)) || 1;
         const minTemp = Math.min(...data.map(d => d.temperature));
 
         data.forEach((p, i) => {
@@ -109,11 +109,11 @@ const Industrial3DVisualizerEnhanced: React.FC<Props> = ({ data = [] }) => {
           positions[i * 3 + 2] = p.z;
 
           const normalizedTemp = (p.temperature - minTemp) / tempRange;
-          const color = new THREE.Color();
-          color.setHSL(0.6 * (1 - normalizedTemp), 1, 0.5); // Bleu à Rouge
-          colors[i * 3] = color.r;
-          colors[i * 3 + 1] = color.g;
-          colors[i * 3 + 2] = color.b;
+          const pointColor = new THREE.Color();
+          pointColor.setHSL(0.6 * (1 - normalizedTemp), 1, 0.5); // Bleu à Rouge
+          colors[i * 3] = pointColor.r;
+          colors[i * 3 + 1] = pointColor.g;
+          colors[i * 3 + 2] = pointColor.b;
         });
 
         pointsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -127,8 +127,8 @@ const Industrial3DVisualizerEnhanced: React.FC<Props> = ({ data = [] }) => {
           sizeAttenuation: true,
         });
 
-        const points = new THREE.Points(pointsGeometry, pointsMaterial);
-        scene.add(points);
+        const pointsMesh = new THREE.Points(pointsGeometry, pointsMaterial);
+        scene.add(pointsMesh);
 
         const temps = data.map(d => d.temperature)
         const vels = data.map(d => d.velocity_magnitude || d.velocity || 0)
@@ -139,23 +139,19 @@ const Industrial3DVisualizerEnhanced: React.FC<Props> = ({ data = [] }) => {
         })
       }
 
-        const animate = () => {
-          animationFrameId = requestAnimationFrame(animate)
-          controls.update()
-          renderer.render(scene, camera)
-        }
-        // Exécuter l'animation une seule fois pour le rendu initial, puis mettre à jour via les contrôles
-        animate()
-        // Supprimer la mise à jour aléatoire des positions des points
-        // L'animation ne devrait plus modifier les données, seulement la vue
-
+      const animate = () => {
+        animationFrameId = requestAnimationFrame(animate)
+        if (controls) controls.update()
+        renderer.render(scene, camera)
+      }
+      animate()
     }
 
     init()
 
     const handleResize = () => {
       if (!containerRef.current || !renderer) return
-      // Mise à jour simplifiée pour éviter les erreurs de camera
+      // Update camera and renderer on resize if needed
     }
     window.addEventListener('resize', handleResize)
 
