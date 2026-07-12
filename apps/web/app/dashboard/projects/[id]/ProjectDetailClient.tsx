@@ -85,9 +85,12 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
    * Pas de valeurs par défaut pour les champs manquants
    */
   const predictions3d = useMemo(() => {
+    // Si results.predictions3d n'est pas un tableau, on retourne un tableau vide
+    // Le composant Industrial3DVisualizerEnhancedV5 gérera la génération de données fictives
     if (!Array.isArray(results?.predictions3d)) return []
     
-    const validPoints = (results.predictions3d as any[]).filter(p => {
+    return (results.predictions3d as any[]).filter(p => {
+      // On garde les points qui ont au moins des coordonnées spatiales
       return typeof p.x === 'number' && 
              typeof p.y === 'number' && 
              typeof p.z === 'number'
@@ -105,8 +108,6 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
       stress: typeof p.stress === 'number' ? p.stress : undefined,
       damage: typeof p.damage === 'number' ? p.damage : undefined
     }))
-
-    return validPoints
   }, [results])
 
   const scenarioType = useMemo(() => {
