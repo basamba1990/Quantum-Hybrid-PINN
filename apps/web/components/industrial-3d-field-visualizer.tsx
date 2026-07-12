@@ -386,11 +386,11 @@ const Industrial3DFieldVisualizer: React.FC<Props> = ({
       </div>
 
       <div className="relative flex gap-4">
-        <div ref={containerRef} className="flex-1 h-[600px] bg-slate-950 rounded-lg border-2 border-cyan-500/30 overflow-hidden shadow-2xl" />
+        <div ref={containerRef} className="flex-1 h-[600px] bg-[#020617] rounded-[32px] border border-white/10 overflow-hidden shadow-2xl" />
         
         {/* Échelle de couleur */}
         <div className="w-24 flex flex-col">
-          <div className="flex-1 rounded-lg overflow-hidden border-2 border-cyan-500/30 relative bg-gradient-to-t from-red-600 via-yellow-500 to-blue-600 shadow-lg">
+          <div className="flex-1 rounded-2xl overflow-hidden border border-white/10 relative bg-gradient-to-t from-red-600 via-yellow-500 to-blue-600 shadow-lg">
             <div className="absolute right-0 top-0 bottom-0 w-14 flex flex-col justify-between text-[9px] text-gray-300 pr-1">
               {[100, 75, 50, 25, 0].map((pct, idx) => (
                 <div key={idx} className="flex items-center gap-1">

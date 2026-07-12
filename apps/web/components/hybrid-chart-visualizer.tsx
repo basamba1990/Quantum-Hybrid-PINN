@@ -109,8 +109,8 @@ export default function HybridChartVisualizer({
   }
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-      <h3 className="text-lg font-semibold text-slate-800 mb-6">{title} - Courbes Temporelles</h3>
+    <div className="bg-transparent p-0">
+      <h3 className="text-sm font-black text-gray-500 uppercase tracking-[0.2em] mb-6">{title}</h3>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6">
@@ -139,11 +139,13 @@ export default function HybridChartVisualizer({
               },
             ]}
             layout={{
-              title: `${title} – Pression (bar)`,
-              xaxis: { title: 'Temps (s)', zeroline: false },
-              yaxis: { title: 'Pression (bar)', zeroline: false },
+              paper_bgcolor: 'rgba(0,0,0,0)',
+              plot_bgcolor: 'rgba(0,0,0,0)',
+              font: { color: '#94a3b8', family: 'Inter, sans-serif' },
+              xaxis: { title: 'TEMPS (S)', gridcolor: 'rgba(255,255,255,0.05)', zeroline: false },
+              yaxis: { title: 'BAR', gridcolor: 'rgba(255,255,255,0.05)', zeroline: false },
               hovermode: 'x unified',
-              margin: { l: 60, r: 40, b: 60, t: 60 },
+              margin: { l: 40, r: 20, b: 40, t: 20 },
               autosize: true,
             }}
             config={{ responsive: true, displayModeBar: true }}
