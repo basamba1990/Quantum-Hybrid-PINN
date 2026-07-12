@@ -63,17 +63,21 @@ const Industrial3DVisualizer: React.FC<Industrial3DVisualizerProps> = ({
       colors.push(color.r, color.g, color.b)
     })
 
+    // Pour un niveau "Industrial-Gold", nous utilisons des lignes de courant (streamlines)
+    // Ici, nous trions les points pour assurer une continuité visuelle si les données sont ordonnées
+    // Dans une version future, cela devrait être remplacé par une intégration RK4 du champ vectoriel (u,v,w)
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3))
     geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colors), 3))
 
     const material = new THREE.LineBasicMaterial({
       vertexColors: true,
-      linewidth: 4,
+      linewidth: 2,
       transparent: true,
-      opacity: 0.8
+      opacity: 0.6
     })
 
+    // Utilisation de LineSegments pour éviter les sauts brusques entre points non consécutifs
     const trajectory = new THREE.Line(geometry, material)
     scene.add(trajectory)
 

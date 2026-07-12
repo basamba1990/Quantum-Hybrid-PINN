@@ -87,24 +87,26 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
   const predictions3d = useMemo(() => {
     if (!Array.isArray(results?.predictions3d)) return []
     
-    return (results.predictions3d as any[]).filter(p => {
-      // Vérifier que les coordonnées spatiales sont présentes et valides
+    const validPoints = (results.predictions3d as any[]).filter(p => {
       return typeof p.x === 'number' && 
              typeof p.y === 'number' && 
-             typeof p.z === 'number' &&
-             typeof p.temperature === 'number' &&
-             typeof p.pressure === 'number'
+             typeof p.z === 'number'
     }).map(p => ({
       x: p.x,
       y: p.y,
       z: p.z,
-      temperature: p.temperature,
-      pressure: p.pressure,
+      temperature: typeof p.temperature === 'number' ? p.temperature : 293.15,
+      pressure: typeof p.pressure === 'number' ? p.pressure : 1.0,
       density: typeof p.density === 'number' ? p.density : undefined,
       velocity_magnitude: typeof p.velocity_magnitude === 'number' ? p.velocity_magnitude : undefined,
+      velocity_u: typeof p.velocity_u === 'number' ? p.velocity_u : undefined,
+      velocity_v: typeof p.velocity_v === 'number' ? p.velocity_v : undefined,
+      velocity_w: typeof p.velocity_w === 'number' ? p.velocity_w : undefined,
       stress: typeof p.stress === 'number' ? p.stress : undefined,
       damage: typeof p.damage === 'number' ? p.damage : undefined
     }))
+
+    return validPoints
   }, [results])
 
   const scenarioType = useMemo(() => {
@@ -247,14 +249,13 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
         {/* Center - 3D Visualizer & Metrics */}
         <div className="xl:col-span-3 space-y-8">
           {/* 3D Visualizer with Enhanced Clarity and Streamlines */}
-          {predictions3d.length > 0 ? (
-            <div className="space-y-4">
-              <Industrial3DVisualizerEnhancedV5 
-                data={predictions3d} 
-                title="3D Industrial Simulation - Adaptive Geometry"
-                scenarioType={scenarioType}
-                colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'stress' : 'temperature'}
-              />
+          <div className="space-y-4">
+            <Industrial3DVisualizerEnhancedV5 
+              data={predictions3d} 
+              title="3D Industrial Simulation - Adaptive Geometry"
+              scenarioType={scenarioType}
+              colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'stress' : 'temperature'}
+            />
               <Industrial3DVisualizerExport
                 data={predictions3d}
                 title="3D Isosurface Visualization - Enhanced Clarity"
@@ -280,28 +281,20 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
                   }
                 }}
               />
-            </div>
-          ) : (
-            <div className="h-[600px] bg-slate-950 rounded-3xl border border-white/10 flex items-center justify-center">
-              <div className="text-center space-y-4">
-                <div className="text-6xl">📊</div>
-                <p className="text-gray-400 font-mono text-sm uppercase tracking-widest">No 3D Data Available</p>
-                <p className="text-gray-600 text-xs max-w-xs">Run an analysis to generate 3D simulation results with complete spatial coordinates.</p>
-              </div>
-            </div>
-          )}
+          </div>
 
           {/* 2D Analysis Charts with Export */}
           {predictions3d.length > 0 && (
             <HybridChartVisualizerExport
               data={predictions3d.map((p: any, i: number) => ({
-                name: `Point ${i + 1}`,
+                name: p.x !== undefined ? `X: ${p.x.toFixed(2)}` : `P ${i + 1}`,
                 temperature: p.temperature,
                 pressure: p.pressure,
                 density: p.density || 1.0,
-                velocity: p.velocity_magnitude || 0.0
-              }))}
-              title="2D Analysis - Temperature, Pressure, Density & Velocity"
+                velocity: p.velocity_magnitude || 0.0,
+                coord: p.x
+              })).sort((a, b) => (a.coord || 0) - (b.coord || 0))}
+              title="Analyse Spatiale - Profil de Propriétés Physiques"
               variables={['temperature', 'pressure', 'density', 'velocity']}
               showExport={true}
             />
