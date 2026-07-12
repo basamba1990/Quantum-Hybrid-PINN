@@ -110,7 +110,9 @@ def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor
             
             # Remettre à la forme originale
             p_np = p_flat.reshape(original_shape)
-            return torch.from_numpy(p_np).to(rho.device).float()
+            p_torch = torch.from_numpy(p_np).to(rho.device).float()
+            p_torch.requires_grad_(True)
+            return p_torch
             
         except ImportError:
             if not _coolprop_warned:
