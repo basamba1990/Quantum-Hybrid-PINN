@@ -70,9 +70,9 @@ const Industrial3DFieldVisualizer: React.FC<Props> = ({
 
         const width = containerRef.current!.clientWidth
         const height = containerRef.current!.clientHeight
-        const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000)
-        camera.position.set(10, 5, 10)
-        camera.lookAt(6, 0, 6)
+        const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 2000)
+        camera.position.set(15, 15, 15)
+        cameraRef.current = camera
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
         renderer.setSize(width, height)
@@ -275,6 +275,16 @@ const Industrial3DFieldVisualizer: React.FC<Props> = ({
 
     sceneRef.current.add(cageGroup)
     cageRef.current = cageGroup
+
+    // RECENTRER LA CAMÉRA SUR LE DOMAINE RÉEL
+    if (cameraRef.current && controlsRef.current) {
+      const center = new THREE.Vector3((xMin + xMax) / 2, (yMin + yMax) / 2, (zMin + zMax) / 2)
+      const size = Math.max(xMax - xMin, yMax - yMin, zMax - zMin)
+      cameraRef.current.position.set(center.x + size, center.y + size, center.z + size)
+      controlsRef.current.target.copy(center)
+      cameraRef.current.lookAt(center)
+      controlsRef.current.update()
+    }
 
     // CRÉER LES POINTS DE DONNÉES AVEC COLORIMÉTRIE SCIENTIFIQUE
     const geometry = new THREE.BufferGeometry()

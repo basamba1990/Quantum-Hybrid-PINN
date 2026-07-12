@@ -455,6 +455,8 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             z_tensor = torch.tensor([[float(simulated_z)]], dtype=torch.float32, device=current_model_v8.device).requires_grad_(True)
 
             rho_pinn, u_pinn, v_pinn, w_pinn, T_pinn = current_model_v8.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
+            p_pinn = get_eos(current_model_v8.fluid_type, rho_pinn, T_pinn)
+            
             res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
                 t_tensor, x_tensor, y_tensor, z_tensor, rho_pinn, u_pinn, v_pinn, w_pinn, T_pinn, scale_dict=current_model_v8.scales
             )
@@ -468,11 +470,20 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             credibility_score_pinn = float(100.0 / (1.0 + 0.05 * weighted_res))
             history.append({"iteration": i, "time": simulated_time, "residuals": residuals_dict, "credibility_score": credibility_score_pinn})
 
+            # AJOUT: Enregistrer l'évolution temporelle au point de contrôle pour les graphiques 2D
+            predictions_list.append({
+                "time": simulated_time, "x": float(simulated_x), "y": float(simulated_y), "z": float(simulated_z),
+                "pressure": float(p_pinn.reshape(-1)[0].item()), "velocity_u": float(u_pinn.reshape(-1)[0].item()), 
+                "velocity_v": float(v_pinn.reshape(-1)[0].item()), "velocity_w": float(w_pinn.reshape(-1)[0].item()),
+                "temperature": float(T_pinn.reshape(-1)[0].item()), "density": float(rho_pinn.reshape(-1)[0].item()),
+                "velocity_magnitude": float(torch.sqrt(u_pinn**2 + v_pinn**2 + w_pinn**2).reshape(-1)[0].item())
+            })
+
             if i == num_steps - 1:
-                # Échantillonnage spatial haute fidélité (adaptatif selon la géométrie)
-                z_levels = np.linspace(-2.0, 2.0, 8) # Étendu pour couvrir le domaine réel
-                theta_steps = np.linspace(0, 2*np.pi, 12)
-                radius_levels = [0.2, 0.5, 0.8, 1.0] # Échantillonnage radial multi-couches
+                # Échantillonnage spatial haute fidélité final
+                z_levels = np.linspace(-5.0, 5.0, 10)
+                theta_steps = np.linspace(0, 2*np.pi, 8)
+                radius_levels = [0.0, 0.5, 1.0]
                 
                 with torch.no_grad():
                     for z_pos in z_levels:
@@ -487,7 +498,8 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                                 p_p = get_eos(current_model_v8.fluid_type, rho_p, T_p)
                                 predictions_list.append({
                                     "time": simulated_time, "x": float(x_pos), "y": float(y_pos), "z": float(z_pos),
-                                    "pressure": float(p_p.reshape(-1)[0].item()), "velocity_u": float(u_p.reshape(-1)[0].item()), "velocity_v": float(v_p.reshape(-1)[0].item()), "velocity_w": float(w_p.reshape(-1)[0].item()),
+                                    "pressure": float(p_p.reshape(-1)[0].item()), "velocity_u": float(u_p.reshape(-1)[0].item()), 
+                                    "velocity_v": float(v_p.reshape(-1)[0].item()), "velocity_w": float(w_p.reshape(-1)[0].item()),
                                     "temperature": float(T_p.reshape(-1)[0].item()), "density": float(rho_p.reshape(-1)[0].item()),
                                     "velocity_magnitude": float(torch.sqrt(u_p**2 + v_p**2 + w_p**2).reshape(-1)[0].item())
                                 })
