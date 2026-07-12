@@ -139,9 +139,14 @@ const Industrial3DFieldVisualizer: React.FC<Props> = ({
 
   // Mettre à jour les données et créer la cage + axes
   useEffect(() => {
-    if (!sceneRef.current || !data.length) return
+    console.log("Industrial3DFieldVisualizer Data Received:", data?.length);
+    if (!sceneRef.current || !data || !data.length) {
+      console.log("Industrial3DFieldVisualizer: No scene or no data.");
+      return
+    }
 
     const pointsToUse = data.slice(0, maxPointsDisplay)
+    console.log("Industrial3DFieldVisualizer: Rendering points:", pointsToUse.length);
     
     // Calculer les limites spatiales
     const xMin = Math.min(...pointsToUse.map(p => p.x))

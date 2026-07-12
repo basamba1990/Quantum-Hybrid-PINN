@@ -51,8 +51,15 @@ export default function AnalysisDetailPage() {
           }
         }
 
-        // ✅ Correction: Assurer que le score est récupéré même s'il est dans results
+        // ✅ Correction: Assurer que le score et les résultats sont correctement structurés
         const score = data.credibility_score ?? results?.credibility_score ?? results?.credibilityScore ?? 0;
+        
+        // S'assurer que predictions3d existe
+        if (results && !results.predictions3d && results.predictions) {
+          results.predictions3d = results.predictions;
+        }
+
+        console.log("Analysis Data Loaded:", { id: data.id, score, hasPredictions: !!results?.predictions3d });
         
         setAnalysis({
           ...data,
