@@ -10,7 +10,8 @@ import {
   LogOut,
   ChevronRight,
   Zap,
-  BarChart3
+  BarChart3,
+  FileText
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
