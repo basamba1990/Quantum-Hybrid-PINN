@@ -96,7 +96,7 @@ def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor
     if fluid_type == 'H2':
         try:
             import CoolProp.CoolProp as CP
-                        rho_np = rho.cpu().detach().numpy() if rho.is_cuda else rho.detach().numpy()
+            rho_np = rho.cpu().detach().numpy() if rho.is_cuda else rho.detach().numpy()
             T_np = T.cpu().detach().numpy() if T.is_cuda else T.detach().numpy()
             
             # Aplatir les entrées pour CoolProp
