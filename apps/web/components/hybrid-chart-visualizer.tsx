@@ -46,13 +46,17 @@ export default function HybridChartVisualizer({
       const seenTimes = new Set()
       
       for (const p of validPoints) {
-        if (!seenTimes.has(p.time)) {
-          seenTimes.add(p.time)
-          uniqueTimePoints.push(p)
+        const t = typeof p.time === 'number' ? p.time : parseFloat(p.time);
+        if (!isNaN(t) && !seenTimes.has(t)) {
+          seenTimes.add(t);
+          uniqueTimePoints.push({ ...p, time: t });
         }
       }
 
-      const times = uniqueTimePoints.map((p) => p.time ?? 0)
+      // Trier par temps pour s'assurer que les courbes sont correctes
+      uniqueTimePoints.sort((a, b) => a.time - b.time);
+
+      const times = uniqueTimePoints.map((p) => p.time)
       
       // Pression (conversion Pa -> bar si nécessaire)
       const pressure = uniqueTimePoints.map((p) => {
