@@ -53,10 +53,32 @@ const Streamline3DVisualizer: React.FC<StreamlineProps> = ({
       let pw = p.velocity_w
 
       if (pu === undefined && p.velocity_magnitude !== undefined) {
-        // Hypothèse de flux laminaire axial pour pipeline si composantes absentes
-        pu = p.velocity_magnitude
-        pv = 0
-        pw = 0
+        // LOGIQUE MULTI-SCÉNARIO INDUSTRIELLE
+        // Nous déterminons la direction du flux en fonction de la géométrie locale
+        // si les vecteurs u,v,w ne sont pas fournis par le solveur PINN.
+        
+        const rSq = p.y**2 + p.z**2;
+        const r = Math.sqrt(rSq);
+        
+        // Cas 1: PIPELINE (Flux principalement axial X)
+        if (Math.abs(p.x) > r) {
+          pu = p.velocity_magnitude;
+          pv = 0;
+          pw = 0;
+        } 
+        // Cas 2: RÉSERVOIR SPHÉRIQUE / LH2 (Convection radiale/thermique)
+        else if (r > 0.1) {
+          // Simulation d'un vortex de convection interne
+          pu = p.velocity_magnitude * (p.y / r);
+          pv = p.velocity_magnitude * (-p.x / r);
+          pw = p.velocity_magnitude * 0.1;
+        }
+        // Cas 3: MINE / GÉOMÉTRIE COMPLEXE (Diffusion isotrope)
+        else {
+          pu = p.velocity_magnitude * 0.577; // 1/sqrt(3)
+          pv = p.velocity_magnitude * 0.577;
+          pw = p.velocity_magnitude * 0.577;
+        }
       }
       
       u_interp += (pu || 0) * weight
