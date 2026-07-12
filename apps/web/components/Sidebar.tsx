@@ -22,6 +22,7 @@ const menuItems = [
   { icon: FlaskConical, label: 'Simulations', href: '/dashboard/simulations' },
   { icon: BarChart3, label: 'Benchmark 3D', href: '/dashboard/benchmarks' },
   { icon: MessageSquare, label: 'Assistant IA', href: '/dashboard/assistant' },
+  { icon: FileText, label: 'Média', href: '/dashboard/media' },
   { icon: History, label: 'Projets', href: '/dashboard' },
   { icon: Zap, label: 'Tarification', href: '/pricing' },
   { icon: Settings, label: 'Paramètres', href: '/dashboard/settings' },
