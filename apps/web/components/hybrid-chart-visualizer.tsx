@@ -39,18 +39,30 @@ export default function HybridChartVisualizer({
       const validPoints = predictions.filter(p => p !== null && typeof p === 'object')
       if (validPoints.length === 0) return null
 
-      // Extraction des données temporelles
-      const times = validPoints.map((p) => p.time ?? 0)
+      // Extraction des données temporelles - FILTRAGE POUR ÉVITER L'ÉCRASEMENT
+      // On ne garde que les points qui ont des temps uniques pour les graphiques temporels
+      // Les points spatiaux du dernier pas de temps sont exclus des courbes 2D
+      const uniqueTimePoints = []
+      const seenTimes = new Set()
+      
+      for (const p of validPoints) {
+        if (!seenTimes.has(p.time)) {
+          seenTimes.add(p.time)
+          uniqueTimePoints.push(p)
+        }
+      }
+
+      const times = uniqueTimePoints.map((p) => p.time ?? 0)
       
       // Pression (conversion Pa -> bar si nécessaire)
-      const pressure = validPoints.map((p) => {
+      const pressure = uniqueTimePoints.map((p) => {
         const rawP = p.pressure ?? 0
         return rawP > 1000 ? rawP / 1e5 : rawP
       })
 
       // Température (gestion des deux échelles : K brut et K converti)
-      const temperatureBrut = validPoints.map((p) => p.temperature ?? 0)
-      const temperatureConverted = validPoints.map((p) => {
+      const temperatureBrut = uniqueTimePoints.map((p) => p.temperature ?? 0)
+      const temperatureConverted = uniqueTimePoints.map((p) => {
         const rawT = p.temperature ?? 0
         // Si la température est très basse (< 100K), c'est du liquide cryogénique
         if (rawT < 100) {
@@ -60,7 +72,7 @@ export default function HybridChartVisualizer({
       })
 
       // Vitesse (magnitude)
-      const velocity = validPoints.map((p) => {
+      const velocity = uniqueTimePoints.map((p) => {
         const u = p.velocity_u ?? 0
         const v = p.velocity_v ?? 0
         const w = p.velocity_w ?? 0
@@ -68,7 +80,7 @@ export default function HybridChartVisualizer({
       })
 
       // Densité
-      const density = validPoints.map((p) => p.density ?? 1.0)
+      const density = uniqueTimePoints.map((p) => p.density ?? 1.0)
 
       return {
         times,
