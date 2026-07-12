@@ -49,6 +49,16 @@ const Industrial3DVisualizerExport = dynamic(
   { ssr: false, loading: () => <div className="h-12 bg-slate-950 rounded-xl border border-white/10 animate-pulse" /> }
 )
 
+const Streamline3DVisualizer = dynamic(
+  () => import('@/components/streamline-3d-visualizer'),
+  { ssr: false, loading: () => <div className="h-[600px] bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
+const ScientificProfileChart = dynamic(
+  () => import('@/components/scientific-profile-chart'),
+  { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
 const ScientificSocialHub = dynamic(
   () => import('@/components/scientific-social-hub'),
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
@@ -286,19 +296,32 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
 
           {/* 2D Analysis Charts with Export */}
           {predictions3d.length > 0 && (
-            <HybridChartVisualizerExport
-              data={predictions3d.map((p: any, i: number) => ({
-                name: p.x !== undefined ? `X: ${p.x.toFixed(2)}` : `P ${i + 1}`,
-                temperature: p.temperature,
-                pressure: p.pressure,
-                density: p.density || 1.0,
-                velocity: p.velocity_magnitude || 0.0,
-                coord: p.x
-              })).sort((a, b) => (a.coord || 0) - (b.coord || 0))}
-              title="Analyse Spatiale - Profil de Propriétés Physiques"
-              variables={['temperature', 'pressure', 'density', 'velocity']}
-              showExport={true}
-            />
+            <div className="space-y-8">
+              <ScientificProfileChart
+                data={predictions3d}
+                title="Profil Spatial des Propriétés Physiques - Industrial-Gold"
+                xVariable="x"
+              />
+              
+              <Streamline3DVisualizer
+                data={predictions3d}
+                title="Trajectoires de Courant (Streamlines) - Analyse Vectorielle"
+              />
+
+              <HybridChartVisualizerExport
+                data={predictions3d.map((p: any, i: number) => ({
+                  name: p.x !== undefined ? `X: ${p.x.toFixed(2)}` : `P ${i + 1}`,
+                  temperature: p.temperature,
+                  pressure: p.pressure,
+                  density: p.density || 1.0,
+                  velocity: p.velocity_magnitude || 0.0,
+                  coord: p.x
+                })).sort((a, b) => (a.coord || 0) - (b.coord || 0))}
+                title="Analyse Spatiale - Benchmark Comparatif"
+                variables={['temperature', 'pressure', 'density', 'velocity']}
+                showExport={true}
+              />
+            </div>
           )}
 
           {/* Scenario-Specific Metrics Panel */}
