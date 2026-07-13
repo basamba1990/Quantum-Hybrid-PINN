@@ -125,7 +125,7 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
                (project?.category === 'Mining' ? 'ROCK_ELAST_STRESS' : 
                (project?.description?.toLowerCase().includes('rock') ? 'ROCK_ELAST_STRESS' : 
                (project?.name?.toLowerCase().includes('heatsink') || project?.description?.toLowerCase().includes('heatsink') ? 'FPGA_HEATSINK' : 'H2_PIPELINE')));
-    return type as 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK'
+    return type as 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK' | 'SALT_CAVERN_STORAGE'
   }, [latestAnalysis, project])
 
   const metricsData = useMemo(() => ({

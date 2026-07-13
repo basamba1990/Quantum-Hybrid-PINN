@@ -4,7 +4,7 @@ import React from 'react'
 import { Gauge, Droplets, Wind, Zap, AlertTriangle, Shield } from 'lucide-react'
 
 interface ScenarioMetricsPanelProps {
-  scenarioType: 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION';
+  scenarioType: 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK' | 'SALT_CAVERN_STORAGE';
   data?: Record<string, any>;
 }
 
@@ -161,6 +161,40 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
               items: [
                 { label: 'Score de Cohérence', value: data.coherenceScore, unit: '/100', color: 'text-emerald-400' },
                 { label: 'Statut', value: data.status === 'ANOMALIE' ? '⚠️ ANOMALIE' : '✅ NORMAL', unit: '', color: data.status === 'ANOMALIE' ? 'text-red-400' : 'text-emerald-400' },
+              ]
+            }
+          ]
+        }
+
+      case 'FPGA_HEATSINK':
+        return {
+          title: 'Refroidissement FPGA - Analyse Thermique',
+          icon: <Zap className="w-4 h-4" />,
+          sections: [
+            {
+              category: 'THERMIQUE & DISSIPATION',
+              items: [
+                { label: 'Température Max', value: data.maxTemperature, unit: '°C', color: 'text-red-400' },
+                { label: 'Résistance Thermique', value: data.thermalResistance, unit: 'K/W', color: 'text-blue-400' },
+                { label: 'Flux de Chaleur', value: data.heatFlux, unit: 'W/m²', color: 'text-orange-400' },
+                { label: 'Efficacité dissipateur', value: data.efficiency, unit: '%', color: 'text-emerald-400' },
+              ]
+            }
+          ]
+        }
+
+      case 'SALT_CAVERN_STORAGE':
+        return {
+          title: 'Stockage Cavité Saline - Fluage & Stabilité',
+          icon: <Droplets className="w-4 h-4" />,
+          sections: [
+            {
+              category: 'GÉOMÉCANIQUE & FLUAGE',
+              items: [
+                { label: 'Taux de Fluage', value: data.creepRate, unit: '1/s', color: 'text-purple-400' },
+                { label: 'Contrainte Von Mises', value: data.vonMisesStress, unit: 'MPa', color: 'text-red-400' },
+                { label: 'Pression Interne', value: data.internalPressure, unit: 'bar', color: 'text-blue-400' },
+                { label: 'Convergence Cavité', value: data.convergence, unit: '%', color: 'text-orange-400' },
               ]
             }
           ]
