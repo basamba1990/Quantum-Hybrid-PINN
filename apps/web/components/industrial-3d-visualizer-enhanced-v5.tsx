@@ -13,7 +13,7 @@ interface DataPoint {
   damage?: number;
 }
 
-type ScenarioType = 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION';
+type ScenarioType = 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK';
 
 interface Props {
   data?: DataPoint[];
@@ -173,6 +173,8 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         return generateLH2StorageData(50, 1200);
       case 'H2_COMPRESSION_STATION':
         return generateH2CompressionData(300, 0.4, 40, 1200);
+      case 'FPGA_HEATSINK':
+        return generatePipelineData(0.1, 0.05, 1200); // Placeholder pour les points
       default:
         return generatePipelineData(500, 0.5, 1200);
     }
@@ -296,6 +298,27 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         const sphereMesh = new THREE.Mesh(sphereGeom, industrialMat)
         sphereMesh.position.set(center.x + 50, center.y, center.z)
         group.add(sphereMesh)
+        break
+      }
+      case 'FPGA_HEATSINK': {
+        // Base du dissipateur
+        const baseGeom = new THREE.BoxGeometry(size.x, size.y * 0.2, size.z)
+        const baseMesh = new THREE.Mesh(baseGeom, industrialMat)
+        baseMesh.position.set(center.x, min.y + size.y * 0.1, center.z)
+        group.add(baseMesh)
+        
+        // Ailettes (Fins)
+        const numFins = 8
+        const finThickness = size.x / (numFins * 2)
+        const finHeight = size.y * 0.8
+        for (let i = 0; i < numFins; i++) {
+          const finGeom = new THREE.BoxGeometry(finThickness, finHeight, size.z)
+          const finMesh = new THREE.Mesh(finGeom, industrialMat)
+          const posX = min.x + (i * 2 + 1) * finThickness
+          finMesh.position.set(posX, min.y + size.y * 0.6, center.z)
+          group.add(finMesh)
+          group.add(new THREE.LineSegments(new THREE.EdgesGeometry(finGeom), wireframeMat).copy(finMesh))
+        }
         break
       }
       default: {
