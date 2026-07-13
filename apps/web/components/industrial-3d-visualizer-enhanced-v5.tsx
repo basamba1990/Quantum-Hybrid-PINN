@@ -369,27 +369,22 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     scene.add(group)
   }, [generatedData, activeVariable, stats])
 
-  // Export PNG opérationnel
+  // Export PNG opérationnel et dynamique
   const exportToPNG = useCallback(async () => {
     if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return
     
     setIsExporting(true)
     try {
-      const width = containerRef.current?.clientWidth || 1920
-      const height = containerRef.current?.clientHeight || 1080
+      rendererRef.current.render(sceneRef.current, cameraRef.current)
+      const canvas = rendererRef.current.domElement
+      const dataURL = canvas.toDataURL('image/png')
       
-      const exportRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true })
-      exportRenderer.setSize(width * 2, height * 2)
-      exportRenderer.setPixelRatio(2)
-      exportRenderer.render(sceneRef.current, cameraRef.current)
-      
-      const canvas = exportRenderer.domElement
       const link = document.createElement('a')
-      link.href = canvas.toDataURL('image/png')
-      link.download = `3d-visualization-${scenarioType}-${Date.now()}.png`
+      link.download = `QuantumHybrid_3D_${scenarioType}_${new Date().toISOString().slice(0,10)}.png`
+      link.href = dataURL
+      document.body.appendChild(link)
       link.click()
-      
-      exportRenderer.dispose()
+      document.body.removeChild(link)
     } catch (err) {
       console.error('Export PNG failed:', err)
     } finally {
@@ -397,21 +392,14 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     }
   }, [scenarioType])
 
-  // Export PDF opérationnel
+  // Export PDF opérationnel et dynamique
   const exportToPDF = useCallback(async () => {
     if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return
     
     setIsExporting(true)
     try {
-      const width = containerRef.current?.clientWidth || 1920
-      const height = containerRef.current?.clientHeight || 1080
-      
-      const exportRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true })
-      exportRenderer.setSize(width * 2, height * 2)
-      exportRenderer.setPixelRatio(2)
-      exportRenderer.render(sceneRef.current, cameraRef.current)
-      
-      const canvas = exportRenderer.domElement
+      rendererRef.current.render(sceneRef.current, cameraRef.current)
+      const canvas = rendererRef.current.domElement
       const imgData = canvas.toDataURL('image/png')
       
       const { jsPDF } = await import('jspdf')
@@ -425,22 +413,13 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
       const imgHeight = (canvas.height * imgWidth) / canvas.width
       
       pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight)
-      pdf.setProperties({
-        title: title,
-        subject: '3D Industrial Visualization',
-        author: 'Quantum Hybrid PINN V10-GOLD',
-        keywords: 'visualization, 3d, industrial',
-        creator: 'Industrial 3D Visualizer'
-      })
-      
-      pdf.save(`3d-visualization-${scenarioType}-${Date.now()}.pdf`)
-      exportRenderer.dispose()
+      pdf.save(`QuantumHybrid_Audit_${scenarioType}_${new Date().toISOString().slice(0,10)}.pdf`)
     } catch (err) {
       console.error('Export PDF failed:', err)
     } finally {
       setIsExporting(false)
     }
-  }, [title, scenarioType])
+  }, [scenarioType])
 
   // Export JSON opérationnel
   const exportToJSON = useCallback(() => {
