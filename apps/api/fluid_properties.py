@@ -78,6 +78,18 @@ FLUID_CONFIGS = {
         'params': {
             'rho': 2500.0, 'E': 50e9, 'nu': 0.25
         }
+    },
+    'BRINE': {
+        'name': 'Brine (Saumure)',
+        'R_specific': 461.5, # J/(kg·K) - Eau
+        'mu': 1.2e-3,        # Pa·s
+        'k': 0.6,            # W/(m·K)
+        'Cp': 3900.0,        # J/(kg·K)
+        'gamma': 1.01,
+        'eos_type': 'liquid_brine',
+        'params': {
+            'rho_ref': 1200.0, 'K_bulk': 2.2e9
+        }
     }
 }
 
@@ -147,6 +159,11 @@ def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor
         rho_ref = params.get('rho', 2500.0)
         E = params.get('E', 50e9)
         return E * (rho / rho_ref - 1.0)
+        
+    elif config['eos_type'] == 'liquid_brine':
+        rho_ref = params.get('rho_ref', 1200.0)
+        K = params.get('K_bulk', 2.2e9)
+        return K * (rho / rho_ref - 1.0)
         
     else:
         return rho * R * T * (1 + 0.1 * (rho / params.get('rho_c', 1.0)))
