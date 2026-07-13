@@ -314,6 +314,12 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     grid.material.transparent = true
     group.add(grid)
 
+    // Axes de coordonnées pour une cohérence scientifique "Industrial-Gold"
+    const axesHelper = new THREE.AxesHelper(Math.max(size.x, size.y, size.z) * 0.5)
+    axesHelper.position.copy(min)
+    group.add(axesHelper)
+
+    // Labellisation des axes (X=Rouge, Y=Vert, Z=Bleu)
     scene.add(group)
   }, [scenarioType, domainBounds])
 
