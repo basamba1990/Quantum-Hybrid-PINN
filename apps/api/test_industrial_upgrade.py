@@ -38,7 +38,7 @@ async def test_industrial_pinn():
     
     await processor.process_analysis(job_id, request)
     job_results = processor.jobs[job_id]['results']
-    print(f"✅ Analyse terminée. Score de crédibilité: {job_results['credibilityScore']:.2%}")
+    print(f"✅ Analyse terminée. Score de crédibilité: {job_results['credibilityScore']:.2f}%")
     print(f"✅ Nombre de points 3D générés: {len(job_results['predictions3d'])}")
 
 if __name__ == "__main__":
