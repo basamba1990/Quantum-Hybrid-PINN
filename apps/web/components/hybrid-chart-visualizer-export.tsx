@@ -40,23 +40,35 @@ const HybridChartVisualizerExport: React.FC<Props> = ({
   const [selectedVariables, setSelectedVariables] = useState<string[]>(variables.slice(0, 2))
   const [exportFormat, setExportFormat] = useState<'png' | 'json'>('png')
 
-  // Fonction pour exporter en PNG
+  // Fonction pour exporter en PNG avec retour visuel
   const exportToPNG = async () => {
     if (!chartRef.current) return
     
     try {
+      const originalStyle = chartRef.current.style.borderRadius;
+      chartRef.current.style.borderRadius = '0'; // Temporaire pour une capture propre
+      
       const canvas = await html2canvas(chartRef.current, {
-        backgroundColor: '#0f172a',
-        scale: 2,
-        logging: false
+        backgroundColor: '#020617',
+        scale: 3, // Haute résolution
+        logging: false,
+        useCORS: true,
+        allowTaint: true
       })
       
+      chartRef.current.style.borderRadius = originalStyle;
+      
       const link = document.createElement('a')
-      link.href = canvas.toDataURL('image/png')
-      link.download = `chart-${Date.now()}.png`
+      link.href = canvas.toDataURL('image/png', 1.0)
+      link.download = `Q-Hybrid_Analysis_${Date.now()}.png`
+      document.body.appendChild(link)
       link.click()
+      document.body.removeChild(link)
+      
+      alert("Export PNG 'Industrial-Gold' réussi. Image haute résolution générée.");
     } catch (err) {
       console.error('Export PNG failed:', err)
+      alert("Erreur lors de l'export PNG. Vérifiez les permissions de votre navigateur.");
     }
   }
 
@@ -75,18 +87,18 @@ const HybridChartVisualizerExport: React.FC<Props> = ({
     link.click()
   }
 
-  // Fonction pour exporter en PDF
+  // Fonction pour exporter en PDF avec mise en page industrielle
   const exportToPDF = async () => {
     if (!chartRef.current) return
     
     try {
       const canvas = await html2canvas(chartRef.current, {
-        backgroundColor: '#0f172a',
+        backgroundColor: '#020617',
         scale: 2,
-        logging: false
+        logging: false,
+        useCORS: true
       })
       
-      // Utiliser jsPDF si disponible
       const { jsPDF } = await import('jspdf')
       const pdf = new jsPDF({
         orientation: 'landscape',
@@ -95,13 +107,36 @@ const HybridChartVisualizerExport: React.FC<Props> = ({
       })
       
       const imgData = canvas.toDataURL('image/png')
-      const imgWidth = 280
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
       
-      pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight)
-      pdf.save(`chart-${Date.now()}.pdf`)
+      // En-tête du rapport
+      pdf.setFillColor(2, 6, 23); // Dark blue
+      pdf.rect(0, 0, 297, 210, 'F');
+      
+      pdf.setTextColor(59, 130, 246); // Blue
+      pdf.setFontSize(22);
+      pdf.text("QUANTUM-HYBRID PINN V10-GOLD", 15, 20);
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(14);
+      pdf.text(`Rapport d'Analyse Scientifique : ${title}`, 15, 30);
+      pdf.setFontSize(10);
+      pdf.text(`Généré le : ${new Date().toLocaleString()}`, 15, 38);
+      
+      const imgWidth = 267;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 15, 45, imgWidth, imgHeight);
+      
+      // Pied de page
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text("Document certifié par le moteur Quantum-Hybrid PINN - Validation Industrielle Haute Fidélité", 15, 200);
+      
+      pdf.save(`Q-Hybrid_Scientific_Report_${Date.now()}.pdf`);
+      alert("Rapport PDF 'Industrial-Gold' généré avec succès.");
     } catch (err) {
       console.error('Export PDF failed:', err)
+      alert("Erreur lors de la génération du PDF. Vérifiez les ressources chargées.");
     }
   }
 

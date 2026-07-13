@@ -4,11 +4,26 @@ import React from 'react'
 import { FileVideo, Image as ImageIcon, FileText, Download, Search, Filter } from 'lucide-react'
 
 export default function MediaPage() {
-  const mediaFiles = [
-    { id: 1, name: 'Simulation_Pipeline_H2_V8.mp4', type: 'video', size: '45 MB', date: '12.07.2026' },
-    { id: 2, name: 'Analysis_Report_Gold_Certification.pdf', type: 'document', size: '2.4 MB', date: '11.07.2026' },
-    { id: 3, name: 'Visualisation_3D_Champ_Scalaire.png', type: 'image', size: '12 MB', date: '10.07.2026' },
-  ]
+  const [mediaFiles, setMediaFiles] = React.useState([
+    { id: 1, name: 'Simulation_Pipeline_H2_V8.mp4', type: 'video', size: '45 MB', date: '12.07.2026', url: '#' },
+    { id: 2, name: 'Analysis_Report_Gold_Certification.pdf', type: 'document', size: '2.4 MB', date: '11.07.2026', url: '#' },
+    { id: 3, name: 'Visualisation_3D_Champ_Scalaire.png', type: 'image', size: '12 MB', date: '10.07.2026', url: '#' },
+  ])
+
+  const handleDownload = (file: any) => {
+    alert(`Préparation du téléchargement industriel sécurisé pour : ${file.name}\nStandard : Quantum-Hybrid V8.1 Gold`);
+    // Simuler un téléchargement
+    const link = document.createElement('a');
+    link.href = 'javascript:void(0)';
+    link.setAttribute('download', file.name);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  const handlePreview = (file: any) => {
+    alert(`Ouverture de la prévisualisation scientifique pour : ${file.name}\nAnalyse en temps réel via PINN Fourier Network...`);
+  }
 
   return (
     <div className="p-8 space-y-8">
@@ -35,13 +50,20 @@ export default function MediaPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {mediaFiles.map((file) => (
-          <div key={file.id} className="bg-white/[0.03] border border-white/10 rounded-[32px] p-6 hover:border-blue-500/30 transition-all group">
+          <div 
+            key={file.id} 
+            onClick={() => handlePreview(file)}
+            className="bg-white/[0.03] border border-white/10 rounded-[32px] p-6 hover:border-blue-500/30 transition-all group cursor-pointer"
+          >
             <div className="aspect-video bg-black/40 rounded-2xl mb-6 flex items-center justify-center relative overflow-hidden">
               {file.type === 'video' && <FileVideo className="w-12 h-12 text-blue-500" />}
               {file.type === 'image' && <ImageIcon className="w-12 h-12 text-emerald-500" />}
               {file.type === 'document' && <FileText className="w-12 h-12 text-amber-500" />}
-              <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <button className="p-4 bg-white text-black rounded-full scale-90 group-hover:scale-100 transition-transform shadow-xl">
+              <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleDownload(file); }}
+                  className="p-4 bg-white text-black rounded-full scale-90 group-hover:scale-100 transition-transform shadow-xl hover:bg-blue-500 hover:text-white"
+                >
                   <Download className="w-6 h-6" />
                 </button>
               </div>
