@@ -70,8 +70,8 @@ const Industrial3DFieldVisualizer: React.FC<Props> = ({
 
         const width = containerRef.current!.clientWidth
         const height = containerRef.current!.clientHeight
-        const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 2000)
-        camera.position.set(15, 15, 15)
+        const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 3000)
+        camera.position.set(10, 10, 10) // Vue plus rapprochée par défaut
         cameraRef.current = camera
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
