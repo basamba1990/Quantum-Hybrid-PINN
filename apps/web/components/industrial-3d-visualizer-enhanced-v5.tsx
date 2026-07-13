@@ -573,14 +573,31 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
           <div>FPS: {stats.fps}</div>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={exportToPNG} disabled={isExporting} className="hover:text-white transition-colors disabled:opacity-50" title="Export PNG">
-            <Download className="w-4 h-4" />
+          <button 
+            onClick={exportToPNG} 
+            disabled={isExporting} 
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10 group disabled:opacity-50"
+          >
+            <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : 'group-hover:translate-y-0.5'}`} />
+            <span className="text-[10px] font-black uppercase tracking-widest">PNG</span>
           </button>
-          <button onClick={exportToPDF} disabled={isExporting} className="hover:text-white transition-colors disabled:opacity-50" title="Export PDF">
-            <Maximize2 className="w-4 h-4" />
+          
+          <button 
+            onClick={exportToPDF} 
+            disabled={isExporting} 
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10 group disabled:opacity-50"
+          >
+            <Maximize2 className={`w-4 h-4 ${isExporting ? 'animate-pulse' : 'group-hover:scale-110'}`} />
+            <span className="text-[10px] font-black uppercase tracking-widest">PDF</span>
           </button>
-          <button onClick={exportToJSON} disabled={isExporting} className="hover:text-white transition-colors disabled:opacity-50" title="Export JSON">
-            <Database className="w-4 h-4" />
+          
+          <button 
+            onClick={exportToJSON} 
+            disabled={isExporting} 
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10 group disabled:opacity-50"
+          >
+            <Database className="w-4 h-4 group-hover:rotate-12" />
+            <span className="text-[10px] font-black uppercase tracking-widest">JSON</span>
           </button>
         </div>
       </div>
