@@ -215,13 +215,18 @@ class GenericPINNSolver(nn.Module):
         H_y = self._safe_grad(H, y)
         H_z = self._safe_grad(H, z)
 
-        convective_energy_term = rho_t * H + rho * H_t + \n                                 self._safe_grad(rho * u * H, x, create_graph=True) + \n                                 self._safe_grad(rho * v * H, y, create_graph=True) + \n                                 self._safe_grad(rho * w * H, z, create_graph=True)
+        convective_energy_term = (rho_t * H + rho * H_t + 
+                                 self._safe_grad(rho * u * H, x, create_graph=True) + 
+                                 self._safe_grad(rho * v * H, y, create_graph=True) + 
+                                 self._safe_grad(rho * w * H, z, create_graph=True))
 
         # Termes de travail de la pression (∇ ⋅ (pu))
         pu = p * u
         pv = p * v
         pw = p * w
-        pressure_work_term = self._safe_grad(pu, x, create_graph=True) + \n                             self._safe_grad(pv, y, create_graph=True) + \n                             self._safe_grad(pw, z, create_graph=True)
+        pressure_work_term = (self._safe_grad(pu, x, create_graph=True) + 
+                             self._safe_grad(pv, y, create_graph=True) + 
+                             self._safe_grad(pw, z, create_graph=True))
 
         # Termes de travail visqueux (∇ ⋅ (u ⋅ τ))
         u_tau_x = u * tau_xx + v * tau_xy + w * tau_xz
