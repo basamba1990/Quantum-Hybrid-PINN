@@ -3,6 +3,7 @@ import uvicorn
 import numpy as np
 import gc
 import torch
+import asyncio
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -191,9 +192,13 @@ kalman_filter = None
 model_path = os.getenv("MODEL_PATH", "models/pinn_model.pt")
 
 @app.on_event("startup")
-async def load_pinn_model():
+async def startup_event():
+    # Lancer le chargement lourd en arrière-plan pour ne pas bloquer le démarrage de Render
+    asyncio.create_task(load_pinn_model_background())
+
+async def load_pinn_model_background():
     global current_model_v8, risk_manager, fno_orchestrator, kalman_filter
-    print("🚀 Démarrage de l'API Industrielle...")
+    print("🚀 Démarrage du chargement asynchrone des modèles...")
     
     try:
         from fno_pipeline_orchestrator import FNOPipelineOrchestrator
@@ -239,22 +244,26 @@ async def load_pinn_model():
         salt_cavern_physics_instance = SaltCavernPhysics(params=default_geometry_params) if default_geometry_type == "salt_cavern" else None
         current_model_v8 = HydrogenPINNTFCV8(fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params, salt_cavern_physics=salt_cavern_physics_instance)
 
-    print("⚖️ Calcul des échelles de normalisation...")
-    device = current_model_v8.device
-    N_samples = 200
-    with torch.enable_grad():
-        t_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
-        x_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
-        y_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
-        z_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
-        rho_t, u_t, v_t, w_t, T_t = current_model_v8.pinn_model(t_temp, x_temp, y_temp, z_temp)
-        _, _, _, _, _, scales = current_model_v8.pinn_model.compute_residuals(
-            t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t, scale_dict=None
-        )
-        current_model_v8.scales = scales
-        print(f"✅ Échelles calculées : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
-        del t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t
-        gc.collect()
+    if current_model_v8:
+        print("⚖️ Calcul des échelles de normalisation...")
+        device = current_model_v8.device
+        N_samples = 200
+        try:
+            with torch.enable_grad():
+                t_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
+                x_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
+                y_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
+                z_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
+                rho_t, u_t, v_t, w_t, T_t = current_model_v8.pinn_model(t_temp, x_temp, y_temp, z_temp)
+                _, _, _, _, _, scales = current_model_v8.pinn_model.compute_residuals(
+                    t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t, scale_dict=None
+                )
+                current_model_v8.scales = scales
+                print(f"✅ Échelles calculées : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
+                del t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t
+                gc.collect()
+        except Exception as e:
+            print(f"⚠️ Erreur calcul échelles: {e}")
 
         risk_manager = IndustrialRiskManager(current_model_v8)
         ood_stats_path = os.path.join(os.path.dirname(model_path), "ood_stats.npz")
