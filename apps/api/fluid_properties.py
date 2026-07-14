@@ -64,6 +64,19 @@ FLUID_CONFIGS = {
             'Tc': 304.1, 'Pc': 7.38e6, 'rho_c': 467.6
         }
     },
+    'brine': {
+        'name': 'Brine',
+        'R_specific': 287.0,        # J/(kg·K) (approx. air, for ideal gas approx)
+        'mu': 1.2e-3,               # Pa·s (viscosity of brine, ~water)
+        'k': 0.6,                   # W/(m·K) (thermal conductivity of brine, ~water)
+        'Cp': 4000.0,               # J/(kg·K) (specific heat of brine, ~water)
+        'gamma': 1.0,               # Incompressible liquid approximation
+        'eos_type': 'incompressible_liquid',
+        'params': {
+            'rho_ref': 1200.0,      # kg/m³ (reference density for brine)
+            'bulk_modulus': 2.2e9   # Pa (bulk modulus of water)
+        }
+    },
     'generique': {
         'name': 'Roche générique',
         'density': 2500.0,          # kg/m³
@@ -147,6 +160,13 @@ def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor
         rho_ref = params.get('rho', 2500.0)
         E = params.get('E', 50e9)
         return E * (rho / rho_ref - 1.0)
+    
+    elif config['eos_type'] == 'incompressible_liquid':
+        rho_ref = params.get('rho_ref', 1000.0)
+        bulk_modulus = params.get('bulk_modulus', 2.2e9)
+        # Simplified equation of state for incompressible liquid (pressure depends on density deviation)
+        p = bulk_modulus * (rho / rho_ref - 1.0)
+        return p
         
     else:
         return rho * R * T * (1 + 0.1 * (rho / params.get('rho_c', 1.0)))

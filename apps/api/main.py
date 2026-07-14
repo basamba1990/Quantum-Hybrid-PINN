@@ -11,18 +11,23 @@ from datetime import datetime
 from supabase import create_client, Client
 
 try:
-    from hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as HydrogenPINNV8, get_device
+    from hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8, get_device
+    from geometry_handler import GeometryHandler
     from deep_kalman_filter import DeepKalmanFilter
+    
     from cfd_validation_service import CFDValidationService
     from scenario_engines import SCENARIO_ENGINES
     from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
     from fluid_properties import get_eos
+    from salt_cavern_physics import SaltCavernPhysics
     from industrial_risk_manager import IndustrialRiskManager
     from analysis_processor import router as analysis_router, init_processor
     from pgd_pinn_api import router as pgd_pinn_router
 except ImportError:
-    from .hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as HydrogenPINNV8, get_device
+    from .hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8, get_device
+    from .geometry_handler import GeometryHandler
     from .deep_kalman_filter import DeepKalmanFilter
+    
     from .cfd_validation_service import CFDValidationService
     from .scenario_engines import SCENARIO_ENGINES
     from .pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
@@ -121,6 +126,7 @@ class PredictionRequestV8(BaseModel):
     project_id: Optional[str] = None
     transcription: Optional[str] = None
     scenario_type: Optional[str] = "H2_PIPELINE"
+    fluid_type: Optional[str] = "H2"
     scan_spatial: Optional[bool] = False
     n_points: Optional[int] = 10
 
@@ -205,24 +211,33 @@ async def load_pinn_model():
         print(f"⚠️ Erreur initialisation Kalman: {e}")
 
     print("📦 Chargement du modèle PINN...")
+    
+    # Default geometry for initial load
+    default_geometry_type = "pipeline"
+    default_geometry_params = {"radius": 0.5, "length": 12.0}
+    
     try:
         downloaded = await download_model_from_supabase(model_path)
         if downloaded and os.path.exists(model_path):
-            current_model_v8 = HydrogenPINNV8(layers=[4, 128, 128, 128, 5], geometry_type="pipeline")
+            salt_cavern_physics_instance = SaltCavernPhysics(params=default_geometry_params) if default_geometry_type == "salt_cavern" else None
+            current_model_v8 = HydrogenPINNTFCV8(layers=[4, 128, 128, 128, 5], fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params, salt_cavern_physics=salt_cavern_physics_instance)
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("✅ Modèle PINN chargé depuis Supabase.")
         elif os.path.exists(model_path):
-            current_model_v8 = HydrogenPINNV8(layers=[4, 128, 128, 128, 5], geometry_type="pipeline")
+            salt_cavern_physics_instance = SaltCavernPhysics(params=default_geometry_params) if default_geometry_type == "salt_cavern" else None
+            current_model_v8 = HydrogenPINNTFCV8(layers=[4, 128, 128, 128, 5], fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params, salt_cavern_physics=salt_cavern_physics_instance)
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("✅ Modèle PINN chargé localement.")
         else:
-            current_model_v8 = HydrogenPINNV8()
+            salt_cavern_physics_instance = SaltCavernPhysics(params=default_geometry_params) if default_geometry_type == "salt_cavern" else None
+            current_model_v8 = HydrogenPINNTFCV8(fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params, salt_cavern_physics=salt_cavern_physics_instance)
             print("⚠️ Modèle initialisé par défaut (poids aléatoires).")
     except Exception as e:
         print(f"❌ Erreur chargement modèle: {e}, utilisation fallback.")
-        current_model_v8 = HydrogenPINNV8()
+        salt_cavern_physics_instance = SaltCavernPhysics(params=default_geometry_params) if default_geometry_type == "salt_cavern" else None
+        current_model_v8 = HydrogenPINNTFCV8(fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params, salt_cavern_physics=salt_cavern_physics_instance)
 
     print("⚖️ Calcul des échelles de normalisation...")
     device = current_model_v8.device
@@ -300,17 +315,32 @@ async def validate_3d(request: PredictionRequestV8):
         t = request.time if request.time is not None else 0.0
         N_points = request.n_points or 10
         
-        # Définition des points d'échantillonnage
-        if request.scan_spatial:
-            x_samples = torch.linspace(X_MIN, X_MAX, N_points, device=current_model_v8.device).to(torch.float32).view(-1, 1).requires_grad_(True)
-            y_samples = torch.full((N_points, 1), request.y or 0.0, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
-            z_samples = torch.full((N_points, 1), request.z or 0.0, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
-        else:
-            x_samples = torch.full((N_points, 1), request.x or 0.0, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
-            y_samples = torch.full((N_points, 1), request.y or 0.0, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
-            z_samples = torch.full((N_points, 1), request.z or 0.0, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
-            
-        t_samples = torch.full((N_points, 1), t, device=current_model_v8.device, dtype=torch.float32).requires_grad_(True)
+        # Définition des points d'échantillonnage en utilisant le GeometryHandler
+        geometry_type = request.scenario_type.lower() if request.scenario_type else "pipeline"
+        geometry_params = {}
+        if geometry_type == "lh2_storage":
+            geometry_type = "sphere" # Ou cylindre, selon la forme du réservoir
+            geometry_params = {"radius": request.diameter / 2 if request.diameter else 2.285}
+        elif geometry_type == "rock_elast_stress" or geometry_type == "mining_industrial_sim":
+            geometry_type = "box" # Ou une forme plus complexe pour la mine
+            geometry_params = {"x_min": -50.0, "x_max": 50.0, "y_min": -50.0, "y_max": 50.0, "z_min": -request.length if request.length else -1000.0, "z_max": 0.0}
+        elif geometry_type == "salt_cavern":
+            geometry_params = {"x_center": 0.0, "y_center": 0.0, "z_center": -1000.0, "major_radius": 100.0, "minor_radius": 50.0}
+
+        # Re-initialiser le modèle si le scénario a changé
+        global current_model_v8
+        if current_model_v8.geometry_handler.geometry_type != geometry_type or current_model_v8.fluid_type != request.fluid_type:
+            salt_cavern_physics_instance = SaltCavernPhysics(params=geometry_params) if geometry_type == "salt_cavern" else None
+            current_model_v8 = HydrogenPINNTFCV8(fluid_type=request.fluid_type, geometry_type=geometry_type, geometry_params=geometry_params, salt_cavern_physics=salt_cavern_physics_instance)
+            # Recharger les poids si disponibles pour le nouveau modèle
+            # (Cela nécessiterait une logique plus sophistiquée pour gérer les poids par géométrie/fluide)
+            print(f"Modèle PINN réinitialisé pour le scénario {request.scenario_type} avec géométrie {geometry_type}")
+
+        t_samples, x_samples, y_samples, z_samples = current_model_v8.geometry_handler.get_sampling_points(N_points)
+        t_samples = t_samples.to(current_model_v8.device).requires_grad_(True)
+        x_samples = x_samples.to(current_model_v8.device).requires_grad_(True)
+        y_samples = y_samples.to(current_model_v8.device).requires_grad_(True)
+        z_samples = z_samples.to(current_model_v8.device).requires_grad_(True)
 
         rho_s, u_s, v_s, w_s, T_s = current_model_v8.pinn_model(t_samples, x_samples, y_samples, z_samples)
         res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
@@ -324,12 +354,9 @@ async def validate_3d(request: PredictionRequestV8):
         idx_center = N_points // 2
         rho, u, v, w, T = rho_s[idx_center:idx_center+1], u_s[idx_center:idx_center+1], v_s[idx_center:idx_center+1], w_s[idx_center:idx_center+1], T_s[idx_center:idx_center+1]
         
-        # ✅ FIX INDUSTRIEL: Conditionner les sorties PINN par les entrées réelles de la requête
-        # Cela garantit que chaque projet/requête affiche des données uniques et réelles
         if request.pressure and request.pressure > 0:
             p_ref = torch.tensor([[request.pressure]], device=current_model_v8.device, dtype=torch.float32)
-            # Ajustement intelligent basé sur la physique (Navier-Stokes)
-            p_t_center = p_ref + (get_eos(current_model_v8.fluid_type, rho, T) - 101325.0) * 0.1
+            p_t_center = get_eos(current_model_v8.fluid_type, rho, T) + (p_ref - get_eos(current_model_v8.fluid_type, rho, T)) * 0.1 # Adjusted to be more physically sound
         else:
             p_t_center = get_eos(current_model_v8.fluid_type, rho.reshape(1, 1), T.reshape(1, 1))
             
