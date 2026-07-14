@@ -117,9 +117,19 @@ def get_eos(fluid_type: str, rho: torch.Tensor, T: torch.Tensor) -> torch.Tensor
             rho_flat = rho_np.flatten()
             T_flat = T_np.flatten()
             
-            # Calcul vectorisé ou boucle si nécessaire
-            p_flat = np.array([CP.PropsSI('P', 'T', T_flat[i], 'Dmass', rho_flat[i], 'H2') 
-                             for i in range(len(rho_flat))])
+            # Calcul vectorisé avec protection contre les valeurs non-physiques
+            p_flat = []
+            for i in range(len(rho_flat)):
+                try:
+                    # Protection: T doit être > 0 et rho > 0 pour CoolProp
+                    t_val = max(float(T_flat[i]), 13.8) # Point triple H2 ~13.8K
+                    d_val = max(float(rho_flat[i]), 1e-6)
+                    p_val = CP.PropsSI('P', 'T', t_val, 'Dmass', d_val, 'H2')
+                    p_flat.append(p_val)
+                except:
+                    # Fallback local pour un point spécifique si CoolProp échoue
+                    p_flat.append(float(rho_flat[i] * R * T_flat[i]))
+            p_flat = np.array(p_flat)
             
             # Remettre à la forme originale
             p_np = p_flat.reshape(original_shape)
