@@ -225,24 +225,24 @@ async def load_pinn_model_background():
         downloaded = await download_model_from_supabase(model_path)
         if downloaded and os.path.exists(model_path):
             salt_cavern_physics_instance = SaltCavernPhysics(params=default_geometry_params) if default_geometry_type == "salt_cavern" else None
-            current_model_v8 = HydrogenPINNTFCV8(layers=[4, 128, 128, 128, 5], fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params, salt_cavern_physics=salt_cavern_physics_instance)
+            current_model_v8 = HydrogenPINNTFCV8(layers=[4, 128, 128, 128, 5], fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params)
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("✅ Modèle PINN chargé depuis Supabase.")
         elif os.path.exists(model_path):
             salt_cavern_physics_instance = SaltCavernPhysics(params=default_geometry_params) if default_geometry_type == "salt_cavern" else None
-            current_model_v8 = HydrogenPINNTFCV8(layers=[4, 128, 128, 128, 5], fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params, salt_cavern_physics=salt_cavern_physics_instance)
+            current_model_v8 = HydrogenPINNTFCV8(layers=[4, 128, 128, 128, 5], fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params)
             state_dict = torch.load(model_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
             print("✅ Modèle PINN chargé localement.")
         else:
             salt_cavern_physics_instance = SaltCavernPhysics(params=default_geometry_params) if default_geometry_type == "salt_cavern" else None
-            current_model_v8 = HydrogenPINNTFCV8(fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params, salt_cavern_physics=salt_cavern_physics_instance)
+            current_model_v8 = HydrogenPINNTFCV8(fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params)
             print("⚠️ Modèle initialisé par défaut (poids aléatoires).")
     except Exception as e:
         print(f"❌ Erreur chargement modèle: {e}, utilisation fallback.")
         salt_cavern_physics_instance = SaltCavernPhysics(params=default_geometry_params) if default_geometry_type == "salt_cavern" else None
-        current_model_v8 = HydrogenPINNTFCV8(fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params, salt_cavern_physics=salt_cavern_physics_instance)
+        current_model_v8 = HydrogenPINNTFCV8(fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params)
 
     if current_model_v8:
         print("⚖️ Calcul des échelles de normalisation...")
@@ -340,7 +340,7 @@ async def validate_3d(request: PredictionRequestV8):
         global current_model_v8
         if current_model_v8.geometry_handler.geometry_type != geometry_type or current_model_v8.fluid_type != request.fluid_type:
             salt_cavern_physics_instance = SaltCavernPhysics(params=geometry_params) if geometry_type == "salt_cavern" else None
-            current_model_v8 = HydrogenPINNTFCV8(fluid_type=request.fluid_type, geometry_type=geometry_type, geometry_params=geometry_params, salt_cavern_physics=salt_cavern_physics_instance)
+            current_model_v8 = HydrogenPINNTFCV8(fluid_type=request.fluid_type, geometry_type=geometry_type, geometry_params=geometry_params)
             # Recharger les poids si disponibles pour le nouveau modèle
             # (Cela nécessiterait une logique plus sophistiquée pour gérer les poids par géométrie/fluide)
             print(f"Modèle PINN réinitialisé pour le scénario {request.scenario_type} avec géométrie {geometry_type}")
