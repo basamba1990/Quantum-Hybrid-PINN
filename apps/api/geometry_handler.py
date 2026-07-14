@@ -54,8 +54,7 @@ class GeometryHandler:
         return mask.float().unsqueeze(-1)
 
     def apply_boundary_conditions(self, t: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor,
-                                  rho: torch.Tensor, u: torch.Tensor, v: torch.Tensor, w: torch.Tensor, T: torch.Tensor)
-                                  -> Tuple[torch.Tensor, ...]:
+                                  rho: torch.Tensor, u: torch.Tensor, v: torch.Tensor, w: torch.Tensor, T: torch.Tensor) -> Tuple[torch.Tensor, ...]:
         """
         Applique les conditions aux limites physiques (No-slip, température, etc.)
         en modifiant les sorties du PINN aux frontières de la géométrie.
