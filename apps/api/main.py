@@ -365,9 +365,9 @@ async def validate_3d(request: PredictionRequestV8):
         
         if request.pressure and request.pressure > 0:
             p_ref = torch.tensor([[request.pressure]], device=current_model_v8.device, dtype=torch.float32)
-            p_t_center = get_eos(current_model_v8.fluid_type, rho, T) + (p_ref - get_eos(current_model_v8.fluid_type, rho, T)) * 0.1 # Adjusted to be more physically sound
+            p_t_center = get_eos(current_model_v8.fluid_type, rho.view(1, 1), T.view(1, 1)) + (p_ref - get_eos(current_model_v8.fluid_type, rho.view(1, 1), T.view(1, 1))) * 0.1 # Adjusted to be more physically sound
         else:
-            p_t_center = get_eos(current_model_v8.fluid_type, rho.reshape(1, 1), T.reshape(1, 1))
+            p_t_center = get_eos(current_model_v8.fluid_type, rho.view(1, 1), T.view(1, 1))
             
         if request.temperature and request.temperature > 0:
             T = torch.tensor([[request.temperature]], device=current_model_v8.device, dtype=torch.float32) + (T - 293.15) * 0.05
