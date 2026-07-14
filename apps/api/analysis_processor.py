@@ -306,7 +306,7 @@ class AnalysisProcessor:
         """Validate PINN results against physical constraints by checking conservation laws."""
         job = self.jobs.get(pinn_results["projectId"])
         if not job or "pinn_instance" not in job:
-            logger.error(f"No PINN instance found for project {pinn_results["projectId"]}")
+            logger.error(f"No PINN instance found for project {pinn_results['projectId']}")
             return {"validation_status": "failed", "reason": "PINN instance not found"}
 
         pinn_instance = job["pinn_instance"]
