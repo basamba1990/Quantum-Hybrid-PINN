@@ -268,7 +268,7 @@ class AnalysisProcessor:
 
         logger.info(f"[{project_id}] Entraînement du PINN pour {epochs} epochs...")
         training_history = pinn_instance.train_pinn(epochs=epochs, learning_rate=learning_rate, N_pde=N_pde)
-        logger.info(f"[{project_id}] Entraînement PINN terminé. Perte finale: {training_history["loss"][-1]:.6e}")
+        logger.info(f"[{project_id}] Entraînement PINN terminé. Perte finale: {training_history['loss'][-1]:.6e}")
 
         # Calcul des résidus moyens pour évaluer la convergence
         # Échantillonner des points pour le calcul des résidus
