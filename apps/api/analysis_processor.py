@@ -366,7 +366,7 @@ class AnalysisProcessor:
 
         job = self.jobs.get(pinn_results["projectId"])
         if not job or "pinn_instance" not in job:
-            logger.error(f"No PINN instance found for project {pinn_results["projectId"]}")
+            logger.error(f"No PINN instance found for project {pinn_results['projectId']}")
             return []
 
         pinn_instance = job["pinn_instance"]
@@ -408,7 +408,7 @@ class AnalysisProcessor:
         score = 0.0
         
         # Convergence score (40%)
-        convergence_score = min(pinn_results["convergence_rate"], 1.0)
+        convergence_score = min(pinn_results.get("convergence_rate", 0.8), 1.0)
         score += convergence_score * 0.4
         
         # Validation score (40%)
