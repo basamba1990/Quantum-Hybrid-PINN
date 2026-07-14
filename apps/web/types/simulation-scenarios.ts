@@ -5,7 +5,9 @@ export type ScenarioType =
   | 'PIPELINE_SAFETY' 
   | 'CRYOGENIC_TRANSPORT' 
   | 'MINING_INDUSTRIAL_SIM'
-  | 'H2_COMPRESSION_STATION';
+  | 'H2_COMPRESSION_STATION'
+  | 'FPGA_HEATSINK'
+  | 'SMART_RADIATOR';
 
 export interface ScenarioConfig {
   id: ScenarioType;
@@ -169,6 +171,38 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
       { name: 'thermalDelta', label: 'Delta T', unit: 'K' },
       { name: 'coherenceScore', label: 'Score de Cohérence', unit: '/100' },
       { name: 'status', label: 'État Système', unit: '' }
+    ]
+  },
+  FPGA_HEATSINK: {
+    id: 'FPGA_HEATSINK',
+    name: 'Dissipateur Thermique (FPGA/Quantum)',
+    description: 'Analyse de la dissipation thermique pour processeurs haute performance et ordinateurs quantiques. Calcule l\'efficacité du flux thermique et la distribution de température.',
+    inputs: [
+      { name: 'heatFlux', label: 'Flux Thermique', type: 'number', unit: 'W', defaultValue: 500 },
+      { name: 'temperature', label: 'Température Ambiante', type: 'number', unit: 'K', defaultValue: 300 },
+      { name: 'flowRate', label: 'Débit Refroidissement', type: 'number', unit: 'm3/s', defaultValue: 0.1 }
+    ],
+    outputs: [
+      { name: 'maxTemperature', label: 'Température Max', unit: 'K' },
+      { name: 'dissipationEfficiency', label: 'Efficacité Dissipation', unit: '%' },
+      { name: 'heatFluxActual', label: 'Flux Thermique Réel', unit: 'W/m2' }
+    ]
+  },
+  SMART_RADIATOR: {
+    id: 'SMART_RADIATOR',
+    name: 'Radiateur Intelligent (Cryogénie)',
+    description: 'Optimisation d\'un échangeur de chaleur intelligent pour moteurs quantiques. Utilise l\'IA pour minimiser le boil-off et maximiser la stabilité thermique.',
+    inputs: [
+      { name: 'heatFlux', label: 'Flux Thermique Moteur', type: 'number', unit: 'W', defaultValue: 500 },
+      { name: 'inletTemp', label: 'Température Entrée (LH2)', type: 'number', unit: 'K', defaultValue: 20 },
+      { name: 'pressure', label: 'Pression de Circulation', type: 'number', unit: 'bar', defaultValue: 20 },
+      { name: 'flowRate', label: 'Débit Massique', type: 'number', unit: 'kg/s', defaultValue: 0.5 }
+    ],
+    outputs: [
+      { name: 'dissipationEfficiency', label: 'Efficacité Dissipation', unit: '%' },
+      { name: 'boilOffRisk', label: 'Risque d\'Évaporation', unit: '%' },
+      { name: 'thermalStability', label: 'Stabilité Thermique', unit: 'K' },
+      { name: 'aiCorrectionFactor', label: 'Facteur Correction IA', unit: '' }
     ]
   }
 };
