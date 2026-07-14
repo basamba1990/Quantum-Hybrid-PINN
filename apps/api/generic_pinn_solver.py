@@ -233,14 +233,18 @@ class GenericPINNSolver(nn.Module):
         u_tau_y = u * tau_xy + v * tau_yy + w * tau_yz
         u_tau_z = u * tau_xz + v * tau_yz + w * tau_zz
 
-        viscous_work_term = self._safe_grad(u_tau_x, x, create_graph=True) + \n                            self._safe_grad(u_tau_y, y, create_graph=True) + \n                            self._safe_grad(u_tau_z, z, create_graph=True)
+        viscous_work_term = (self._safe_grad(u_tau_x, x, create_graph=True) + 
+                            self._safe_grad(u_tau_y, y, create_graph=True) + 
+                            self._safe_grad(u_tau_z, z, create_graph=True))
 
         # Termes de conduction thermique (∇ ⋅ q = ∇ ⋅ (k∇T))
         q_x = k_therm * T_x
         q_y = k_therm * T_y
         q_z = k_therm * T_z
 
-        conductive_heat_term = self._safe_grad(q_x, x, create_graph=True) + \n                               self._safe_grad(q_y, y, create_graph=True) + \n                               self._safe_grad(q_z, z, create_graph=True)
+        conductive_heat_term = (self._safe_grad(q_x, x, create_graph=True) + 
+                               self._safe_grad(q_y, y, create_graph=True) + 
+                               self._safe_grad(q_z, z, create_graph=True))
 
         energy_residual = convective_energy_term + pressure_work_term - viscous_work_term + conductive_heat_term
 
