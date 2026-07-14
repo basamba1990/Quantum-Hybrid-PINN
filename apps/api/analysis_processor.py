@@ -202,137 +202,204 @@ class AnalysisProcessor:
         """Run Industrial Hybrid PGD-PINN simulation (V8.3 - No Hardcoding)"""
         logger.info(f"Running Industrial Hybrid PGD-PINN simulation for project {project_id}")
         
-        from scenario_engines import SCENARIO_ENGINES
-        
-        # Sélection du moteur approprié (par défaut pipeline pour cet endpoint)
-        engine = SCENARIO_ENGINES.get(scenario_type, SCENARIO_ENGINES["H2_PIPELINE"])
-        scenario_results = engine(physics_params)
-        
-        # Simulation de la convergence PINN basée sur les paramètres réels
-        # Plus les paramètres sont extrêmes, plus la convergence est difficile (réaliste)
-        base_convergence = 0.995
-        difficulty = (physics_params['pressure'] / 100.0) * (physics_params['flow_rate'] / 5.0)
-        convergence_rate = base_convergence - (0.01 * min(difficulty, 5.0))
-        
+        from hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8, get_device
+
+        device = get_device()
+
+        # Déterminer la géométrie et les paramètres
+        geometry_type = scenario_type.lower()
+        geometry_params = {}
+        fluid_type = physics_params.get("fluid_type", "H2")
+
+        if geometry_type == "h2_pipeline":
+            geometry_type = "pipeline"
+            geometry_params = {
+                "radius": physics_params.get("diameter", 0.5) / 2,
+                "length": physics_params.get("geometry", {}).get("length", 100.0),
+                "inlet_velocity": physics_params.get("inlet_velocity", 1.0),
+                "outlet_pressure": physics_params.get("outlet_pressure", 101325.0),
+                "wall_temperature": physics_params.get("wall_temperature", 293.15)
+            }
+        elif geometry_type == "lh2_storage":
+            geometry_type = "sphere"
+            geometry_params = {
+                "radius": physics_params.get("diameter", 4.57) / 2, # Diamètre typique de réservoir LH2
+                "surface_temperature": physics_params.get("surface_temperature", 20.28) # Point d'ébullition LH2
+            }
+        elif geometry_type == "salt_cavern":
+            geometry_params = {
+                "x_center": physics_params.get("x_center", 0.0),
+                "y_center": physics_params.get("y_center", 0.0),
+                "z_center": physics_params.get("z_center", -1000.0),
+                "major_radius": physics_params.get("major_radius", 100.0),
+                "minor_radius": physics_params.get("minor_radius", 50.0),
+                "cavern_temperature": physics_params.get("cavern_temperature", 300.0)
+            }
+        elif geometry_type == "rock_elast_stress":
+            geometry_type = "box"
+            geometry_params = {
+                "x_min": physics_params.get("x_min", -50.0),
+                "x_max": physics_params.get("x_max", 50.0),
+                "y_min": physics_params.get("y_min", -50.0),
+                "y_max": physics_params.get("y_max", 50.0),
+                "z_min": physics_params.get("z_min", -physics_params.get("depth", 1000.0)),
+                "z_max": physics_params.get("z_max", 0.0)
+            }
+        else:
+            # Géométrie par défaut (boîte)
+            geometry_type = "box"
+            geometry_params = {
+                "x_min": -1.0, "x_max": 1.0,
+                "y_min": -1.0, "y_max": 1.0,
+                "z_min": -1.0, "z_max": 1.0
+            }
+
+        # Initialisation du modèle PINN
+        pinn_instance = HydrogenPINNTFCV8(
+            fluid_type=fluid_type,
+            geometry_type=geometry_type,
+            geometry_params=geometry_params
+        )
+
+        # Entraînement du modèle PINN
+        epochs = physics_params.get("epochs", 5000) # Nombre d'epochs configurable
+        learning_rate = physics_params.get("learning_rate", 1e-3)
+        N_pde = physics_params.get("N_pde", 5000)
+
+        logger.info(f"[{project_id}] Entraînement du PINN pour {epochs} epochs...")
+        training_history = pinn_instance.train_pinn(epochs=epochs, learning_rate=learning_rate, N_pde=N_pde)
+        logger.info(f"[{project_id}] Entraînement PINN terminé. Perte finale: {training_history["loss"][-1]:.6e}")
+
+        # Calcul des résidus moyens pour évaluer la convergence
+        # Échantillonner des points pour le calcul des résidus
+        N_eval_points = 1000
+        t_eval, x_eval, y_eval, z_eval = pinn_instance.geometry_handler.get_sampling_points(N_eval_points)
+        t_eval = t_eval.to(device).requires_grad_(True)
+        x_eval = x_eval.to(device).requires_grad_(True)
+        y_eval = y_eval.to(device).requires_grad_(True)
+        z_eval = z_eval.to(device).requires_grad_(True)
+
+        rho_pred, u_pred, v_pred, w_pred, T_pred = pinn_instance.pinn_model(t_eval, x_eval, y_eval, z_eval)
+        mass_res, mom_x_res, mom_y_res, mom_z_res, energy_res = pinn_instance.pinn_model.compute_residuals(
+            t_eval, x_eval, y_eval, z_eval, rho_pred, u_pred, v_pred, w_pred, T_pred, scale_dict=pinn_instance.scales
+        )
+
+        residual_norm = torch.sqrt(torch.mean(mass_res**2) + torch.mean(mom_x_res**2) + 
+                                   torch.mean(mom_y_res**2) + torch.mean(mom_z_res**2) + 
+                                   torch.mean(energy_res**2)).item()
+
+        # Stocker l'instance du modèle pour les prédictions 3D ultérieures
+        self.jobs[project_id]["pinn_instance"] = pinn_instance
+
         results = {
-            "convergence_rate": round(convergence_rate, 4),
-            "training_loss": round(1e-4 * difficulty, 6),
-            "validation_error": round(1.2e-4 * difficulty, 6),
-            "residual_norm": round(1e-6 * difficulty, 8),
-            "temperature_field": {
-                "min": round(scenario_results['thermalStability'] - 10, 2),
-                "max": round(physics_params['temperature'], 2),
-                "mean": round((scenario_results['thermalStability'] + physics_params['temperature'])/2, 2),
-            },
-            "pressure_drop": scenario_results['pressureDrop'],
-            "nusselt_number": round(40.0 + 5.0 * difficulty, 2),
-            "coherence_score": 95.0 + (5.0 * (1.0 - min(1.0, difficulty/10.0))),
-            "scenario_outputs": scenario_results
+            "training_loss_history": training_history["loss"],
+            "final_training_loss": training_history["loss"][-1],
+            "residual_norm": residual_norm,
+            "fluid_type": fluid_type,
+            "geometry_type": geometry_type,
+            "geometry_params": geometry_params,
+            # Ajoutez d'autres métriques pertinentes si nécessaire
         }
         return results
     
     async def _validate_results(self, pinn_results: Dict[str, Any]) -> Dict[str, Any]:
-        """Validate PINN results against physical constraints"""
+        """Validate PINN results against physical constraints by checking conservation laws."""
+        job = self.jobs.get(pinn_results["projectId"])
+        if not job or "pinn_instance" not in job:
+            logger.error(f"No PINN instance found for project {pinn_results["projectId"]}")
+            return {"validation_status": "failed", "reason": "PINN instance not found"}
+
+        pinn_instance = job["pinn_instance"]
+        device = pinn_instance.device
+
+        # Use a fresh set of sampling points for validation to avoid overfitting to training points
+        N_validation_points = 2000 # Augmenter le nombre de points pour une validation plus robuste
+        t_val, x_val, y_val, z_val = pinn_instance.geometry_handler.get_sampling_points(N_validation_points)
+        t_val = t_val.to(device).requires_grad_(True)
+        x_val = x_val.to(device).requires_grad_(True)
+        y_val = y_val.to(device).requires_grad_(True)
+        z_val = z_val.to(device).requires_grad_(True)
+
+        # Obtenir les prédictions du modèle PINN
+        rho_pred, u_pred, v_pred, w_pred, T_pred = pinn_instance.pinn_model(t_val, x_val, y_val, z_val)
+
+        # Calculer les résidus des équations de conservation
+        mass_res, mom_x_res, mom_y_res, mom_z_res, energy_res = pinn_instance.pinn_model.compute_residuals(
+            t_val, x_val, y_val, z_val, rho_pred, u_pred, v_pred, w_pred, T_pred, scale_dict=pinn_instance.scales
+        )
+
+        # Évaluer la conservation des lois
+        # Utiliser la moyenne absolue des résidus comme métrique de validation
+        mass_conservation_error = torch.abs(mass_res).mean().item()
+        momentum_conservation_error = (torch.abs(mom_x_res).mean() + torch.abs(mom_y_res).mean() + torch.abs(mom_z_res).mean()).item() / 3.0
+        energy_conservation_error = torch.abs(energy_res).mean().item()
+
+        # Définir des seuils de tolérance pour la validation industrielle
+        # Ces seuils peuvent être ajustés en fonction des exigences spécifiques de l'industrie
+        MASS_TOLERANCE = 1e-4
+        MOMENTUM_TOLERANCE = 1e-4
+        ENERGY_TOLERANCE = 1e-4
+
+        mass_conserved = mass_conservation_error < MASS_TOLERANCE
+        momentum_conserved = momentum_conservation_error < MOMENTUM_TOLERANCE
+        energy_conserved = energy_conservation_error < ENERGY_TOLERANCE
+
+        validation_status = "passed" if (mass_conserved and momentum_conserved and energy_conserved) else "failed"
+
         validation = {
-            "is_physically_coherent": True,
-            "residuals_converged": pinn_results["residual_norm"] < 1e-5,
-            "temperature_bounds_valid": (
-                pinn_results["temperature_field"]["min"] > 270 and
-                pinn_results["temperature_field"]["max"] < 400
-            ),
-            "pressure_drop_reasonable": pinn_results["pressure_drop"] < 10,
-            "nusselt_correlation": pinn_results["nusselt_number"] > 0,
+            "validation_status": validation_status,
+            "mass_conservation_error": mass_conservation_error,
+            "momentum_conservation_error": momentum_conservation_error,
+            "energy_conservation_error": energy_conservation_error,
+            "mass_conserved": mass_conserved,
+            "momentum_conserved": momentum_conserved,
+            "energy_conserved": energy_conserved,
+            "overall_physical_coherence": mass_conserved and momentum_conserved and energy_conserved,
+            "pinn_residual_norm": pinn_results["residual_norm"]
         }
         return validation
     
     async def _generate_3d_predictions(self, pinn_results: Dict[str, Any], scenario_type: str = 'H2_PIPELINE', physics_params: Dict[str, Any] = {}) -> list:
         """Generate Truly-Industrial Parametric 3D Geometries (V8.5)"""
-        import numpy as np
         predictions = []
         N_points = 1200 # Résolution accrue pour géométries complexes
-        
-        # Extraction des dimensions réelles
-        length = physics_params.get('geometry', {}).get('length', 100.0)
-        diameter = physics_params.get('geometry', {}).get('diameter', 0.5)
-        depth_base = physics_params.get('depth', 1000)
-        
-        if scenario_type == 'ROCK_ELAST_STRESS':
-            # GÉOMÉTRIE MINE: Bloc cubique massif avec galeries simulées
-            x_range = np.linspace(0, 50, 10)
-            y_range = np.linspace(0, 50, 10)
-            z_range = np.linspace(0, 50, 12)
-            
-            for z in z_range:
-                for x in x_range:
-                    for y in y_range:
-                        # Physique Rock: Pression lithostatique réelle
-                        local_depth = depth_base + z
-                        pressure = 0.025 * local_depth
-                        # Simulation de galerie (vide central)
-                        if 20 < x < 30 and 20 < y < 30:
-                            stress = pressure * 2.5 # Concentration de contrainte autour du vide
-                        else:
-                            stress = pressure * (1.1 + 0.05 * np.random.random())
-                            
-                        predictions.append({
-                            'x': float(x), 'y': float(y), 'z': float(z),
-                            'pressure': float(pressure), 'stress': float(stress),
-                            'temperature': float(293.15 + 0.03 * z),
-                            'damage': float(min(1.0, (stress / 60.0)**2))
-                        })
 
-        elif scenario_type == 'LH2_STORAGE':
-            # GÉOMÉTRIE RÉSERVOIR: Sphérique ou Cylindrique (Cryogénie)
-            radius = diameter * 5 # Échelle visuelle pour réservoir
-            phi_range = np.linspace(0, np.pi, 20)
-            theta_range = np.linspace(0, 2*np.pi, 30)
-            
-            for phi in phi_range:
-                for theta in theta_range:
-                    # Coordonnées sphériques
-                    x = radius * np.sin(phi) * np.cos(theta)
-                    y = radius * np.sin(phi) * np.sin(theta)
-                    z = radius * np.cos(phi)
-                    
-                    # Physique Cryo: Température minimale au centre, boil-off aux parois
-                    t_center = 20.0 # LH2 Boiling point
-                    t_wall = t_center + 5.0 * np.random.random()
-                    
-                    predictions.append({
-                        'x': float(x), 'y': float(y), 'z': float(z),
-                        'temperature': float(t_wall if phi < 0.1 or phi > 3.0 else t_center),
-                        'pressure': float(physics_params.get('pressure', 5.0)),
-                        'density': 70.8, # LH2 density kg/m3
-                        'velocity_magnitude': float(0.01 * np.sin(phi)) # Convection interne
-                    })
+        job = self.jobs.get(pinn_results["projectId"])
+        if not job or "pinn_instance" not in job:
+            logger.error(f"No PINN instance found for project {pinn_results["projectId"]}")
+            return []
 
-        else:
-            # GÉOMÉTRIE PIPELINE: Cylindre parfait selon Longueur/Diamètre réels
-            x_range = np.linspace(0, length, 40)
-            r_range = np.linspace(0, diameter/2, 6)
-            theta_range = np.linspace(0, 2*np.pi, 6)
-            
-            p_in = physics_params.get('pressure', 80.0)
-            t_in = physics_params.get('temperature', 300.0)
-            
-            for x in x_range:
-                for r in r_range:
-                    for theta in theta_range:
-                        y = r * np.cos(theta)
-                        z = r * np.sin(theta)
-                        
-                        # Physique Pipeline: Profil de Poiseuille et perte de charge axiale
-                        p_local = p_in - (0.005 * x / diameter) # Relation Darcy-Weisbach simplifiée
-                        v_max = physics_params.get('flow_rate', 2.0)
-                        v_local = v_max * (1 - (r/(diameter/2))**2)
-                        
-                        predictions.append({
-                            'x': float(x), 'y': float(y), 'z': float(z),
-                            'pressure': float(p_local),
-                            'temperature': float(t_in + 0.02 * x),
-                            'velocity_magnitude': float(v_local),
-                            'density': float(p_local * 1e5 / (4124.0 * t_in))
-                        })
+        pinn_instance = job["pinn_instance"]
+        device = pinn_instance.device
+
+        # Générer des points d'échantillonnage pour la visualisation 3D
+        t_vis, x_vis, y_vis, z_vis = pinn_instance.geometry_handler.get_sampling_points(N_points)
+        t_vis = t_vis.to(device)
+        x_vis = x_vis.to(device)
+        y_vis = y_vis.to(device)
+        z_vis = z_vis.to(device)
+
+        # Obtenir les prédictions du modèle PINN
+        with torch.no_grad():
+            rho_pred, u_pred, v_pred, w_pred, T_pred = pinn_instance.pinn_model(t_vis, x_vis, y_vis, z_vis)
+            p_pred = pinn_instance.pinn_model.get_pressure(rho_pred, T_pred, pinn_instance.fluid_type)
+            vel_mag_pred = torch.sqrt(u_pred**2 + v_pred**2 + w_pred**2)
+
+        # Convertir en liste de dictionnaires pour la réponse API
+        for i in range(N_points):
+            predictions.append({
+                'x': x_vis[i].item(),
+                'y': y_vis[i].item(),
+                'z': z_vis[i].item(),
+                'time': t_vis[i].item(),
+                'pressure': p_pred[i].item(),
+                'temperature': T_pred[i].item(),
+                'density': rho_pred[i].item(),
+                'velocity_u': u_pred[i].item(),
+                'velocity_v': v_pred[i].item(),
+                'velocity_w': w_pred[i].item(),
+                'velocity_magnitude': vel_mag_pred[i].item()
+            })
                         
         return predictions
 
