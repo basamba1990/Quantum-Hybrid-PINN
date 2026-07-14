@@ -5,7 +5,10 @@ export type ScenarioType =
   | 'PIPELINE_SAFETY' 
   | 'CRYOGENIC_TRANSPORT' 
   | 'MINING_INDUSTRIAL_SIM'
-  | 'H2_COMPRESSION_STATION';
+  | 'H2_COMPRESSION_STATION'
+  | 'FPGA_HEATSINK'
+  | 'SALT_CAVERN_STORAGE'
+  | 'ROCK_ELAST_STRESS';
 
 export interface ScenarioConfig {
   id: ScenarioType;
@@ -169,6 +172,53 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
       { name: 'thermalDelta', label: 'Delta T', unit: 'K' },
       { name: 'coherenceScore', label: 'Score de Cohérence', unit: '/100' },
       { name: 'status', label: 'État Système', unit: '' }
+    ]
+  },
+  FPGA_HEATSINK: {
+    id: 'FPGA_HEATSINK',
+    name: 'Refroidissement FPGA',
+    description: 'Analyse thermique de dissipateurs pour composants électroniques haute performance (FPGA/GPU).',
+    inputs: [
+      { name: 'power', label: 'Puissance Dissipée', type: 'number', unit: 'W', defaultValue: 50 },
+      { name: 'ambientTemp', label: 'Température Ambiante', type: 'number', unit: '°C', defaultValue: 25 },
+      { name: 'airVelocity', label: 'Vitesse Air', type: 'number', unit: 'm/s', defaultValue: 2 }
+    ],
+    outputs: [
+      { name: 'maxTemperature', label: 'Température Max', unit: '°C' },
+      { name: 'thermalResistance', label: 'Résistance Thermique', unit: 'K/W' },
+      { name: 'heatFlux', label: 'Flux de Chaleur', unit: 'W/m²' },
+      { name: 'efficiency', label: 'Efficacité', unit: '%' }
+    ]
+  },
+  SALT_CAVERN_STORAGE: {
+    id: 'SALT_CAVERN_STORAGE',
+    name: 'Stockage Cavité Saline',
+    description: 'Modélisation du fluage et de la stabilité mécanique des cavités salines pour le stockage d\'hydrogène.',
+    inputs: [
+      { name: 'depth', label: 'Profondeur', type: 'number', unit: 'm', defaultValue: 1000 },
+      { name: 'internalPressure', label: 'Pression Interne', type: 'number', unit: 'bar', defaultValue: 150 },
+      { name: 'temperature', label: 'Température', type: 'number', unit: 'K', defaultValue: 310 }
+    ],
+    outputs: [
+      { name: 'creepRate', label: 'Taux de Fluage', unit: '1/s' },
+      { name: 'vonMisesStress', label: 'Contrainte Von Mises', unit: 'MPa' },
+      { name: 'internalPressure', label: 'Pression Interne', unit: 'bar' },
+      { name: 'convergence', label: 'Convergence', unit: '%' }
+    ]
+  },
+  ROCK_ELAST_STRESS: {
+    id: 'ROCK_ELAST_STRESS',
+    name: 'Contrainte Rocheuse',
+    description: 'Analyse des contraintes élastiques et de l\'endommagement des formations rocheuses.',
+    inputs: [
+      { name: 'depth', label: 'Profondeur', type: 'number', unit: 'm', defaultValue: 500 },
+      { name: 'youngModulus', label: 'Module de Young', type: 'number', unit: 'GPa', defaultValue: 30 }
+    ],
+    outputs: [
+      { name: 'lithostaticPressure', label: 'Pression Lithostatique', unit: 'MPa' },
+      { name: 'maxStress', label: 'Contrainte Max', unit: 'MPa' },
+      { name: 'damageIndex', label: 'Indice Endommagement', unit: '0-1' },
+      { name: 'stabilityScore', label: 'Score Stabilité', unit: '/100' }
     ]
   }
 };

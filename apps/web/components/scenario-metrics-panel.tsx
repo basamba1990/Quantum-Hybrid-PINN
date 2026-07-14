@@ -2,9 +2,10 @@
 
 import React from 'react'
 import { Gauge, Droplets, Wind, Zap, AlertTriangle, Shield } from 'lucide-react'
+import { ScenarioType } from '@/types/simulation-scenarios'
 
 interface ScenarioMetricsPanelProps {
-  scenarioType: 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK' | 'SALT_CAVERN_STORAGE';
+  scenarioType: ScenarioType;
   data?: Record<string, any>;
 }
 

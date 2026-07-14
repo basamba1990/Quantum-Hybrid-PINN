@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import * as THREE from 'three'
 import { Download, Box, Activity, Shield, Database, Wind, Droplets, Zap, AlertTriangle, Maximize2 } from 'lucide-react'
+import { ScenarioType } from '@/types/simulation-scenarios'
 
 interface DataPoint {
   x: number; y: number; z: number;
@@ -12,8 +13,6 @@ interface DataPoint {
   stress?: number;
   damage?: number;
 }
-
-type ScenarioType = 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK';
 
 interface Props {
   data?: DataPoint[];
@@ -175,6 +174,8 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
         return generateH2CompressionData(300, 0.4, 40, 1200);
       case 'FPGA_HEATSINK':
         return generatePipelineData(0.1, 0.05, 1200); // Placeholder pour les points
+      case 'SALT_CAVERN_STORAGE':
+        return generateMiningData(100, 50, 50, 1200); // GÉOMÉTRIE CAVITÉ: Bloc avec galerie
       default:
         return generatePipelineData(500, 0.5, 1200);
     }
