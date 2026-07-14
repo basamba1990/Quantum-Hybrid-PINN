@@ -65,22 +65,8 @@ class GenericPINNSolver(nn.Module):
         self.register_buffer('temp_offset', torch.tensor(14.0)) # Ex: Point triple H2
 
     def forward(self, t: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor) -> Tuple[torch.Tensor, ...]:
-        # Normalisation des entrées
-        t_norm = (t - T_MIN) / (T_MAX - T_MIN)
-        x_norm = (x - X_MIN) / (X_MAX - X_MIN)
-        y_norm = (y - Y_MIN) / (Y_MAX - Y_MIN)
-        z_norm = (z - Z_MIN) / (Z_MAX - Z_MIN)
-        inp = torch.cat([t_norm, x_norm, y_norm, z_norm], dim=-1)
-
         # Passage à travers le réseau de neurones
-        out = self.net(inp)
-
-        # Dé-normalisation et application des fonctions d'activation pour les sorties
-        rho = torch.sigmoid(out[..., 0:1]) * self.rho_scale + 1.0 # Densité > 0
-        u = torch.tanh(out[..., 1:2]) * self.vel_scale
-        v = torch.tanh(out[..., 2:3]) * self.vel_scale
-        w = torch.tanh(out[..., 3:4]) * self.vel_scale
-        T = torch.sigmoid(out[..., 4:5]) * self.temp_scale + self.temp_offset # Température > 0
+        rho, u, v, w, T = self.pinn_model(t, x, y, z)
 
         # Application des conditions aux limites via le GeometryHandler
         if self.geometry_handler:
