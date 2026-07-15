@@ -42,7 +42,7 @@ interface AdvancedPhysicsProps {
   onDataFetch?: (data: any) => void;
 }
 
-export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }: AdvancedPhysicsProps) {
+export default function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }: AdvancedPhysicsProps) {
   const [activeTab, setActiveTab] = useState('turbulence');
   const [turbulenceData, setTurbulenceData] = useState<TurbulenceData | null>(null);
   const [boundaryLayerData, setBoundaryLayerData] = useState<BoundaryLayerData | null>(null);
