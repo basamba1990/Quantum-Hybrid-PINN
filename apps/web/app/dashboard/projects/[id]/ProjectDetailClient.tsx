@@ -15,6 +15,7 @@ import {
   Cpu,
   Eye
 } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 // Imports dynamiques pour optimiser le chargement
 const Industrial3DVisualizerEnhancedV5 = dynamic(

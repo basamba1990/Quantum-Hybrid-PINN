@@ -32,7 +32,7 @@ const Industrial3DVisualizerEnhancedV5 = dynamic(
 )
 
 const AdvancedPhysicsVisualization = dynamic(
-  () => import('@/components/AdvancedPhysicsVisualization').then(mod => mod.AdvancedPhysicsVisualization),
+  () => import('@/components/AdvancedPhysicsVisualization'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-emerald-500 animate-pulse">Chargement de l'analyse physique avancée...</div> }
 )
 

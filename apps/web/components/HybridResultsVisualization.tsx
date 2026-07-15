@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { AdvancedPhysicsVisualization } from './AdvancedPhysicsVisualization';
+import AdvancedPhysicsVisualization from './AdvancedPhysicsVisualization';
 import {
   LineChart,
   Line,
