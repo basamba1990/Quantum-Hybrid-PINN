@@ -17,6 +17,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import Industrial3DVisualizerV10Gold from './industrial-3d-visualizer-v10-gold-v2';
 
 interface TurbulenceData {
   wavenumbers: number[];
@@ -290,7 +291,8 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
         </CardHeader>
         <CardContent className="pt-6 bg-black">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-7 bg-emerald-500/5 p-1 rounded-2xl border border-emerald-500/20">
+            <TabsList className="grid w-full grid-cols-8 bg-emerald-500/5 p-1 rounded-2xl border border-emerald-500/20">
+              <TabsTrigger value="volumetric" className="rounded-xl data-[state=active]:bg-blue-600 data-[state=active]:text-white text-blue-400 font-bold transition-all text-[10px]">Vue 3D Gold</TabsTrigger>
               <TabsTrigger value="turbulence" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Spectres</TabsTrigger>
               <TabsTrigger value="boundary-layer" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Paroi</TabsTrigger>
               <TabsTrigger value="residuals" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Résidus</TabsTrigger>
@@ -299,6 +301,23 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
               <TabsTrigger value="stress" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Contraintes</TabsTrigger>
               <TabsTrigger value="multi-physics" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Multi-P</TabsTrigger>
             </TabsList>
+
+            {/* Volumetric Gold Standard View */}
+            <TabsContent value="volumetric" className="space-y-6">
+              <div className="h-[600px] w-full">
+                <Industrial3DVisualizerV10Gold 
+                  data={industrialData.length > 0 ? industrialData : []} 
+                  title="Analyse Volumétrique Quantum-Hybrid"
+                  colorVariable="temperature"
+                  quality="high"
+                />
+              </div>
+              <div className="p-4 bg-blue-600/10 border border-blue-500/20 rounded-2xl">
+                <p className="text-xs text-blue-400">
+                  <strong>Standard Industriel V10-Gold :</strong> Cette vue utilise le rendu volumétrique par Marching Cubes pour transformer les points PINN en un champ physique continu. Les couleurs bleu-vert-jaune-rouge indiquent les gradients thermiques réels.
+                </p>
+              </div>
+            </TabsContent>
 
             {/* Spectres TKE */}
             <TabsContent value="turbulence" className="space-y-6">
