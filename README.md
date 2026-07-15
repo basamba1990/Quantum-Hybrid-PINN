@@ -204,3 +204,4 @@ The platform incorporates and expands upon foundational concepts from leading nu
 * **Wave-Appropriate Reconstruction (WARP)** and High-order numerical methods for multiphase compressible flows.
 * *Fluid Intelligence: A Forward Look on AI Foundation Models in Computational Fluid Dynamics* (Ashton et al., 2025).
 * *Out-of-Distribution Detection for Physics-Informed Neural Networks* (Keum & Warey, 2026).
+\n# Last Deployment Update: Wed Jul 15 01:43:01 UTC 2026
