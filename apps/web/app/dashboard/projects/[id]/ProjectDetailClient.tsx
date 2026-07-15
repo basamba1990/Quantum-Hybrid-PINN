@@ -16,13 +16,112 @@ import {
   Eye
 } from 'lucide-react'
 
+// Imports dynamiques pour optimiser le chargement
+const Industrial3DVisualizerEnhancedV5 = dynamic(
+  () => import('@/components/industrial-3d-visualizer-enhanced-v5'),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse">Initializing 3D Engine...</div> }
+)
+
+const HybridChartVisualizerExport = dynamic(
+  () => import('@/components/hybrid-chart-visualizer-export'),
+  { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
+const PINNPerformanceMonitor = dynamic(
+  () => import('@/components/pinn-performance-monitor'),
+  { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
+const ScenarioMetricsPanel = dynamic(
+  () => import('@/components/scenario-metrics-panel'),
+  { ssr: false, loading: () => <div className="h-64 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
+const ResidualsChart = dynamic(
+  () => import('@/components/residuals-chart'),
+  { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
+const Industrial3DVisualizerExport = dynamic(
+  () => import('@/components/industrial-3d-visualizer-export'),
+  { ssr: false, loading: () => <div className="h-12 bg-slate-950 rounded-xl border border-white/10 animate-pulse" /> }
+)
+
+const AdvancedPhysicsVisualization = dynamic(
+  () => import('@/components/AdvancedPhysicsVisualization').then(mod => (mod.AdvancedPhysicsVisualization || mod.default)),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-emerald-500 animate-pulse">Chargement de l'analyse physique avancée...</div> }
+)
+
+const Streamline3DVisualizer = dynamic(
+  () => import('@/components/streamline-3d-visualizer'),
+  { ssr: false, loading: () => <div className="h-[600px] bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
+const ScientificProfileChart = dynamic(
+  () => import('@/components/scientific-profile-chart'),
+  { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
+const ScientificSocialHub = dynamic(
+  () => import('@/components/scientific-social-hub'),
+  { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
 export default function ProjectDetailClient({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
   const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeView, setActiveView] = useState<'standard' | 'advanced'>('standard')
   const supabase = createClient()
+
+  const results = useMemo(() => {
+    try {
+      if (!latestAnalysis?.results) return {} as any
+      let parsedResults = latestAnalysis.results
+      if (typeof parsedResults === 'string') parsedResults = JSON.parse(parsedResults)
+      return (parsedResults || {}) as any
+    } catch (e) {
+      console.error('Error parsing results:', e)
+      return {} as any
+    }
+  }, [latestAnalysis])
+
+  const predictions3d = useMemo(() => {
+    if (!Array.isArray(results?.predictions3d)) return []
+    
+    return (results.predictions3d as any[]).filter(p => {
+      return typeof p.x === 'number' && 
+             typeof p.y === 'number' && 
+             typeof p.z === 'number'
+    }).map(p => ({
+      x: p.x,
+      y: p.y,
+      z: p.z,
+      temperature: typeof p.temperature === 'number' ? p.temperature : 293.15,
+      pressure: typeof p.pressure === 'number' ? p.pressure : 1.0,
+      density: typeof p.density === 'number' ? p.density : undefined,
+      velocity_magnitude: typeof p.velocity_magnitude === 'number' ? p.velocity_magnitude : undefined,
+      velocity_u: typeof p.velocity_u === 'number' ? p.velocity_u : undefined,
+      velocity_v: typeof p.velocity_v === 'number' ? p.velocity_v : undefined,
+      velocity_w: typeof p.velocity_w === 'number' ? p.velocity_w : undefined,
+      stress: typeof p.stress === 'number' ? p.stress : undefined,
+      damage: typeof p.damage === 'number' ? p.damage : undefined
+    }))
+  }, [results])
+
+  const scenarioType = useMemo(() => {
+    const desc = project?.description?.toLowerCase() || '';
+    const name = project?.name?.toLowerCase() || '';
+    
+    let type = (latestAnalysis as any)?.scenario_type || 
+               (project?.category === 'Mining' ? 'ROCK_ELAST_STRESS' : 
+               (desc.includes('rock') ? 'ROCK_ELAST_STRESS' : 
+               (name.includes('heatsink') || desc.includes('heatsink') ? 'FPGA_HEATSINK' : 
+               (name.includes('lh2') || desc.includes('lh2') ? 'LH2_STORAGE' : 'H2_PIPELINE'))));
+    return type as 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK'
+  }, [latestAnalysis, project])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -77,36 +176,100 @@ export default function ProjectDetailClient({ id }: { id: string }) {
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-8 text-white">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-sm font-medium">
           <ArrowLeft className="w-4 h-4" /> Back
         </Link>
-        <div className="px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono text-blue-400 uppercase tracking-widest">
-          Project ID: {id}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-mono text-blue-400 uppercase tracking-widest">
+          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" /> Simulation Live
         </div>
       </div>
 
-      <div className="bg-white/[0.03] border border-white/10 rounded-[32px] p-10">
-        <h1 className="text-5xl font-black tracking-tighter">{project.name}</h1>
-        <p className="text-gray-400 text-lg mt-4">{project.description}</p>
+      {/* Hero */}
+      <div className="bg-white/[0.03] border border-white/10 rounded-[32px] p-10 relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+          <div className="space-y-4 max-w-2xl">
+            <div className="flex items-center gap-3 text-emerald-500 font-mono text-[10px] uppercase tracking-widest">
+              <Cpu className="w-4 h-4" /> <span>Module PINN V8.0 // {id.slice(0, 8)}</span>
+            </div>
+            <h1 className="text-5xl font-black tracking-tighter text-white">{project.name}</h1>
+            <p className="text-gray-400 text-lg leading-relaxed">{project.description}</p>
+          </div>
+
+          <div className="flex flex-col gap-3 min-w-[240px]">
+            <Link href={`/dashboard/projects/${id}/analyses/new`} className="w-full px-6 py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+              <Activity className="w-5 h-5" /> New Analysis
+            </Link>
+          </div>
+        </div>
       </div>
 
+      {/* View Switcher */}
+      <div className="flex justify-center">
+        <Tabs value={activeView} onValueChange={(v) => setActiveView(v as any)} className="w-full max-w-md">
+          <TabsList className="grid w-full grid-cols-2 bg-white/5 border border-white/10 p-1">
+            <TabsTrigger value="standard" className="text-xs font-bold uppercase tracking-widest">Vue Standard</TabsTrigger>
+            <TabsTrigger value="advanced" className="text-xs font-bold uppercase tracking-widest text-emerald-400">Advanced Physics Gold</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* Main Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+        {/* Left Sidebar - Reports */}
         <div className="xl:col-span-1 space-y-6">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-500" /> Archives ({reports.length})
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <FileText className="w-5 h-5 text-blue-500" /> Archives
           </h2>
-          <div className="space-y-3">
-            {reports.map(r => (
-              <div key={r.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl">
-                {r.name}
+          <div className="space-y-3 max-h-[600px] overflow-y-auto">
+            {reports.map((report) => (
+              <div
+                key={report.id}
+                onClick={() => setSelectedReport(report)}
+                className={`p-4 border rounded-2xl cursor-pointer transition-all ${selectedReport?.id === report.id ? 'bg-blue-500/10 border-blue-500/50' : 'bg-white/5 border-white/10 hover:border-blue-500/30'}`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-xl ${selectedReport?.id === report.id ? 'bg-blue-500 text-white' : 'bg-blue-500/10 text-blue-400'}`}>
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-white truncate">{report.name}</p>
+                    <p className="text-[10px] font-mono text-gray-500 uppercase mt-1">{report.created_at ? format(new Date(report.created_at), 'dd.MM.yyyy HH:mm') : ''}</p>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="xl:col-span-3 bg-slate-900 rounded-[32px] flex items-center justify-center h-[600px]">
-          <p className="text-blue-500 font-mono">3D ENGINE DISABLED FOR DEBUG</p>
+        {/* Center - 3D Visualizer & Metrics */}
+        <div className="xl:col-span-3 space-y-8">
+          {!latestAnalysis ? (
+            <div className="h-[600px] flex flex-col items-center justify-center bg-slate-950 rounded-[32px] border border-white/10 text-center p-8 space-y-6">
+              <Activity className="w-16 h-16 text-blue-500 animate-pulse" />
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold text-white uppercase tracking-tighter">En attente d'analyse</h3>
+                <p className="text-gray-400 max-w-md mx-auto">Lancez une nouvelle analyse pour visualiser les résultats physiques en 3D.</p>
+              </div>
+            </div>
+          ) : activeView === 'advanced' ? (
+            <div className="space-y-6">
+              <AdvancedPhysicsVisualization 
+                simulationId={latestAnalysis.id} 
+                time={results?.totalTime || 0} 
+              />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <Industrial3DVisualizerEnhancedV5 
+                data={predictions3d} 
+                title="3D Industrial Simulation"
+                scenarioType={scenarioType}
+                colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'stress' : 'temperature'}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
