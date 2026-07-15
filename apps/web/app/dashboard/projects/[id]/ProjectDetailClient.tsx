@@ -275,12 +275,28 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
                 </div>
               </div>
             ))}
+            {reports.length === 0 && (
+              <div className="p-8 text-center bg-white/5 border border-white/10 rounded-2xl text-gray-500 text-xs font-mono uppercase tracking-widest">
+                Aucun rapport disponible
+              </div>
+            )}
           </div>
         </div>
 
         {/* Center - 3D Visualizer & Metrics */}
         <div className="xl:col-span-3 space-y-8">
-          {activeView === 'advanced' && latestAnalysis ? (
+          {!latestAnalysis ? (
+            <div className="h-[600px] flex flex-col items-center justify-center bg-slate-950 rounded-[32px] border border-white/10 text-center p-8 space-y-6">
+              <Activity className="w-16 h-16 text-blue-500 animate-pulse" />
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold text-white uppercase tracking-tighter">En attente d'analyse</h3>
+                <p className="text-gray-400 max-w-md mx-auto">Lancez une nouvelle analyse pour visualiser les résultats physiques en 3D et obtenir les rapports d'audit scientifique.</p>
+              </div>
+              <Link href={`/dashboard/projects/${id}/analyses/new`} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all">
+                Démarrer la première analyse
+              </Link>
+            </div>
+          ) : activeView === 'advanced' ? (
             <div className="space-y-6">
               <AdvancedPhysicsVisualization 
                 simulationId={latestAnalysis.id} 
