@@ -11,7 +11,9 @@ import {
   ChevronRight,
   Zap,
   BarChart3,
-  FileText
+  FileText,
+  ShieldCheck,
+  Lightbulb
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -25,6 +27,8 @@ const menuItems = [
   { icon: MessageSquare, label: 'Assistant IA', href: '/dashboard/assistant' },
   { icon: FileText, label: 'Média', href: '/dashboard/media' },
   { icon: History, label: 'Projets', href: '/dashboard' },
+  { icon: ShieldCheck, label: 'Audits', href: '/dashboard/audits' },
+  { icon: Lightbulb, label: 'Améliorations', href: '/dashboard/improvements' },
   { icon: Zap, label: 'Tarification', href: '/pricing' },
   { icon: Settings, label: 'Paramètres', href: '/dashboard/settings' },
 ]
