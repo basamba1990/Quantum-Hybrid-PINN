@@ -257,8 +257,7 @@ class AnalysisProcessor:
         # Initialisation du modèle PINN
         pinn_instance = HydrogenPINNTFCV8(
             fluid_type=fluid_type,
-            geometry_type=geometry_type,
-            geometry_params=geometry_params
+            geometry_type=geometry_type
         )
 
         # Entraînement du modèle PINN
