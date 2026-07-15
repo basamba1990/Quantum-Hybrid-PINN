@@ -16,12 +16,6 @@ import {
   Eye
 } from 'lucide-react'
 
-// Imports dynamiques minimaux
-const Industrial3DVisualizerEnhancedV5 = dynamic(
-  () => import('@/components/industrial-3d-visualizer-enhanced-v5'),
-  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse">Initializing 3D Engine...</div> }
-)
-
 export default function ProjectDetailClient({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
@@ -111,11 +105,8 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="xl:col-span-3">
-          <Industrial3DVisualizerEnhancedV5 
-            data={[]} 
-            title="Baseline 3D View"
-          />
+        <div className="xl:col-span-3 bg-slate-900 rounded-[32px] flex items-center justify-center h-[600px]">
+          <p className="text-blue-500 font-mono">3D ENGINE DISABLED FOR DEBUG</p>
         </div>
       </div>
     </div>
