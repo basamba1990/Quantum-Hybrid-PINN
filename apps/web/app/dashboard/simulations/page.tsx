@@ -113,12 +113,9 @@ export default function SimulationsPage() {
       : [];
   }, [selectedAnalysis])
 
-  if (loading) return (
-    <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
-      <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-      <p className="text-gray-500 font-mono text-xs uppercase tracking-widest">Initialisation du système industriel...</p>
-    </div>
-  )
+  // ✅ OPTIMIZATION: Removed global blocking loader to allow the sidebar and header to render immediately.
+  // The content will now show individual skeletons where data is missing.
+  // if (loading) return (...)
 
   if (projects.length === 0) return (
     <div className="p-8 max-w-7xl mx-auto text-center py-20 border-2 border-dashed border-white/5 rounded-[40px]">
@@ -168,6 +165,20 @@ export default function SimulationsPage() {
           <TabsTrigger value="hybrid" className="text-xs uppercase font-bold tracking-wider">Simulation Hybride</TabsTrigger>
         </TabsList>
 
+        {loading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 animate-pulse">
+            <div className="lg:col-span-3 h-[600px] bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="w-8 h-8 text-blue-500/50 animate-spin" />
+                <p className="text-[10px] font-mono text-gray-600 uppercase tracking-widest">Chargement des données PINN...</p>
+              </div>
+            </div>
+            <div className="space-y-6">
+              <div className="h-64 bg-white/5 rounded-3xl border border-white/10" />
+              <div className="h-32 bg-white/5 rounded-3xl border border-white/10" />
+            </div>
+          </div>
+        ) : (
         <TabsContent value="classic" className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Visualiseur 3D Principal */}
@@ -293,6 +304,7 @@ export default function SimulationsPage() {
             </div>
           </div>
         </TabsContent>
+        )}
 
         <TabsContent value="hybrid" className="space-y-8">
           <HybridSimulationPanel projectId={selectedProject?.id} />

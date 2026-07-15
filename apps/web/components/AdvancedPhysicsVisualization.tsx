@@ -69,61 +69,61 @@ export default function AdvancedPhysicsVisualization({ simulationId, time, onDat
       setLoading(true);
       setError(null);
       try {
-        const turbResponse = await fetch(`${API_BASE_URL}/v2/analysis/turbulence-spectra`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ simulation_id: simulationId, time }),
-        });
-        if (!turbResponse.ok) {
-          throw new Error(`Turbulence API failed: ${turbResponse.status}`);
-        }
-        const turbResult = await turbResponse.json();
-        if (turbResult?.data) setTurbulenceData(turbResult.data);
-
-        const blResponse = await fetch(`${API_BASE_URL}/v2/analysis/boundary-layer`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            simulation_id: simulationId, 
-            time, 
-            // ✅ FIX: Utilisation de coordonnées relatives au domaine industriel réel
-            x: 0.5, 
-            z: 0.0 
+        // ✅ PARALLEL FETCH: All API calls are triggered simultaneously to reduce latency
+        const [turbRes, blRes, resRes, indRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/v2/analysis/turbulence-spectra`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ simulation_id: simulationId, time }),
           }),
-        });
-        if (!blResponse.ok) {
-          throw new Error(`Boundary layer API failed: ${blResponse.status}`);
-        }
-        const blResult = await blResponse.json();
-        if (blResult?.data) setBoundaryLayerData(blResult.data);
+          fetch(`${API_BASE_URL}/v2/analysis/boundary-layer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              simulation_id: simulationId, 
+              time, 
+              x: 0.5, 
+              z: 0.0 
+            }),
+          }),
+          fetch(`${API_BASE_URL}/v2/analysis/residuals-map`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ simulation_id: simulationId, time, plane: 'xy', coord: 0.0 }),
+          }),
+          fetch(`${API_BASE_URL}/v2/validate-3d`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              simulation_id: simulationId, 
+              time, 
+              scan_spatial: true,
+              n_points: 20,
+              pressure: 101325, temperature: 293.15, density: 1.0, velocity_magnitude: 1.0
+            }),
+          })
+        ]);
 
-        const resResponse = await fetch(`${API_BASE_URL}/v2/analysis/residuals-map`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ simulation_id: simulationId, time, plane: 'xy', coord: 0.0 }),
-        });
-        if (resResponse.ok) {
-          const resResult = await resResponse.json();
+        // Process results
+        if (turbRes.ok) {
+          const turbResult = await turbRes.json();
+          if (turbResult?.data) setTurbulenceData(turbResult.data);
+        }
+
+        if (blRes.ok) {
+          const blResult = await blRes.json();
+          if (blResult?.data) setBoundaryLayerData(blResult.data);
+        }
+
+        if (resRes.ok) {
+          const resResult = await resRes.json();
           if (resResult?.data) setResidualData(resResult.data);
         }
 
-        // Fetch Industrial Data (Stress, Damage, TKE, Pressure, Temperature)
-        const indResponse = await fetch(`${API_BASE_URL}/v2/validate-3d`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            simulation_id: simulationId, 
-            time, 
-            scan_spatial: true,
-            n_points: 20,
-            pressure: 101325, temperature: 293.15, density: 1.0, velocity_magnitude: 1.0
-          }),
-        });
-        if (indResponse.ok) {
-          const indResult = await indResponse.json();
+        if (indRes.ok) {
+          const indResult = await indRes.json();
           if (indResult?.predictions3d) {
             setIndustrialData(indResult.predictions3d);
-            // ✅ FIX: Mise à jour des états pour pression et température
             setPressureData(indResult.predictions3d.map((p: any) => ({ time: p.time || time, pressure: p.pressure })));
             setTemperatureData(indResult.predictions3d.map((p: any) => ({ time: p.time || time, temperature: p.temperature })));
             setVelocityData(indResult.predictions3d.map((p: any) => ({ time: p.time || time, velocity: p.velocity_u || p.velocity_magnitude })));

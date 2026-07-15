@@ -360,8 +360,13 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
     pointsGroupRef.current = group
 
     const geometry = new THREE.BufferGeometry()
-    const positions = new Float32Array(generatedData.length * 3)
-    const colors = new Float32Array(generatedData.length * 3)
+    // ✅ PERFORMANCE OPTIMIZATION: Sampling data if it exceeds 5000 points to prevent UI freezing
+    const MAX_POINTS = 5000;
+    const samplingRatio = generatedData.length > MAX_POINTS ? Math.ceil(generatedData.length / MAX_POINTS) : 1;
+    const displayData = samplingRatio > 1 ? generatedData.filter((_, i) => i % samplingRatio === 0) : generatedData;
+
+    const positions = new Float32Array(displayData.length * 3)
+    const colors = new Float32Array(displayData.length * 3)
     const vMin = stats.minV, vMax = stats.maxV, vRange = vMax - vMin || 1
 
     const getColor = (norm: number) => {
@@ -374,7 +379,7 @@ const Industrial3DVisualizerEnhancedV5: React.FC<Props> = ({
       return color
     }
 
-    generatedData.forEach((p, i) => {
+    displayData.forEach((p, i) => {
       positions[i * 3] = p.x; positions[i * 3 + 1] = p.y; positions[i * 3 + 2] = p.z
       const val = (p as any)[activeVariable] || 0
       const norm = (val - vMin) / vRange
