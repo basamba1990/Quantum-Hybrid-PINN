@@ -127,10 +127,14 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
   }, [results])
 
   const scenarioType = useMemo(() => {
+    const desc = project?.description?.toLowerCase() || '';
+    const name = project?.name?.toLowerCase() || '';
+    
     let type = (latestAnalysis as any)?.scenario_type || 
                (project?.category === 'Mining' ? 'ROCK_ELAST_STRESS' : 
-               (project?.description?.toLowerCase().includes('rock') ? 'ROCK_ELAST_STRESS' : 
-               (project?.name?.toLowerCase().includes('heatsink') || project?.description?.toLowerCase().includes('heatsink') ? 'FPGA_HEATSINK' : 'H2_PIPELINE')));
+               (desc.includes('rock') ? 'ROCK_ELAST_STRESS' : 
+               (name.includes('heatsink') || desc.includes('heatsink') ? 'FPGA_HEATSINK' : 
+               (name.includes('lh2') || desc.includes('lh2') ? 'LH2_STORAGE' : 'H2_PIPELINE'))));
     return type as 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK'
   }, [latestAnalysis, project])
 
@@ -298,10 +302,18 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
             </div>
           ) : activeView === 'advanced' ? (
             <div className="space-y-6">
-              <AdvancedPhysicsVisualization 
-                simulationId={latestAnalysis.id} 
-                time={results?.totalTime || 0} 
-              />
+              {latestAnalysis?.id ? (
+                <AdvancedPhysicsVisualization 
+                  simulationId={latestAnalysis.id} 
+                  time={results?.totalTime || 0} 
+                />
+              ) : (
+                <div className="h-[600px] flex flex-col items-center justify-center bg-slate-950 rounded-[32px] border border-white/10 text-center p-8">
+                  <Activity className="w-16 h-16 text-blue-500 animate-pulse mb-4" />
+                  <h3 className="text-xl font-bold text-white uppercase tracking-tighter">Données Physiques Non Disponibles</h3>
+                  <p className="text-gray-400 max-w-md mx-auto mt-2">L'analyse est en cours ou les données n'ont pas encore été synchronisées.</p>
+                </div>
+              )}
             </div>
           ) : (
             <>

@@ -290,7 +290,7 @@ export function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }
           </div>
         </CardHeader>
         <CardContent className="pt-6 bg-black">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-8 bg-emerald-500/5 p-1 rounded-2xl border border-emerald-500/20">
               <TabsTrigger value="volumetric" className="rounded-xl data-[state=active]:bg-blue-600 data-[state=active]:text-white text-blue-400 font-bold transition-all text-[10px]">Vue 3D Gold</TabsTrigger>
               <TabsTrigger value="turbulence" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Spectres</TabsTrigger>
