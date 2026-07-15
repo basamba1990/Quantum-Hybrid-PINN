@@ -29,9 +29,9 @@ class QuantumHybridPGDPINN(nn.Module):
     def __init__(
         self,
         num_tokens: int = 64,
-        output_size: int = 1000000,
-        embed_dim: int = 256,
-        num_layers: int = 4,
+        output_size: int = 10000,
+        embed_dim: int = 128,
+        num_layers: int = 2,
         device: str = 'cpu',
         physics_weight: float = 1.0,
     ):
@@ -63,10 +63,11 @@ class QuantumHybridPGDPINN(nn.Module):
         )
         
         # Stage 2: PINN Corrector (Physics-Informed Fine-tuning)
+        # Optimized for 512MB RAM: use smaller intermediate layer
         self.pinn_corrector = nn.Sequential(
-            nn.Linear(output_size, output_size // 2),
+            nn.Linear(output_size, min(output_size // 2, 512)),
             nn.ReLU(),
-            nn.Linear(output_size // 2, output_size),
+            nn.Linear(min(output_size // 2, 512), output_size),
         )
         
         # Geometry decomposer

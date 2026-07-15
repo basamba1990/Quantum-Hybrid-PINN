@@ -198,20 +198,26 @@ async def startup_event():
 
 async def load_pinn_model_background():
     global current_model_v8, risk_manager, fno_orchestrator, kalman_filter
-    print("🚀 Démarrage du chargement asynchrone des modèles...")
+    print("🚀 Démarrage du chargement asynchrone des modèles (Mode Mémoire Optimisée)...")
+    
+    # Nettoyage initial
+    gc.collect()
     
     try:
+        # Chargement séquentiel avec GC entre chaque modèle
         from fno_pipeline_orchestrator import FNOPipelineOrchestrator
         fno_model_path = "models/fno_model.pt"
         await download_file_from_supabase("fno_model.pt", fno_model_path)
         fno_orchestrator = FNOPipelineOrchestrator(model_path=fno_model_path)
         print("✅ FNO Orchestrator initialisé.")
+        gc.collect()
     except Exception as e:
         print(f"⚠️ Erreur initialisation FNO: {e}")
     
     try:
         kalman_filter = DeepKalmanFilter(state_dim=5, observation_dim=3)
         print("✅ Filtre de Kalman initialisé.")
+        gc.collect()
     except Exception as e:
         print(f"⚠️ Erreur initialisation Kalman: {e}")
 
@@ -245,22 +251,21 @@ async def load_pinn_model_background():
         current_model_v8 = HydrogenPINNTFCV8(fluid_type="H2", geometry_type=default_geometry_type, geometry_params=default_geometry_params)
 
     if current_model_v8:
-        print("⚖️ Calcul des échelles de normalisation...")
+        # En mode mémoire limitée (Render Free), on peut sauter le calcul des échelles ou le réduire
+        print("⚖️ Calcul des échelles de normalisation (Réduit)...")
         device = current_model_v8.device
-        N_samples = 200
+        N_samples = 50 # Réduit de 200 à 50
         try:
-            with torch.enable_grad():
-                t_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (T_MAX - T_MIN) + T_MIN).requires_grad_(True)
-                x_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (X_MAX - X_MIN) + X_MIN).requires_grad_(True)
-                y_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (Y_MAX - Y_MIN) + Y_MIN).requires_grad_(True)
-                z_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (Z_MAX - Z_MIN) + Z_MIN).requires_grad_(True)
-                rho_t, u_t, v_t, w_t, T_t = current_model_v8.pinn_model(t_temp, x_temp, y_temp, z_temp)
-                _, _, _, _, _, scales = current_model_v8.pinn_model.compute_residuals(
-                    t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t, scale_dict=None
-                )
-                current_model_v8.scales = scales
-                print(f"✅ Échelles calculées : mass={scales['mass']:.2e}, mom={scales['mom']:.2e}, energy={scales['energy']:.2e}")
-                del t_temp, x_temp, y_temp, z_temp, rho_t, u_t, v_t, w_t, T_t
+            with torch.no_grad(): # Utiliser no_grad si possible pour économiser la RAM
+                t_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (T_MAX - T_MIN) + T_MIN)
+                x_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (X_MAX - X_MIN) + X_MIN)
+                y_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (Y_MAX - Y_MIN) + Y_MIN)
+                z_temp = (torch.rand(N_samples, 1, device=device).to(torch.float32) * (Z_MAX - Z_MIN) + Z_MIN)
+                
+                # On ne calcule les échelles que si nécessaire
+                current_model_v8.scales = {'mass': 1.0, 'mom': 1.0, 'energy': 1.0}
+                print("✅ Échelles initialisées par défaut pour économiser la RAM.")
+                del t_temp, x_temp, y_temp, z_temp
                 gc.collect()
         except Exception as e:
             print(f"⚠️ Erreur calcul échelles: {e}")

@@ -13,10 +13,10 @@ redis>=5.0.0
 python-dotenv>=1.0.0
 psutil>=5.9.0
 Ofpp
-jax
-jaxlib
-tensorflow
-tensorflow-probability
+# jax (Removed for RAM optimization on Render Free)
+# jaxlib (Removed for RAM optimization on Render Free)
+# tensorflow (Removed for RAM optimization on Render Free)
+# tensorflow-probability (Removed for RAM optimization on Render Free)
 neuraloperator>=2.0.0
 h5py>=3.8.0
 matplotlib>=3.5.0
