@@ -352,9 +352,13 @@ async def validate_3d(request: PredictionRequestV8):
         z_samples = z_samples.to(current_model_v8.device).requires_grad_(True)
 
         rho_s, u_s, v_s, w_s, T_s = current_model_v8.pinn_model(t_samples, x_samples, y_samples, z_samples)
-        res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
+        residuals = current_model_v8.pinn_model.compute_residuals(
             t_samples, x_samples, y_samples, z_samples, rho_s, u_s, v_s, w_s, T_s, scale_dict=current_model_v8.scales
         )
+        if len(residuals) == 6:
+            res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy, _ = residuals
+        else:
+            res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = residuals
         
         res_mass_avg = torch.abs(res_mass).mean()
         res_mom_avg = torch.sqrt(res_mom_x**2 + res_mom_y**2 + res_mom_z**2).mean()

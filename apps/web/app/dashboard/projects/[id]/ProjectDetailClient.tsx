@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Project, Report, Analysis } from '@/types'
 import dynamic from 'next/dynamic'
 import { format } from 'date-fns'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   ArrowLeft, 
   FileText, 
@@ -47,6 +48,11 @@ const ResidualsChart = dynamic(
 const Industrial3DVisualizerExport = dynamic(
   () => import('@/components/industrial-3d-visualizer-export'),
   { ssr: false, loading: () => <div className="h-12 bg-slate-950 rounded-xl border border-white/10 animate-pulse" /> }
+)
+
+const AdvancedPhysicsVisualization = dynamic(
+  () => import('@/components/AdvancedPhysicsVisualization').then(mod => mod.AdvancedPhysicsVisualization),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-emerald-500 animate-pulse">Chargement de l'analyse physique avancée...</div> }
 )
 
 const Streamline3DVisualizer = dynamic(
@@ -193,6 +199,8 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
     </div>
   )
 
+  const [activeView, setActiveView] = useState<'standard' | 'advanced'>('standard')
+
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-8">
       {/* Header */}
@@ -232,6 +240,16 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
         </div>
       </div>
 
+      {/* View Switcher */}
+      <div className="flex justify-center">
+        <Tabs value={activeView} onValueChange={(v) => setActiveView(v as any)} className="w-full max-w-md">
+          <TabsList className="grid w-full grid-cols-2 bg-white/5 border border-white/10 p-1">
+            <TabsTrigger value="standard" className="text-xs font-bold uppercase tracking-widest">Vue Standard</TabsTrigger>
+            <TabsTrigger value="advanced" className="text-xs font-bold uppercase tracking-widest text-emerald-400">Advanced Physics Gold</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
         {/* Left Sidebar - Reports */}
@@ -262,40 +280,51 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
 
         {/* Center - 3D Visualizer & Metrics */}
         <div className="xl:col-span-3 space-y-8">
-          {/* 3D Visualizer with Enhanced Clarity and Streamlines */}
-          <div className="space-y-4">
-            <Industrial3DVisualizerEnhancedV5 
-              data={predictions3d} 
-              title="3D Industrial Simulation - Adaptive Geometry"
-              scenarioType={scenarioType}
-              colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'stress' : 'temperature'}
-            />
-              <Industrial3DVisualizerExport
-                data={predictions3d}
-                title="3D Isosurface Visualization - Enhanced Clarity"
-                colorVariable="temperature"
-                onExport={async (format) => {
-                  if (format === 'png') {
-                    // Logique d'export PNG (capture d'écran de la visualisation 3D)
-                    // Cela nécessiterait une interaction plus complexe avec le composant 3D lui-même
-                    // Pour l'instant, nous allons simuler un téléchargement ou une alerte
-                    alert('Export PNG 3D en cours de développement. Veuillez utiliser les outils de capture d\'écran de votre navigateur.');
-                  } else if (format === 'json') {
-                    const blob = new Blob([JSON.stringify(predictions3d, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `${project.name.replace(/\s/g, '_')}_3d_data.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                  } else if (format === 'pdf') {
-                    alert('Export PDF 3D en cours de développement. Nécessite un rendu côté serveur ou une bibliothèque plus avancée.');
-                  }
-                }}
+          {activeView === 'advanced' && latestAnalysis ? (
+            <div className="space-y-6">
+              <AdvancedPhysicsVisualization 
+                simulationId={latestAnalysis.id} 
+                time={results?.totalTime || 0} 
               />
-          </div>
+            </div>
+          ) : (
+            <>
+              {/* 3D Visualizer with Enhanced Clarity and Streamlines */}
+              <div className="space-y-4">
+                <Industrial3DVisualizerEnhancedV5 
+                  data={predictions3d} 
+                  title="3D Industrial Simulation - Adaptive Geometry"
+                  scenarioType={scenarioType}
+                  colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'stress' : 'temperature'}
+                />
+                  <Industrial3DVisualizerExport
+                    data={predictions3d}
+                    title="3D Isosurface Visualization - Enhanced Clarity"
+                    colorVariable="temperature"
+                    onExport={async (format) => {
+                      if (format === 'png') {
+                        // Logique d'export PNG (capture d'écran de la visualisation 3D)
+                        // Cela nécessiterait une interaction plus complexe avec le composant 3D lui-même
+                        // Pour l'instant, nous allons simuler un téléchargement ou une alerte
+                        alert('Export PNG 3D en cours de développement. Veuillez utiliser les outils de capture d\'écran de votre navigateur.');
+                      } else if (format === 'json') {
+                        const blob = new Blob([JSON.stringify(predictions3d, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${project.name.replace(/\s/g, '_')}_3d_data.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } else if (format === 'pdf') {
+                        alert('Export PDF 3D en cours de développement. Nécessite un rendu côté serveur ou une bibliothèque plus avancée.');
+                      }
+                    }}
+                  />
+              </div>
+            </>
+          )}
 
           {/* 2D Analysis Charts with Export */}
           {predictions3d.length > 0 && (

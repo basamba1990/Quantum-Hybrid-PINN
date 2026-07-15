@@ -31,6 +31,11 @@ const Industrial3DVisualizerEnhancedV5 = dynamic(
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur 3D...</div> }
 )
 
+const AdvancedPhysicsVisualization = dynamic(
+  () => import('@/components/AdvancedPhysicsVisualization').then(mod => mod.AdvancedPhysicsVisualization),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-emerald-500 animate-pulse">Chargement de l'analyse physique avancée...</div> }
+)
+
 export default function SimulationsPage() {
   const [projects, setProjects] = useState<any[]>([])
   const [selectedProject, setSelectedProject] = useState<any>(null)
@@ -289,8 +294,21 @@ export default function SimulationsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="hybrid">
-          <HybridSimulationPanel />
+        <TabsContent value="hybrid" className="space-y-8">
+          <HybridSimulationPanel projectId={selectedProject?.id} />
+          
+          {selectedAnalysis && (
+            <div className="mt-12 space-y-6">
+              <div className="flex items-center gap-3 px-6">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                <h3 className="text-xl font-black text-white uppercase tracking-tighter">Résultats d'Analyse Gold Standard</h3>
+              </div>
+              <AdvancedPhysicsVisualization 
+                simulationId={selectedAnalysis.id} 
+                time={selectedAnalysis.results?.totalTime || 0} 
+              />
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
