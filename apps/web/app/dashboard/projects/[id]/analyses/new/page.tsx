@@ -124,7 +124,7 @@ export default function NewAnalysisPage() {
       }
 
       // 4. Lancement asynchrone de la simulation
-      const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com';
+      const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
       
       const transcription = project.transcription || "";
       

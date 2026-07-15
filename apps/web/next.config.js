@@ -57,7 +57,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com'}/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com'}/:path*`,
         permanent: false
       }
     ]

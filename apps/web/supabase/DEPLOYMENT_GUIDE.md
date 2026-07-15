@@ -24,7 +24,7 @@ npx supabase functions deploy verify-physics-logic --project-id ivhxnaxhgfbiqlhg
 | Variable | Valeur | Description |
 |----------|--------|-------------|
 | `OPENAI_API_KEY` | (secret) | Clé API OpenAI pour l'extraction de paramètres |
-| `H2_INFERENCE_API_URL` | `https://quantum-hybrid-pinn-jdoj.onrender.com` | URL du backend |
+| `H2_INFERENCE_API_URL` | `https://quantum-pinn-api-qef2.onrender.com` | URL du backend |
 | `SUPABASE_URL` | `https://ivhxnaxhgfbiqlhgfkik.supabase.co` | URL Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | (secret) | Clé service role Supabase |
 | `LOG_LEVEL` | `info` | Niveau de log |

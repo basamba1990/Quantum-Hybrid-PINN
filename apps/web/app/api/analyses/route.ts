@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ✅ Submit job to backend queue immediately
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com';
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
     
     try {
       const queueResponse = await fetch(`${backendUrl}/v2/submit-analysis`, {

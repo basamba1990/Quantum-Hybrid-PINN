@@ -488,7 +488,7 @@ Ce document fournit une spécification détaillée des formats de requête et de
 ## Exemple de Requête Complète
 
 ```bash
-curl -X POST https://quantum-hybrid-pinn-jdoj.onrender.com/hybrid/run-simulation \
+curl -X POST https://quantum-pinn-api-qef2.onrender.com/hybrid/run-simulation \
   -H "Content-Type: application/json" \
   -d 
   '{

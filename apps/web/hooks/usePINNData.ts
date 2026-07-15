@@ -19,7 +19,7 @@ interface PINNDataParams {
  * - Gestion d'erreurs transparente
  * - Timeout pour éviter les blocages
  */
-export const usePINNData = (apiBaseUrl: string = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com') => {
+export const usePINNData = (apiBaseUrl: string = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com') => {
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

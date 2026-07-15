@@ -139,7 +139,7 @@ Create a `.env.local` file within `apps/web`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_API_URL=https://quantum-hybrid-pinn-jdoj.onrender.com
+NEXT_PUBLIC_API_URL=https://quantum-pinn-api-qef2.onrender.com
 ```
 
 ### 4. Run the Development Server

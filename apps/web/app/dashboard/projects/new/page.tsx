@@ -131,7 +131,7 @@ export default function NewProjectPage() {
           try {
             const { data: { session } } = await supabase.auth.getSession();
             // ✅ CORRECTIF V8.3 : Utiliser l'API principale pour garantir l'unicité et le traitement réel
-            const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com';
+            const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
             
             fetch(`${industrialApiUrl}/v2/submit-analysis`, {
               method: 'POST',

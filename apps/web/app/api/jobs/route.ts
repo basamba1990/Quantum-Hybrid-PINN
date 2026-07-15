@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(req: NextRequest) {
   try {
     // ✅ FIX: Vérifier que l'API_URL est correctement configurée
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.H2_INFERENCE_API_URL || 'https://quantum-hybrid-pinn-jdoj.onrender.com';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.H2_INFERENCE_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
     
     if (!API_URL) {
       console.error('❌ CRITICAL: API_URL not configured');
