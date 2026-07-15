@@ -189,6 +189,8 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
     </div>
   )
 
+  const [activeView, setActiveView] = useState<'standard' | 'advanced'>('standard')
+
   if (!project) return (
     <div className="p-8 flex flex-col items-center justify-center h-[60vh] text-center">
       <Activity className="w-12 h-12 text-red-500 mb-4" />
@@ -198,8 +200,6 @@ export default function ProjectDetailClientV2({ id }: { id: string }) {
       </Link>
     </div>
   )
-
-  const [activeView, setActiveView] = useState<'standard' | 'advanced'>('standard')
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-8">
