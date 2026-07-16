@@ -25,9 +25,9 @@ interface Annotation {
 }
 
 interface Props {
-  analysisId: string
-  projectId: string
-  credibilityScore: number
+  analysisId?: string
+  projectId?: string
+  credibilityScore?: number
 }
 
 /**
@@ -37,7 +37,7 @@ interface Props {
  * de haut niveau, attirant investisseurs et partenaires par la preuve sociale 
  * et la validation par les pairs.
  */
-export default function ScientificSocialHub({ analysisId, projectId, credibilityScore }: Props) {
+export default function ScientificSocialHub({ analysisId = 'demo-analysis', projectId = 'demo-project', credibilityScore = 98.7 }: Props) {
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [newComment, setNewComment] = useState('')
   const [isSharing, setIsSharing] = useState(false)
