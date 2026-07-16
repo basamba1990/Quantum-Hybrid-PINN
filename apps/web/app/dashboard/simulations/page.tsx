@@ -322,7 +322,7 @@ export default function SimulationsPage() {
         
         <TabsContent value="audit">
           <div className="grid grid-cols-1 gap-8">
-             <AdvancedPhysicsVisualization simulationId={selectedAnalysis?.id} />
+             <AdvancedPhysicsVisualization simulationId={selectedAnalysis?.id} time={0} />
           </div>
         </TabsContent>
       </Tabs>
