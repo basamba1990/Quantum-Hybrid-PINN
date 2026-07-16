@@ -18,7 +18,7 @@ import {
   Users
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ScientificSocialHub } from '@/components/scientific-social-hub'
+import ScientificSocialHub from '@/components/scientific-social-hub'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
