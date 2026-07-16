@@ -535,9 +535,13 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             rho_pinn, u_pinn, v_pinn, w_pinn, T_pinn = current_model_v8.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
             p_pinn = get_eos(current_model_v8.fluid_type, rho_pinn, T_pinn)
             
-            res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = current_model_v8.pinn_model.compute_residuals(
+            residuals = current_model_v8.pinn_model.compute_residuals(
                 t_tensor, x_tensor, y_tensor, z_tensor, rho_pinn, u_pinn, v_pinn, w_pinn, T_pinn, scale_dict=current_model_v8.scales
             )
+            if len(residuals) == 6:
+                res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy, _ = residuals
+            else:
+                res_mass, res_mom_x, res_mom_y, res_mom_z, res_energy = residuals
             
             residuals_dict = {
                 "continuity": float(torch.abs(res_mass).reshape(-1)[0].item()),
