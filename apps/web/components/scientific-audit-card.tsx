@@ -16,7 +16,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react'
-import Industrial3DVisualizerV10Gold from './industrial-3d-visualizer-v10-gold-v2'
+import Industrial3DVisualizerV10Ultra from './industrial-3d-visualizer-v10-ultra'
 import HybridChartVisualizer from './hybrid-chart-visualizer'
 import type { Prediction3D } from '@/types'
 
@@ -182,18 +182,18 @@ export default function ScientificAuditCard({
               {/* Main Visualizer */}
               <div className="lg:col-span-2 bg-black/40 border border-white/10 rounded-[40px] overflow-hidden shadow-inner relative group h-[600px]">
                 {visualizationType === 'field' ? (
-                  <Industrial3DVisualizerV10Gold 
+                  <Industrial3DVisualizerV10Ultra 
                     data={auditData.predictions3d} 
                     title="VOLUMETRIC MARCHING CUBES - INDUSTRIAL GRADE"
                     colorVariable="temperature"
-                    quality="high"
+                    quality="ultra"
                   />
                 ) : (
-                  <Industrial3DVisualizerV10Gold 
+                  <Industrial3DVisualizerV10Ultra 
                     data={auditData.predictions3d}
                     title="VOLUMETRIC MARCHING CUBES - TRAJECTORY MODE"
                     colorVariable="pressure"
-                    quality="high"
+                    quality="ultra"
                   />
                 )}
                 <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
