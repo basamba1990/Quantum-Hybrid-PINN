@@ -244,7 +244,7 @@ export default function ScientificSocialHub({
           content: newAnnotation.content,
           severity: newAnnotation.severity || 'info',
           created_at: newAnnotation.created_at,
-          user_name: newAnnotation.users?.full_name || newAnnotation.users?.email?.split('@')[0] || 'Vous'
+          user_name: newAnnotation.users?.[0]?.full_name || newAnnotation.users?.[0]?.email?.split('@')[0] || 'Vous'
         }
         setAnnotations([formattedAnnotation, ...annotations])
         setNewComment('')
