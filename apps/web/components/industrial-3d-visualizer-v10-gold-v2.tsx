@@ -17,16 +17,16 @@ interface Props {
   data?: DataPoint[];
   title?: string;
   colorVariable?: 'temperature' | 'pressure' | 'velocity';
-  quality?: 'low' | 'medium' | 'high';
+  quality?: 'low' | 'medium' | 'high' | 'ultra';
 }
 
 /**
- * TRULY-INDUSTRIAL V10-GOLD VISUALIZER (V2)
- * Implementation of professional CFD visualization:
- * - Continuous volumetric field (Marching Cubes)
- * - Scientific color mapping (Blue-Green-Yellow-Red)
- * - Industrial UI overlay
- * - High-fidelity material rendering
+ * TRULY-INDUSTRIAL V10-GOLD VISUALIZER (V2-REFINED)
+ * Professional CFD volumetric visualization:
+ * - High-resolution Marching Cubes (up to 128)
+ * - Adaptive point fusion for continuous surfaces
+ * - Scientific blue-to-red color mapping
+ * - Industrial-grade UI overlay
  */
 const Industrial3DVisualizerV10Gold: React.FC<Props> = ({ 
   data = [], 
@@ -40,10 +40,11 @@ const Industrial3DVisualizerV10Gold: React.FC<Props> = ({
 
   const resolution = useMemo(() => {
     switch(quality) {
-      case 'low': return 32;
-      case 'medium': return 48;
-      case 'high': return 64;
-      default: return 48;
+      case 'low': return 48;
+      case 'medium': return 64;
+      case 'high': return 96;
+      case 'ultra': return 128;
+      default: return 80;
     }
   }, [quality])
 
@@ -57,7 +58,7 @@ const Industrial3DVisualizerV10Gold: React.FC<Props> = ({
     const width = containerRef.current.clientWidth
     const height = containerRef.current.clientHeight
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
-    camera.position.set(5, 5, 5)
+    camera.position.set(6, 6, 6)
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setSize(width, height)
@@ -66,70 +67,83 @@ const Industrial3DVisualizerV10Gold: React.FC<Props> = ({
     containerRef.current.appendChild(renderer.domElement)
     rendererRef.current = renderer
 
-    // OrbitControls import dynamique
+    // OrbitControls
     let controls: any;
     import('three/examples/jsm/controls/OrbitControls.js').then(({ OrbitControls }) => {
       controls = new OrbitControls(camera, renderer.domElement)
       controls.enableDamping = true
+      controls.dampingFactor = 0.05
     })
 
-    // 2. Professional Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4)
+    // 2. Advanced Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
     scene.add(ambientLight)
     
-    const mainLight = new THREE.DirectionalLight(0xffffff, 0.8)
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.0)
     mainLight.position.set(10, 10, 10)
     scene.add(mainLight)
 
-    const rimLight = new THREE.PointLight(0x3b82f6, 0.5)
-    rimLight.position.set(-10, -10, -10)
-    scene.add(rimLight)
+    const fillLight = new THREE.DirectionalLight(0x3b82f6, 0.4)
+    fillLight.position.set(-10, 0, -10)
+    scene.add(fillLight)
 
-    // 3. Marching Cubes for Continuous Volumetric Rendering
+    // 3. Volumetric Rendering (Marching Cubes)
     const createVolumetricLayer = (color: number, opacity: number) => {
       const material = new THREE.MeshPhongMaterial({
         color: color,
         transparent: true,
         opacity: opacity,
         side: THREE.DoubleSide,
-        shininess: 100,
-        specular: 0x222222
+        shininess: 120,
+        specular: 0x444444,
+        flatShading: false
       })
-      const mc = new MarchingCubes(resolution, material, true, true, 100000)
-      mc.scale.set(3, 3, 3)
+      const mc = new MarchingCubes(resolution, material, true, true, 200000)
+      mc.scale.set(3.5, 3.5, 3.5)
       return mc
     }
 
-    // Industrial Color Map Layers
+    // Industrial Color Map (Scientific Gradient)
     const layers = [
-      { t: 0.2, c: 0x0000ff, o: 0.3 }, // Blue (Cold)
-      { t: 0.4, c: 0x00ff00, o: 0.4 }, // Green
-      { t: 0.6, c: 0xffff00, o: 0.5 }, // Yellow
-      { t: 0.8, c: 0xff0000, o: 0.6 }  // Red (Hot)
+      { t: 0.15, c: 0x1e3a8a, o: 0.25 }, // Deep Blue (Coldest)
+      { t: 0.35, c: 0x3b82f6, o: 0.35 }, // Blue
+      { t: 0.55, c: 0x10b981, o: 0.45 }, // Green
+      { t: 0.75, c: 0xf59e0b, o: 0.55 }, // Yellow/Orange
+      { t: 0.95, c: 0xef4444, o: 0.65 }  // Red (Hottest)
     ]
 
     const mcLayers = layers.map(l => createVolumetricLayer(l.c, l.o))
     mcLayers.forEach(mc => scene.add(mc))
 
-    // 4. Data Processing & Statistics
+    // 4. Data Processing
     const values = data.map(p => p[colorVariable as keyof DataPoint] as number)
     const minVal = Math.min(...values)
     const maxVal = Math.max(...values)
     const avgVal = values.reduce((a, b) => a + b, 0) / values.length
     setStats({ min: minVal, max: maxVal, avg: avgVal, count: data.length })
 
-    // Fill Marching Cubes
+    // Adaptive Radius Calculation
+    const xCoords = data.map(p => p.x)
+    const yCoords = data.map(p => p.y)
+    const zCoords = data.map(p => p.z)
+    const xRange = Math.max(...xCoords) - Math.min(...xCoords) || 1
+    const yRange = Math.max(...yCoords) - Math.min(...yCoords) || 1
+    const zRange = Math.max(...zCoords) - Math.min(...zCoords) || 1
+    
+    // Estimation de l'espacement moyen pour fusionner les points
+    const volume = xRange * yRange * zRange
+    const avgSpacing = Math.pow(volume / data.length, 1/3)
+    const fusionRadius = Math.max(0.25, avgSpacing * 1.8) // Facteur 1.8 pour assurer la fusion
+
     const updateVolumes = () => {
       mcLayers.forEach(mc => mc.reset())
       
-      const xCoords = data.map(p => p.x)
-      const yCoords = data.map(p => p.y)
-      const zCoords = data.map(p => p.z)
       const xMin = Math.min(...xCoords), xMax = Math.max(...xCoords)
       const yMin = Math.min(...yCoords), yMax = Math.max(...yCoords)
       const zMin = Math.min(...zCoords), zMax = Math.max(...zCoords)
       
       data.forEach(p => {
+        // Normalisation dans l'espace [0, 1] pour MarchingCubes
         const nx = (p.x - xMin) / (xMax - xMin || 1)
         const ny = (p.y - yMin) / (yMax - yMin || 1)
         const nz = (p.z - zMin) / (zMax - zMin || 1)
@@ -138,8 +152,9 @@ const Industrial3DVisualizerV10Gold: React.FC<Props> = ({
         
         mcLayers.forEach((mc, idx) => {
           const layerThreshold = layers[idx].t
-          if (val >= layerThreshold - 0.1 && val <= layerThreshold + 0.1) {
-            mc.addBall(nx, ny, nz, 0.15, 12)
+          // Plage de seuil élargie pour une meilleure fusion volumétrique
+          if (val >= layerThreshold - 0.15 && val <= layerThreshold + 0.15) {
+            mc.addBall(nx, ny, nz, fusionRadius, 16) // 16 segments pour plus de précision
           }
         })
       })
@@ -147,10 +162,14 @@ const Industrial3DVisualizerV10Gold: React.FC<Props> = ({
     updateVolumes()
 
     // 5. Grid & Bounding Box
-    const boxGeom = new THREE.BoxGeometry(6, 6, 6)
+    const boxGeom = new THREE.BoxGeometry(7, 7, 7)
     const edges = new THREE.EdgesGeometry(boxGeom)
-    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x1e293b, transparent: true, opacity: 0.5 }))
+    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.3 }))
     scene.add(line)
+
+    // Axis Helper
+    const axesHelper = new THREE.AxesHelper(4)
+    scene.add(axesHelper)
 
     // Animation Loop
     let frameId: number;
@@ -161,7 +180,19 @@ const Industrial3DVisualizerV10Gold: React.FC<Props> = ({
     }
     animate()
 
+    // Handle Resize
+    const handleResize = () => {
+      if (!containerRef.current) return
+      const w = containerRef.current.clientWidth
+      const h = containerRef.current.clientHeight
+      camera.aspect = w / h
+      camera.updateProjectionMatrix()
+      renderer.setSize(w, h)
+    }
+    window.addEventListener('resize', handleResize)
+
     return () => {
+      window.removeEventListener('resize', handleResize)
       cancelAnimationFrame(frameId)
       renderer.dispose()
       mcLayers.forEach(mc => {
@@ -173,7 +204,7 @@ const Industrial3DVisualizerV10Gold: React.FC<Props> = ({
   }, [data, colorVariable, resolution])
 
   return (
-    <div className="relative w-full h-full min-h-[500px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-950 shadow-2xl">
+    <div className="relative w-full h-full min-h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-950 shadow-2xl">
       <div ref={containerRef} className="w-full h-full" />
       
       {/* INDUSTRIAL UI OVERLAY */}
@@ -184,33 +215,39 @@ const Industrial3DVisualizerV10Gold: React.FC<Props> = ({
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
               <h2 className="text-xl font-black tracking-tighter text-white uppercase">{title}</h2>
             </div>
-            <p className="text-[10px] font-mono text-blue-500/60 tracking-widest uppercase">Physics-Informed Neural Network // V10 Gold Standard</p>
+            <p className="text-[10px] font-mono text-blue-500/60 tracking-widest uppercase">Physics-Informed Neural Network // Volumetric V10 Gold</p>
           </div>
-          <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl text-right">
-            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Status du Solveur</p>
-            <p className="text-emerald-500 font-bold text-xs uppercase">Converged 100%</p>
+          <div className="flex gap-4">
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl text-right">
+              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Qualité Rendu</p>
+              <p className="text-blue-400 font-bold text-xs uppercase">{quality} ({resolution}^3)</p>
+            </div>
+            <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl text-right">
+              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Status du Solveur</p>
+              <p className="text-emerald-500 font-bold text-xs uppercase">Converged 100%</p>
+            </div>
           </div>
         </div>
 
         <div className="flex justify-between items-end">
-          <div className="grid grid-cols-3 gap-4 bg-black/40 backdrop-blur-xl border border-white/5 p-6 rounded-[32px]">
+          <div className="grid grid-cols-3 gap-6 bg-black/60 backdrop-blur-2xl border border-white/10 p-8 rounded-[32px] pointer-events-auto">
             <div>
-              <p className="text-[9px] font-black text-gray-500 uppercase mb-1">Min {colorVariable}</p>
-              <p className="text-lg font-black text-white">{stats.min.toFixed(2)}</p>
+              <p className="text-[10px] font-black text-gray-500 uppercase mb-1 tracking-wider">Min {colorVariable}</p>
+              <p className="text-2xl font-black text-white">{stats.min.toFixed(2)}</p>
             </div>
-            <div className="border-x border-white/10 px-4">
-              <p className="text-[9px] font-black text-gray-500 uppercase mb-1">Max {colorVariable}</p>
-              <p className="text-lg font-black text-white">{stats.max.toFixed(2)}</p>
+            <div className="border-x border-white/10 px-6">
+              <p className="text-[10px] font-black text-gray-500 uppercase mb-1 tracking-wider">Max {colorVariable}</p>
+              <p className="text-2xl font-black text-white">{stats.max.toFixed(2)}</p>
             </div>
             <div>
-              <p className="text-[9px] font-black text-gray-500 uppercase mb-1">Avg {colorVariable}</p>
-              <p className="text-lg font-black text-white">{stats.avg.toFixed(2)}</p>
+              <p className="text-[10px] font-black text-gray-500 uppercase mb-1 tracking-wider">Points PINN</p>
+              <p className="text-2xl font-black text-blue-500">{stats.count.toLocaleString()}</p>
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-2">
-            <div className="h-32 w-4 bg-gradient-to-t from-blue-600 via-green-500 to-red-600 rounded-full border border-white/10" />
-            <p className="text-[9px] font-black text-gray-400 uppercase vertical-text tracking-widest">Scale (K)</p>
+          <div className="flex flex-col items-end gap-3 bg-black/40 p-4 rounded-3xl border border-white/5">
+            <div className="h-48 w-6 bg-gradient-to-t from-blue-900 via-green-500 to-red-600 rounded-full border border-white/20 shadow-lg" />
+            <p className="text-[10px] font-black text-gray-400 uppercase vertical-text tracking-widest">Scientific Scale (K)</p>
           </div>
         </div>
       </div>

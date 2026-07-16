@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { ArrowLeft, Activity } from 'lucide-react'
 import ScientificAuditCard from '@/components/scientific-audit-card'
+import ScientificSocialHub from '@/components/scientific-social-hub'
 import { format } from 'date-fns'
 
 interface AnalysisDetail {
@@ -119,7 +120,7 @@ export default function AnalysisDetailPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 w-full max-w-[1600px] mx-auto space-y-8">
+    <div className="p-4 md:p-8 w-full max-w-[1800px] mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -127,13 +128,13 @@ export default function AnalysisDetailPage() {
             <ArrowLeft className="w-4 h-4" /> Retour aux analyses
           </Link>
           <h1 className="text-4xl font-bold text-gray-900">{analysis.title}</h1>
-	          <p className="text-gray-600 mt-2">
-	            <Activity className="w-4 h-4 inline mr-2" />
-	            Créée le {analysis.created_at ? (function() {
+          <p className="text-gray-600 mt-2">
+            <Activity className="w-4 h-4 inline mr-2" />
+            Créée le {analysis.created_at ? (function() {
                   try { return format(new Date(analysis.created_at), 'dd MMMM yyyy à HH:mm'); }
                   catch(e) { return 'Date invalide'; }
                 })() : 'Date inconnue'}
-	          </p>
+          </p>
         </div>
         <div className="text-right">
           <div className="text-5xl font-black text-blue-600">{analysis.credibility_score.toFixed(1)}</div>
@@ -141,11 +142,25 @@ export default function AnalysisDetailPage() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <ScientificAuditCard
-        auditData={auditData}
-        projectName={analysis.title}
-      />
+      {/* Main Content Layout - 3 Columns Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left & Middle Columns: Scientific Audit (Span 2) */}
+        <div className="lg:col-span-2 space-y-8">
+          <ScientificAuditCard
+            auditData={auditData}
+            projectName={analysis.title}
+          />
+        </div>
+
+        {/* Right Column: Social Hub */}
+        <div className="lg:col-span-1">
+          <ScientificSocialHub 
+            analysisId={analysisId}
+            projectId={projectId}
+            credibilityScore={analysis.credibility_score}
+          />
+        </div>
+      </div>
     </div>
   )
 }
