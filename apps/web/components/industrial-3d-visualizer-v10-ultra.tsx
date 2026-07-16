@@ -89,6 +89,7 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setSize(width, height)
     renderer.setPixelRatio(window.devicePixelRatio)
+    renderer.localClippingEnabled = true // Enable clipping
     containerRef.current.innerHTML = ''
     containerRef.current.appendChild(renderer.domElement)
     rendererRef.current = renderer
@@ -117,15 +118,19 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
     scene.add(fillLight)
 
     // 3. Create Single Volumetric Layer with Marching Cubes
+    const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0.5) // Cut through the middle
+    
     const material = new THREE.MeshPhongMaterial({
       color: 0x1e3a8a,
-      transparent: true,
-      opacity: 0.85,
+      transparent: false,
+      opacity: 1.0,
       side: THREE.DoubleSide,
       shininess: 150,
       specular: 0x666666,
       flatShading: false,
-      wireframe: false
+      wireframe: false,
+      clippingPlanes: [clipPlane],
+      clipShadows: true
     })
 
     const mc = new MarchingCubes(resolution, material, true, true, 500000)
@@ -240,7 +245,9 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
           side: THREE.DoubleSide,
           shininess: 150,
           specular: 0x666666,
-          flatShading: false
+          flatShading: false,
+          clippingPlanes: [clipPlane],
+          clipShadows: true
         });
         mc.material = colorMaterial;
       }

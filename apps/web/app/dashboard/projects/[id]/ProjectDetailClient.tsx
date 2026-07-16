@@ -18,9 +18,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 // Imports dynamiques pour optimiser le chargement
-const Industrial3DVisualizerEnhancedV5 = dynamic(
-  () => import('@/components/industrial-3d-visualizer-enhanced-v5'),
-  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse">Initializing 3D Engine...</div> }
+const Industrial3DVisualizerV10Ultra = dynamic(
+  () => import('@/components/industrial-3d-visualizer-v10-ultra'),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse">Initializing V10 Ultra Engine...</div> }
 )
 
 const HybridChartVisualizerExport = dynamic(
@@ -263,11 +263,11 @@ export default function ProjectDetailClient({ id }: { id: string }) {
             </div>
           ) : (
             <div className="space-y-4">
-              <Industrial3DVisualizerEnhancedV5 
+              <Industrial3DVisualizerV10Ultra 
                 data={predictions3d} 
-                title="3D Industrial Simulation"
-                scenarioType={scenarioType}
-                colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'stress' : 'temperature'}
+                title="TRULY-INDUSTRIAL V10-GOLD"
+                colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'prediction' : 'temperature'}
+                quality="ultra"
               />
             </div>
           )}
