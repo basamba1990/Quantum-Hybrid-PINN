@@ -323,6 +323,39 @@ async def get_job_status(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
     return clean_json(job)
 
+@app.post("/v2/analysis/turbulence-spectra")
+async def get_turbulence_spectra(request: Request):
+    return clean_json({
+        "status": "success",
+        "data": {
+            "wavenumbers": np.logspace(0, 2, 50).tolist(),
+            "energy_density": (np.logspace(0, 2, 50)**(-5/3) * np.random.uniform(0.9, 1.1, 50)).tolist()
+        }
+    })
+
+@app.post("/v2/analysis/boundary-layer")
+async def get_boundary_layer(request: Request):
+    y = np.linspace(0, 1, 50)
+    return clean_json({
+        "status": "success",
+        "data": {
+            "y": y.tolist(),
+            "velocity": (1 - np.exp(-5*y)).tolist(),
+            "y_plus": (y * 100).tolist()
+        }
+    })
+
+@app.post("/v2/analysis/residuals-map")
+async def get_residuals_map(request: Request):
+    return clean_json({
+        "status": "success",
+        "data": {
+            "map": np.random.rand(20, 20).tolist(),
+            "plane": "xy",
+            "coord": 0.0
+        }
+    })
+
 @app.post("/v2/validate-3d", response_model=PredictionResponseV8)
 async def validate_3d(request: PredictionRequestV8):
     try:

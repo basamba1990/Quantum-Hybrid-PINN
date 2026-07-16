@@ -14,9 +14,11 @@ import {
   Layers, 
   ShieldCheck,
   ChevronRight,
-  Atom
+  Atom,
+  Users
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ScientificSocialHub } from '@/components/scientific-social-hub'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -50,20 +52,10 @@ export default function DashboardPage() {
         const { count, error: analysesError } = await supabase
           .from('analyses')
           .select('*', { count: 'exact', head: true })
-          .eq('userId', user.id) // Note: schema uses userId (int) but types/index.ts uses user_id (string). Based on schema.ts, it's userId.
+          .eq('user_id', user.id)
         
         if (analysesError) {
-          // Try with user_id if userId fails, as Supabase often uses user_id by default
-          const { count: countAlt, error: errorAlt } = await supabase
-            .from('analyses')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-          
-          if (!errorAlt) {
-            setAnalysesCount(countAlt || 0)
-          } else {
-            console.error('Fetch analyses count error:', analysesError)
-          }
+          console.error('Fetch analyses count error:', analysesError)
         } else {
           setAnalysesCount(count || 0)
         }
@@ -227,6 +219,20 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Scientific Social Hub Section */}
+      <div className="pt-10 border-t border-white/5">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="p-2 bg-purple-500/10 rounded-xl">
+            <Users className="w-5 h-5 text-purple-400" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Social Hub Scientifique</h2>
+            <p className="text-xs text-gray-500 font-mono uppercase tracking-widest">Collaboration & Partage de Connaissances</p>
+          </div>
+        </div>
+        <ScientificSocialHub />
       </div>
     </div>
   )
