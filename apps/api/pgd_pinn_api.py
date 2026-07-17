@@ -12,8 +12,23 @@ import tempfile
 import numpy as np
 
 from pgd_pinn_hybrid import run_hybrid_simulation, create_hybrid_model
+from datetime import datetime
+from supabase import create_client
 
 logger = logging.getLogger(__name__)
+
+# Supabase Configuration
+SUPABASE_URL = os.environ.get('NEXT_PUBLIC_SUPABASE_URL') or os.environ.get('SUPABASE_URL', 'https://ivhxnaxhgfbiqlhgfkik.supabase.co')
+SUPABASE_KEY = os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or os.environ.get('SUPABASE_KEY', '')
+
+def get_supabase():
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    try:
+        return create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        logger.error(f"Failed to create Supabase client: {e}")
+        return None
 
 # ============================================================================
 # Pydantic Models
@@ -229,14 +244,30 @@ async def _process_hybrid_simulation(job_id: str, request: HybridSimulationReque
         coherence_score = float(results['coherence_score'])
         
         # Store results
-        job["results"] = {
+        final_results = {
             "pgd_prediction_shape": str(results['pgd_prediction'].shape),
             "corrected_prediction_shape": str(results['corrected_prediction'].shape),
             "coherence_score": coherence_score,
-            "visualization_points": results.get('visualization_points', [])
+            "visualization_points": results.get('visualization_points', []),
+            "predictions3d": results.get('visualization_points', []) # Map to expected frontend field
         }
+        job["results"] = final_results
         job["coherence_score"] = coherence_score
         job["status"] = "completed"
+        
+        # PERSIST TO SUPABASE
+        supabase = get_supabase()
+        if supabase and request.analysis_id:
+            try:
+                supabase.table("analyses").update({
+                    "status": "completed",
+                    "credibility_score": round(coherence_score * 100, 2),
+                    "results": final_results,
+                    "updated_at": datetime.utcnow().isoformat()
+                }).eq("id", request.analysis_id).execute()
+                logger.info(f"[{job_id}] Persisted results to Supabase for analysis {request.analysis_id}")
+            except Exception as se:
+                logger.error(f"[{job_id}] Failed to persist to Supabase: {se}")
         
         logger.info(f"[{job_id}] Hybrid simulation completed. Coherence Score: {coherence_score:.4f}")
         

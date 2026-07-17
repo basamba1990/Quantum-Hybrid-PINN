@@ -89,8 +89,8 @@ export default function NewProjectPage() {
           video_url: videoUrl,
           transcription: formData.transcription || null,
           user_id: user.id,
-          status: 'draft',
-          metadata: jsonData ? { imported_json: jsonData } : null
+          status: 'draft'
+          // metadata column removed to avoid schema mismatch error
         })
         .select()
         .single()
