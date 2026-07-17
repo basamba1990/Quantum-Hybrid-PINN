@@ -223,7 +223,7 @@ const DualPhysicsVisualizer: React.FC<Props> = ({
     }
 
     // Animation loop
-    let frameId: number;
+    let frameId: number = 0
     const animate = () => {
       frameId = requestAnimationFrame(animate)
       renderer.render(scene, camera)
