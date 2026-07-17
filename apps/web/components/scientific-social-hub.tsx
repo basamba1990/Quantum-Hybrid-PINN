@@ -387,7 +387,7 @@ export default function ScientificSocialHub({
                       <Award className="w-6 h-6" />
                       <span className="text-[10px] font-black uppercase tracking-[0.2em]">Credibility Index</span>
                     </div>
-                    <div className="text-4xl font-black text-white italic">{auditData.credibilityScore.toFixed(1)}%</div>
+                    <div className="text-4xl font-black text-white italic">{(auditData.credibilityScore || 0).toFixed(1)}%</div>
                     <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-blue-600 to-emerald-500" style={{ width: `${auditData.credibilityScore}%` }} />
                     </div>

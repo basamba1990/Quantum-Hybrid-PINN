@@ -54,7 +54,7 @@ export default function HistoryPage() {
   }, [supabase])
 
   const filteredData = historyData.filter(run =>
-    run.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (run.name || "").toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const handleDelete = async (id: string) => {
@@ -136,9 +136,9 @@ export default function HistoryPage() {
                 <div className="flex items-center gap-8">
                   <div className="text-right hidden md:block">
                     <p className="text-xs text-gray-500 uppercase">Précision</p>
-                    <p className={`font-mono font-bold ${run.status === 'completed' ? 'text-white' : 'text-gray-600'}`}>
-                      {run.credibility_score ? `${run.credibility_score.toFixed(1)}%` : (run.accuracy || '--')}
-                    </p>
+<p className={`font-mono font-bold ${run.status === 'completed' ? 'text-white' : 'text-gray-600'}`}>
+	                      {run.credibility_score != null ? `${run.credibility_score.toFixed(1)}%` : (run.accuracy || '--')}
+	                    </p>
                   </div>
                   <div className="flex gap-2">
                     <Button 
