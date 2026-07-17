@@ -5,6 +5,7 @@ Provides endpoints for exporting simulation results in various formats
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
+import json
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 from export_service import ExportService
@@ -175,7 +176,7 @@ async def export_simulation_csv(request: SimulationExportRequest):
 async def export_validation_report(
     simulation_id: str = Query(...),
     credibility_score: float = Query(...),
-    residuals: Dict[str, float] = Query({}),
+    residuals: Optional[str] = Query(None),
     physics_violations: int = Query(0),
     warnings: List[str] = Query(default=[]),
     recommendations: List[str] = Query(default=[])
@@ -190,7 +191,7 @@ async def export_validation_report(
         json_content = ExportService.validation_report_json(
             simulation_id=simulation_id,
             credibility_score=credibility_score,
-            residuals=residuals,
+            residuals=json.loads(residuals) if residuals else {},
             physics_violations=physics_violations,
             warnings=warnings,
             recommendations=recommendations
