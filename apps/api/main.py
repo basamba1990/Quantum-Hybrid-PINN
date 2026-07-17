@@ -28,8 +28,9 @@ try:
     from fluid_properties import get_eos
     from salt_cavern_physics import SaltCavernPhysics
     from industrial_risk_manager import IndustrialRiskManager
-    from analysis_processor import router as analysis_router, init_processor
-    from pgd_pinn_api import router as pgd_pinn_router
+from analysis_processor import router as analysis_router, init_processor
+from pgd_pinn_api import router as pgd_pinn_router
+from export_router import router as export_router
 except ImportError:
     from .hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8, get_device
     from .geometry_handler import GeometryHandler
@@ -89,6 +90,7 @@ def trim_jobs_store():
 # Include routers
 app.include_router(analysis_router)
 app.include_router(pgd_pinn_router)
+app.include_router(export_router)
 
 # Initialize Supabase
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ivhxnaxhgfbiqlhgfkik.supabase.co")
@@ -204,7 +206,8 @@ async def root():
             "core": ["/health", "/jobs", "/jobs/{job_id}"],
             "hybrid": ["/hybrid/run-simulation", "/v2/validate-3d", "/v2/assimilate"],
             "analysis_v2": ["/v2/submit-analysis", "/v2/analysis-status/{job_id}", "/v2/analysis-result/{job_id}"],
-            "pgd_v2": ["/v2/hybrid/submit-hybrid-simulation", "/v2/hybrid/hybrid-status/{job_id}", "/v2/hybrid/hybrid-result/{job_id}", "/v2/hybrid/upload-mesh"]
+            "pgd_v2": ["/v2/hybrid/submit-hybrid-simulation", "/v2/hybrid/hybrid-status/{job_id}", "/v2/hybrid/hybrid-result/{job_id}", "/v2/hybrid/upload-mesh"],
+            "export_v2": ["/v2/export/predictions/csv", "/v2/export/predictions/json", "/v2/export/residuals/csv", "/v2/export/audit/csv", "/v2/export/simulation/json", "/v2/export/simulation/csv", "/v2/export/validation-report/json", "/v2/export/formats"]
         }
     })
 
