@@ -81,8 +81,8 @@ const DualPhysicsVisualizer: React.FC<Props> = ({
   };
 
   // Création du visualiseur 3D
-  const createVisualizer = (containerRef: React.RefObject<HTMLDivElement>, variable: string) => {
-    if (!containerRef.current || !data.length) return;
+  const createVisualizer = (containerRef: React.RefObject<HTMLDivElement | null>, variable: string) => {
+    if (!containerRef.current || !data.length) return null;
 
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x020617)
@@ -230,7 +230,7 @@ const DualPhysicsVisualizer: React.FC<Props> = ({
     }
     animate()
 
-    return { renderer, frameId }
+    return { renderer, frameId } as any
   }
 
   useEffect(() => {
@@ -250,8 +250,8 @@ const DualPhysicsVisualizer: React.FC<Props> = ({
       count: data.length
     })
 
-    const leftViz = createVisualizer(leftContainerRef, 'temperature')
-    const rightViz = createVisualizer(rightContainerRef, 'pressure')
+    const leftViz = createVisualizer(leftContainerRef as React.RefObject<HTMLDivElement>, 'temperature')
+    const rightViz = createVisualizer(rightContainerRef as React.RefObject<HTMLDivElement>, 'pressure')
 
     return () => {
       if (leftViz) {
@@ -263,7 +263,7 @@ const DualPhysicsVisualizer: React.FC<Props> = ({
         rightViz.renderer.dispose()
       }
     }
-  }, [data])
+  }, [data, createVisualizer])
 
   return (
     <div className="w-full space-y-6">
