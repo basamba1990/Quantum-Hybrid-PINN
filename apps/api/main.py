@@ -195,7 +195,18 @@ class PredictionResponseV8(BaseModel):
 # ==================== ENDPOINTS ====================
 @app.get("/")
 async def root():
-    return {"message": "Quantum-Hybrid PINN API (V8) - Memory Optimized", "status": "operational"}
+    return clean_json({
+        "message": "Quantum-Hybrid PINN API (V8) is running",
+        "status": "operational",
+        "version": "8.0.12",
+        "device": str(get_device()),
+        "endpoints": {
+            "core": ["/health", "/jobs", "/jobs/{job_id}"],
+            "hybrid": ["/hybrid/run-simulation", "/v2/validate-3d", "/v2/assimilate"],
+            "analysis_v2": ["/v2/submit-analysis", "/v2/analysis-status/{job_id}", "/v2/analysis-result/{job_id}"],
+            "pgd_v2": ["/v2/hybrid/submit-hybrid-simulation", "/v2/hybrid/hybrid-status/{job_id}", "/v2/hybrid/hybrid-result/{job_id}", "/v2/hybrid/upload-mesh"]
+        }
+    })
 
 @app.get("/health")
 async def health_check():
