@@ -291,6 +291,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           ) : activeView === 'interactive' ? (
             <div className="space-y-6">
               <RealtimeParameterControls
+                projectId={id}
                 isRunning={isSimulationRunning}
                 onToggleSimulation={setIsSimulationRunning}
                 onParametersChange={(params) => {
