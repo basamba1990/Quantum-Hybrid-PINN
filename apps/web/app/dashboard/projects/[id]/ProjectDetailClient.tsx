@@ -68,13 +68,29 @@ const ScientificSocialHub = dynamic(
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
+const DualPhysicsVisualizer = dynamic(
+  () => import('@/components/dual-physics-visualizer'),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-cyan-500 animate-pulse">Initializing Dual Physics Comparison...</div> }
+)
+
+const ResidualsReliabilityHeatmap = dynamic(
+  () => import('@/components/residuals-reliability-heatmap'),
+  { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
+const RealtimeParameterControls = dynamic(
+  () => import('@/components/realtime-parameter-controls'),
+  { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
+)
+
 export default function ProjectDetailClient({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
   const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeView, setActiveView] = useState<'standard' | 'advanced'>('standard')
+  const [activeView, setActiveView] = useState<'standard' | 'advanced' | 'comparative' | 'reliability' | 'interactive'>('standard')
+  const [isSimulationRunning, setIsSimulationRunning] = useState(false)
   const supabase = createClient()
 
   const results = useMemo(() => {
@@ -207,11 +223,14 @@ export default function ProjectDetailClient({ id }: { id: string }) {
       </div>
 
       {/* View Switcher */}
-      <div className="flex justify-center">
-        <Tabs value={activeView} onValueChange={(v) => setActiveView(v as any)} className="w-full max-w-md">
-          <TabsList className="grid w-full grid-cols-2 bg-white/5 border border-white/10 p-1">
-            <TabsTrigger value="standard" className="text-xs font-bold uppercase tracking-widest">Vue Standard</TabsTrigger>
-            <TabsTrigger value="advanced" className="text-xs font-bold uppercase tracking-widest text-emerald-400">Advanced Physics Gold</TabsTrigger>
+      <div className="flex justify-center overflow-x-auto">
+        <Tabs value={activeView} onValueChange={(v) => setActiveView(v as any)} className="w-full">
+          <TabsList className="grid w-full grid-cols-5 bg-white/5 border border-white/10 p-1">
+            <TabsTrigger value="standard" className="text-xs font-bold uppercase tracking-widest">Standard</TabsTrigger>
+            <TabsTrigger value="advanced" className="text-xs font-bold uppercase tracking-widest text-emerald-400">Advanced</TabsTrigger>
+            <TabsTrigger value="comparative" className="text-xs font-bold uppercase tracking-widest text-cyan-400">Comparative</TabsTrigger>
+            <TabsTrigger value="reliability" className="text-xs font-bold uppercase tracking-widest text-orange-400">Reliability</TabsTrigger>
+            <TabsTrigger value="interactive" className="text-xs font-bold uppercase tracking-widest text-purple-400">Interactive</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -253,6 +272,34 @@ export default function ProjectDetailClient({ id }: { id: string }) {
                 <h3 className="text-xl font-bold text-white uppercase tracking-tighter">En attente d'analyse</h3>
                 <p className="text-gray-400 max-w-md mx-auto">Lancez une nouvelle analyse pour visualiser les résultats physiques en 3D.</p>
               </div>
+            </div>
+          ) : activeView === 'comparative' ? (
+            <div className="space-y-6">
+              <DualPhysicsVisualizer 
+                data={predictions3d}
+                title="DUAL PHYSICS COMPARISON - THERMAL VS DYNAMIC"
+                quality="ultra"
+              />
+            </div>
+          ) : activeView === 'reliability' ? (
+            <div className="space-y-6">
+              <ResidualsReliabilityHeatmap 
+                data={predictions3d}
+                title="RESIDUALS RELIABILITY ANALYSIS"
+              />
+            </div>
+          ) : activeView === 'interactive' ? (
+            <div className="space-y-6">
+              <RealtimeParameterControls
+                isRunning={isSimulationRunning}
+                onToggleSimulation={setIsSimulationRunning}
+                onParametersChange={(params) => {
+                  console.log('Parameters updated:', params)
+                }}
+                onReset={() => {
+                  console.log('Simulation reset')
+                }}
+              />
             </div>
           ) : activeView === 'advanced' ? (
             <div className="space-y-6">

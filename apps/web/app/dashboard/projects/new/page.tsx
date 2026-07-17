@@ -33,6 +33,8 @@ export default function NewProjectPage() {
   const [uploading, setUploading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [videoFile, setVideoFile] = useState<File | null>(null)
+  const [jsonFile, setJsonFile] = useState<File | null>(null)
+  const [jsonData, setJsonData] = useState<any>(null)
 
   const onSubmit = async (formData: { name: string; description: string; video?: FileList; transcription?: string }) => {
     setLoading(true)
@@ -87,7 +89,8 @@ export default function NewProjectPage() {
           video_url: videoUrl,
           transcription: formData.transcription || null,
           user_id: user.id,
-          status: 'draft'
+          status: 'draft',
+          metadata: jsonData ? { imported_json: jsonData } : null
         })
         .select()
         .single()
@@ -141,7 +144,8 @@ export default function NewProjectPage() {
                 analysisId: newAnalysis.id,
                 name: `Analyse auto: ${formData.name}`,
                 transcription: formData.transcription,
-                userId: user.id
+                userId: user.id,
+                predictions3d: jsonData?.analysis?.results?.predictions3d || null
               })
             }).catch(err => console.error("Auto-analysis trigger failed:", err));
             
@@ -243,6 +247,50 @@ export default function NewProjectPage() {
             </div>
 
             <div className="space-y-6">
+              <div className="space-y-2">
+                <label htmlFor="json-import" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
+                  Importer Données JSON (Optionnel)
+                </label>
+                <div className="relative group">
+                  <input
+                    id="json-import"
+                    type="file"
+                    accept=".json"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) {
+                        const file = e.target.files[0]
+                        setJsonFile(file)
+                        const reader = new FileReader()
+                        reader.onload = (event) => {
+                          try {
+                            const data = JSON.parse(event.target?.result as string)
+                            setJsonData(data)
+                            toast.success('Données JSON chargées avec succès')
+                          } catch (err) {
+                            toast.error('Erreur: Format JSON invalide')
+                          }
+                        }
+                        reader.readAsText(file)
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <label 
+                    htmlFor="json-import"
+                    className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-white/10 rounded-[24px] bg-white/[0.02] group-hover:bg-white/5 group-hover:border-emerald-500/30 transition-all cursor-pointer p-4 text-center"
+                  >
+                    <FileText className="w-6 h-6 text-gray-600 group-hover:text-emerald-500 mb-2 transition-colors" />
+                    <span className="text-xs font-bold text-gray-400 group-hover:text-white transition-colors">Charger JSON</span>
+                    <span className="text-[9px] text-gray-600 mt-1 uppercase tracking-tighter">Données 3D PINN</span>
+                    {jsonFile && (
+                      <div className="mt-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                        <p className="text-[9px] text-emerald-400 font-bold truncate max-w-[150px]">✓ {jsonFile.name}</p>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label htmlFor="transcription" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
                   Transcription ou Paramètres (Crucial pour PINN)
