@@ -28,9 +28,9 @@ try:
     from fluid_properties import get_eos
     from salt_cavern_physics import SaltCavernPhysics
     from industrial_risk_manager import IndustrialRiskManager
-from analysis_processor import router as analysis_router, init_processor
-from pgd_pinn_api import router as pgd_pinn_router
-from export_router import router as export_router
+    from analysis_processor import router as analysis_router, init_processor
+    from pgd_pinn_api import router as pgd_pinn_router
+    from export_router import router as export_router
 except ImportError:
     from .hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8, get_device
     from .geometry_handler import GeometryHandler
