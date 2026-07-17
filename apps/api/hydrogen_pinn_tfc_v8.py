@@ -37,7 +37,8 @@ class HydrogenPINNTFCV8:
         self.device = get_device()
         self.fluid_type = fluid_type
         if layers is None:
-            layers = [4, 128, 128, 128, 128, 5]  # 4 entrées (t,x,y,z), 5 sorties (rho, u, v, w, T)
+            # Optimized for Render Free (512MB RAM)
+            layers = [4, 64, 64, 64, 5]  # 4 entrées (t,x,y,z), 5 sorties (rho, u, v, w, T)
         
         # Initialisation du GeometryHandler
         if geometry_params is None:
