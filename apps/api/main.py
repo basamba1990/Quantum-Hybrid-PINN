@@ -124,7 +124,7 @@ async def ensure_pinn_loaded():
                 with open(model_local_path, "wb") as f:
                     f.write(res)
         
-        current_model_v8 = HydrogenPINNTFCV8(layers=[4, 64, 64, 64, 5], fluid_type="H2", geometry_type="pipeline")
+        current_model_v8 = HydrogenPINNTFCV8(layers=[4, 128, 128, 128, 128, 5], fluid_type="H2", geometry_type="pipeline")
         if os.path.exists(model_local_path):
             state_dict = torch.load(model_local_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
