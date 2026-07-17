@@ -291,21 +291,31 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                 
             history.append({"iteration": i, "time": sim_t, "credibility_score": 95.0})
             
-        # 2. Échantillonnage spatial final (pour la visualisation 3D)
-        # On utilise un échantillonnage réduit pour économiser la RAM sur Render
-        N_spatial = 200 
+        # 2. Échantillonnage spatial haute densité (Truly-Industrial Volume Plein)
+        # On utilise une grille structurée pour garantir la continuité volumétrique
+        res_grid = 12 # 12x12x12 = 1728 points, optimal pour Render Free et rendu plein
         t_final = num_steps * 0.1
-        t_s, x_s, y_s, z_s = current_model_v8.geometry_handler.get_sampling_points(N_spatial)
+        
+        # Génération d'une grille structurée dans le domaine physique
+        x_range = torch.linspace(X_MIN, X_MAX, res_grid)
+        y_range = torch.linspace(Y_MIN, Y_MAX, res_grid)
+        z_range = torch.linspace(Z_MIN, Z_MAX, res_grid)
+        grid_x, grid_y, grid_z = torch.meshgrid(x_range, y_range, z_range, indexing='ij')
+        
+        x_s = grid_x.flatten().to(current_model_v8.device)
+        y_s = grid_y.flatten().to(current_model_v8.device)
+        z_s = grid_z.flatten().to(current_model_v8.device)
+        t_s = torch.full_like(x_s, t_final)
         
         with torch.no_grad():
-            rho_s, u_s, v_s, w_s, T_s = current_model_v8.pinn_model(
-                t_s.to(current_model_v8.device), 
-                x_s.to(current_model_v8.device), 
-                y_s.to(current_model_v8.device), 
-                z_s.to(current_model_v8.device)
-            )
+            # Inférence par batch pour économiser la RAM
+            rho_s, u_s, v_s, w_s, T_s = current_model_v8.pinn_model(t_s, x_s, y_s, z_s)
             
-            for i in range(N_spatial):
+            for i in range(len(x_s)):
+                # Filtre pour ne garder que les points à l'intérieur de la géométrie (ex: cylindre/sphère)
+                if not current_model_v8.geometry_handler.is_inside(x_s[i].item(), y_s[i].item(), z_s[i].item()):
+                    continue
+                    
                 rho_val = rho_s[i].view(1, 1)
                 T_val = T_s[i].view(1, 1)
                 p_val = get_eos(current_model_v8.fluid_type, rho_val, T_val)
