@@ -224,9 +224,10 @@ async def validate_3d(request: PredictionRequestV8):
     await ensure_pinn_loaded()
     try:
         t = request.time or 0.0
-        N_points = min(request.n_points or 10, 50) # Cap points
+        N_points = min(request.n_points or 10, 100)
         
         t_samples, x_samples, y_samples, z_samples = current_model_v8.geometry_handler.get_sampling_points(N_points)
+        t_samples = torch.full_like(x_samples, t)
         
         with torch.no_grad():
             rho_s, u_s, v_s, w_s, T_s = current_model_v8.pinn_model(
@@ -236,16 +237,30 @@ async def validate_3d(request: PredictionRequestV8):
                 z_samples.to(current_model_v8.device)
             )
             
-        # Simplified response for memory
+        predictions_list = []
+        for i in range(N_points):
+            rho_val = rho_s[i].view(1, 1)
+            T_val = T_s[i].view(1, 1)
+            p_val = get_eos(current_model_v8.fluid_type, rho_val, T_val)
+            
+            predictions_list.append({
+                "time": t, "x": float(x_samples[i].item()), "y": float(y_samples[i].item()), "z": float(z_samples[i].item()),
+                "pressure": float(p_val.item()), "velocity_u": float(u_s[i].item()),
+                "velocity_v": float(v_s[i].item()), "velocity_w": float(w_s[i].item()),
+                "temperature": float(T_s[i].item()), "density": float(rho_s[i].item()),
+                "velocity_magnitude": float(torch.sqrt(u_s[i]**2 + v_s[i]**2 + w_s[i]**2).item())
+            })
+
         idx = N_points // 2
         return PredictionResponseV8(
-            pressure=101325.0, # Simplified
+            pressure=float(get_eos(current_model_v8.fluid_type, rho_s[idx].view(1,1), T_s[idx].view(1,1)).item()),
             velocity_u=float(u_s[idx].item()),
             velocity_v=float(v_s[idx].item()),
             velocity_w=float(w_s[idx].item()),
             temperature=float(T_s[idx].item()),
             density=float(rho_s[idx].item()),
             credibility_score=95.0,
+            predictions3d=clean_json(predictions_list),
             timestamp=datetime.now().isoformat()
         )
     except Exception as e:

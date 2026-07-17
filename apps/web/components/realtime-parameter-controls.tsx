@@ -71,13 +71,16 @@ const RealtimeParameterControls: React.FC<Props> = ({
     setError(null);
 
     try {
-      const response = await fetch('/api/hybrid/run-simulation', {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
+      const response = await fetch(`${API_URL}/hybrid/run-simulation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: urlProjectId,
-          parameters: params,
-          scenario: 'H2_PIPELINE'
+          project_id: urlProjectId,
+          job_name: `Interactive_${new Date().getTime()}`,
+          scenario_type: 'H2_PIPELINE',
+          scenario_inputs: params,
+          n_steps: 50
         })
       });
 
@@ -122,7 +125,8 @@ const RealtimeParameterControls: React.FC<Props> = ({
 
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/jobs/${jobId}`);
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
+        const response = await fetch(`${API_URL}/jobs/${jobId}`);
         if (!response.ok) return;
 
         const data = await response.json();

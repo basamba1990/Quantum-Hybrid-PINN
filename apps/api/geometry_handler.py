@@ -65,6 +65,35 @@ class GeometryHandler:
         # avec le calcul des résidus. Les BCs sont gérées via la fonction de perte.
         return rho, u, v, w, T
 
+    def is_inside(self, x: float, y: float, z: float) -> bool:
+        """
+        Vérifie si un point (x, y, z) est à l'intérieur de la géométrie définie.
+        """
+        if self.geometry_type == "box":
+            x_min = self.params.get("x_min", -1.0)
+            x_max = self.params.get("x_max", 1.0)
+            y_min = self.params.get("y_min", -1.0)
+            y_max = self.params.get("y_max", 1.0)
+            z_min = self.params.get("z_min", -1.0)
+            z_max = self.params.get("z_max", 1.0)
+            return (x >= x_min and x <= x_max and y >= y_min and y <= y_max and z >= z_min and z <= z_max)
+        elif self.geometry_type == "pipeline":
+            radius = self.params.get("radius", 0.5)
+            length = self.params.get("length", 12.0)
+            # Cylindre aligné sur l'axe Z (selon get_mask)
+            return (x**2 + y**2 <= radius**2) and (z >= 0 and z <= length)
+        elif self.geometry_type == "sphere" or self.geometry_type == "lh2_storage":
+            radius = self.params.get("radius", 2.285)
+            return (x**2 + y**2 + z**2 <= radius**2)
+        elif self.geometry_type == "salt_cavern":
+            x_center = self.params.get("x_center", 0.0)
+            y_center = self.params.get("y_center", 0.0)
+            z_center = self.params.get("z_center", -1000.0)
+            major_radius = self.params.get("major_radius", 100.0)
+            minor_radius = self.params.get("minor_radius", 50.0)
+            return ((x - x_center)**2 / major_radius**2 + (y - y_center)**2 / major_radius**2 + (z - z_center)**2 / minor_radius**2 <= 1.0)
+        return True
+
     def get_sampling_points(self, n_points: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Génère des points d'échantillonnage uniformément distribués à l'intérieur de la géométrie.
