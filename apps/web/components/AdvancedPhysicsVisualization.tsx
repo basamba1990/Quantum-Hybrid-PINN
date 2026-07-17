@@ -305,12 +305,18 @@ export default function AdvancedPhysicsVisualization({ simulationId, time, onDat
             {/* Volumetric Gold Standard View */}
             <TabsContent value="volumetric" className="space-y-6">
               <div className="h-[600px] w-full">
-                <Industrial3DVisualizerV10Gold 
-                  data={industrialData.length > 0 ? industrialData : []} 
-                  title="Analyse Volumétrique Quantum-Hybrid"
-                  colorVariable="temperature"
-                  quality="high"
-                />
+{industrialData && industrialData.length > 0 ? (
+                  <Industrial3DVisualizerV10Gold 
+                    data={industrialData} 
+                    title="Analyse Volumétrique Quantum-Hybrid"
+                    colorVariable="temperature"
+                    quality="high"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full bg-slate-950 rounded-3xl border border-white/10 text-blue-500">
+                    En attente des données volumétriques...
+                  </div>
+                )}
               </div>
               <div className="p-4 bg-blue-600/10 border border-blue-500/20 rounded-2xl">
                 <p className="text-xs text-blue-400">
