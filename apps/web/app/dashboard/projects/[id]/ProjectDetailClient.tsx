@@ -303,12 +303,22 @@ export default function ProjectDetailClient({ id }: { id: string }) {
               />
             </div>
           ) : activeView === 'advanced' ? (
-            <div className="space-y-6">
-              <AdvancedPhysicsVisualization 
-                simulationId={latestAnalysis.id} 
-                time={results?.totalTime || 0} 
-              />
-            </div>
+            latestAnalysis && latestAnalysis.id ? (
+              <div className="space-y-6">
+                <AdvancedPhysicsVisualization 
+                  simulationId={latestAnalysis.id} 
+                  time={results?.totalTime || 0} 
+                />
+              </div>
+            ) : (
+              <div className="h-[600px] flex flex-col items-center justify-center bg-slate-950 rounded-[32px] border border-white/10 text-center p-8 space-y-6">
+                <Eye className="w-16 h-16 text-emerald-500 animate-pulse" />
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-white uppercase tracking-tighter">Aucune analyse avancée disponible</h3>
+                  <p className="text-gray-400 max-w-md mx-auto">Lancez une nouvelle analyse pour débloquer les visualisations physiques avancées.</p>
+                </div>
+              </div>
+            )
           ) : (
             <div className="space-y-4">
               <Industrial3DVisualizerV10Ultra 
