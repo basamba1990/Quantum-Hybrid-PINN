@@ -9,6 +9,13 @@ import { Loader2, Play, ArrowLeft, Download, Activity, ShieldCheck, Zap } from '
 import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
 import jsPDF from 'jspdf'
+import 'jspdf-autotable'
+
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF
+  }
+}
 
 const VerificationBadge = dynamic(
   () => import('@/components/verification-badge'),

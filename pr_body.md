@@ -1,1 +1,0 @@
-This PR addresses the issue where auto-analyses were stuck in 'pending' due to a missing 'scenario_type' column in the Supabase 'analyses' table. It adds a new migration file to include this column and updates the `analysis_processor.py` to correctly handle the 'scenario_type' when updating Supabase.
