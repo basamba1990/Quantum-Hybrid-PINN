@@ -25,6 +25,8 @@ import { Input } from '@/components/ui/input'
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [analysesCount, setAnalysesCount] = useState(0)
+  const [avgScore, setAvgScore] = useState(0)
+  const [avgComputeTime, setAvgComputeTime] = useState(0)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const supabase = createClient()
@@ -58,6 +60,39 @@ export default function DashboardPage() {
           console.error('Fetch analyses count error:', analysesError)
         } else {
           setAnalysesCount(count || 0)
+        }
+
+        // Fetch average credibility score and compute time from completed analyses
+        const { data: analysesData, error: analysesDataError } = await supabase
+          .from('analyses')
+          .select('credibility_score, results, created_at')
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+          .limit(50)
+        
+        if (!analysesDataError && analysesData && analysesData.length > 0) {
+          let totalScore = 0
+          let totalScoreCount = 0
+          let totalTime = 0
+          let totalTimeCount = 0
+          
+          for (const a of analysesData) {
+            if (a.credibility_score) {
+              totalScore += a.credibility_score
+              totalScoreCount++
+            }
+            let results = a.results
+            if (typeof results === 'string') {
+              try { results = JSON.parse(results) } catch { results = {} }
+            }
+            if (results && (results.totalTime || results.computeTime || results.inferenceTime)) {
+              totalTime += Number(results.totalTime || results.computeTime || results.inferenceTime || 0)
+              totalTimeCount++
+            }
+          }
+          
+          setAvgScore(totalScoreCount > 0 ? totalScore / totalScoreCount : 0)
+          setAvgComputeTime(totalTimeCount > 0 ? totalTime / totalTimeCount : 0)
         }
 
       } catch (err) {
@@ -118,8 +153,8 @@ export default function DashboardPage() {
         {[
           { label: 'Projets Actifs', value: projects.length, icon: Layers, color: 'blue' },
           { label: 'Analyses PINN', value: analysesCount, icon: Activity, color: 'emerald' },
-          { label: 'Score Moyen', value: projects.length > 0 ? '98.7%' : '--', icon: ShieldCheck, color: 'purple' },
-          { label: 'Temps Calcul', value: '2.45s', icon: Clock, color: 'orange' },
+          { label: 'Score Moyen', value: avgScore > 0 ? `${avgScore.toFixed(1)}%` : '--', icon: ShieldCheck, color: 'purple' },
+          { label: 'Temps Calcul', value: avgComputeTime > 0 ? `${avgComputeTime.toFixed(2)}s` : '--', icon: Clock, color: 'orange' },
         ].map((stat, i) => (
           <div key={i} className="relative group">
             <div className="absolute inset-0 bg-white/[0.02] border border-white/10 rounded-3xl transition-all group-hover:border-white/20" />
