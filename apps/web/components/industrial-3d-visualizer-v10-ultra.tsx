@@ -1,8 +1,6 @@
 'use client'
 
 import React, { useEffect, useRef, useState, useMemo } from 'react'
-import * as THREE from 'three'
-import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js'
 
 interface DataPoint {
   x: number;
@@ -22,12 +20,12 @@ interface Props {
 }
 
 /**
- * TRULY-INDUSTRIAL V10-ULTRA VISUALIZER - OPTIMIZED
- * Professional CFD volumetric visualization:
- * - Adaptive resolution based on data density
- * - Fast grid-based voxelization (no RBF for every point)
- * - Efficient point cloud rendering with LOD
- * - Scientific blue-to-red color mapping
+ * TRULY-INDUSTRIAL V10-ULTRA VISUALIZER - CANVAS 2D
+ * Professional CFD volumetric visualization using Canvas 2D:
+ * - Isometric 3D projection (no WebGL dependency)
+ * - Scientific color mapping (Blue -> Green -> Yellow -> Red)
+ * - Volumetric heat map rendering
+ * - Grid lines and axes
  * - Industrial-grade UI overlay
  */
 const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({ 
@@ -36,8 +34,7 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
   colorVariable = 'temperature',
   quality = 'ultra'
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [stats, setStats] = useState({ min: 0, max: 0, avg: 0, count: 0 })
   const [renderTime, setRenderTime] = useState(0)
 
@@ -51,281 +48,228 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
     }
   }, [quality])
 
-  // Fast grid-based voxelization - O(n) instead of O(n⁴)
-  const createVoxelGrid = (points: DataPoint[], res: number) => {
-    const grid = new Float32Array(res * res * res);
-    
-    // Compute bounds
-    const xCoords = points.map(p => p.x);
-    const yCoords = points.map(p => p.y);
-    const zCoords = points.map(p => p.z);
-    const xMin = Math.min(...xCoords), xMax = Math.max(...xCoords);
-    const yMin = Math.min(...yCoords), yMax = Math.max(...yCoords);
-    const zMin = Math.min(...zCoords), zMax = Math.max(...zCoords);
-    
-    const xRange = xMax - xMin || 1;
-    const yRange = yMax - yMin || 1;
-    const zRange = zMax - zMin || 1;
-
-    // Initialize grid with zeros
-    grid.fill(0);
-
-    // Fast accumulation: each point contributes to its cell and neighbors
-    for (const p of points) {
-      const val = (p[colorVariable as keyof DataPoint] as number) || 0;
-      
-      // Find grid cell
-      const i = Math.floor(((p.x - xMin) / xRange) * (res - 1));
-      const j = Math.floor(((p.y - yMin) / yRange) * (res - 1));
-      const k = Math.floor(((p.z - zMin) / zRange) * (res - 1));
-      
-      // Clamp to valid range
-      const ci = Math.max(0, Math.min(res - 1, i));
-      const cj = Math.max(0, Math.min(res - 1, j));
-      const ck = Math.max(0, Math.min(res - 1, k));
-      
-      // Add to current cell and neighbors (trilinear interpolation)
-      const idx = ci + cj * res + ck * res * res;
-      grid[idx] = Math.max(grid[idx], val);
+  // Scientific color map: Blue -> Green -> Yellow -> Red
+  const getScientificColor = (value: number): [number, number, number] => {
+    const v = Math.max(0, Math.min(1, value));
+    let r: number, g: number, b: number;
+    if (v < 0.25) {
+      r = 0; g = v * 4; b = 1;
+    } else if (v < 0.5) {
+      r = 0; g = 1; b = 1 - (v - 0.25) * 4;
+    } else if (v < 0.75) {
+      r = (v - 0.5) * 4; g = 1; b = 0;
+    } else {
+      r = 1; g = 1 - (v - 0.75) * 4; b = 0;
     }
+    return [r, g, b];
+  };
 
-    return { grid, xMin, xMax, yMin, yMax, zMin, zMax, xRange, yRange, zRange };
+  // Isometric projection
+  const project = (x: number, y: number, z: number, cx: number, cy: number, scale: number) => {
+    const isoX = cx + (x - z) * scale * 0.866;
+    const isoY = cy + (x + z) * scale * 0.5 - y * scale;
+    return { x: isoX, y: isoY };
   };
 
   useEffect(() => {
-    if (!containerRef.current || !data.length) return;
+    if (!canvasRef.current || !data.length) return;
 
     const startTime = performance.now();
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    // Ensure container has dimensions before creating renderer
-    const container = containerRef.current;
-    // Set explicit dimensions on the container to guarantee non-zero size
-    container.style.width = '100%';
-    container.style.height = '600px';
+    // Set canvas dimensions
+    const dpr = Math.min(window.devicePixelRatio, 2);
+    const width = 675;
+    const height = 600;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(dpr, dpr);
 
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-
-    // If still zero, bail out and retry on next frame
-    if (width === 0 || height === 0) {
-      const retry = setTimeout(() => {
-        // Re-trigger the effect by forcing a re-render
-        setRenderTime(-1);
-      }, 100);
-      return () => clearTimeout(retry);
-    }
-
-    // 1. Scene Setup
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x020617);
-    
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(6, 6, 6);
-    camera.lookAt(0, 0, 0);
-
-    const renderer = new THREE.WebGLRenderer({ 
-      antialias: true, 
-      alpha: false,
-      powerPreference: 'high-performance'
-    });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.localClippingEnabled = true;
-    // Clear any existing canvas
-    container.innerHTML = '';
-    container.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
-
-    // OrbitControls
-    let controls: any;
-    import('three/examples/jsm/controls/OrbitControls.js').then(({ OrbitControls }) => {
-      controls = new OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.autoRotate = true;
-      controls.autoRotateSpeed = 2;
-    });
-
-    // 2. Advanced Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambientLight);
-    
-    const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    mainLight.position.set(15, 15, 15);
-    mainLight.castShadow = true;
-    scene.add(mainLight);
-
-    const fillLight = new THREE.DirectionalLight(0x3b82f6, 0.5);
-    fillLight.position.set(-15, 5, -15);
-    scene.add(fillLight);
-
-    // 3. Create Volumetric Layer with Marching Cubes
-    const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0.5);
-    
-    const material = new THREE.MeshPhongMaterial({
-      color: 0x1e3a8a,
-      transparent: false,
-      opacity: 1.0,
-      side: THREE.DoubleSide,
-      shininess: 150,
-      specular: 0x666666,
-      flatShading: false,
-      wireframe: false,
-      clippingPlanes: [clipPlane],
-      clipShadows: true
-    });
-
-    const mc = new MarchingCubes(resolution, material, true, true, 500000);
-    mc.scale.set(3.5, 3.5, 3.5);
-    scene.add(mc);
-
-    // 4. Data Processing
+    // Compute stats
     const values = data.map(p => (p[colorVariable as keyof DataPoint] as number) || 0);
     const minVal = Math.min(...values);
     const maxVal = Math.max(...values);
     const avgVal = values.reduce((a, b) => a + b, 0) / values.length;
     setStats({ min: minVal, max: maxVal, avg: avgVal, count: data.length });
 
-    // 5. Fast Voxelization
-    const { grid } = createVoxelGrid(data, resolution);
+    // Normalize data to grid
+    const res = Math.min(resolution, 40); // Cap for 2D rendering performance
+    const xCoords = data.map(p => p.x);
+    const yCoords = data.map(p => p.y);
+    const zCoords = data.map(p => p.z);
+    const xMin = Math.min(...xCoords), xMax = Math.max(...xCoords);
+    const yMin = Math.min(...yCoords), yMax = Math.max(...yCoords);
+    const zMin = Math.min(...zCoords), zMax = Math.max(...zCoords);
+    const xRange = xMax - xMin || 1;
+    const yRange = yMax - yMin || 1;
+    const zRange = zMax - zMin || 1;
 
-    // 6. Fill Marching Cubes Grid
-    const updateVolume = () => {
-      mc.reset();
-      
-      for (let i = 0; i < resolution; i++) {
-        for (let j = 0; j < resolution; j++) {
-          for (let k = 0; k < resolution; k++) {
-            const idx = i + j * resolution + k * resolution * resolution;
-            const value = grid[idx];
-            const normalizedValue = (value - minVal) / (maxVal - minVal || 1);
-            mc.setCell(i, j, k, normalizedValue);
+    // Create 3D grid
+    const grid = new Float32Array(res * res * res);
+    grid.fill(-1);
+    const countGrid = new Float32Array(res * res * res);
+    countGrid.fill(0);
+
+    for (const p of data) {
+      const val = (p[colorVariable as keyof DataPoint] as number) || 0;
+      const i = Math.floor(((p.x - xMin) / xRange) * (res - 1));
+      const j = Math.floor(((p.y - yMin) / yRange) * (res - 1));
+      const k = Math.floor(((p.z - zMin) / zRange) * (res - 1));
+      const ci = Math.max(0, Math.min(res - 1, i));
+      const cj = Math.max(0, Math.min(res - 1, j));
+      const ck = Math.max(0, Math.min(res - 1, k));
+      const idx = ci + cj * res + ck * res * res;
+      grid[idx] = Math.max(grid[idx], val);
+      countGrid[idx]++;
+    }
+
+    // Clear canvas with background
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, width, height);
+
+    // Center of the isometric view
+    const cx = width / 2;
+    const cy = height / 2 + 20;
+    const cellSize = 6;
+    const spacing = 8;
+
+    // Draw grid lines (isometric axes)
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 0.5;
+    
+    // X axis (red)
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+    const xStart = project(0, 0, 0, cx, cy, cellSize);
+    const xEnd = project(res, 0, 0, cx, cy, cellSize);
+    ctx.moveTo(xStart.x, xStart.y);
+    ctx.lineTo(xEnd.x, xEnd.y);
+    ctx.stroke();
+
+    // Y axis (green)
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(34, 197, 94, 0.4)';
+    const yStart = project(0, 0, 0, cx, cy, cellSize);
+    const yEnd = project(0, res, 0, cx, cy, cellSize);
+    ctx.moveTo(yStart.x, yStart.y);
+    ctx.lineTo(yEnd.x, yEnd.y);
+    ctx.stroke();
+
+    // Z axis (blue)
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+    const zStart = project(0, 0, 0, cx, cy, cellSize);
+    const zEnd = project(0, 0, res, cx, cy, cellSize);
+    ctx.moveTo(zStart.x, zStart.y);
+    ctx.lineTo(zEnd.x, zEnd.y);
+    ctx.stroke();
+
+    // Draw volumetric cubes (isometric projection)
+    // Render from back to front for proper depth sorting
+    const cells: { x: number; y: number; z: number; value: number }[] = [];
+    
+    for (let i = 0; i < res; i++) {
+      for (let j = 0; j < res; j++) {
+        for (let k = 0; k < res; k++) {
+          const idx = i + j * res + k * res * res;
+          if (grid[idx] >= 0 && countGrid[idx] > 0) {
+            const normalizedValue = (grid[idx] - minVal) / (maxVal - minVal || 1);
+            cells.push({ x: i, y: j, z: k, value: normalizedValue });
           }
         }
       }
+    }
+
+    // Sort by depth (back to front in isometric view)
+    cells.sort((a, b) => {
+      const depthA = a.x + a.z - a.y;
+      const depthB = b.x + b.z - b.y;
+      return depthB - depthA;
+    });
+
+    // Draw cells
+    const maxCells = Math.min(cells.length, 5000); // Performance cap
+    const step = Math.max(1, Math.floor(cells.length / maxCells));
+    
+    for (let idx = 0; idx < cells.length; idx += step) {
+      const cell = cells[idx];
+      const { x, y, z, value } = cell;
+      const [r, g, b] = getScientificColor(value);
       
-      mc.update();
-    };
+      const px = cx + (x - z) * spacing * 0.866;
+      const py = cy + (x + z) * spacing * 0.5 - y * spacing;
+      
+      const alpha = 0.3 + value * 0.7;
+      const size = 2 + value * 3;
+      
+      // Draw a small cube face
+      ctx.fillStyle = `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(px, py, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    updateVolume();
+    // Draw bounding box
+    ctx.strokeStyle = 'rgba(51, 65, 85, 0.5)';
+    ctx.lineWidth = 1;
+    const corners = [
+      project(0, 0, 0, cx, cy, cellSize),
+      project(res, 0, 0, cx, cy, cellSize),
+      project(res, res, 0, cx, cy, cellSize),
+      project(0, res, 0, cx, cy, cellSize),
+      project(0, 0, res, cx, cy, cellSize),
+      project(res, 0, res, cx, cy, cellSize),
+      project(res, res, res, cx, cy, cellSize),
+      project(0, res, res, cx, cy, cellSize),
+    ];
 
-    // 7. Apply Color Gradient to Mesh
-    const colorMesh = () => {
-      if (mc.geometry && mc.geometry.attributes.position) {
-        const positions = mc.geometry.attributes.position.array as Float32Array;
-        const colors = new Float32Array(positions.length);
-        
-        for (let i = 0; i < positions.length; i += 3) {
-          const x = positions[i];
-          const y = positions[i + 1];
-          const z = positions[i + 2];
-          
-          // Normalize position to [0, 1]
-          const nx = (x / 3.5 + 1) / 2;
-          const ny = (y / 3.5 + 1) / 2;
-          const nz = (z / 3.5 + 1) / 2;
-          
-          // Map to grid indices
-          const gi = Math.floor(nx * (resolution - 1));
-          const gj = Math.floor(ny * (resolution - 1));
-          const gk = Math.floor(nz * (resolution - 1));
-          
-          const ci = Math.max(0, Math.min(resolution - 1, gi));
-          const cj = Math.max(0, Math.min(resolution - 1, gj));
-          const ck = Math.max(0, Math.min(resolution - 1, gk));
-          
-          const idx = ci + cj * resolution + ck * resolution * resolution;
-          const value = grid[idx];
-          const normalizedValue = (value - minVal) / (maxVal - minVal || 1);
-          
-          // Scientific color map: Blue -> Green -> Yellow -> Red
-          let r, g, b;
-          if (normalizedValue < 0.25) {
-            r = 0;
-            g = normalizedValue * 4;
-            b = 1;
-          } else if (normalizedValue < 0.5) {
-            r = 0;
-            g = 1;
-            b = 1 - (normalizedValue - 0.25) * 4;
-          } else if (normalizedValue < 0.75) {
-            r = (normalizedValue - 0.5) * 4;
-            g = 1;
-            b = 0;
-          } else {
-            r = 1;
-            g = 1 - (normalizedValue - 0.75) * 4;
-            b = 0;
-          }
-          
-          colors[i] = r;
-          colors[i + 1] = g;
-          colors[i + 2] = b;
-        }
-        
-        mc.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        const colorMaterial = new THREE.MeshPhongMaterial({
-          vertexColors: true,
-          side: THREE.DoubleSide,
-          shininess: 150,
-          specular: 0x666666,
-          flatShading: false,
-          clippingPlanes: [clipPlane],
-          clipShadows: true
-        });
-        mc.material = colorMaterial;
-      }
-    };
+    // Bottom face
+    ctx.beginPath();
+    ctx.moveTo(corners[0].x, corners[0].y);
+    ctx.lineTo(corners[1].x, corners[1].y);
+    ctx.lineTo(corners[2].x, corners[2].y);
+    ctx.lineTo(corners[3].x, corners[3].y);
+    ctx.closePath();
+    ctx.stroke();
 
-    colorMesh();
+    // Top face
+    ctx.beginPath();
+    ctx.moveTo(corners[4].x, corners[4].y);
+    ctx.lineTo(corners[5].x, corners[5].y);
+    ctx.lineTo(corners[6].x, corners[6].y);
+    ctx.lineTo(corners[7].x, corners[7].y);
+    ctx.closePath();
+    ctx.stroke();
 
-    // 8. Grid & Bounding Box
-    const boxGeom = new THREE.BoxGeometry(7, 7, 7);
-    const edges = new THREE.EdgesGeometry(boxGeom);
-    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.3 }));
-    scene.add(line);
+    // Vertical edges
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(corners[i].x, corners[i].y);
+      ctx.lineTo(corners[i + 4].x, corners[i + 4].y);
+      ctx.stroke();
+    }
 
-    // Axis Helper
-    const axesHelper = new THREE.AxesHelper(4);
-    scene.add(axesHelper);
-
-    // 9. Animation Loop
-    let frameId: number;
-    const animate = () => {
-      frameId = requestAnimationFrame(animate);
-      if (controls) controls.update();
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    // Handle Resize
-    const handleResize = () => {
-      if (!containerRef.current) return;
-      const w = containerRef.current.clientWidth;
-      const h = containerRef.current.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    };
-    window.addEventListener('resize', handleResize);
+    // Axis labels
+    ctx.font = '10px monospace';
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+    ctx.fillText('X', xEnd.x + 5, xEnd.y);
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.8)';
+    ctx.fillText('Y', yEnd.x + 5, yEnd.y - 5);
+    ctx.fillStyle = 'rgba(59, 130, 246, 0.8)';
+    ctx.fillText('Z', zEnd.x - 5, zEnd.y);
 
     // Record render time
     const endTime = performance.now();
     setRenderTime(endTime - startTime);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      cancelAnimationFrame(frameId);
-      renderer.dispose();
-      mc.geometry.dispose();
-      if (Array.isArray(mc.material)) mc.material.forEach(m => m.dispose());
-      else mc.material.dispose();
-    };
-  }, [data, colorVariable, resolution, renderTime]);
+  }, [data, colorVariable, resolution]);
 
   return (
     <div className="relative w-full h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-950 shadow-2xl">
-      <div ref={containerRef} style={{ width: '100%', height: '600px', display: 'block' }} />
+      <canvas ref={canvasRef} style={{ width: '675px', height: '600px', display: 'block' }} />
       
       {/* INDUSTRIAL UI OVERLAY */}
       <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
@@ -344,7 +288,7 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
             </div>
             <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl text-right">
               <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Temps Rendu</p>
-              <p className="text-emerald-500 font-bold text-xs uppercase">{renderTime >= 0 ? renderTime.toFixed(0) : '...'}ms</p>
+              <p className="text-emerald-500 font-bold text-xs uppercase">{renderTime > 0 ? renderTime.toFixed(0) : '...'}ms</p>
             </div>
           </div>
         </div>
