@@ -97,22 +97,43 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
 
     const startTime = performance.now();
 
+    // Ensure container has dimensions before creating renderer
+    const container = containerRef.current;
+    // Set explicit dimensions on the container to guarantee non-zero size
+    container.style.width = '100%';
+    container.style.height = '600px';
+
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+
+    // If still zero, bail out and retry on next frame
+    if (width === 0 || height === 0) {
+      const retry = setTimeout(() => {
+        // Re-trigger the effect by forcing a re-render
+        setRenderTime(-1);
+      }, 100);
+      return () => clearTimeout(retry);
+    }
+
     // 1. Scene Setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020617);
     
-    const width = containerRef.current.clientWidth;
-    const height = containerRef.current.clientHeight;
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.set(6, 6, 6);
     camera.lookAt(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true, 
+      alpha: false,
+      powerPreference: 'high-performance'
+    });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap pixel ratio for performance
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.localClippingEnabled = true;
-    containerRef.current.innerHTML = '';
-    containerRef.current.appendChild(renderer.domElement);
+    // Clear any existing canvas
+    container.innerHTML = '';
+    container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
     // OrbitControls
@@ -166,7 +187,7 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
     setStats({ min: minVal, max: maxVal, avg: avgVal, count: data.length });
 
     // 5. Fast Voxelization
-    const { grid, xMin, xMax, yMin, yMax, zMin, zMax } = createVoxelGrid(data, resolution);
+    const { grid } = createVoxelGrid(data, resolution);
 
     // 6. Fill Marching Cubes Grid
     const updateVolume = () => {
@@ -300,11 +321,11 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
       if (Array.isArray(mc.material)) mc.material.forEach(m => m.dispose());
       else mc.material.dispose();
     };
-  }, [data, colorVariable, resolution]);
+  }, [data, colorVariable, resolution, renderTime]);
 
   return (
     <div className="relative w-full h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-950 shadow-2xl">
-      <div ref={containerRef} className="w-full h-full" />
+      <div ref={containerRef} style={{ width: '100%', height: '600px', display: 'block' }} />
       
       {/* INDUSTRIAL UI OVERLAY */}
       <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
@@ -323,7 +344,7 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
             </div>
             <div className="bg-white/5 backdrop-blur-md border border-white/10 p-4 rounded-2xl text-right">
               <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Temps Rendu</p>
-              <p className="text-emerald-500 font-bold text-xs uppercase">{renderTime.toFixed(0)}ms</p>
+              <p className="text-emerald-500 font-bold text-xs uppercase">{renderTime >= 0 ? renderTime.toFixed(0) : '...'}ms</p>
             </div>
           </div>
         </div>
