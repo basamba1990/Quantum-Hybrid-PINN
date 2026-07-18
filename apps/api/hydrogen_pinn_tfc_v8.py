@@ -4,20 +4,12 @@ import numpy as np
 from typing import Dict, List, Optional, Any
 
 # Imports internes corrigés
-try:
-    from generic_pinn_solver import GenericPINNSolver
-    from deep_kalman_filter import DeepKalmanFilter
-    from quantum_eos_torch import SilveraGoldmanEOS, integrate_eos_in_pinn_loss
-    from geometry_handler import GeometryHandler
-    from salt_cavern_physics import SaltCavernPhysics
-    from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
-except ImportError:
-    from .generic_pinn_solver import GenericPINNSolver
-    from .deep_kalman_filter import DeepKalmanFilter
-    from .quantum_eos_torch import SilveraGoldmanEOS, integrate_eos_in_pinn_loss
-    from .geometry_handler import GeometryHandler
-    from .salt_cavern_physics import SaltCavernPhysics
-    from .pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+from generic_pinn_solver import GenericPINNSolver
+from deep_kalman_filter import DeepKalmanFilter
+from quantum_eos_torch import SilveraGoldmanEOS, integrate_eos_in_pinn_loss
+from geometry_handler import GeometryHandler
+from salt_cavern_physics import SaltCavernPhysics
+from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
 
 # Helper pour le device
 def get_device():
