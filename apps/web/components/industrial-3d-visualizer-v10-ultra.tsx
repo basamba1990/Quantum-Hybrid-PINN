@@ -303,8 +303,8 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
   }, [data, colorVariable, resolution]);
 
   return (
-    <div className="relative w-full h-full min-h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-950 shadow-2xl">
-      <div ref={containerRef} className="w-full min-h-[600px]" />
+    <div className="relative w-full h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-950 shadow-2xl">
+      <div ref={containerRef} className="w-full h-full" />
       
       {/* INDUSTRIAL UI OVERLAY */}
       <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
