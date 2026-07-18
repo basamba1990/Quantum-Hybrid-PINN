@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { 
   FlaskConical, 
   Activity, 
@@ -16,7 +16,10 @@ import {
   Wind,
   Layers,
   CheckCircle2,
-  Lightbulb
+  Lightbulb,
+  Maximize2,
+  Download,
+  FileJson
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -27,7 +30,12 @@ import dynamic from 'next/dynamic'
 import { HybridSimulationPanel } from "@/components/HybridSimulationPanel"
 import { createClient } from '@/lib/supabase/client'
 
-// Import dynamique du nouveau visualiseur industriel V5
+// Import dynamique du visualiseur industriel V10-Ultra (isosurfaces continues)
+const Industrial3DVisualizerV10Ultra = dynamic(
+  () => import('@/components/industrial-3d-visualizer-v10-ultra'),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur 3D...</div> }
+)
+
 const Industrial3DVisualizerEnhancedV5 = dynamic(
   () => import('@/components/industrial-3d-visualizer-enhanced-v5'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur 3D...</div> }
@@ -45,6 +53,9 @@ export default function SimulationsPage() {
   const [selectedAnalysis, setSelectedAnalysis] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [dynamicMetrics, setDynamicMetrics] = useState({ credibility: 0, computeTime: 0, validatedPoints: 0 })
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [exportFormat, setExportFormat] = useState<'png' | 'json' | 'fullscreen' | null>(null)
+  const visualizerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -240,12 +251,81 @@ export default function SimulationsPage() {
                     <Button variant="outline" className="border-white/10 hover:bg-white/5 text-white">Voir la documentation</Button>
                   </div>
                 ) : (
-                  <div className="p-6">
-                    <Industrial3DVisualizerEnhancedV5 
-                      data={predictions3d} 
-                      title={selectedAnalysis?.name || "3D Isosurface"} 
-                      colorVariable="temperature"
-                    />
+                  <div ref={visualizerRef} className="relative">
+                    {/* Toolbar d'export */}
+                    <div className="absolute top-4 right-4 z-50 flex gap-2">
+                      <button
+                        onClick={() => {
+                          setExportFormat('png')
+                          const canvas = visualizerRef.current?.querySelector('canvas')
+                          if (canvas) {
+                            const link = document.createElement('a')
+                            link.download = `simulation_${selectedAnalysis?.id || 'export'}.png`
+                            link.href = canvas.toDataURL('image/png')
+                            link.click()
+                          }
+                          setTimeout(() => setExportFormat(null), 1000)
+                        }}
+                        className="p-2 bg-black/60 backdrop-blur-md rounded-xl border border-white/20 text-white hover:bg-white/20 transition-all"
+                        title="Exporter en PNG"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setExportFormat('json')
+                          const results = selectedAnalysis?.results
+                          const parsed = typeof results === 'string' ? JSON.parse(results) : results
+                          const blob = new Blob([JSON.stringify(parsed, null, 2)], { type: 'application/json' })
+                          const link = document.createElement('a')
+                          link.download = `simulation_${selectedAnalysis?.id || 'export'}.json`
+                          link.href = URL.createObjectURL(blob)
+                          link.click()
+                          URL.revokeObjectURL(link.href)
+                          setTimeout(() => setExportFormat(null), 1000)
+                        }}
+                        className="p-2 bg-black/60 backdrop-blur-md rounded-xl border border-white/20 text-white hover:bg-white/20 transition-all"
+                        title="Exporter en JSON"
+                      >
+                        <FileJson className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setIsFullscreen(!isFullscreen)}
+                        className="p-2 bg-black/60 backdrop-blur-md rounded-xl border border-white/20 text-white hover:bg-white/20 transition-all"
+                        title="Plein écran"
+                      >
+                        <Maximize2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Mode plein écran */}
+                    {isFullscreen ? (
+                      <div className="fixed inset-0 z-[999] bg-[#0a0a0a]">
+                        <div className="absolute top-4 right-4 z-[1000]">
+                          <button
+                            onClick={() => setIsFullscreen(false)}
+                            className="p-3 bg-black/60 backdrop-blur-md rounded-xl border border-white/20 text-white hover:bg-white/20 transition-all"
+                          >
+                            <Maximize2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                        <Industrial3DVisualizerV10Ultra 
+                          data={predictions3d} 
+                          title={selectedAnalysis?.name || "3D Isosurface - Plein Écran"} 
+                          colorVariable="temperature"
+                          quality="ultra"
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-6">
+                        <Industrial3DVisualizerV10Ultra 
+                          data={predictions3d} 
+                          title={selectedAnalysis?.name || "3D Isosurface"} 
+                          colorVariable="temperature"
+                          quality="ultra"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
