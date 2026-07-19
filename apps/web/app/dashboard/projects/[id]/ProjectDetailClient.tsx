@@ -326,6 +326,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
                 title="TRULY-INDUSTRIAL V10-GOLD"
                 colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'prediction' : 'temperature'}
                 quality="ultra"
+                scenarioType={scenarioType}
               />
             </div>
           )}

@@ -147,6 +147,24 @@ export default function SimulationsPage() {
       : [];
   }, [selectedAnalysis])
 
+  // Déterminer le type de scénario pour adapter la visualisation 3D
+  const scenarioType = useMemo(() => {
+    const desc = (selectedProject?.description || '').toLowerCase();
+    const name = (selectedProject?.name || '').toLowerCase();
+    const analysisScenario = (selectedAnalysis?.scenario_type || '').toString();
+    
+    if (analysisScenario) return analysisScenario as any;
+    if (name.includes('heatsink') || desc.includes('heatsink')) return 'FPGA_HEATSINK';
+    if (name.includes('lh2') || desc.includes('lh2')) return 'LH2_STORAGE';
+    if (desc.includes('rock') || name.includes('rock')) return 'ROCK_ELAST_STRESS';
+    if (desc.includes('mining') || name.includes('mining')) return 'MINING_INDUSTRIAL_SIM';
+    if (desc.includes('compression') || name.includes('compression')) return 'H2_COMPRESSION_STATION';
+    if (desc.includes('cryogenic') || name.includes('cryogenic')) return 'CRYOGENIC_TRANSPORT';
+    if (desc.includes('pipeline safety') || name.includes('safety')) return 'PIPELINE_SAFETY';
+    if (desc.includes('port') || name.includes('port')) return 'PORT_ENERGY_OPTIMIZATION';
+    return 'H2_PIPELINE';
+  }, [selectedProject, selectedAnalysis])
+
   if (projects.length === 0 && !loading) return (
     <div className="p-8 max-w-7xl mx-auto text-center py-20 border-2 border-dashed border-white/5 rounded-[40px]">
       <AlertCircle className="w-16 h-16 text-gray-700 mx-auto mb-6" />
@@ -314,6 +332,7 @@ export default function SimulationsPage() {
                           title={selectedAnalysis?.name || "3D Isosurface - Plein Écran"} 
                           colorVariable="temperature"
                           quality="ultra"
+                          scenarioType={scenarioType}
                         />
                       </div>
                     ) : (
@@ -323,6 +342,7 @@ export default function SimulationsPage() {
                           title={selectedAnalysis?.name || "3D Isosurface"} 
                           colorVariable="temperature"
                           quality="ultra"
+                          scenarioType={scenarioType}
                         />
                       </div>
                     )}
