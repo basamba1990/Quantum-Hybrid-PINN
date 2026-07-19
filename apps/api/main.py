@@ -263,7 +263,7 @@ async def root():
         "message": "Quantum-Hybrid PINN API (V8) is running",
         "status": "operational",
         "version": "8.0.12",
-        "device": str(get_device()),
+        "device": str(_get_device()),
         "endpoints": {
             "core": ["/health", "/jobs", "/jobs/{job_id}"],
             "hybrid": ["/hybrid/run-simulation", "/v2/validate-3d", "/v2/assimilate"],
