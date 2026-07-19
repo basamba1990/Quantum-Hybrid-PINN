@@ -18,19 +18,32 @@ fno_orchestrator = None
 kalman_filter = None
 model_path = os.getenv("MODEL_PATH", "models/pinn_model.pt")
 
-from hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8, get_device
-from geometry_handler import GeometryHandler
-from deep_kalman_filter import DeepKalmanFilter
-from cfd_validation_service import CFDValidationService
+def get_eos(*args, **kwargs):
+    from fluid_properties import get_eos as _eos
+    return _eos(*args, **kwargs)
+
+# Lazy imports for heavy modules - imported on first request
+# This ensures port binding happens fast on Render
+
+def _get_device():
+    from hydrogen_pinn_tfc_v8 import get_device as _gd
+    return _gd()
+
+# Lightweight modules loaded at startup (needed for root endpoints)
 from scenario_engines import SCENARIO_ENGINES
-from pinn_3d_navier_stokes import T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
-from fluid_properties import get_eos
-from salt_cavern_physics import SaltCavernPhysics
-from industrial_risk_manager import IndustrialRiskManager
 from analysis_processor import router as analysis_router, init_processor
 from pgd_pinn_api import router as pgd_pinn_router
 from export_router import router as export_router
-from hydrogen_api_v2 import app as hydrogen_api_v2_app
+
+# IMPORT V2 APP LAZILY to avoid blocking port binding
+# This prevents Render timeout when heavy modules take too long to import
+hydrogen_api_v2_app = None
+def _import_hydrogen_api_v2():
+    global hydrogen_api_v2_app
+    if hydrogen_api_v2_app is None:
+        from hydrogen_api_v2 import app as v2
+        hydrogen_api_v2_app = v2
+    return hydrogen_api_v2_app
 
 def clean_float(value: float, fallback: float = 0.0) -> float:
     if value is None or not np.isfinite(value):
@@ -81,22 +94,80 @@ def trim_jobs_store():
 app.include_router(analysis_router)
 app.include_router(pgd_pinn_router)
 app.include_router(export_router)
-app.mount("/v2", hydrogen_api_v2_app)
 
-# Initialize Supabase
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ivhxnaxhgfbiqlhgfkik.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-SUPABASE_BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "pinn-models")
-SUPABASE_MODEL_PATH = os.getenv("SUPABASE_MODEL_PATH", "pinn_model.pt")
-
+# Lazy imports for heavy modules - will be available after startup
+HydrogenPINNTFCV8 = None
+GeometryHandler = None
+DeepKalmanFilter = None
+CFDValidationService = None
+T_MIN = 273.15
+T_MAX = 500.0
+X_MIN = 0.0
+X_MAX = 2.0
+Y_MIN = -0.5
+Y_MAX = 0.5
+Z_MIN = -0.5
+Z_MAX = 0.5
+IndustrialRiskManager = None
+current_model_v8 = None
+risk_manager = None
+fno_orchestrator = None
+kalman_filter = None
 supabase_client: Optional[Client] = None
-if SUPABASE_URL and SUPABASE_KEY:
+SUPABASE_URL = ""
+SUPABASE_KEY = ""
+SUPABASE_BUCKET_NAME = "pinn-models"
+SUPABASE_MODEL_PATH = "pinn_model.pt"
+
+@app.on_event("startup")
+async def startup_event():
+    """Import heavy modules AFTER port is bound to prevent Render timeout."""
+    global hydrogen_api_v2_app, supabase_client, HydrogenPINNTFCV8, GeometryHandler, \
+           DeepKalmanFilter, CFDValidationService, T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX, \
+           IndustrialRiskManager
     try:
-        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-        init_processor(SUPABASE_URL, SUPABASE_KEY)
-        print(f"✅ Supabase & Analysis processor initialisés.")
+        # Import heavy modules
+        from hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as _HP
+        from geometry_handler import GeometryHandler as _GH
+        from deep_kalman_filter import DeepKalmanFilter as _DKF
+        from cfd_validation_service import CFDValidationService as _CFD
+        from pinn_3d_navier_stokes import T_MIN as _TMIN, T_MAX as _TMAX, X_MIN as _XMIN, X_MAX as _XMAX, Y_MIN as _YMIN, Y_MAX as _YMAX, Z_MIN as _ZMIN, Z_MAX as _ZMAX
+        from salt_cavern_physics import SaltCavernPhysics
+        from industrial_risk_manager import IndustrialRiskManager as _IRM
+        
+        HydrogenPINNTFCV8 = _HP
+        GeometryHandler = _GH
+        DeepKalmanFilter = _DKF
+        CFDValidationService = _CFD
+        T_MIN = _TMIN
+        T_MAX = _TMAX
+        X_MIN = _XMIN
+        X_MAX = _XMAX
+        Y_MIN = _YMIN
+        Y_MAX = _YMAX
+        Z_MIN = _ZMIN
+        Z_MAX = _ZMAX
+        IndustrialRiskManager = _IRM
+        
+        # Mount V2 app
+        v2_app = _import_hydrogen_api_v2()
+        app.mount("/v2", v2_app)
+        print("✅ V2 API mounted successfully")
+        
+        # Initialize Supabase
+        SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ivhxnaxhgfbiqlhgfkik.supabase.co")
+        SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        SUPABASE_BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "pinn-models")
+        SUPABASE_MODEL_PATH = os.getenv("SUPABASE_MODEL_PATH", "pinn_model.pt")
+        
+        if SUPABASE_URL and SUPABASE_KEY:
+            supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+            init_processor(SUPABASE_URL, SUPABASE_KEY)
+            print(f"✅ Supabase & Analysis processor initialisés.")
+        
+        print("✅ All modules loaded successfully")
     except Exception as e:
-        print(f"⚠️ Erreur Supabase init: {e}")
+        print(f"⚠️ Startup error (modules will load on demand): {e}")
 
 # ==================== LAZY LOADING HELPERS ====================
 async def ensure_pinn_loaded():
@@ -365,4 +436,4 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info")
+    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="warning")
