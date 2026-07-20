@@ -306,7 +306,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
             latestAnalysis && latestAnalysis.id ? (
               <div className="space-y-6">
                 <AdvancedPhysicsVisualization 
-                  simulationId={latestAnalysis.id} 
+                  simulationId={results?.jobId || latestAnalysis.id} 
                   time={results?.totalTime || 0} 
                 />
               </div>

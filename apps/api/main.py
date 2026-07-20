@@ -151,7 +151,11 @@ async def startup_event():
         
         # Mount V2 app
         v2_app = _import_hydrogen_api_v2()
-        app.mount("/v2", v2_app)
+        # The v2_app already has /v2 prefixes in its routes, so we mount at root
+        # or we should strip the prefixes from v2_app. 
+        # Given the frontend calls /v2/analysis, and v2_app has /v2/analysis, 
+        # mounting at / works better.
+        app.mount("/", v2_app)
         print("✅ V2 API mounted successfully")
         
         # Initialize Supabase

@@ -43,7 +43,8 @@ interface AdvancedPhysicsProps {
 }
 
 export default function AdvancedPhysicsVisualization({ simulationId, time, onDataFetch }: AdvancedPhysicsProps) {
-  const [activeTab, setActiveTab] = useState('turbulence');
+  const [activeTab, setActiveTab] = useState('volumetric');
+  const [colorMap, setColorMap] = useState<'scientific' | 'cryogenic' | 'alert'>('scientific');
   const [turbulenceData, setTurbulenceData] = useState<TurbulenceData | null>(null);
   const [boundaryLayerData, setBoundaryLayerData] = useState<BoundaryLayerData | null>(null);
   const [residualData, setResidualData] = useState<ResidualMapData | null>(null);
@@ -59,6 +60,7 @@ export default function AdvancedPhysicsVisualization({ simulationId, time, onDat
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
 
   useEffect(() => {
+    // Priority to simulationId, but we need a valid identifier
     if (!simulationId || simulationId === 'undefined') {
       console.log("AdvancedPhysicsVisualization: simulationId is missing or undefined");
       return;
@@ -304,6 +306,26 @@ export default function AdvancedPhysicsVisualization({ simulationId, time, onDat
 
             {/* Volumetric Gold Standard View */}
             <TabsContent value="volumetric" className="space-y-6">
+              <div className="flex justify-end gap-2 mb-4">
+                <button 
+                  onClick={() => setColorMap('scientific')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${colorMap === 'scientific' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                >
+                  Scientific (Standard)
+                </button>
+                <button 
+                  onClick={() => setColorMap('cryogenic')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${colorMap === 'cryogenic' ? 'bg-cyan-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                >
+                  Cryogenic (LH2)
+                </button>
+                <button 
+                  onClick={() => setColorMap('alert')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${colorMap === 'alert' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+                >
+                  Alert (Residuals)
+                </button>
+              </div>
               <div className="h-[600px] w-full">
 {industrialData && industrialData.length > 0 ? (
                   <Industrial3DVisualizerV10Gold 
@@ -311,6 +333,7 @@ export default function AdvancedPhysicsVisualization({ simulationId, time, onDat
                     title="Analyse Volumétrique Quantum-Hybrid"
                     colorVariable="temperature"
                     quality="high"
+                    colorMapType={colorMap}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full bg-slate-950 rounded-3xl border border-white/10 text-blue-500">

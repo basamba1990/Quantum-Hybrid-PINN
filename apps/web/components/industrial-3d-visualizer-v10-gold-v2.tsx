@@ -18,6 +18,7 @@ interface Props {
   title?: string;
   colorVariable?: 'temperature' | 'pressure' | 'velocity';
   quality?: 'low' | 'medium' | 'high' | 'ultra';
+  colorMapType?: 'scientific' | 'cryogenic' | 'alert'; // Nouvelle prop pour le type de palette
 }
 
 /**
@@ -32,7 +33,8 @@ const Industrial3DVisualizerV10Gold: React.FC<Props> = ({
   data = [], 
   title = "TRULY-INDUSTRIAL V10-GOLD",
   colorVariable = 'temperature',
-  quality = 'high'
+  quality = 'high',
+  colorMapType = 'scientific' // Valeur par défaut
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
@@ -103,14 +105,32 @@ const Industrial3DVisualizerV10Gold: React.FC<Props> = ({
       return mc
     }
 
-    // Industrial Color Map (Scientific Gradient)
-    const layers = [
-      { t: 0.15, c: 0x1e3a8a, o: 0.25 }, // Deep Blue (Coldest)
-      { t: 0.35, c: 0x3b82f6, o: 0.35 }, // Blue
-      { t: 0.55, c: 0x10b981, o: 0.45 }, // Green
-      { t: 0.75, c: 0xf59e0b, o: 0.55 }, // Yellow/Orange
-      { t: 0.95, c: 0xef4444, o: 0.65 }  // Red (Hottest)
-    ]
+    // Définition des palettes de couleurs
+    const colorMaps = {
+      scientific: [
+        { t: 0.15, c: 0x1e3a8a, o: 0.25 }, // Deep Blue (Coldest)
+        { t: 0.35, c: 0x3b82f6, o: 0.35 }, // Blue
+        { t: 0.55, c: 0x10b981, o: 0.45 }, // Green
+        { t: 0.75, c: 0xf59e0b, o: 0.55 }, // Yellow/Orange
+        { t: 0.95, c: 0xef4444, o: 0.65 }  // Red (Hottest)
+      ],
+      cryogenic: [
+        { t: 0.1, c: 0x000033, o: 0.2 }, // Very Deep Blue
+        { t: 0.3, c: 0x000066, o: 0.3 }, // Deep Blue
+        { t: 0.5, c: 0x000099, o: 0.4 }, // Medium Blue
+        { t: 0.7, c: 0x0000cc, o: 0.5 }, // Light Blue
+        { t: 0.9, c: 0xadd8e6, o: 0.6 }  // Light Cyan (Warmest for Cryo)
+      ],
+      alert: [
+        { t: 0.1, c: 0x333333, o: 0.2 }, // Dark Grey (Normal)
+        { t: 0.3, c: 0x666666, o: 0.3 }, // Grey
+        { t: 0.5, c: 0x990000, o: 0.4 }, // Dark Red (Warning)
+        { t: 0.7, c: 0xcc0000, o: 0.5 }, // Red (Alert)
+        { t: 0.9, c: 0xff0000, o: 0.6 }  // Bright Red (Critical)
+      ]
+    };
+
+    const layers = colorMaps[colorMapType] || colorMaps.scientific; // Sélection de la palette
 
     const mcLayers = layers.map(l => createVolumetricLayer(l.c, l.o))
     mcLayers.forEach(mc => scene.add(mc))
