@@ -239,7 +239,7 @@ function AnalysisContent({ id }: { id: string }) {
           tableStartY = 20
         }
           
-        doc.autoTable({
+        (doc as any).autoTable({
           startY: tableStartY,
           head: [['PARAMÈTRE INDUSTRIEL', 'VALEUR EXTRAITE']],
           body: tableData,
