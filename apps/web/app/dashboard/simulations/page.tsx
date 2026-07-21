@@ -435,7 +435,12 @@ export default function SimulationsPage() {
         
         <TabsContent value="audit">
           <div className="grid grid-cols-1 gap-8">
-             <AdvancedPhysicsVisualization simulationId={selectedAnalysis?.id} time={0} />
+             <AdvancedPhysicsVisualization 
+               simulationId={selectedAnalysis?.id} 
+               time={0} 
+               data3d={predictions3d}
+               scenarioType={scenarioType}
+             />
           </div>
         </TabsContent>
       </Tabs>
