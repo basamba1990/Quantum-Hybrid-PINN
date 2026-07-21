@@ -1,4 +1,3 @@
-
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
@@ -307,7 +306,8 @@ export default function ProjectDetailClient({ id }: { id: string }) {
               <div className="space-y-6">
                 <AdvancedPhysicsVisualization 
                   simulationId={results?.jobId || latestAnalysis.id} 
-                  time={results?.totalTime || 0} 
+                  time={results?.totalTime || 0}
+                  data3d={predictions3d}
                 />
               </div>
             ) : (

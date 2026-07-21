@@ -8,13 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, Play, ArrowLeft, Download, Activity, ShieldCheck, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
-import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF
-  }
+// Register autoTable plugin
+if (typeof window !== 'undefined') {
+  autoTable(jsPDF)
 }
 
 const VerificationBadge = dynamic(
@@ -169,25 +168,31 @@ function AnalysisContent({ id }: { id: string }) {
     }
   }
 
-  const handleDownloadReport = () => {
-    if (!auditData || !project) return
+  const handleDownloadReport = async () => {
+    if (!auditData || !project) {
+      toast.error('Données d\'audit non disponibles')
+      return
+    }
 
     setDownloading(true)
     try {
       const doc = new jsPDF()
       
+      // Header with dark background
       doc.setFillColor(10, 10, 20)
       doc.rect(0, 0, 210, 40, 'F')
       doc.setFontSize(22)
       doc.setTextColor(255, 255, 255)
       doc.text('RAPPORT D\'AUDIT SCIENTIFIQUE QUANTUM-PINN', 20, 25)
       
+      // Project info
       doc.setTextColor(0, 0, 0)
       doc.setFontSize(14)
       doc.text(`Projet : ${project.name}`, 20, 55)
       doc.text(`Date : ${new Date().toLocaleDateString()}`, 20, 65)
       doc.text(`ID Simulation : ${id.slice(0, 8)}`, 20, 75)
       
+      // Score section
       doc.setFontSize(16)
       doc.text('Évaluation de la Crédibilité Physique', 20, 95)
       
@@ -203,6 +208,7 @@ function AnalysisContent({ id }: { id: string }) {
       doc.setFontSize(10)
       doc.text(`Cohérence physique : ${auditData.isPhysicallyCoherent ? 'VALIDÉE' : 'NON VALIDÉE'}`, 20, 125)
       
+      // Anomalies section
       doc.setTextColor(0, 0, 0)
       doc.setFontSize(16)
       doc.text('Anomalies & Points de Vigilance', 20, 145)
@@ -210,6 +216,10 @@ function AnalysisContent({ id }: { id: string }) {
       if (auditData.anomalies && auditData.anomalies.length > 0) {
         let y = 155
         auditData.anomalies.forEach((anomaly) => {
+          if (y > 270) {
+            doc.addPage()
+            y = 20
+          }
           doc.text(`• ${anomaly}`, 25, y)
           y += 10
         })
@@ -217,13 +227,24 @@ function AnalysisContent({ id }: { id: string }) {
         doc.text('Aucune anomalie critique détectée par le moteur PINN.', 25, 155)
       }
       
+      // Extracted data table
+      let tableStartY = 180
+      if (auditData.anomalies && auditData.anomalies.length > 0) {
+        tableStartY = 155 + auditData.anomalies.length * 10 + 10
+      }
+      
       if (auditData.extractedData && Object.keys(auditData.extractedData).length > 0) {
         const tableData = Object.entries(auditData.extractedData)
           .filter(([key]) => !['x', 'y', 'z'].includes(key))
           .map(([key, value]) => [key.replace(/_/g, ' ').toUpperCase(), String(value)])
+        
+        if (tableStartY > 250) {
+          doc.addPage()
+          tableStartY = 20
+        }
           
         doc.autoTable({
-          startY: 180,
+          startY: tableStartY,
           head: [['PARAMÈTRE INDUSTRIEL', 'VALEUR EXTRAITE']],
           body: tableData,
           theme: 'striped',
@@ -232,11 +253,13 @@ function AnalysisContent({ id }: { id: string }) {
         })
       }
 
-      doc.save(`audit_industriel_${project.name.replace(/\s+/g, '_')}.pdf`)
-      toast.success('Rapport industriel généré avec succès')
+      // Save the PDF
+      const filename = `audit_industriel_${project.name.replace(/\s+/g, '_')}_${Date.now()}.pdf`
+      doc.save(filename)
+      toast.success('Rapport industriel généré et téléchargé avec succès')
     } catch (error) {
       console.error('PDF Generation error:', error)
-      toast.error('Erreur lors de la génération du PDF')
+      toast.error('Erreur lors de la génération du PDF : ' + (error instanceof Error ? error.message : 'Erreur inconnue'))
     } finally {
       setDownloading(false)
     }

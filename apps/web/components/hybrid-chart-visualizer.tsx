@@ -39,36 +39,31 @@ export default function HybridChartVisualizer({
       const validPoints = predictions.filter(p => p !== null && typeof p === 'object')
       if (validPoints.length === 0) return null
 
-      // Extraction des données temporelles - FILTRAGE POUR ÉVITER L'ÉCRASEMENT
-      // On ne garde que les points qui ont des temps uniques pour les graphiques temporels
-      // Les points spatiaux du dernier pas de temps sont exclus des courbes 2D
-      const uniqueTimePoints = []
-      const seenTimes = new Set()
-      
-      for (const p of validPoints) {
-        const t = typeof p.time === 'number' ? p.time : parseFloat(p.time);
-        if (!isNaN(t) && !seenTimes.has(t)) {
-          seenTimes.add(t);
-          uniqueTimePoints.push({ ...p, time: t });
-        }
-      }
+      // Keep ALL valid points - sort by time for smooth curves
+      // No unique-time filtering: we want continuous curves, not scattered dots
+      const allPoints = validPoints
+        .filter(p => {
+          const t = typeof p.time === 'number' ? p.time : parseFloat(p.time);
+          return !isNaN(t);
+        })
+        .map(p => ({
+          ...p,
+          time: typeof p.time === 'number' ? p.time : parseFloat(p.time)
+        }))
+        .sort((a, b) => a.time - b.time);
 
-      // Trier par temps pour s'assurer que les courbes sont correctes
-      uniqueTimePoints.sort((a, b) => a.time - b.time);
-
-      const times = uniqueTimePoints.map((p) => p.time)
+      const times = allPoints.map((p) => p.time)
       
       // Pression (conversion Pa -> bar si nécessaire)
-      const pressure = uniqueTimePoints.map((p) => {
+      const pressure = allPoints.map((p) => {
         const rawP = p.pressure ?? 0
         return rawP > 1000 ? rawP / 1e5 : rawP
       })
 
       // Température (gestion des deux échelles : K brut et K converti)
-      const temperatureBrut = uniqueTimePoints.map((p) => p.temperature ?? 0)
-      const temperatureConverted = uniqueTimePoints.map((p) => {
+      const temperatureBrut = allPoints.map((p) => p.temperature ?? 0)
+      const temperatureConverted = allPoints.map((p) => {
         const rawT = p.temperature ?? 0
-        // Si la température est très basse (< 100K), c'est du liquide cryogénique
         if (rawT < 100) {
           return rawT // Afficher la valeur brute pour l'hydrogène liquide
         }
@@ -76,7 +71,7 @@ export default function HybridChartVisualizer({
       })
 
       // Vitesse (magnitude)
-      const velocity = uniqueTimePoints.map((p) => {
+      const velocity = allPoints.map((p) => {
         const u = p.velocity_u ?? 0
         const v = p.velocity_v ?? 0
         const w = p.velocity_w ?? 0
@@ -84,7 +79,7 @@ export default function HybridChartVisualizer({
       })
 
       // Densité
-      const density = uniqueTimePoints.map((p) => p.density ?? 1.0)
+      const density = allPoints.map((p) => p.density ?? 1.0)
 
       return {
         times,
@@ -128,10 +123,9 @@ export default function HybridChartVisualizer({
                 x: chartData.times,
                 y: chartData.pressure,
                 type: 'scatter',
-                mode: 'lines+markers',
+                mode: 'lines',
                 name: 'Pression',
                 line: { color: '#4f46e5', width: 3, shape: 'spline' },
-                marker: { size: 6, color: '#4f46e5', symbol: 'diamond' },
                 fill: 'tozeroy',
                 fillcolor: 'rgba(79, 70, 229, 0.05)',
                 hoverinfo: 'x+y',
@@ -162,10 +156,9 @@ export default function HybridChartVisualizer({
                 x: chartData.times,
                 y: chartData.temperature,
                 type: 'scatter',
-                mode: 'lines+markers',
+                mode: 'lines',
                 name: 'Température',
-                line: { color: '#dc2626', width: 2 },
-                marker: { size: 5, color: '#dc2626' },
+                line: { color: '#dc2626', width: 3, shape: 'spline' },
                 fill: 'tozeroy',
                 fillcolor: 'rgba(220, 38, 38, 0.1)',
               },
@@ -202,10 +195,9 @@ export default function HybridChartVisualizer({
                 x: chartData.times,
                 y: chartData.velocity,
                 type: 'scatter',
-                mode: 'lines+markers',
+                mode: 'lines',
                 name: 'Vitesse',
-                line: { color: '#16a34a', width: 2 },
-                marker: { size: 5, color: '#16a34a' },
+                line: { color: '#16a34a', width: 3, shape: 'spline' },
                 fill: 'tozeroy',
                 fillcolor: 'rgba(22, 163, 74, 0.1)',
               },
@@ -232,10 +224,9 @@ export default function HybridChartVisualizer({
                 x: chartData.times,
                 y: chartData.density,
                 type: 'scatter',
-                mode: 'lines+markers',
+                mode: 'lines',
                 name: 'Densité',
-                line: { color: '#f59e0b', width: 2 },
-                marker: { size: 5, color: '#f59e0b' },
+                line: { color: '#f59e0b', width: 3, shape: 'spline' },
                 fill: 'tozeroy',
                 fillcolor: 'rgba(245, 158, 11, 0.1)',
               },
