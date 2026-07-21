@@ -24,7 +24,7 @@ import Industrial3DVisualizerV10Ultra from './industrial-3d-visualizer-v10-ultra
 interface AdvancedPhysicsProps {
   simulationId: string;
   time: number;
-  data3d: any[];
+  data3d?: any[];
   scenarioType?: string;
   onDataFetch?: (data: any) => void;
 }
