@@ -41,6 +41,12 @@ export default function AdvancedPhysicsVisualization({
   const [activeTab, setActiveTab] = useState('volumetric');
   const [colorVariable, setColorVariable] = useState<'temperature' | 'pressure' | 'density' | 'stress' | 'damage' | 'prediction'>('temperature');
 
+  // Fetch additional backend data if simulationId is available (declared before useMemo chartData to avoid block-scoped variable error)
+  const [backendTurbulenceData, setBackendTurbulenceData] = useState<any>(null);
+  const [backendBoundaryData, setBackendBoundaryData] = useState<any>(null);
+  const [backendResidualData, setBackendResidualData] = useState<any>(null);
+  const [backendDerivedFieldsData, setBackendDerivedFieldsData] = useState<any>(null);
+
   // Use Industrial3DVisualizerV10Ultra (same as standard/simulations) for the Gold view
   // Pass the real predictions3d data directly
   const realData3d = useMemo(() => {
@@ -180,12 +186,6 @@ export default function AdvancedPhysicsVisualization({
   }, [realData3d, backendDerivedFieldsData]);
 
   const scenarioType = propScenarioType as ScenarioType;
-
-  // Fetch additional backend data if simulationId is available (but don't block on it)
-  const [backendTurbulenceData, setBackendTurbulenceData] = useState<any>(null);
-  const [backendBoundaryData, setBackendBoundaryData] = useState<any>(null);
-  const [backendResidualData, setBackendResidualData] = useState<any>(null);
-  const [backendDerivedFieldsData, setBackendDerivedFieldsData] = useState<any>(null);
 
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
 
