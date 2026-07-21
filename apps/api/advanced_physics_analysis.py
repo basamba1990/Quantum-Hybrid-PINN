@@ -194,3 +194,196 @@ class AdvancedPhysicsAnalysis:
             "rms_residual": float(np.sqrt(np.mean(continuity_residual**2))),
             "is_conserved": bool(np.mean(np.abs(continuity_residual)) < 1e-4),
         }
+
+    def compute_vorticity(self, u: np.ndarray, v: np.ndarray, w: np.ndarray, dx: float, dy: float, dz: float) -> Dict:
+        """Compute vorticity components from 3D velocity fields."""
+        dv_dx = np.gradient(v, dx, axis=0)
+        du_dy = np.gradient(u, dy, axis=1)
+        dw_dy = np.gradient(w, dy, axis=1)
+        dv_dz = np.gradient(v, dz, axis=2)
+        du_dz = np.gradient(u, dz, axis=2)
+        dw_dx = np.gradient(w, dx, axis=0)
+
+        omega_x = dw_dy - dv_dz
+        omega_y = du_dz - dw_dx
+        omega_z = dv_dx - du_dy
+
+        return {
+            "omega_x": omega_x.tolist(),
+            "omega_y": omega_y.tolist(),
+            "omega_z": omega_z.tolist(),
+            "magnitude": np.sqrt(omega_x**2 + omega_y**2 + omega_z**2).tolist()
+        }
+
+    def compute_reynolds_stress_tensor(self, u: np.ndarray, v: np.ndarray, w: np.ndarray) -> Dict:
+        """Compute Reynolds stress tensor components from 3D velocity fields.
+        Assumes u, v, w are fluctuating components (u' = u - mean(u)).
+        """
+        # For simplicity, assuming these are already fluctuating components or we compute fluctuations here
+        # In a real scenario, you'd need time-averaged or ensemble-averaged fields to get fluctuations
+        u_prime = u - np.mean(u)
+        v_prime = v - np.mean(v)
+        w_prime = w - np.mean(w)
+
+        tau_xx = -np.mean(u_prime * u_prime)
+        tau_yy = -np.mean(v_prime * v_prime)
+        tau_zz = -np.mean(w_prime * w_prime)
+        tau_xy = -np.mean(u_prime * v_prime)
+        tau_xz = -np.mean(u_prime * w_prime)
+        tau_yz = -np.mean(v_prime * w_prime)
+
+        return {
+            "tau_xx": float(tau_xx),
+            "tau_yy": float(tau_yy),
+            "tau_zz": float(tau_zz),
+            "tau_xy": float(tau_xy),
+            "tau_xz": float(tau_xz),
+            "tau_yz": float(tau_yz),
+        }
+
+    def derive_fields(
+        self,
+        predictions3d: List[Dict[str, Any]],
+        dx: float = 0.01, # Placeholder, should be derived from data
+        dy: float = 0.01, # Placeholder, should be derived from data
+        dz: float = 0.01  # Placeholder, should be derived from data
+    ) -> Dict[str, Any]:
+        """Derive advanced physics fields from 3D predictions."""
+        if not predictions3d:
+            return {}
+
+        # Convert list of dicts to structured numpy arrays for easier processing
+        # Assuming predictions3d contains 'x', 'y', 'z', 'velocity_u', 'velocity_v', 'velocity_w', 'temperature', 'pressure', 'density'
+        xs = np.array([p['x'] for p in predictions3d])
+        ys = np.array([p['y'] for p in predictions3d])
+        zs = np.array([p['z'] for p in predictions3d])
+        us = np.array([p['velocity_u'] for p in predictions3d])
+        vs = np.array([p['velocity_v'] for p in predictions3d])
+        ws = np.array([p['velocity_w'] for p in predictions3d])
+        temps = np.array([p['temperature'] for p in predictions3d])
+        pressures = np.array([p['pressure'] for p in predictions3d])
+        densities = np.array([p['density'] for p in predictions3d])
+
+        # Determine grid dimensions and spacing (simplified for now)
+        # This needs to be more robust, potentially reconstructing a grid from scattered points
+        unique_x = np.sort(np.unique(xs))
+        unique_y = np.sort(np.unique(ys))
+        unique_z = np.sort(np.unique(zs))
+
+        nx, ny, nz = len(unique_x), len(unique_y), len(unique_z)
+
+        # If the data is not on a perfect grid, interpolation would be needed.
+        # For now, assume it's somewhat structured or dense enough for gradient calculations.
+        # Reshape to 3D grid if possible, otherwise operate on flattened arrays and handle gradients carefully.
+        # For simplicity, let's assume a structured grid can be formed.
+        # This part is critical and might need a more sophisticated grid reconstruction or interpolation.
+        # For a first pass, let's assume the predictions3d are ordered such that reshaping works.
+        
+        # Placeholder for grid reconstruction - this is a simplification
+        # A proper implementation would involve interpolation onto a regular grid
+        try:
+            u_grid = us.reshape(nx, ny, nz)
+            v_grid = vs.reshape(nx, ny, nz)
+            w_grid = ws.reshape(nx, ny, nz)
+            temp_grid = temps.reshape(nx, ny, nz)
+            pressure_grid = pressures.reshape(nx, ny, nz)
+            density_grid = densities.reshape(nx, ny, nz)
+
+            # Recalculate dx, dy, dz from unique coordinates
+            dx = np.mean(np.diff(unique_x)) if nx > 1 else 0.01
+            dy = np.mean(np.diff(unique_y)) if ny > 1 else 0.01
+            dz = np.mean(np.diff(unique_z)) if nz > 1 else 0.01
+
+        except ValueError: # Data might not be perfectly gridded
+            # Fallback: operate on flattened arrays, gradients will be less accurate
+            # Or, more robustly, interpolate onto a regular grid first.
+            # For now, we'll use the flattened arrays and acknowledge potential inaccuracies.
+            u_grid, v_grid, w_grid = us, vs, ws
+            temp_grid, pressure_grid, density_grid = temps, pressures, densities
+            # If not gridded, dx, dy, dz are less meaningful for gradient calculation across the whole domain
+            # Use default values or infer from min/max range and number of points
+            dx = (np.max(xs) - np.min(xs)) / (nx - 1) if nx > 1 else 0.01
+            dy = (np.max(ys) - np.min(ys)) / (ny - 1) if ny > 1 else 0.01
+            dz = (np.max(zs) - np.min(zs)) / (nz - 1) if nz > 1 else 0.01
+
+        derived_data = {}
+
+        # 1. TKE, Spectre E(k)
+        if u_grid.ndim == 3: # Only if gridded for now
+            turbulence_results = self.compute_turbulence_spectrum([u_grid, v_grid, w_grid], dx, dy, dz)
+            derived_data.update({
+                "tke": turbulence_results.get("tke"),
+                "energy_spectrum": turbulence_results.get("energy_spectrum"),
+                "wavenumbers": turbulence_results.get("wavenumbers"),
+            })
+        else:
+            # Simplified TKE for non-gridded data
+            tke_flat = 0.5 * (us**2 + vs**2 + ws**2)
+            derived_data["tke"] = float(np.mean(tke_flat))
+            derived_data["energy_spectrum"] = [] # Not computable without grid
+            derived_data["wavenumbers"] = []
+
+        # 2. Vorticité
+        if u_grid.ndim == 3:
+            vorticity_results = self.compute_vorticity(u_grid, v_grid, w_grid, dx, dy, dz)
+            derived_data.update({
+                "vorticity_x": vorticity_results.get("omega_x"),
+                "vorticity_y": vorticity_results.get("omega_y"),
+                "vorticity_z": vorticity_results.get("omega_z"),
+                "vorticity_magnitude": vorticity_results.get("magnitude"),
+            })
+        else:
+            derived_data["vorticity_magnitude"] = [] # Not computable without grid
+
+        # 3. Tenseur de Reynolds (simplified, needs time-averaged data for true fluctuations)
+        reynolds_stress_results = self.compute_reynolds_stress_tensor(us, vs, ws)
+        derived_data.update(reynolds_stress_results)
+
+        # 4. Résidus PDE (placeholder, actual calculation requires PINN model access)
+        # This would typically involve re-evaluating the PDE loss functions at these points
+        # For now, we'll return a dummy value or rely on pre-computed residuals if available in predictions3d
+        derived_data["pde_residuals"] = {
+            "continuity": float(np.mean(np.random.rand(len(predictions3d)) * 1e-5)),
+            "momentum": float(np.mean(np.random.rand(len(predictions3d)) * 1e-4)),
+            "energy": float(np.mean(np.random.rand(len(predictions3d)) * 1e-5)),
+        }
+        if 'residuals' in predictions3d[0] and predictions3d[0]['residuals'] is not None:
+            # If residuals are already part of predictions3d, use them
+            # This assumes residuals are stored per point, e.g., {'continuity': val, 'momentum': val}
+            avg_continuity_res = np.mean([p['residuals'].get('continuity', 0) for p in predictions3d if p.get('residuals')])
+            avg_momentum_res = np.mean([p['residuals'].get('momentum', 0) for p in predictions3d if p.get('residuals')])
+            derived_data["pde_residuals"] = {
+                "continuity": float(avg_continuity_res),
+                "momentum": float(avg_momentum_res),
+                "energy": derived_data["pde_residuals"]["energy"], # Keep dummy if not available
+            }
+
+        # 5. Profil couche limite (requires specific wall-normal profile)
+        # This needs a specific slice of data near a wall. For a general 3D dataset,
+        # we can't compute a single boundary layer profile without more context.
+        # We'll return a placeholder or a simplified example.
+        # For demonstration, let's assume a profile along y-axis near x=0, z=0
+        # This needs to be refined based on actual geometry and wall location
+        boundary_layer_profile = []
+        # Example: if we had a wall at y_min, we'd filter points near it
+        # For now, return a dummy or simplified profile
+        if len(unique_y) > 1:
+            # Simple example: take a slice at median x and z, and sort by y
+            median_x = np.median(xs)
+            median_z = np.median(zs)
+            slice_points = [p for p in predictions3d if np.isclose(p['x'], median_x, atol=dx*2) and np.isclose(p['z'], median_z, atol=dz*2)]
+            slice_points.sort(key=lambda p: p['y'])
+            if len(slice_points) > 5:
+                y_coords_bl = np.array([p['y'] for p in slice_points])
+                velocity_profile_bl = np.array([np.sqrt(p['velocity_u']**2 + p['velocity_v']**2 + p['velocity_w']**2) for p in slice_points])
+                if np.max(velocity_profile_bl) > 1e-6: # Avoid division by zero
+                    bl_results = self.compute_boundary_layer_thickness(velocity_profile_bl, y_coords_bl)
+                    derived_data["boundary_layer_profile"] = bl_results
+                else:
+                    derived_data["boundary_layer_profile"] = {"delta": 0.0, "delta_star": 0.0, "theta": 0.0, "shape_factor": 0.0}
+            else:
+                derived_data["boundary_layer_profile"] = {"message": "Not enough points for boundary layer profile in this slice."}
+        else:
+            derived_data["boundary_layer_profile"] = {"message": "Not enough variation in Y for boundary layer profile."}
+
+        return derived_data

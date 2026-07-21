@@ -177,6 +177,15 @@ class ResidualMapRequest(BaseModel):
     plane: str = "xy"
     coord: float = 0.0
 
+class DeriveFieldsRequest(BaseModel):
+    simulation_id: str
+    analysis_id: Optional[str] = None
+
+class DeriveFieldsResponse(BaseModel):
+    simulation_id: str
+    derived_fields: Dict[str, Any]
+    timestamp: str
+
 # ============================================================================
 # Health Check
 # ============================================================================
@@ -386,11 +395,43 @@ async def assimilate_data(request: AssimilationRequestV8):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Data assimilation error: {str(e)}")
 
-# ============================================================================
-# Advanced Analysis Endpoints
-# ============================================================================
+    # ============================================================================
+    # Advanced Analysis Endpoints
+    # ============================================================================
 
-@app.post("/v2/analysis/turbulence-spectra")
+    @app.post("/v2/analysis/derive-fields", response_model=DeriveFieldsResponse)
+    async def derive_fields_endpoint(request: DeriveFieldsRequest):
+        global analysis_service
+        try:
+            analysis_id_to_use = request.analysis_id if request.analysis_id else request.simulation_id
+            if not analysis_id_to_use:
+                raise HTTPException(status_code=400, detail="Either simulation_id or analysis_id must be provided.")
+
+            # Load predictions3d from Supabase using analysis_processor
+            from analysis_processor import analysis_processor_instance
+            if analysis_processor_instance is None:
+                raise HTTPException(status_code=500, detail="Analysis processor not initialized.")
+            
+            analysis_results = await analysis_processor_instance.get_analysis_results(analysis_id_to_use)
+            if not analysis_results or "predictions3d" not in analysis_results:
+                raise HTTPException(status_code=404, detail=f"predictions3d not found for analysis_id {analysis_id_to_use}")
+            
+            predictions3d = analysis_results["predictions3d"]
+            if not predictions3d:
+                raise HTTPException(status_code=404, detail=f"predictions3d is empty for analysis_id {analysis_id_to_use}")
+
+            # Call the derive_fields method from AdvancedPhysicsAnalysis
+            derived_fields = analysis_service.derive_fields(predictions3d)
+
+            return DeriveFieldsResponse(
+                simulation_id=request.simulation_id,
+                derived_fields=derived_fields,
+                timestamp=datetime.utcnow().isoformat()
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error deriving fields: {str(e)}")
+
+    @app.post("/v2/analysis/turbulence-spectra")
 async def get_turbulence_spectra(request: TurbulenceSpectraRequest):
     global current_model_v8, analysis_service
     try:

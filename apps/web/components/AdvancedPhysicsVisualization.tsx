@@ -149,6 +149,12 @@ export default function AdvancedPhysicsVisualization({
       damageProfile,
       velocityXProfile,
       multiPhysics,
+      tkeProfile: derivedFields?.tke ? realData3d.map((p, i) => ({ z: p.z, tke: derivedFields.tke[i] || 0 })) : [],
+      vorticityMagnitudeProfile: derivedFields?.vorticityMagnitude ? realData3d.map((p, i) => ({ z: p.z, vorticity: derivedFields.vorticityMagnitude[i] || 0 })) : [],
+      energySpectrumData: derivedFields?.energySpectrum && derivedFields?.wavenumbers ? derivedFields.wavenumbers.map((k: number, i: number) => ({ k, E_k: derivedFields.energySpectrum[i] })) : [],
+      pdeResidualsData: derivedFields?.pdeResiduals,
+      boundaryLayerData: derivedFields?.boundaryLayerProfile,
+      reynoldsStressData: derivedFields?.reynoldsStress,
       stats: {
         count: realData3d.length,
         tempMin: Math.min(...realData3d.map(p => p.temperature)),
@@ -160,9 +166,10 @@ export default function AdvancedPhysicsVisualization({
         velocityMax: Math.max(...realData3d.map(p => Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2))),
         densityMin: Math.min(...realData3d.map(p => p.density || 1.0)),
         densityMax: Math.max(...realData3d.map(p => p.density || 1.0)),
+        tkeAvg: derivedFields?.tke ? derivedFields.tke.reduce((s: number, val: number) => s + val, 0) / derivedFields.tke.length : 0,
       }
     };
-  }, [realData3d]);
+  }, [realData3d, derivedFields]);
 
   const scenarioType = propScenarioType as ScenarioType;
 
@@ -170,6 +177,7 @@ export default function AdvancedPhysicsVisualization({
   const [backendTurbulenceData, setBackendTurbulenceData] = useState<any>(null);
   const [backendBoundaryData, setBackendBoundaryData] = useState<any>(null);
   const [backendResidualData, setBackendResidualData] = useState<any>(null);
+  const [backendDerivedFieldsData, setBackendDerivedFieldsData] = useState<any>(null);
 
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
 
@@ -178,7 +186,7 @@ export default function AdvancedPhysicsVisualization({
 
     const fetchBackendData = async () => {
       try {
-        const [turbRes, blRes, resRes] = await Promise.allSettled([
+        const [turbRes, blRes, resRes, derivedFieldsRes] = await Promise.allSettled([
           fetch(`${API_BASE_URL}/v2/analysis/turbulence-spectra`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -193,6 +201,11 @@ export default function AdvancedPhysicsVisualization({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ simulation_id: simulationId, time, plane: 'xy', coord: 0.0 }),
+          }),
+          fetch(`${API_BASE_URL}/v2/analysis/derive-fields`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ simulation_id: simulationId }),
           })
         ]);
 
@@ -208,6 +221,10 @@ export default function AdvancedPhysicsVisualization({
           const result = await resRes.value.json();
           if (result?.data) setBackendResidualData(result.data);
         }
+        if (derivedFieldsRes.status === 'fulfilled' && derivedFieldsRes.value.ok) {
+          const result = await derivedFieldsRes.value.json();
+          if (result?.derived_fields) setBackendDerivedFieldsData(result.derived_fields);
+        }
       } catch (err) {
         console.error('Backend fetch error (non-blocking):', err);
       }
@@ -215,6 +232,27 @@ export default function AdvancedPhysicsVisualization({
 
     fetchBackendData();
   }, [simulationId, time, API_BASE_URL]);
+
+  // Memoized derived fields from backendDerivedFieldsData
+  const derivedFields = useMemo(() => {
+    if (!backendDerivedFieldsData) return null;
+    return {
+      tke: backendDerivedFieldsData.tke,
+      vorticityMagnitude: backendDerivedFieldsData.vorticity_magnitude,
+      reynoldsStress: {
+        tau_xx: backendDerivedFieldsData.tau_xx,
+        tau_yy: backendDerivedFieldsData.tau_yy,
+        tau_zz: backendDerivedFieldsData.tau_zz,
+        tau_xy: backendDerivedFieldsData.tau_xy,
+        tau_xz: backendDerivedFieldsData.tau_xz,
+        tau_yz: backendDerivedFieldsData.tau_yz,
+      },
+      energySpectrum: backendDerivedFieldsData.energy_spectrum,
+      wavenumbers: backendDerivedFieldsData.wavenumbers,
+      pdeResiduals: backendDerivedFieldsData.pde_residuals,
+      boundaryLayerProfile: backendDerivedFieldsData.boundary_layer_profile,
+    };
+  }, [backendDerivedFieldsData]);
 
   const renderPhysicsChart = (data: any[], yLabel: string, dataKey: string, color: string = '#10b981') => {
     if (!data || !Array.isArray(data) || data.length === 0) {
@@ -301,6 +339,10 @@ export default function AdvancedPhysicsVisualization({
               <TabsTrigger value="damage" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Endommagement</TabsTrigger>
               <TabsTrigger value="tke" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Turbulence</TabsTrigger>
               <TabsTrigger value="stress" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Contraintes</TabsTrigger>
+              <TabsTrigger value="vorticity" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Vorticité</TabsTrigger>
+              <TabsTrigger value="reynolds-stress" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Reynolds</TabsTrigger>
+              <TabsTrigger value="energy-spectrum" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Spectre E(k)</TabsTrigger>
+              <TabsTrigger value="pde-residuals" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Résidus PDE</TabsTrigger>
               <TabsTrigger value="multi-physics" className="rounded-xl data-[state=active]:bg-emerald-500 data-[state=active]:text-black text-emerald-400 font-bold transition-all text-[10px]">Multi-P</TabsTrigger>
             </TabsList>
 
@@ -506,6 +548,146 @@ export default function AdvancedPhysicsVisualization({
                 </>
               ) : (
                 <div className="p-12 text-center text-gray-600">Données de turbulence non disponibles</div>
+              )}
+            </TabsContent>
+
+            {/* ===== VORTICITÉ ===== */}
+            <TabsContent value="vorticity" className="space-y-6">
+              {chartData && chartData.vorticityMagnitudeProfile.length > 0 ? (
+                <>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 mb-4">
+                    <p className="text-xs font-mono text-emerald-400 uppercase">Vorticité (ω)</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Magnitude de la vorticité calculée à partir des champs de vitesse.
+                      ω_min = {Math.min(...chartData.vorticityMagnitudeProfile.map(p => p.vorticity)).toExponential(2)} s⁻¹ // 
+                      ω_max = {Math.max(...chartData.vorticityMagnitudeProfile.map(p => p.vorticity)).toExponential(2)} s⁻¹
+                    </p>
+                  </div>
+                  {renderPhysicsChart(chartData.vorticityMagnitudeProfile, 'Magnitude Vorticité (s⁻¹)', 'vorticity', '#ff7300')}
+                </>
+              ) : (
+                <div className="p-12 text-center text-gray-600">Données de vorticité non disponibles</div>
+              )}
+            </TabsContent>
+
+            {/* ===== TENSEUR DE REYNOLDS ===== */}
+            <TabsContent value="reynolds-stress" className="space-y-6">
+              {chartData && chartData.reynoldsStressData ? (
+                <>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 mb-4">
+                    <p className="text-xs font-mono text-emerald-400 uppercase">Tenseur de Reynolds (τ)</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Composantes du tenseur de contraintes de Reynolds (moyennées).
+                    </p>
+                    <ul className="text-sm text-gray-300 mt-2 list-disc list-inside">
+                      <li>τ_xx: {chartData.reynoldsStressData.tau_xx?.toExponential(2) || 'N/A'}</li>
+                      <li>τ_yy: {chartData.reynoldsStressData.tau_yy?.toExponential(2) || 'N/A'}</li>
+                      <li>τ_zz: {chartData.reynoldsStressData.tau_zz?.toExponential(2) || 'N/A'}</li>
+                      <li>τ_xy: {chartData.reynoldsStressData.tau_xy?.toExponential(2) || 'N/A'}</li>
+                      <li>τ_xz: {chartData.reynoldsStressData.tau_xz?.toExponential(2) || 'N/A'}</li>
+                      <li>τ_yz: {chartData.reynoldsStressData.tau_yz?.toExponential(2) || 'N/A'}</li>
+                    </ul>
+                  </div>
+                  <div className="p-12 text-center text-gray-600">Visualisation graphique à implémenter si nécessaire.</div>
+                </>
+              ) : (
+                <div className="p-12 text-center text-gray-600">Données du tenseur de Reynolds non disponibles</div>
+              )}
+            </TabsContent>
+
+            {/* ===== SPECTRE D'ÉNERGIE E(k) ===== */}
+            <TabsContent value="energy-spectrum" className="space-y-6">
+              {chartData && chartData.energySpectrumData.length > 0 ? (
+                <>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 mb-4">
+                    <p className="text-xs font-mono text-emerald-400 uppercase">Spectre d'Énergie E(k)</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Distribution de l'énergie cinétique turbulente en fonction du nombre d'onde.
+                    </p>
+                  </div>
+                  <div className="h-[300px] w-full bg-black/60 rounded-3xl p-4 border border-white/10">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData.energySpectrumData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                        <XAxis 
+                          dataKey="k" 
+                          stroke="#94a3b8" 
+                          fontSize={10}
+                          type="number"
+                          domain={['dataMin', 'dataMax']}
+                          label={{ value: 'Nombre d\'onde k (rad/m)', position: 'insideBottomRight', fill: '#94a3b8', fontSize: 10 }}
+                        />
+                        <YAxis 
+                          stroke="#8884d8" 
+                          fontSize={10}
+                          domain={['auto', 'auto']}
+                          label={{ value: 'E(k)', angle: -90, position: 'insideLeft', fill: '#8884d8', fontSize: 10 }} 
+                        />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#000000', border: '1px solid #8884d8', borderRadius: '12px' }} 
+                          labelStyle={{ color: '#8884d8' }} 
+                          itemStyle={{ fontSize: '12px' }}
+                          formatter={(value: any) => typeof value === 'number' ? value.toExponential(4) : value}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="E_k" 
+                          stroke="#8884d8" 
+                          strokeWidth={2} 
+                          dot={false}
+                          name="E(k)"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              ) : (
+                <div className="p-12 text-center text-gray-600">Spectre d'énergie non disponible</div>
+              )}
+            </TabsContent>
+
+            {/* ===== RÉSIDUS PDE ===== */}
+            <TabsContent value="pde-residuals" className="space-y-6">
+              {chartData && chartData.pdeResidualsData ? (
+                <>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 mb-4">
+                    <p className="text-xs font-mono text-emerald-400 uppercase">Résidus des Équations aux Dérivées Partielles</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Mesure de la satisfaction des équations physiques par le modèle PINN.
+                    </p>
+                    <ul className="text-sm text-gray-300 mt-2 list-disc list-inside">
+                      <li>Continuité: {chartData.pdeResidualsData.continuity?.toExponential(2) || 'N/A'}</li>
+                      <li>Quantité de mouvement: {chartData.pdeResidualsData.momentum?.toExponential(2) || 'N/A'}</li>
+                      <li>Énergie: {chartData.pdeResidualsData.energy?.toExponential(2) || 'N/A'}</li>
+                    </ul>
+                  </div>
+                  <div className="p-12 text-center text-gray-600">Visualisation graphique à implémenter si nécessaire.</div>
+                </>
+              ) : (
+                <div className="p-12 text-center text-gray-600">Résidus PDE non disponibles</div>
+              )}
+            </TabsContent>
+
+            {/* ===== COUCHE LIMITE ===== */}
+            <TabsContent value="boundary-layer" className="space-y-6">
+              {chartData && chartData.boundaryLayerData && chartData.boundaryLayerData.delta > 0 ? (
+                <>
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 mb-4">
+                    <p className="text-xs font-mono text-emerald-400 uppercase">Profil de Couche Limite</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Analyse des propriétés de la couche limite près d'une paroi.
+                    </p>
+                    <ul className="text-sm text-gray-300 mt-2 list-disc list-inside">
+                      <li>Épaisseur (δ): {chartData.boundaryLayerData.delta?.toExponential(2) || 'N/A'} m</li>
+                      <li>Épaisseur de déplacement (δ*): {chartData.boundaryLayerData.delta_star?.toExponential(2) || 'N/A'} m</li>
+                      <li>Épaisseur de quantité de mouvement (θ): {chartData.boundaryLayerData.theta?.toExponential(2) || 'N/A'} m</li>
+                      <li>Facteur de forme (H): {chartData.boundaryLayerData.shape_factor?.toFixed(2) || 'N/A'}</li>
+                    </ul>
+                  </div>
+                  <div className="p-12 text-center text-gray-600">Visualisation graphique à implémenter si nécessaire.</div>
+                </>
+              ) : (
+                <div className="p-12 text-center text-gray-600">Données de couche limite non disponibles</div>
               )}
             </TabsContent>
 

@@ -77,6 +77,19 @@ class AnalysisProcessor:
             "status": "queued",
             "message": f"Analysis {request.name} submitted for processing"
         }
+
+    async def get_analysis_results(self, analysis_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve analysis results from Supabase for a given analysisId."""
+        try:
+            from supabase import create_client
+            supabase = create_client(self.supabase_url, self.supabase_key)
+            response = supabase.from_("analyses").select("results").eq("analysis_id", analysis_id).single().execute()
+            if response.data:
+                return response.data["results"]
+            return None
+        except Exception as e:
+            logger.error(f"Error fetching analysis results for {analysis_id}: {e}")
+            return None
     
     async def process_analysis(self, job_id: str, request: AnalysisSubmissionRequest):
         """
