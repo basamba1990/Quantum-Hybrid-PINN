@@ -65,6 +65,20 @@ const SCENARIOS = [
     description: 'Analyse des contraintes élastiques et endommagement de roches en profondeur',
     icon: '🪨',
     color: 'from-amber-600 to-yellow-600'
+  },
+  {
+    id: 'FPGA_HEATSINK',
+    name: 'FPGA Heatsink',
+    description: 'Transfert de chaleur conjugué dans un dissipateur thermique FPGA. Flux thermique 600 W/cm². Simulation Navier-Stokes 3D.',
+    icon: '🔥',
+    color: 'from-red-600 to-orange-600'
+  },
+  {
+    id: 'DEEP_MINING_BLOCK',
+    name: 'Deep Mining Block',
+    description: 'Analyse géomécanique de bloc rocheux en mine profonde. Contraintes lithostatiques, critère de rupture Mohr-Coulomb.',
+    icon: '⛰️',
+    color: 'from-stone-600 to-amber-800'
   }
 ]
 
@@ -154,6 +168,15 @@ export default function NewAnalysisPageV2() {
           temperature: extract(/température\s*:?\s*(\d+(?:[.,]\d+)?)/i, 300),
           flowRate: extract(/débit\s*:?\s*(\d+(?:[.,]\d+)?)/i, 2),
           length: extract(/longueur\s*:?\s*(\d+(?:[.,]\d+)?)/i, 100),
+          inlet_velocity: extract(/vitesse\s*:?\s*(\d+(?:[.,]\d+)?)/i, 5.7),
+          heat_flux: extract(/flux\s*:?\s*(\d+(?:[.,]\d+)?)/i, 600),
+          fin_thickness: extract(/épaisseur.?ailette\s*:?\s*(\d+(?:[.,]\d+)?)/i, 0.002),
+          fin_height: extract(/hauteur.?ailette\s*:?\s*(\d+(?:[.,]\d+)?)/i, 0.025),
+          num_fins: extract(/nombre.?ailettes\s*:?\s*(\d+(?:[.,]\d+)?)/i, 30),
+          depth: extract(/profondeur\s*:?\s*(\d+(?:[.,]\d+)?)/i, 2500),
+          excavation_width: extract(/largeur.*excavation\s*:?\s*(\d+(?:[.,]\d+)?)/i, 8),
+          excavation_height: extract(/hauteur.*excavation\s*:?\s*(\d+(?:[.,]\d+)?)/i, 6),
+          rock_type: (transcription.match(/roche\s*:?\s*(\w+)/i))?.[1] || 'granite',
         },
         n_steps: 100
       };

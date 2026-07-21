@@ -4,7 +4,7 @@ import React from 'react'
 import { Gauge, Droplets, Wind, Zap, AlertTriangle, Shield } from 'lucide-react'
 
 interface ScenarioMetricsPanelProps {
-  scenarioType: 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK';
+  scenarioType: 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK' | 'DEEP_MINING_BLOCK';
   data?: Record<string, any>;
 }
 
@@ -168,15 +168,47 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
       
       case 'FPGA_HEATSINK':
         return {
-          title: 'Refroidissement FPGA - Analyse Thermique',
+          title: 'Refroidissement FPGA - Transfert de Chaleur Conjugué',
           icon: <Zap className="w-4 h-4" />,
           sections: [
             {
-              category: 'THERMIQUE',
+              category: 'THERMIQUE & ÉCOULEMENT',
               items: [
-                { label: 'Température Max', value: data.maxTemperature, unit: '°C', color: 'text-red-400' },
+                { label: 'Température Jonction', value: data.maxTemperature, unit: 'K', color: 'text-red-400' },
                 { label: 'Efficacité Dissipation', value: data.dissipationEfficiency, unit: '%', color: 'text-blue-400' },
                 { label: 'Flux Thermique', value: data.thermalFlux, unit: 'W/m²', color: 'text-orange-400' },
+              ]
+            },
+            {
+              category: 'CONVECTION',
+              items: [
+                { label: 'Reynolds', value: data.reynoldsNumber, unit: '—', color: 'text-purple-400' },
+                { label: 'Nusselt', value: data.nusseltNumber, unit: '—', color: 'text-cyan-400' },
+                { label: 'h convectif', value: data.heatTransferCoeff, unit: 'W/(m²·K)', color: 'text-emerald-400' },
+              ]
+            }
+          ]
+        }
+      
+      case 'DEEP_MINING_BLOCK':
+        return {
+          title: 'Deep Mining Block - Analyse Géomécanique',
+          icon: <AlertTriangle className="w-4 h-4" />,
+          sections: [
+            {
+              category: 'CONTRAINTE IN SITU',
+              items: [
+                { label: 'Contrainte Verticale', value: data.verticalStress, unit: 'MPa', color: 'text-blue-400' },
+                { label: 'Contrainte Hor. Major', value: data.horizontalStressMajor, unit: 'MPa', color: 'text-cyan-400' },
+                { label: 'Pression Pore', value: data.porePressure, unit: 'MPa', color: 'text-purple-400' },
+              ]
+            },
+            {
+              category: 'STABILITÉ & RUPTURE',
+              items: [
+                { label: 'Stabilité Globale', value: data.stabilityScore, unit: '/100', color: 'text-emerald-400' },
+                { label: 'Risque Rockburst', value: data.rockburstRisk, unit: '', color: data.rockburstRisk === 'HIGH' ? 'text-red-400' : 'text-orange-400' },
+                { label: 'Dommage Max', value: data.maxDamage, unit: '0-1', color: 'text-orange-400' },
               ]
             }
           ]

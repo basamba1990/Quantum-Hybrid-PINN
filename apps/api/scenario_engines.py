@@ -1,11 +1,14 @@
 """
 Moteurs de simulation industrielle - Équations physiques réalistes
-pour les 6 scénarios : pipeline H₂/GNL, stockage LH₂, optimisation portuaire,
-sécurité pipeline, transport cryogénique, ventilation minière.
+pour les 8+ scénarios : pipeline H₂/GNL, stockage LH₂, optimisation portuaire,
+sécurité pipeline, transport cryogénique, ventilation minière, FPGA Heatsink, Deep Mining Block.
 """
 
 import math
-from typing import Dict, Any
+import numpy as np
+from typing import Dict, Any, List
+from fpga_heatsink_engine import run_fpga_heatsink_scenario, generate_fpga_predictions_3d
+from deep_mining_engine import run_deep_mining_scenario, generate_deep_mining_predictions_3d
 
 # ============================================================================
 # CONSTANTES PHYSIQUES
@@ -42,6 +45,13 @@ LH2_DENSITY_LIQ = 70.8  # kg/m³
 GNL_BOIL = 111.7
 GNL_LATENT = 510000
 GNL_DENSITY_LIQ = 425
+
+# FPGA Heatsink - Air properties
+AIR_VISCOSITY = 1.84e-5
+AIR_DENSITY = 1.1614
+AIR_SPECIFIC_HEAT = 1005
+AIR_CONDUCTIVITY = 0.0261
+AIR_PRANDTL = 0.71
 
 # ============================================================================
 # FONCTIONS AUXILIAIRES
@@ -98,97 +108,84 @@ def run_pipeline_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
     delta_P = f * (L/D) * (rho * v**2 / 2)
     
     # Échange thermique sol
-    U = 5.0
-    area = math.pi * D * L
-    NTU = U * area / (m_dot * Cp)
-    T_ground = 290
-    T_out = T_ground + (T_in - T_ground) * math.exp(-NTU)
+    T_soil = inputs.get('soil_temperature', 273)
+    T_out = T_soil + (T_in - T_soil) * math.exp(-0.001 * L / (rho * Cp * v * D))
     
-    # Effet JT
-    mu_jt = -0.5e-6 if fluid == 'H2' else 0.2e-6
-    T_out += mu_jt * delta_P
-    
-    leak_risk = min(100, 0.3 * ((P_in - delta_P)/1e6) + 0.2 * min(100, (Re/1e7)**0.5 * 100))
+    risk_factor = max(0, min(1, (Re - 1e6) / 1e7))
     
     return {
         "pressureDrop": round(delta_P / 1e5, 2),
+        "outletTemperature": round(T_out, 1),
+        "reynoldsNumber": round(Re, 0),
         "velocity": round(v, 2),
-        "turbulence": round(min(100, (Re/1e7)**0.5 * 100), 1),
-        "thermalStability": round(T_out, 1),
-        "leakRisk": round(leak_risk, 1),
-        "safetyScore": round(max(0, 100 - leak_risk), 1)
+        "riskFactor": round(risk_factor * 100, 1),
+        "compressibilityFactor": round(Z, 4),
+        "massFlowRate": round(m_dot, 2),
+        "fluidType": fluid
     }
 
 def run_lh2_storage_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
-    V_total = inputs.get('volume', 50)
-    P_int = inputs.get('pressure', 1.2) * 1e5
-    T_liquid = inputs.get('temperature', 20.3)
-    T_amb = inputs.get('ambientTemp', 300)
+    T_env = inputs.get('environmental_temp', 293)
+    T_storage = inputs.get('storage_temp', 20.28)
+    volume = inputs.get('volume', 1000)
+    insulation = inputs.get('insulation_thickness', 0.3)
+    cargo = inputs.get('cargo_type', 'LH2')
     
-    R_tank = (3 * V_total / (4 * math.pi)) ** (1/3)
-    A_surface = 4 * math.pi * R_tank**2
-    d_ins = 0.3
-    k_ins = 0.02
-    Q = (T_amb - T_liquid) / (d_ins / (k_ins * A_surface))
+    k_ins = 0.02  # W/(m·K) for cryogenic insulation
+    surface_area = 4 * math.pi * ((3 * volume / (4 * math.pi)) ** (2/3))
+    Q = k_ins * surface_area * (T_env - T_storage) / insulation
     
-    m_evap_s = Q / LH2_LATENT
-    boil_percent_day = m_evap_s * 86400 / (LH2_DENSITY_LIQ * V_total * 0.8) * 100
-    
-    Z = compressibility_factor_PR(P_int, T_liquid, 'H2')
-    n = (P_int * (V_total * 0.2) / (Z * R_UNIV * T_liquid)) + (m_evap_s * 86400 / M_H2)
-    P_new = n * R_UNIV * T_liquid / (V_total * 0.2) * Z
+    latent = LH2_LATENT if cargo == 'LH2' else GNL_LATENT
+    m_evap = (Q * 24 * 3600) / latent
     
     return {
-        "boilOffRate": round(boil_percent_day, 2),
-        "internalPressure": round(P_new / 1e5, 2),
-        "convectionVelocity": round(0.15 * ((G * (1/T_liquid) * (T_amb - T_liquid) * R_tank**3) / ((MU_H2/0.1) * 0.1))**(1/3) * (0.1/R_tank), 4),
-        "stabilityScore": round(max(0, 100 - boil_percent_day * 5), 1)
+        "thermalLoss": round(Q, 0),
+        "evaporationLoss": round(m_evap, 1),
+        "containerSafety": round(max(0, 100 - (m_evap/100)*20), 1),
+        "storageTemperature": round(T_storage, 1),
+        "pressureBuildup": round(Q * 0.01, 2)
     }
 
 def run_port_energy_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
-    port = inputs.get('portLocation', 'Dakar')
-    E_demand = inputs.get('energyDemand', 10) * 1e6
-    cooling_load = inputs.get('coolingLoad', 500) * 1000
+    energy_demand = inputs.get('energy_demand', 500)
+    h2_supply = inputs.get('h2_supply', 200)
+    renewable = inputs.get('renewable_share', 0.4)
     
-    port_data = {'Dakar': 0.65, 'Abidjan': 0.55, 'Tanger Med': 0.40, 'Durban': 0.60}
-    co2_intensity = port_data.get(port, 0.65)
-    
-    COP = 3.8
-    chiller_power = cooling_load / COP
-    saving_factor = 0.15
-    total_power = E_demand + chiller_power * (1 - saving_factor)
+    grid_deficit = max(0, energy_demand - h2_supply - energy_demand * renewable)
+    carbon_savings = (h2_supply / energy_demand) * 0.8 * 100
     
     return {
-        "energyEfficiency": round(105.5, 1),
-        "costReduction": round(saving_factor * 100, 1),
-        "carbonFootprint": round(total_power * 8760 * co2_intensity / 1e9, 0),
-        "hvacOptimization": 15.0
+        "energyBalance": round(energy_demand - h2_supply, 0),
+        "gridDeficit": round(grid_deficit, 0),
+        "carbonSavings": round(carbon_savings, 1),
+        "efficiencyScore": round(min(100, (h2_supply/energy_demand)*100 + renewable*30), 1)
     }
 
 def run_pipeline_safety_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
-    L = inputs.get('length', 200) * 1000
-    spacing = inputs.get('sensorInterval', 5) * 1000
-    c = math.sqrt(GAMMA_H2 * R_H2 * 300)
-    t_detect = spacing / c + 1.0
-    Pd = 1 - math.exp(-0.1 * (spacing/1000))
+    length = inputs.get('length', 100) * 1000
+    sensors = inputs.get('sensors_count', 50)
+    pressure = inputs.get('pressure', 80) * 1e5
+    temperature = inputs.get('temperature', 300)
+    
+    detection_time = 5 + (length / 10000) * 2
+    false_positive_rate = max(0.01, 0.05 - sensors * 0.0005)
+    leak_probability = 0.001 * (pressure / 1e6) * (1 + temperature / 1000)
     
     return {
-        "detectionTime": round(min(60, t_detect), 1),
-        "predictionAccuracy": round(Pd * 100, 1),
-        "riskReduction": round(min(90, 100 * (1 - math.exp(-0.2 * (spacing/1000)))), 1),
-        "operationalStability": round(min(100, 80 + 0.2 * Pd * 100), 1)
+        "detectionTime": round(detection_time, 1),
+        "falsePositiveRate": round(false_positive_rate * 100, 2),
+        "leakProbability": round(leak_probability * 100, 3),
+        "safetyIndex": round(max(0, 100 - leak_probability * 1000 - false_positive_rate * 100), 1)
     }
 
 def run_cryogenic_transport_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
-    cargo = inputs.get('cargoType', 'LH2')
-    t_h = inputs.get('transitTime', 48)
+    distance = inputs.get('distance', 1000)
+    cargo = inputs.get('cargo_type', 'LH2')
+    t_h = inputs.get('transport_hours', 24)
+    Q = inputs.get('heat_leak_rate', 5)
     
-    A = 70
-    k_ins = 0.025
-    d_ins = 0.2
-    T_c = LH2_BOIL if cargo == 'LH2' else GNL_BOIL
-    Q = (293 - T_c) / (d_ins / (k_ins * A))
-    m_evap = (Q * t_h * 3600) / (LH2_LATENT if cargo == 'LH2' else GNL_LATENT)
+    latent = LH2_LATENT if cargo == 'LH2' else GNL_LATENT
+    m_evap = (Q * t_h * 3600) / latent
     
     return {
         "thermalLoss": round(Q, 0),
@@ -214,22 +211,12 @@ def run_mining_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
         "fluidCirculation": round(Q_v * 3600, 0)
     }
 
-SCENARIO_ENGINES = {
-    "H2_PIPELINE": run_pipeline_scenario,
-    "LH2_STORAGE": run_lh2_storage_scenario,
-    "PORT_ENERGY_OPTIMIZATION": run_port_energy_scenario,
-    "PIPELINE_SAFETY": run_pipeline_safety_scenario,
-    "CRYOGENIC_TRANSPORT": run_cryogenic_transport_scenario,
-    "MINING_INDUSTRIAL_SIM": run_mining_scenario
-}
-
 def run_rock_stress_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
     depth = inputs.get('depth', 1000)
     rock_type = inputs.get('rockType', 'generic_rock')
-    # Simulation simplifiée de contrainte et endommagement
-    pressure = 0.025 * depth # Gradient lithostatique ~25 MPa/km
+    pressure = 0.025 * depth
     stress_max = pressure * 1.5
-    damage = min(1.0, (stress_max / 50.0) ** 2) # Seuil arbitraire 50 MPa
+    damage = min(1.0, (stress_max / 50.0) ** 2)
     return {
         "lithostaticPressure": round(pressure, 2),
         "maxStress": round(stress_max, 2),
@@ -238,40 +225,25 @@ def run_rock_stress_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 def run_compression_station_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Moteur industriel pour station de compression H2.
-    Vérifie le bilan thermodynamique et l'efficacité polytropique.
-    """
     P_in = inputs.get('pressure_in', 10) * 1e5
     P_out = inputs.get('pressure_out', 60) * 1e5
     T_in = inputs.get('temperature_in', 290)
     T_out = inputs.get('temperature_out', 380)
     m_dot = inputs.get('flowRate', 5)
-    power_rated = inputs.get('power', 2.5) * 1e6 # Watts
+    power_rated = inputs.get('power', 2.5) * 1e6
     eff_poly_rated = inputs.get('efficiency', 0.85)
     
-    # Rapport de compression
     r_c = P_out / P_in
-    
-    # Travail isentropique (H2 gamma=1.4)
     gamma = 1.4
     k = (gamma - 1) / gamma
     T_out_isentropic = T_in * (r_c ** k)
     
-    # Travail réel
     W_real = CP_H2 * (T_out - T_in) * m_dot
     W_isentropic = CP_H2 * (T_out_isentropic - T_in) * m_dot
-    
-    # Efficacité isentropique calculée
     eff_isen_calc = W_isentropic / W_real if W_real > 0 else 0
     
-    # Écart de puissance
     power_diff = abs(W_real - power_rated) / power_rated if power_rated > 0 else 0
-    
-    # Score de cohérence physique
-    # 1. Bilan thermique (T_out doit être supérieur à T_in)
     thermal_coherence = 1.0 if T_out > T_in else 0.0
-    # 2. Efficacité réaliste (0.5 < eff < 0.95)
     eff_coherence = 1.0 if 0.4 < eff_isen_calc < 0.98 else 0.5
     
     overall_score = 100 * thermal_coherence * eff_coherence * (1 - min(0.5, power_diff))
@@ -285,5 +257,28 @@ def run_compression_station_scenario(inputs: Dict[str, Any]) -> Dict[str, Any]:
         "status": "ANOMALIE" if overall_score < 60 else "NORMAL"
     }
 
-SCENARIO_ENGINES["ROCK_ELAST_STRESS"] = run_rock_stress_scenario
-SCENARIO_ENGINES["H2_COMPRESSION_STATION"] = run_compression_station_scenario
+# ============================================================================
+# REGISTRY DES MOTEURS
+# ============================================================================
+
+SCENARIO_ENGINES = {
+    "H2_PIPELINE": run_pipeline_scenario,
+    "LH2_STORAGE": run_lh2_storage_scenario,
+    "PORT_ENERGY_OPTIMIZATION": run_port_energy_scenario,
+    "PIPELINE_SAFETY": run_pipeline_safety_scenario,
+    "CRYOGENIC_TRANSPORT": run_cryogenic_transport_scenario,
+    "MINING_INDUSTRIAL_SIM": run_mining_scenario,
+    "ROCK_ELAST_STRESS": run_rock_stress_scenario,
+    "H2_COMPRESSION_STATION": run_compression_station_scenario,
+    "FPGA_HEATSINK": run_fpga_heatsink_scenario,
+    "DEEP_MINING_BLOCK": run_deep_mining_scenario,
+}
+
+# ============================================================================
+# GÉNÉRATEURS 3D PAR SCÉNARIO
+# ============================================================================
+
+SCENARIO_3D_GENERATORS = {
+    "FPGA_HEATSINK": generate_fpga_predictions_3d,
+    "DEEP_MINING_BLOCK": generate_deep_mining_predictions_3d,
+}
