@@ -9,12 +9,8 @@ import { Loader2, Play, ArrowLeft, Download, Activity, ShieldCheck, Zap } from '
 import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
 import { jsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
-
-// Register autoTable plugin
-if (typeof window !== 'undefined') {
-  autoTable(jsPDF)
-}
+// jspdf-autotable v5.x extends jsPDF prototype automatically on import
+import 'jspdf-autotable'
 
 const VerificationBadge = dynamic(
   () => import('@/components/verification-badge'),
