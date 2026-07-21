@@ -29,7 +29,7 @@ interface AdvancedPhysicsProps {
   onDataFetch?: (data: any) => void;
 }
 
-type ScenarioType = 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK';
+type ScenarioType = 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK' | 'DEEP_MINING_BLOCK';
 
 export default function AdvancedPhysicsVisualization({ 
   simulationId, 
@@ -66,7 +66,8 @@ export default function AdvancedPhysicsVisualization({
     }));
   }, [data3d]);
 
-  // Derive all chart data from real predictions3d
+    // Derive all chart data from real predictions3d
+  // Note: derivedFields is declared later (line 237), so we use backendDerivedFieldsData directly
   const chartData = useMemo(() => {
     if (!realData3d || realData3d.length === 0) return null;
 
@@ -149,12 +150,19 @@ export default function AdvancedPhysicsVisualization({
       damageProfile,
       velocityXProfile,
       multiPhysics,
-      tkeProfile: derivedFields?.tke ? realData3d.map((p, i) => ({ z: p.z, tke: derivedFields.tke[i] || 0 })) : [],
-      vorticityMagnitudeProfile: derivedFields?.vorticityMagnitude ? realData3d.map((p, i) => ({ z: p.z, vorticity: derivedFields.vorticityMagnitude[i] || 0 })) : [],
-      energySpectrumData: derivedFields?.energySpectrum && derivedFields?.wavenumbers ? derivedFields.wavenumbers.map((k: number, i: number) => ({ k, E_k: derivedFields.energySpectrum[i] })) : [],
-      pdeResidualsData: derivedFields?.pdeResiduals,
-      boundaryLayerData: derivedFields?.boundaryLayerProfile,
-      reynoldsStressData: derivedFields?.reynoldsStress,
+      tkeProfile: backendDerivedFieldsData?.tke ? realData3d.map((p, i) => ({ z: p.z, tke: backendDerivedFieldsData.tke[i] || 0 })) : [],
+      vorticityMagnitudeProfile: backendDerivedFieldsData?.vorticity_magnitude ? realData3d.map((p, i) => ({ z: p.z, vorticity: backendDerivedFieldsData.vorticity_magnitude[i] || 0 })) : [],
+      energySpectrumData: backendDerivedFieldsData?.energy_spectrum && backendDerivedFieldsData?.wavenumbers ? backendDerivedFieldsData.wavenumbers.map((k: number, i: number) => ({ k, E_k: backendDerivedFieldsData.energy_spectrum[i] })) : [],
+      pdeResidualsData: backendDerivedFieldsData?.pde_residuals,
+      boundaryLayerData: backendDerivedFieldsData?.boundary_layer_profile,
+      reynoldsStressData: backendDerivedFieldsData ? {
+        tau_xx: backendDerivedFieldsData.tau_xx,
+        tau_yy: backendDerivedFieldsData.tau_yy,
+        tau_zz: backendDerivedFieldsData.tau_zz,
+        tau_xy: backendDerivedFieldsData.tau_xy,
+        tau_xz: backendDerivedFieldsData.tau_xz,
+        tau_yz: backendDerivedFieldsData.tau_yz,
+      } : null,
       stats: {
         count: realData3d.length,
         tempMin: Math.min(...realData3d.map(p => p.temperature)),
@@ -166,10 +174,10 @@ export default function AdvancedPhysicsVisualization({
         velocityMax: Math.max(...realData3d.map(p => Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2))),
         densityMin: Math.min(...realData3d.map(p => p.density || 1.0)),
         densityMax: Math.max(...realData3d.map(p => p.density || 1.0)),
-        tkeAvg: derivedFields?.tke ? derivedFields.tke.reduce((s: number, val: number) => s + val, 0) / derivedFields.tke.length : 0,
+        tkeAvg: backendDerivedFieldsData?.tke ? backendDerivedFieldsData.tke.reduce((s: number, val: number) => s + val, 0) / backendDerivedFieldsData.tke.length : 0,
       }
     };
-  }, [realData3d, derivedFields]);
+  }, [realData3d, backendDerivedFieldsData]);
 
   const scenarioType = propScenarioType as ScenarioType;
 
