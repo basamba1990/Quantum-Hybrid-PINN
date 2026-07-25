@@ -592,10 +592,19 @@
                 const pressures = this.data.pinn_predictions.pressure || [];
 
                 if (pressures.length === 0) {
-                    // Générer des données simulées
+                    // Générer des données simulées basées sur le scénario
+                    const scenario = this.data.meta.scenario;
                     for (let i = 0; i < 100; i++) {
                         this.data.pinn_predictions.x_coords.push(i * 1000);
-                        this.data.pinn_predictions.pressure.push(80 - i * 0.002);
+                        if (scenario === 'H2_PIPELINE') {
+                            this.data.pinn_predictions.pressure.push(80 - i * 0.05 - Math.random() * 0.1);
+                        } else if (scenario === 'LH2_STORAGE') {
+                            this.data.pinn_predictions.pressure.push(1.2 + Math.sin(i/10) * 0.05);
+                        } else if (scenario === 'ROCK_STRESS') {
+                            this.data.pinn_predictions.pressure.push(25 + i * 0.5);
+                        } else {
+                            this.data.pinn_predictions.pressure.push(50 + Math.random() * 5);
+                        }
                     }
                 }
 
@@ -612,8 +621,15 @@
                 canvas.height = height;
 
                 if (this.data.pinn_predictions.temperature.length === 0) {
+                    const scenario = this.data.meta.scenario;
                     for (let i = 0; i < 100; i++) {
-                        this.data.pinn_predictions.temperature.push(300 - i * 0.01);
+                        if (scenario === 'H2_PIPELINE') {
+                            this.data.pinn_predictions.temperature.push(300 - i * 0.02);
+                        } else if (scenario === 'LH2_STORAGE') {
+                            this.data.pinn_predictions.temperature.push(20.3 + i * 0.001);
+                        } else {
+                            this.data.pinn_predictions.temperature.push(293 + Math.random());
+                        }
                     }
                 }
 
