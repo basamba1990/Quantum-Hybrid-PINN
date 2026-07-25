@@ -35,6 +35,12 @@ class PINNModel(nn.Module):
                 nn.init.zeros_(m.bias)
 
     def forward(self, t, x, y, z):
+        # Ensure all inputs have 2 dimensions for concatenation at dim=1
+        if t.dim() == 1: t = t.unsqueeze(1)
+        if x.dim() == 1: x = x.unsqueeze(1)
+        if y.dim() == 1: y = y.unsqueeze(1)
+        if z.dim() == 1: z = z.unsqueeze(1)
+        
         inputs = torch.cat([t, x, y, z], dim=1)
         for i in range(len(self.linear_layers) - 1):
             inputs = self.activation(self.linear_layers[i](inputs))
