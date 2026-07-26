@@ -13,6 +13,7 @@ from pydantic import BaseModel
 import httpx
 import torch
 from pgd_pinn_hybrid import run_hybrid_simulation
+from scenario_config_truly_operational import get_scenario_physics, validate_scenario_data
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
