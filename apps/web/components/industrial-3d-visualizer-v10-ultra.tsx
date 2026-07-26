@@ -13,6 +13,10 @@ interface DataPoint {
   stress?: number;
   damage?: number;
   prediction?: number;
+  sigma_1?: number;
+  sigma_2?: number;
+  sigma_3?: number;
+  von_mises?: number;
 }
 
 type ScenarioType = 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK' | 'DEEP_MINING_BLOCK';
@@ -20,7 +24,7 @@ type ScenarioType = 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' |
 interface Props {
   data?: DataPoint[];
   title?: string;
-  colorVariable?: 'temperature' | 'pressure' | 'density' | 'stress' | 'damage' | 'prediction';
+  colorVariable?: 'temperature' | 'pressure' | 'density' | 'stress' | 'damage' | 'prediction' | 'sigma_1' | 'von_mises';
   quality?: 'low' | 'medium' | 'high' | 'ultra';
   scenarioType?: ScenarioType;
 }
@@ -359,7 +363,8 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
         break
       }
       case 'MINING_INDUSTRIAL_SIM':
-      case 'ROCK_ELAST_STRESS': {
+      case 'ROCK_ELAST_STRESS':
+      case 'DEEP_MINING_BLOCK': {
         const boxGeom = new THREE.BoxGeometry(size.x, size.y, size.z)
         const boxMesh = new THREE.Mesh(boxGeom, industrialMat)
         boxMesh.position.copy(center)
@@ -676,6 +681,8 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
     if (activeVariable === 'stress') return `${v.toFixed(1)} MPa`
     if (activeVariable === 'damage') return `${(v * 100).toFixed(1)}%`
     if (activeVariable === 'prediction') return `${v.toFixed(3)}`
+    if (activeVariable === 'sigma_1') return `${v.toFixed(1)} MPa`
+    if (activeVariable === 'von_mises') return `${v.toFixed(1)} MPa`
     return v.toFixed(2)
   }
 
@@ -697,7 +704,7 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
         </div>
 
         <div className="flex gap-1.5 bg-black/60 p-1.5 rounded-2xl border border-white/5 flex-wrap">
-          {(['temperature', 'pressure', 'density', 'stress', 'damage', 'prediction'] as const).map(v => (
+          {(['temperature', 'pressure', 'density', 'stress', 'damage', 'prediction', 'sigma_1', 'von_mises'] as const).map(v => (
             <button key={v} onClick={() => setActiveVariable(v)} className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${activeVariable === v ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}>{v}</button>
           ))}
         </div>
@@ -739,7 +746,7 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
             {formatScaleValue(stats.minV)}
           </div>
           <div className="mt-3 text-[8px] font-mono text-gray-600 uppercase tracking-widest text-center">
-            {activeVariable === 'temperature' ? 'Scale (K)' : activeVariable === 'pressure' ? 'Scale (MPa)' : 'Scale'}
+            {activeVariable === 'temperature' ? 'Scale (K)' : activeVariable === 'pressure' || activeVariable === 'stress' || activeVariable === 'sigma_1' || activeVariable === 'von_mises' ? 'Scale (MPa)' : activeVariable === 'density' ? 'Scale (kg/m³)' : activeVariable === 'damage' ? 'Scale (%)' : 'Scale'}
           </div>
         </div>
       </div>

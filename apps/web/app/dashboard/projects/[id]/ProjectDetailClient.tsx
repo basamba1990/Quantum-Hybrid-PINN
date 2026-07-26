@@ -123,7 +123,12 @@ export default function ProjectDetailClient({ id }: { id: string }) {
       velocity_v: typeof p.velocity_v === 'number' ? p.velocity_v : undefined,
       velocity_w: typeof p.velocity_w === 'number' ? p.velocity_w : undefined,
       stress: typeof p.stress === 'number' ? p.stress : undefined,
-      damage: typeof p.damage === 'number' ? p.damage : undefined
+      damage: typeof p.damage === 'number' ? p.damage : undefined,
+      sigma_1: typeof p.sigma_1 === 'number' ? p.sigma_1 : (typeof p.stress === 'number' ? p.stress : undefined),
+      sigma_2: typeof p.sigma_2 === 'number' ? p.sigma_2 : undefined,
+      sigma_3: typeof p.sigma_3 === 'number' ? p.sigma_3 : undefined,
+      von_mises: typeof p.von_mises === 'number' ? p.von_mises : undefined,
+      prediction: typeof p.prediction === 'number' ? p.prediction : (typeof p.temperature === 'number' ? p.temperature : undefined)
     }))
   }, [results])
 
@@ -133,10 +138,10 @@ export default function ProjectDetailClient({ id }: { id: string }) {
     
     let type = (latestAnalysis as any)?.scenario_type || 
                (project?.category === 'Mining' ? 'ROCK_ELAST_STRESS' : 
-               (desc.includes('rock') ? 'ROCK_ELAST_STRESS' : 
+               (desc.includes('mining') || desc.includes('deep') || desc.includes('rock') ? 'DEEP_MINING_BLOCK' : 
                (name.includes('heatsink') || desc.includes('heatsink') ? 'FPGA_HEATSINK' : 
-               (name.includes('lh2') || desc.includes('lh2') ? 'LH2_STORAGE' : 'H2_PIPELINE'))));
-    return type as 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK'
+               (name.includes('lh2') || desc.includes('lh2') || desc.includes('cryogenic') || desc.includes('hydrog') ? 'LH2_STORAGE' : 'H2_PIPELINE'))));
+    return type as 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK' | 'DEEP_MINING_BLOCK'
   }, [latestAnalysis, project])
 
   useEffect(() => {
@@ -324,7 +329,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
               <Industrial3DVisualizerV10Ultra 
                 data={predictions3d} 
                 title="TRULY-INDUSTRIAL V10-GOLD"
-                colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'prediction' : 'temperature'}
+                colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'prediction' : scenarioType === 'DEEP_MINING_BLOCK' ? 'sigma_1' : 'temperature'}
                 quality="ultra"
                 scenarioType={scenarioType}
               />
