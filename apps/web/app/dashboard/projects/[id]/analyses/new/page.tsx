@@ -190,12 +190,23 @@ export default function NewAnalysisPage() {
         const result = await res.json();
         const jobId = result.job_id || result.jobId;
         
-        // Mettre à jour l'analyse avec le jobId et le scenario_type
-        if (jobId) {
-          await supabase
-            .from('analyses')
-            .update({ results: { job_id: jobId, status: 'running' } })
-            .eq('id', newAnalysis.id);
+        // Mettre à jour l'analyse avec le jobId et passer le statut global à 'processing'
+        const { error: updateError } = await supabase
+          .from('analyses')
+          .update({ 
+            status: 'processing',
+            results: { 
+              job_id: jobId || 'pending_calc', 
+              status: 'running',
+              started_at: new Date().toISOString()
+            } 
+          })
+          .eq('id', newAnalysis.id);
+        
+        if (updateError) {
+          console.error("Failed to update analysis status:", updateError);
+        } else {
+          console.log("Analysis status updated to processing successfully");
         }
       }
 
