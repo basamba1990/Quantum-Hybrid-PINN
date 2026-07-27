@@ -191,10 +191,10 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           finalAnalysisData = fallbackData
         }
         
-        const analysisData = finalAnalysisData
+        const finalData = finalAnalysisData
 
-        if (analysisData) {
-          let processed = { ...analysisData }
+        if (finalData) {
+          let processed = { ...finalData }
           try {
             if (typeof processed.results === 'string') processed.results = JSON.parse(processed.results)
           } catch (e) { 
