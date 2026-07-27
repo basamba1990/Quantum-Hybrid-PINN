@@ -140,7 +140,8 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
     if (!data.length) return
 
     // Create a voxel grid from the data
-    const gridSize = quality === 'ultra' ? 48 : quality === 'high' ? 32 : quality === 'medium' ? 24 : 16
+    // TRULY-INDUSTRIAL DENSITY (Kelly Senecal V2.1.7)
+    const gridSize = quality === 'ultra' ? 64 : quality === 'high' ? 48 : quality === 'medium' ? 32 : 24
     const { min, max } = domainBounds
     const size = new THREE.Vector3().subVectors(max, min)
     const cellSize = new THREE.Vector3(
@@ -210,8 +211,9 @@ const Industrial3DVisualizerV10Ultra: React.FC<Props> = ({
     const instances: { position: THREE.Vector3; color: THREE.Color }[] = []
     const dummy = new THREE.Object3D()
 
-    // Determine threshold based on data density
-    const threshold = vMin + vRange * 0.05
+    // KELLY SENECAL ISOSURFACE THRESHOLD V2.1.7
+    // Filter out noise, keep physical structures
+    const threshold = vMin + vRange * 0.02
 
     for (let i = 0; i < gridSize; i++) {
       for (let j = 0; j < gridSize; j++) {

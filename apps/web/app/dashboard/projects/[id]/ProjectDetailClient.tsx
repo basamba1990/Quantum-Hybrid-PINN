@@ -149,10 +149,11 @@ export default function ProjectDetailClient({ id }: { id: string }) {
     const desc = project?.description?.toLowerCase() || '';
     const name = project?.name?.toLowerCase() || '';
     
+    // KELLY SENECAL SCENARIO DETECTION V2.1.7
     let type = (latestAnalysis as any)?.scenario_type || 
-               (project?.category === 'Mining' ? 'ROCK_ELAST_STRESS' : 
-               (desc.includes('mining') || desc.includes('deep') || desc.includes('rock') ? 'DEEP_MINING_BLOCK' : 
-               (name.includes('heatsink') || desc.includes('heatsink') ? 'FPGA_HEATSINK' : 
+               (project?.category === 'Mining' ? 'DEEP_MINING_BLOCK' : 
+               (desc.includes('mining') || desc.includes('deep') || desc.includes('rock') || name.includes('mining') ? 'DEEP_MINING_BLOCK' : 
+               (name.includes('heatsink') || desc.includes('heatsink') || desc.includes('fpga') ? 'FPGA_HEATSINK' : 
                (name.includes('lh2') || desc.includes('lh2') || desc.includes('cryogenic') || desc.includes('hydrog') ? 'LH2_STORAGE' : 'H2_PIPELINE'))));
     return type as 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK' | 'DEEP_MINING_BLOCK'
   }, [latestAnalysis, project])
@@ -168,7 +169,8 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         const { data: reportsData } = await supabase.from('reports').select('*').eq('project_id', id).order('created_at', { ascending: false })
         setReports(reportsData || [])
 
-        // Fetch analysis with all columns including pinn_predictions
+        // TRULY-INDUSTRIAL POLLING & FETCHING (Kelly Senecal V2.1.7)
+        // Prioritize analysis_results for high-fidelity volumetric data
         const { data: analysisData } = await supabase
           .from('analysis_results')
           .select('*')
@@ -177,14 +179,13 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           .limit(1)
           .maybeSingle()
         
-        // Fallback to analyses table if analysis_results is empty
+        // Polling fallback: if analysis_results is empty, fetch the latest analysis (even if processing)
         let finalAnalysisData = analysisData
         if (!finalAnalysisData) {
           const { data: fallbackData } = await supabase
             .from('analyses')
             .select('*')
             .eq('project_id', id)
-            .eq('status', 'completed')
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle()
