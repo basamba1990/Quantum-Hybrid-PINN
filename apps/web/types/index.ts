@@ -60,6 +60,7 @@ export interface Analysis {
   name?: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   results?: AnalysisResults
+  pinn_predictions?: any
   credibility_score?: number
   created_at: string
   updated_at: string
