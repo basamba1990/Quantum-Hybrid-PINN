@@ -105,9 +105,22 @@ export default function ProjectDetailClient({ id }: { id: string }) {
   }, [latestAnalysis])
 
   const predictions3d = useMemo(() => {
-    if (!Array.isArray(results?.predictions3d)) return []
+    // Try to extract predictions3d from multiple possible locations
+    let predictionData = results?.predictions3d || latestAnalysis?.pinn_predictions || []
     
-    return (results.predictions3d as any[]).filter(p => {
+    // If pinn_predictions is a string, parse it
+    if (typeof predictionData === 'string') {
+      try {
+        predictionData = JSON.parse(predictionData)
+      } catch (e) {
+        console.error('Error parsing pinn_predictions:', e)
+        return []
+      }
+    }
+    
+    if (!Array.isArray(predictionData)) return []
+    
+    return (predictionData as any[]).filter(p => {
       return typeof p.x === 'number' && 
              typeof p.y === 'number' && 
              typeof p.z === 'number'
@@ -130,7 +143,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
       von_mises: typeof p.von_mises === 'number' ? p.von_mises : undefined,
       prediction: typeof p.prediction === 'number' ? p.prediction : (typeof p.temperature === 'number' ? p.temperature : undefined)
     }))
-  }, [results])
+  }, [results, latestAnalysis])
 
   const scenarioType = useMemo(() => {
     const desc = project?.description?.toLowerCase() || '';
@@ -155,7 +168,30 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         const { data: reportsData } = await supabase.from('reports').select('*').eq('project_id', id).order('created_at', { ascending: false })
         setReports(reportsData || [])
 
-        const { data: analysisData } = await supabase.from('analyses').select('*').eq('project_id', id).eq('status', 'completed').order('created_at', { ascending: false }).limit(1).maybeSingle()
+        // Fetch analysis with all columns including pinn_predictions
+        const { data: analysisData } = await supabase
+          .from('analysis_results')
+          .select('*')
+          .eq('project_id', id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        
+        // Fallback to analyses table if analysis_results is empty
+        let finalAnalysisData = analysisData
+        if (!finalAnalysisData) {
+          const { data: fallbackData } = await supabase
+            .from('analyses')
+            .select('*')
+            .eq('project_id', id)
+            .eq('status', 'completed')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          finalAnalysisData = fallbackData
+        }
+        
+        const analysisData = finalAnalysisData
 
         if (analysisData) {
           let processed = { ...analysisData }
