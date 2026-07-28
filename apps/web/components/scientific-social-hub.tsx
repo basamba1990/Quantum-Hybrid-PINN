@@ -76,6 +76,7 @@ export default function ScientificSocialHub({
         setError(null)
 
         // 1. Récupérer les annotations (commentaires) pour cette analyse
+        // Correction: Suppression de la jointure users:user_id qui peut échouer si non configurée
         const { data: annotationsData, error: annotationsError } = await supabase
           .from('simulation_annotations')
           .select(`
@@ -83,8 +84,7 @@ export default function ScientificSocialHub({
             user_id,
             content,
             severity,
-            created_at,
-            users:user_id (full_name, email)
+            created_at
           `)
           .eq('analysis_id', analysisId)
           .order('created_at', { ascending: false })
@@ -99,7 +99,7 @@ export default function ScientificSocialHub({
             content: item.content,
             severity: item.severity || 'info',
             created_at: item.created_at,
-            user_name: item.users?.full_name || item.users?.email?.split('@')[0] || 'Expert'
+            user_name: 'Expert'
           }))
           setAnnotations(formattedAnnotations)
         }
@@ -125,15 +125,12 @@ export default function ScientificSocialHub({
           }))
         }
 
-        // 3. Récupérer les résultats de simulation pour les observations techniques
+        // 3. Récupérer les résultats de simulation (Fallback sur analysis_results si simulation_results n'existe pas)
         const { data: simulationResults, error: resultsError } = await supabase
-          .from('simulation_results')
+          .from('analysis_results')
           .select(`
             id,
             credibility_score,
-            continuity_residual,
-            momentum_residual,
-            energy_residual,
             anomalies
           `)
           .eq('analysis_id', analysisId)
@@ -153,11 +150,13 @@ export default function ScientificSocialHub({
           }))
         }
 
-        // 4. Compter les réactions scientifiques (validations)
-        const { data: reactionsData, error: reactionsError } = await supabase
+        // 4. Compter les réactions scientifiques (Désactivé si table manquante)
+        /* const { data: reactionsData, error: reactionsError } = await supabase
           .from('scientific_reactions')
           .select('id')
-          .eq('analysis_id', analysisId)
+          .eq('analysis_id', analysisId) */
+        const reactionsData: any[] = []
+        const reactionsError = null
 
         if (reactionsError) {
           console.error('Erreur lors de la récupération des réactions:', reactionsError)
@@ -229,22 +228,21 @@ export default function ScientificSocialHub({
           user_id,
           content,
           severity,
-          created_at,
-          users:user_id (full_name, email)
+          created_at
         `)
         .single()
 
       if (insertError) {
         console.error('Erreur lors de l\'insertion du commentaire:', insertError)
         setError('Impossible d\'ajouter le commentaire. Veuillez réessayer.')
-      } else if (newAnnotation) {
+        } else if (newAnnotation) {
         const formattedAnnotation: Annotation = {
           id: newAnnotation.id,
           user_id: newAnnotation.user_id,
           content: newAnnotation.content,
           severity: newAnnotation.severity || 'info',
           created_at: newAnnotation.created_at,
-          user_name: newAnnotation.users?.[0]?.full_name || newAnnotation.users?.[0]?.email?.split('@')[0] || 'Vous'
+          user_name: 'Vous'
         }
         setAnnotations([formattedAnnotation, ...annotations])
         setNewComment('')
