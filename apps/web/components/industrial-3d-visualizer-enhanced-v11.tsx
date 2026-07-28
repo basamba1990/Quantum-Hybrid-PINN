@@ -62,8 +62,22 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   }, [data])
 
   useEffect(() => {
-    if (!data.length) return
-    const vals = data.map(p => (p as any)[activeVariable] || 0)
+    if (!data || !data.length) return
+    
+    // Normalisation des clés pour supporter les différents formats (backend vs frontend)
+    const normalizedData = data.map(p => {
+      const pAny = p as any;
+      return {
+        ...p,
+        velocity_magnitude: p.velocity_magnitude ?? pAny.velocityMagnitude ?? 0,
+        pressure: p.pressure ?? pAny.p ?? 0,
+        temperature: p.temperature ?? pAny.t ?? 0,
+        density: p.density ?? pAny.rho ?? 0,
+        von_mises: p.von_mises ?? pAny.vonMises ?? 0
+      };
+    });
+
+    const vals = normalizedData.map(p => (p as any)[activeVariable] || 0)
     setStats({
       minV: Math.min(...vals),
       maxV: Math.max(...vals),
@@ -168,7 +182,14 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
 
     for (let i = 0; i < data.length; i += samplingRatio) {
       const p = data[i]
-      const val = (p as any)[activeVariable] || 0
+      const pAny = p as any;
+      // Normalisation inline pour la performance
+      const val = pAny[activeVariable] ?? 
+                  (activeVariable === 'velocity_magnitude' ? (pAny.velocity_magnitude ?? pAny.velocityMagnitude ?? 0) :
+                  activeVariable === 'pressure' ? (pAny.pressure ?? pAny.p ?? 0) :
+                  activeVariable === 'temperature' ? (pAny.temperature ?? pAny.t ?? 0) :
+                  activeVariable === 'density' ? (pAny.density ?? pAny.rho ?? 0) : 0);
+                  
       const gx = Math.floor(((p.x - min.x) / size.x) * (gridSize - 1))
       const gy = Math.floor(((p.y - min.y) / size.y) * (gridSize - 1))
       const gz = Math.floor(((p.z - min.z) / size.z) * (gridSize - 1))

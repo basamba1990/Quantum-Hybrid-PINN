@@ -174,7 +174,8 @@ export default function NewAnalysisPage() {
           rock_type: (transcription.match(/roche\s*:?\s*(\w+)/i))?.[1] || 'granite',
         },
         n_steps: 100,
-        analysis_id: newAnalysis.id
+        analysis_id: newAnalysis.id,
+        user_id: project.user_id
       };
 
       // Appel sans attendre la fin de la simulation (on attend juste la création du job)

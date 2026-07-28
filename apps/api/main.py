@@ -448,17 +448,17 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                 supabase_client.table("analysis_results").upsert({
                     "analysis_id": request.analysis_id,
                     "project_id": request.project_id,
-                    "user_id": request.user_id if hasattr(request, 'user_id') else 1,
-                    "pinn_predictions": final_result["pinn_predictions"],
-                    "predictions3d": final_result["predictions3d"],
-                    "credibility_score": final_result["credibility_score"],
-                    "scenario_type": final_result["scenario_type"],
+                    "user_id": request.user_id if (hasattr(request, 'user_id') and request.user_id) else "00000000-0000-0000-0000-000000000000",
+                    "pinn_predictions": final_result.get("pinn_predictions", []),
+                    "predictions3d": final_result.get("predictions3d", []),
+                    "credibility_score": final_result.get("credibility_score", 0.0),
+                    "scenario_type": final_result.get("scenario_type", "H2_PIPELINE"),
                     "residuals": {
-                        "continuity": final_result["continuityResidual"],
-                        "momentum": final_result["momentumResidual"],
-                        "energy": final_result["energyResidual"]
+                        "continuity": final_result.get("continuityResidual", 0.0),
+                        "momentum": final_result.get("momentumResidual", 0.0),
+                        "energy": final_result.get("energyResidual", 0.0)
                     },
-                    "updated_at": final_result["updated_at"]
+                    "updated_at": final_result.get("updated_at", datetime.utcnow().isoformat())
                 }).execute()
             except Exception as inner_e:
                 print(f"Failed to persist to analysis_results: {inner_e}")
