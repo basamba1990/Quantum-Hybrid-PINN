@@ -75,8 +75,7 @@ export default function ScientificSocialHub({
         setIsLoading(true)
         setError(null)
 
-        // 1. Récupérer les annotations (commentaires) pour cette analyse
-        // Correction: Suppression de la jointure users:user_id qui peut échouer si non configurée
+        // 1. Récupérer les annotations (commentaires) pour cette analyse avec jointure sur users (full_name)
         const { data: annotationsData, error: annotationsError } = await supabase
           .from('simulation_annotations')
           .select(`
@@ -84,7 +83,8 @@ export default function ScientificSocialHub({
             user_id,
             content,
             severity,
-            created_at
+            created_at,
+            users!user_id (full_name)
           `)
           .eq('analysis_id', analysisId)
           .order('created_at', { ascending: false })
@@ -99,7 +99,7 @@ export default function ScientificSocialHub({
             content: item.content,
             severity: item.severity || 'info',
             created_at: item.created_at,
-            user_name: 'Expert'
+            user_name: item.users?.full_name || 'Expert'
           }))
           setAnnotations(formattedAnnotations)
         }
@@ -150,13 +150,11 @@ export default function ScientificSocialHub({
           }))
         }
 
-        // 4. Compter les réactions scientifiques (Désactivé si table manquante)
-        /* const { data: reactionsData, error: reactionsError } = await supabase
+        // 4. Compter les réactions scientifiques (Table existante scientific_reactions)
+        const { data: reactionsData, error: reactionsError } = await supabase
           .from('scientific_reactions')
           .select('id')
-          .eq('analysis_id', analysisId) */
-        const reactionsData: any[] = []
-        const reactionsError = null
+          .eq('analysis_id', analysisId)
 
         if (reactionsError) {
           console.error('Erreur lors de la récupération des réactions:', reactionsError)
@@ -228,21 +226,22 @@ export default function ScientificSocialHub({
           user_id,
           content,
           severity,
-          created_at
+          created_at,
+          users!user_id (full_name)
         `)
         .single()
 
       if (insertError) {
         console.error('Erreur lors de l\'insertion du commentaire:', insertError)
         setError('Impossible d\'ajouter le commentaire. Veuillez réessayer.')
-        } else if (newAnnotation) {
+      } else if (newAnnotation) {
         const formattedAnnotation: Annotation = {
           id: newAnnotation.id,
           user_id: newAnnotation.user_id,
           content: newAnnotation.content,
           severity: newAnnotation.severity || 'info',
           created_at: newAnnotation.created_at,
-          user_name: 'Vous'
+          user_name: newAnnotation.users?.full_name || 'Vous'
         }
         setAnnotations([formattedAnnotation, ...annotations])
         setNewComment('')
