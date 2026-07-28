@@ -197,10 +197,22 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         if (finalData) {
           let processed = { ...finalData }
           try {
-            if (typeof processed.results === 'string') processed.results = JSON.parse(processed.results)
+            // Normalisation pour le visualiseur : s'assurer que results.predictions3d existe
+            if (typeof processed.results === 'string') {
+              processed.results = JSON.parse(processed.results)
+            }
+            
+            // Si on vient de analysis_results, on mappe pinn_predictions vers results.predictions3d pour le visualiseur
+            if (!processed.results || !processed.results.predictions3d) {
+              const predictions = processed.pinn_predictions || (processed.results && processed.results.pinn_predictions)
+              processed.results = {
+                ...processed.results,
+                predictions3d: Array.isArray(predictions) ? predictions : []
+              }
+            }
           } catch (e) { 
             console.error('Error parsing analysis results:', e)
-            processed.results = {} 
+            processed.results = { predictions3d: [] } 
           }
           setLatestAnalysis(processed)
         }

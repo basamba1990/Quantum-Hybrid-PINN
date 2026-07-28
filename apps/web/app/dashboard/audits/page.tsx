@@ -73,8 +73,8 @@ export default function AuditsPage() {
             id: analysis.id,
             project_id: analysis.project_id,
             project_name: projectMap.get(analysis.project_id) || 'Projet inconnu',
-            credibility_score: analysis.credibility_score || results?.credibilityScore || 0,
-            is_physically_coherent: (analysis.credibility_score || results?.credibilityScore || 0) > 50,
+            credibility_score: Number(analysis.credibility_score || results?.credibilityScore || 0),
+            is_physically_coherent: Number(analysis.credibility_score || results?.credibilityScore || 0) > 50,
             anomalies_count: results?.anomalies?.length || 0,
             created_at: analysis.created_at,
             status: analysis.status
@@ -102,7 +102,7 @@ export default function AuditsPage() {
     total: audits.length,
     coherent: audits.filter(a => a.is_physically_coherent).length,
     anomalies: audits.filter(a => !a.is_physically_coherent).length,
-    avgScore: audits.length > 0 ? (audits.reduce((sum, a) => sum + a.credibility_score, 0) / audits.length).toFixed(1) : 0
+    avgScore: audits.length > 0 ? (audits.reduce((sum, a) => sum + (Number(a.credibility_score) || 0), 0) / audits.length).toFixed(1) : "0.0"
   }
 
   const getCredibilityBadge = (score: number) => {
