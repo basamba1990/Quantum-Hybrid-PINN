@@ -30,10 +30,15 @@ import dynamic from 'next/dynamic'
 import { HybridSimulationPanel } from "@/components/HybridSimulationPanel"
 import { createClient } from '@/lib/supabase/client'
 
-// Import dynamique du visualiseur industriel V10-Ultra (isosurfaces continues)
+// Import dynamique des visualiseurs industriels
 const Industrial3DVisualizerV10Ultra = dynamic(
   () => import('@/components/industrial-3d-visualizer-v10-ultra'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur 3D...</div> }
+)
+
+const Industrial3DVisualizerEnhancedV11 = dynamic(
+  () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur V11...</div> }
 )
 
 const Industrial3DVisualizerEnhancedV5 = dynamic(
@@ -248,9 +253,9 @@ export default function SimulationsPage() {
                   <div>
                     <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
                       <Activity className="w-5 h-5 text-blue-500" />
-                      Visualisation 3D Isosurface
+                      Visualisation 3D Volumétrique V11
                     </CardTitle>
-                    <CardDescription className="text-[10px] font-mono uppercase text-gray-500">Solveur PINN V9.0 // Haute Fidélité</CardDescription>
+                    <CardDescription className="text-[10px] font-mono uppercase text-gray-500">Solveur PINN V9.0 // Profil Poiseuille + Streamlines</CardDescription>
                   </div>
                   {analyses.length > 0 && (
                     <div className="flex items-center gap-3">
@@ -337,9 +342,9 @@ export default function SimulationsPage() {
                             <Maximize2 className="w-5 h-5" />
                           </button>
                         </div>
-                        <Industrial3DVisualizerV10Ultra 
+                        <Industrial3DVisualizerEnhancedV11 
                           data={predictions3d} 
-                          title={selectedAnalysis?.name || "3D Isosurface - Plein Écran"} 
+                          title={selectedAnalysis?.name || "3D Volumetric - Plein Écran"} 
                           colorVariable="temperature"
                           quality="ultra"
                           scenarioType={scenarioType}
@@ -347,9 +352,9 @@ export default function SimulationsPage() {
                       </div>
                     ) : (
                       <div className="p-6">
-                        <Industrial3DVisualizerV10Ultra 
+                        <Industrial3DVisualizerEnhancedV11 
                           data={predictions3d} 
-                          title={selectedAnalysis?.name || "3D Isosurface"} 
+                          title={selectedAnalysis?.name || "3D Volumetric"} 
                           colorVariable="temperature"
                           quality="ultra"
                           scenarioType={scenarioType}
