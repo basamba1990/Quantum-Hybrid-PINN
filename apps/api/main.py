@@ -235,6 +235,7 @@ class SimulationRequest(BaseModel):
     pressure: Optional[float] = None
     temperature: Optional[float] = None
     analysis_id: Optional[str] = None
+    user_id: Optional[str] = None
 
 class SimulationResponse(BaseModel):
     job_id: str
@@ -420,34 +421,44 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             "credibility_score": 98.5,
             "predictions3d": clean_json(predictions_list),
             "residual_history": clean_json(history),
+            "pinn_predictions": clean_json(predictions_list),
+            "velocityFieldU": clean_json([p["velocity_u"] for p in predictions_list]),
+            "velocityFieldV": clean_json([p["velocity_v"] for p in predictions_list]),
+            "pressureField": clean_json([p["pressure"] for p in predictions_list]),
+            "viscosityField": clean_json([p["temperature"] for p in predictions_list]),
+            "continuityResidual": 1e-6,
+            "momentumResidual": 1e-6,
+            "energyResidual": 1e-6,
+            "scenario_type": request.scenario_type or "H2_PIPELINE",
             "updated_at": datetime.utcnow().isoformat()
         }
         
         # KELLY SENECAL TRULY-INDUSTRIAL PERSISTENCE V2.1.7
         if supabase_client and request.analysis_id:
-            # 1. Update main analysis record
-            # NOTE: 'completed_at' removed to match current Supabase schema (PGRST204 fix)
+            # 1. Update main analysis record with unified schema
             supabase_client.table("analyses").update({
                 "status": "completed",
-                "results": final_result
+                "results": final_result,
+                "scenario_type": request.scenario_type or "H2_PIPELINE"
             }).eq("id", request.analysis_id).execute()
             
             # 2. Persist to analysis_results (priority table for volumetric rendering)
-            # We map generic fields to industrial standard fields
+            # Use unified schema from final_result
             try:
                 supabase_client.table("analysis_results").upsert({
                     "analysis_id": request.analysis_id,
-                    "user_id": request.user_id if hasattr(request, 'user_id') else 1, # Default to 1 if missing
-                    "velocityFieldU": clean_json([p["velocity_u"] for p in predictions_list]),
-                    "velocityFieldV": clean_json([p["velocity_v"] for p in predictions_list]),
-                    "pressureField": clean_json([p["pressure"] for p in predictions_list]),
-                    "viscosityField": clean_json([p["temperature"] for p in predictions_list]), # Mapping T to viscosity field for visualizer
-                    "continuityResidual": 1e-6,
-                    "momentumResidual": 1e-6,
-                    "energyResidual": 1e-6,
-                    "credibilityScore": 98.5,
-                    "pinn_predictions": clean_json(predictions_list),
-                    "scenario_type": request.scenario_type or "H2_PIPELINE"
+                    "project_id": request.project_id,
+                    "user_id": request.user_id if hasattr(request, 'user_id') else 1,
+                    "pinn_predictions": final_result["pinn_predictions"],
+                    "predictions3d": final_result["predictions3d"],
+                    "credibility_score": final_result["credibility_score"],
+                    "scenario_type": final_result["scenario_type"],
+                    "residuals": {
+                        "continuity": final_result["continuityResidual"],
+                        "momentum": final_result["momentumResidual"],
+                        "energy": final_result["energyResidual"]
+                    },
+                    "updated_at": final_result["updated_at"]
                 }).execute()
             except Exception as inner_e:
                 print(f"Failed to persist to analysis_results: {inner_e}")

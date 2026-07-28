@@ -133,16 +133,26 @@ export default function SimulationsPage() {
         results = {};
       }
     }
-    const rawData = results?.predictions3d || [];
+    // Try predictions3d first, then pinn_predictions as fallback
+    const rawData = results?.predictions3d || results?.pinn_predictions || selectedAnalysis?.pinn_predictions || [];
     return Array.isArray(rawData) 
       ? rawData.map((p: any, i: number) => ({
-          x: p.x ?? (i % 10) * 0.1,
-          y: p.y ?? (Math.floor(i / 10) % 10) * 0.1,
-          z: p.z ?? (Math.floor(i / 100) % 10) * 0.1,
-          temperature: p.temperature ?? 0,
-          pressure: p.pressure ?? 0,
-          density: p.density ?? 1.225,
-          velocity_magnitude: p.velocity_magnitude ?? 0
+          x: typeof p.x === 'number' ? p.x : (i % 10) * 0.1,
+          y: typeof p.y === 'number' ? p.y : (Math.floor(i / 10) % 10) * 0.1,
+          z: typeof p.z === 'number' ? p.z : (Math.floor(i / 100) % 10) * 0.1,
+          temperature: typeof p.temperature === 'number' ? p.temperature : 293.15,
+          pressure: typeof p.pressure === 'number' ? p.pressure : 101325,
+          density: typeof p.density === 'number' ? p.density : 1.225,
+          velocity_magnitude: typeof p.velocity_magnitude === 'number' ? p.velocity_magnitude : 0,
+          velocity_u: typeof p.velocity_u === 'number' ? p.velocity_u : 0,
+          velocity_v: typeof p.velocity_v === 'number' ? p.velocity_v : 0,
+          velocity_w: typeof p.velocity_w === 'number' ? p.velocity_w : 0,
+          stress: typeof p.stress === 'number' ? p.stress : undefined,
+          damage: typeof p.damage === 'number' ? p.damage : undefined,
+          sigma_1: typeof p.sigma_1 === 'number' ? p.sigma_1 : undefined,
+          sigma_2: typeof p.sigma_2 === 'number' ? p.sigma_2 : undefined,
+          sigma_3: typeof p.sigma_3 === 'number' ? p.sigma_3 : undefined,
+          von_mises: typeof p.von_mises === 'number' ? p.von_mises : undefined
         }))
       : [];
   }, [selectedAnalysis])
