@@ -140,7 +140,7 @@ export default function ScientificSocialHub({
         if (resultsError) {
           console.error('Erreur lors de la récupération des résultats:', resultsError)
         } else if (simulationResults && simulationResults.length > 0) {
-          const result = simulationResults[0]
+          const result = simulationResults[0] as any
           const observation = `Audit V10-GOLD: Continuité=${result.continuity_residual?.toFixed(6) || 'N/A'}, Momentum=${result.momentum_residual?.toFixed(6) || 'N/A'}, Énergie=${result.energy_residual?.toFixed(6) || 'N/A'}`
           
           setAuditData(prev => ({
