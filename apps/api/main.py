@@ -426,10 +426,10 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
         # KELLY SENECAL TRULY-INDUSTRIAL PERSISTENCE V2.1.7
         if supabase_client and request.analysis_id:
             # 1. Update main analysis record
+            # NOTE: 'completed_at' removed to match current Supabase schema (PGRST204 fix)
             supabase_client.table("analyses").update({
                 "status": "completed",
-                "results": final_result,
-                "completed_at": datetime.utcnow().isoformat()
+                "results": final_result
             }).eq("id", request.analysis_id).execute()
             
             # 2. Persist to analysis_results (priority table for volumetric rendering)

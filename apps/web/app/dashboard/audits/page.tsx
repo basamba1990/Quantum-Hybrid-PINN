@@ -1,5 +1,9 @@
 'use client'
 
+// KELLY SENECAL TRULY-INDUSTRIAL DYNAMIC AUDIT V2.1.7
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
