@@ -146,7 +146,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
             const [r, g, b] = getIndustrialColor(norm)
             instances.push({
               pos: new THREE.Vector3(min.x + i * cellSize.x, min.y + j * cellSize.y, min.z + k * cellSize.z),
-              color: new THREE.Color(r, g, b)
+              col: new THREE.Color(r, g, b)
             })
           }
         }
@@ -165,7 +165,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
         dummy.position.copy(inst.pos)
         dummy.updateMatrix()
         instMesh.setMatrixAt(idx, dummy.matrix)
-        instMesh.setColorAt(idx, inst.color)
+        instMesh.setColorAt(idx, inst.col)
       })
       group.add(instMesh)
     }
