@@ -91,6 +91,25 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
   const [selectedField, setSelectedField] = useState<string>('continuity');
   const [comparisonMode, setComparisonMode] = useState<'residuals' | 'fields' | 'performance' | 'advanced'>('residuals');
 
+  // KELLY SENECAL V2.1.7: Data Normalizer for Backend/Frontend formats
+  const data3d = React.useMemo(() => {
+    const rawData = (results as any)?.predictions3d || [];
+    if (!Array.isArray(rawData)) return [];
+    
+    return rawData.map(p => ({
+      x: p.x, y: p.y, z: p.z,
+      pressure: Number(p.pressure ?? (p as any).p ?? 0),
+      temperature: Number(p.temperature ?? (p as any).temp ?? 0),
+      velocity_magnitude: Number(p.velocity_magnitude ?? (p as any).velocityMagnitude ?? 0),
+      velocity_u: Number(p.velocity_u ?? (p as any).velocityU ?? 0),
+      velocity_v: Number(p.velocity_v ?? (p as any).velocityV ?? 0),
+      velocity_w: Number(p.velocity_w ?? (p as any).velocityW ?? 0),
+      von_mises: Number(p.von_mises ?? (p as any).vonMises ?? 0),
+      sigma_1: Number(p.sigma_1 ?? (p as any).sigma1 ?? 0),
+      damage: Number(p.damage ?? 0)
+    }));
+  }, [results]);
+
   if (!results) {
     return (
       <Card>
@@ -288,6 +307,7 @@ export function HybridResultsVisualization({ results }: { results?: HybridResult
               <AdvancedPhysicsVisualization 
                 simulationId={results.jobId} 
                 time={results.totalTime}
+                data3d={data3d}
               />
             </TabsContent>
 

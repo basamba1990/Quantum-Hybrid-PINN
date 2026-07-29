@@ -22,8 +22,8 @@ import {
 import Industrial3DVisualizerEnhancedV11 from './industrial-3d-visualizer-enhanced-v11';
 
 interface AdvancedPhysicsProps {
-  simulationId: string;
-  time: number;
+  simulationId?: string;
+  time?: number; // ✅ FIXED: time is now optional to prevent TS errors but has a default
   data3d?: any[];
   scenarioType?: string;
   onDataFetch?: (data: any) => void;
@@ -33,7 +33,7 @@ type ScenarioType = 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' |
 
 export default function AdvancedPhysicsVisualization({ 
   simulationId, 
-  time, 
+  time = 0, // ✅ FIXED: default value for time
   data3d = [],
   scenarioType: propScenarioType = 'H2_PIPELINE',
   onDataFetch 
@@ -59,16 +59,16 @@ export default function AdvancedPhysicsVisualization({
       x: p.x,
       y: p.y,
       z: p.z,
-      temperature: typeof p.temperature === 'number' ? p.temperature : 293.15,
-      pressure: typeof p.pressure === 'number' ? p.pressure : 1.0,
-      density: typeof p.density === 'number' ? p.density : 1.0,
-      velocity_magnitude: typeof p.velocity_magnitude === 'number' ? p.velocity_magnitude : 0,
-      velocity_u: typeof p.velocity_u === 'number' ? p.velocity_u : 0,
-      velocity_v: typeof p.velocity_v === 'number' ? p.velocity_v : 0,
-      velocity_w: typeof p.velocity_w === 'number' ? p.velocity_w : 0,
-      stress: typeof p.stress === 'number' ? p.stress : 0,
-      damage: typeof p.damage === 'number' ? p.damage : 0,
-      prediction: typeof p.prediction === 'number' ? p.prediction : p.temperature
+      temperature: Number(p.temperature ?? (p as any).temp ?? 293.15),
+      pressure: Number(p.pressure ?? (p as any).p ?? 1.0),
+      density: Number(p.density ?? 1.0),
+      velocity_magnitude: Number(p.velocity_magnitude ?? (p as any).velocityMagnitude ?? 0),
+      velocity_u: Number(p.velocity_u ?? (p as any).velocityU ?? 0),
+      velocity_v: Number(p.velocity_v ?? (p as any).velocityV ?? 0),
+      velocity_w: Number(p.velocity_w ?? (p as any).velocityW ?? 0),
+      stress: Number(p.stress ?? (p as any).von_mises ?? (p as any).vonMises ?? 0),
+      damage: Number(p.damage ?? 0),
+      prediction: Number(p.prediction ?? p.temperature ?? 0)
     }));
   }, [data3d]);
 

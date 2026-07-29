@@ -82,7 +82,8 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     if (!data.length) return
 
     // TRULY-INDUSTRIAL VOXEL DENSITY
-    const gridSize = quality === 'ultra' ? 80 : 40
+    // KELLY SENECAL V2.1.7: Truly-industrial resolution (min 1000 points)
+    const gridSize = quality === 'ultra' ? 100 : 60
     const { min, max } = domainBounds
     const size = new THREE.Vector3().subVectors(max, min)
     const cellSize = new THREE.Vector3(size.x / gridSize, size.y / gridSize, size.z / gridSize)
@@ -90,8 +91,22 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const grid = new Float32Array(gridSize * gridSize * gridSize).fill(-1)
     const weightGrid = new Float32Array(gridSize * gridSize * gridSize).fill(0)
 
+    // KELLY SENECAL V2.1.7: Data Normalizer for Backend/Frontend formats
+    const normalizedData = data.map(p => ({
+      x: p.x, y: p.y, z: p.z,
+      pressure: Number(p.pressure ?? (p as any).p ?? 0),
+      temperature: Number(p.temperature ?? (p as any).temp ?? 0),
+      velocity_magnitude: Number(p.velocity_magnitude ?? (p as any).velocityMagnitude ?? 0),
+      velocity_u: Number(p.velocity_u ?? (p as any).velocityU ?? 0),
+      velocity_v: Number(p.velocity_v ?? (p as any).velocityV ?? 0),
+      velocity_w: Number(p.velocity_w ?? (p as any).velocityW ?? 0),
+      von_mises: Number(p.von_mises ?? (p as any).vonMises ?? 0),
+      sigma_1: Number(p.sigma_1 ?? (p as any).sigma1 ?? 0),
+      damage: Number(p.damage ?? 0)
+    }));
+
     // Splot data into grid with Gaussian-like splatting for "Full Volume"
-    data.forEach(p => {
+    normalizedData.forEach(p => {
       const gx = Math.floor(((p.x - min.x) / size.x) * (gridSize - 1))
       const gy = Math.floor(((p.y - min.y) / size.y) * (gridSize - 1))
       const gz = Math.floor(((p.z - min.z) / size.z) * (gridSize - 1))
@@ -221,9 +236,9 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 z-10 mb-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-[10px] font-black text-cyan-500 uppercase tracking-[0.3em]">
-            <Activity className="w-3 h-3" /> INDUSTRIAL V11-GOLD STANDARD
+            <Activity className="w-3 h-3" /> TRULY-INDUSTRIAL V11-GOLD
           </div>
-          <h3 className="text-2xl font-black text-white tracking-tighter uppercase">{title}</h3>
+          <h3 className="text-2xl font-black text-white tracking-tighter uppercase">{title !== "INDUSTRIAL V11-GOLD STANDARD" ? title : (scenarioType?.replace(/_/g, ' ') || 'QUANTUM HYBRID PINN')}</h3>
           <p className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Truly-Massive Volumetric Voxel Engine</p>
         </div>
         <div className="flex gap-1.5 bg-black/60 p-1.5 rounded-2xl border border-white/5 flex-wrap">
@@ -249,10 +264,10 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 z-10">
         {[
-          { l: `Min ${activeVariable}`, v: formatScaleValue(stats.minV), c: 'text-blue-400', i: Cpu },
-          { l: `Max ${activeVariable}`, v: formatScaleValue(stats.maxV), c: 'text-red-400', i: Activity },
-          { l: 'Moyenne', v: formatScaleValue(stats.avgV), c: 'text-cyan-400', i: Database },
-          { l: 'Voxels Actifs', v: stats.count.toLocaleString(), c: 'text-white', i: ShieldCheck }
+          { l: `Min ${activeVariable} (${activeVariable === 'temperature' ? 'K' : activeVariable.includes('stress') || activeVariable.includes('von_mises') ? 'MPa' : 'Pa'})`, v: formatScaleValue(stats.minV), c: 'text-blue-400', i: Cpu },
+          { l: `Max ${activeVariable} (${activeVariable === 'temperature' ? 'K' : activeVariable.includes('stress') || activeVariable.includes('von_mises') ? 'MPa' : 'Pa'})`, v: formatScaleValue(stats.maxV), c: 'text-red-400', i: Activity },
+          { l: 'Moyenne Physique', v: formatScaleValue(stats.avgV), c: 'text-cyan-400', i: Database },
+          { l: 'Points PINN Actifs', v: stats.count.toLocaleString(), c: 'text-white', i: ShieldCheck }
         ].map((s, i) => (
           <div key={i} className="bg-white/[0.03] border border-white/5 p-3 rounded-xl flex items-center gap-3">
             <s.i className="w-4 h-4 text-gray-600" />

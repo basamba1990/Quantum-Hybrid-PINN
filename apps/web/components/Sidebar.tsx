@@ -28,7 +28,7 @@ const menuItems = [
   { icon: MessageSquare, label: 'Assistant IA', href: '/dashboard/assistant' },
   { icon: FileText, label: 'Média', href: '/dashboard/media' },
   { icon: History, label: 'Projets', href: '/dashboard' },
-  { icon: Users, label: 'Social Hub Scientifique', href: '/dashboard/social-hub' },
+  { icon: Users, label: 'Scientific Social Hub', href: '/dashboard/social-hub' },
   { icon: ShieldCheck, label: 'Audits', href: '/dashboard/audits' },
   { icon: Lightbulb, label: 'Améliorations', href: '/dashboard/improvements' },
   { icon: Zap, label: 'Tarification', href: '/pricing' },

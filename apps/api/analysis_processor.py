@@ -469,6 +469,27 @@ class AnalysisProcessor:
             # Update the analysis record in Supabase
             response = supabase.table("analyses").update(update_data).eq("id", analysis_id).execute()
             
+            # KELLY SENECAL V2.1.7: Upsert into analysis_results for high-fidelity volumetric rendering
+            if status == "completed":
+                results_data = {
+                    "analysis_id": analysis_id,
+                    "project_id": results.get("projectId") or results.get("physicsParams", {}).get("projectId"),
+                    "user_id": results.get("userId") or results.get("physicsParams", {}).get("userId"),
+                    "pinn_predictions": results.get("predictions3d") or results.get("pinn_results", {}).get("predictions3d") or [],
+                    "extracted_parameters": results.get("physicsParams") or {},
+                    "credibility_score": round(credibility_score * 100, 2) if credibility_score else 0.0,
+                    "context": update_data.get("scenario_type", "h2_pipeline").lower()
+                }
+                
+                # Filter out null values to prevent Supabase errors
+                results_data = {k: v for k, v in results_data.items() if v is not None}
+                
+                try:
+                    supabase.table("analysis_results").upsert(results_data).execute()
+                    logger.info(f"✅ analysis_results upserted for {analysis_id}")
+                except Exception as e:
+                    logger.error(f"⚠️ Failed to upsert analysis_results: {str(e)}")
+
             logger.info(f"✅ Supabase updated: analysis {analysis_id} status={status}, credibility_score={credibility_score}")
             
         except Exception as e:

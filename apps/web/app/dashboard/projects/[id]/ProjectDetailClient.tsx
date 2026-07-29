@@ -82,6 +82,10 @@ const RealtimeParameterControls = dynamic(
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
+// KELLY SENECAL V2.1.7: Truly-operational configuration
+export const revalidate = 60;
+export const dynamic = 'force-dynamic';
+
 export default function ProjectDetailClient({ id }: { id: string }) {
   const [project, setProject] = useState<Project | null>(null)
   const [reports, setReports] = useState<Report[]>([])
@@ -173,7 +177,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         // Prioritize analysis_results for high-fidelity volumetric data
         const { data: analysisData } = await supabase
           .from('analysis_results')
-          .select('*')
+          .select('pinn_predictions, extracted_parameters, credibility_score, context, analysis_id, project_id, user_id')
           .eq('project_id', id)
           .order('created_at', { ascending: false })
           .limit(1)
