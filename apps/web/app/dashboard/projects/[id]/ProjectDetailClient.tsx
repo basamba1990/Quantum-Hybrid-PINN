@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 // Imports dynamiques pour optimiser le chargement
-const Industrial3DVisualizerV10Ultra = dynamic(
+const Industrial3DVisualizerEnhancedV11 = dynamic(
   () => import('@/components/industrial-3d-visualizer-v10-ultra'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse">Initializing V10 Ultra Engine...</div> }
 )
@@ -375,9 +375,9 @@ export default function ProjectDetailClient({ id }: { id: string }) {
             )
           ) : (
             <div className="space-y-4">
-              <Industrial3DVisualizerV10Ultra 
+              <Industrial3DVisualizerEnhancedV11 
                 data={predictions3d} 
-                title="TRULY-INDUSTRIAL V10-GOLD"
+                title="INDUSTRIAL V11-ENHANCED"
                 colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'prediction' : scenarioType === 'DEEP_MINING_BLOCK' ? 'sigma_1' : 'temperature'}
                 quality="ultra"
                 scenarioType={scenarioType}

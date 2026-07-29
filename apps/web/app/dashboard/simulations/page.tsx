@@ -31,8 +31,8 @@ import { HybridSimulationPanel } from "@/components/HybridSimulationPanel"
 import { createClient } from '@/lib/supabase/client'
 
 // Import dynamique des visualiseurs industriels
-const Industrial3DVisualizerV10Ultra = dynamic(
-  () => import('@/components/industrial-3d-visualizer-v10-ultra'),
+const Industrial3DVisualizerEnhancedV11 = dynamic(
+  () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur 3D...</div> }
 )
 
@@ -41,8 +41,8 @@ const Industrial3DVisualizerEnhancedV11 = dynamic(
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur V11...</div> }
 )
 
-const Industrial3DVisualizerEnhancedV5 = dynamic(
-  () => import('@/components/industrial-3d-visualizer-enhanced-v5'),
+const Industrial3DVisualizerEnhancedV11 = dynamic(
+  () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur 3D...</div> }
 )
 
