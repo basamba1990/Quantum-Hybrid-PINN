@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 // Imports dynamiques pour optimiser le chargement
 const Industrial3DVisualizerEnhancedV11 = dynamic(
-  () => import('@/components/industrial-3d-visualizer-v10-ultra'),
+  () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse">Initializing V10 Ultra Engine...</div> }
 )
 

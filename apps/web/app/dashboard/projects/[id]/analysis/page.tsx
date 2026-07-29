@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use, Suspense } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -44,7 +44,7 @@ interface AuditData {
 }
 
 export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+  const { id } = React.use(params)
   
   return (
     <Suspense fallback={
