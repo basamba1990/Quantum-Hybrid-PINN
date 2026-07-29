@@ -408,11 +408,11 @@ async def assimilate_data(request: AssimilationRequestV8):
                 raise HTTPException(status_code=400, detail="Either simulation_id or analysis_id must be provided.")
 
             # Load predictions3d from Supabase using analysis_processor
-            from analysis_processor import analysis_processor_instance
-            if analysis_processor_instance is None:
+            from analysis_processor import processor
+            if processor is None:
                 raise HTTPException(status_code=500, detail="Analysis processor not initialized.")
             
-            analysis_results = await analysis_processor_instance.get_analysis_results(analysis_id_to_use)
+            analysis_results = await processor.get_analysis_results(analysis_id_to_use)
             if not analysis_results or "predictions3d" not in analysis_results:
                 raise HTTPException(status_code=404, detail=f"predictions3d not found for analysis_id {analysis_id_to_use}")
             
@@ -432,43 +432,43 @@ async def assimilate_data(request: AssimilationRequestV8):
             raise HTTPException(status_code=500, detail=f"Error deriving fields: {str(e)}")
 
     @app.post("/v2/analysis/turbulence-spectra")
-async def get_turbulence_spectra(request: TurbulenceSpectraRequest):
-    global current_model_v8, analysis_service
-    try:
-        if current_model_v8 is None:
-            raise ValueError("No V8 model loaded. Initialize or load a model first.")
+    async def get_turbulence_spectra(request: TurbulenceSpectraRequest):
+        global current_model_v8, analysis_service
+        try:
+            if current_model_v8 is None:
+                raise ValueError("No V8 model loaded. Initialize or load a model first.")
 
-        # Utiliser le modèle PINN pour obtenir les champs de vitesse
-        # Pour l'exemple, nous allons prédire à un point central pour obtenir des valeurs
-        # En réalité, on ferait une prédiction sur une grille 3D
-        t_tensor = torch.tensor(request.time, dtype=torch.float32).reshape(1, 1)
-        x_tensor = torch.tensor(0.5, dtype=torch.float32).reshape(1, 1)
-        y_tensor = torch.tensor(0.5, dtype=torch.float32).reshape(1, 1)
-        z_tensor = torch.tensor(0.5, dtype=torch.float32).reshape(1, 1)
+            # Utiliser le modèle PINN pour obtenir les champs de vitesse
+            # Pour l'exemple, nous allons prédire à un point central pour obtenir des valeurs
+            # En réalité, on ferait une prédiction sur une grille 3D
+            t_tensor = torch.tensor(request.time, dtype=torch.float32).reshape(1, 1)
+            x_tensor = torch.tensor(0.5, dtype=torch.float32).reshape(1, 1)
+            y_tensor = torch.tensor(0.5, dtype=torch.float32).reshape(1, 1)
+            z_tensor = torch.tensor(0.5, dtype=torch.float32).reshape(1, 1)
 
-        # Obtenir les prédictions du modèle
-        predictions = current_model_v8.predict_state(t_tensor, x_tensor, y_tensor, z_tensor)
+            # Obtenir les prédictions du modèle
+            predictions = current_model_v8.predict_state(t_tensor, x_tensor, y_tensor, z_tensor)
 
-        # Extraire les composantes de vitesse
-        u = np.array([predictions["velocity_u"]])
-        v = np.array([predictions["velocity_v"]])
-        w = np.array([predictions["velocity_w"]])
-        
-        # Pour avoir des données 3D pour l'analyse de turbulence, nous allons les dupliquer
-        # Ceci est une simplification. Idéalement, le PINN prédit sur une grille 3D.
-        nx, ny, nz = 8, 8, 8 # Taille de grille simplifiée pour l'exemple
-        u_3d = np.full((nx, ny, nz), u[0])
-        v_3d = np.full((nx, ny, nz), v[0])
-        w_3d = np.full((nx, ny, nz), w[0])
+            # Extraire les composantes de vitesse
+            u = np.array([predictions["velocity_u"]])
+            v = np.array([predictions["velocity_v"]])
+            w = np.array([predictions["velocity_w"]])
+            
+            # Pour avoir des données 3D pour l'analyse de turbulence, nous allons les dupliquer
+            # Ceci est une simplification. Idéalement, le PINN prédit sur une grille 3D.
+            nx, ny, nz = 8, 8, 8 # Taille de grille simplifiée pour l'exemple
+            u_3d = np.full((nx, ny, nz), u[0])
+            v_3d = np.full((nx, ny, nz), v[0])
+            w_3d = np.full((nx, ny, nz), w[0])
 
-        spectra = analysis_service.compute_turbulence_spectrum([u_3d, v_3d, w_3d], 0.01, 0.01, 0.01)
-        return {
-            "status": "success",
-            "data": spectra,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Turbulence analysis error: {str(e)}")
+            spectra = analysis_service.compute_turbulence_spectrum([u_3d, v_3d, w_3d], 0.01, 0.01, 0.01)
+            return {
+                "status": "success",
+                "data": spectra,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Turbulence analysis error: {str(e)}")
 
 @app.post("/v2/analysis/boundary-layer")
 async def get_boundary_layer(request: BoundaryLayerRequest):
