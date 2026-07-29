@@ -93,14 +93,17 @@ export default function ScientificSocialHub({
         if (annotationsError) {
           console.error('Erreur lors de la récupération des annotations:', annotationsError)
         } else if (annotationsData) {
-          const formattedAnnotations: Annotation[] = annotationsData.map((item: any) => ({
-            id: item.id,
-            user_id: item.user_id,
-            content: item.content,
-            severity: item.severity || 'info',
-            created_at: item.created_at,
-            user_name: item.users?.full_name || 'Expert'
-          }))
+          const formattedAnnotations: Annotation[] = annotationsData.map((item: any) => {
+            const userData = Array.isArray(item.users) ? item.users[0] : item.users;
+            return {
+              id: item.id,
+              user_id: item.user_id,
+              content: item.content,
+              severity: item.severity || 'info',
+              created_at: item.created_at,
+              user_name: userData?.full_name || 'Expert'
+            };
+          })
           setAnnotations(formattedAnnotations)
         }
 
@@ -235,13 +238,14 @@ export default function ScientificSocialHub({
         console.error('Erreur lors de l\'insertion du commentaire:', insertError)
         setError('Impossible d\'ajouter le commentaire. Veuillez réessayer.')
       } else if (newAnnotation) {
+        const userData = Array.isArray((newAnnotation as any).users) ? (newAnnotation as any).users[0] : (newAnnotation as any).users;
         const formattedAnnotation: Annotation = {
           id: newAnnotation.id,
           user_id: newAnnotation.user_id,
           content: newAnnotation.content,
           severity: newAnnotation.severity || 'info',
           created_at: newAnnotation.created_at,
-          user_name: newAnnotation.users?.full_name || 'Vous'
+          user_name: userData?.full_name || 'Vous'
         }
         setAnnotations([formattedAnnotation, ...annotations])
         setNewComment('')
