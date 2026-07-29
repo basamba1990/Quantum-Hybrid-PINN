@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Project, Report, Analysis } from '@/types'
-import dynamic from 'next/dynamic'
+import nextDynamic from 'next/dynamic'
 import { format } from 'date-fns'
 import { 
   ArrowLeft, 
@@ -17,67 +17,67 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 // Imports dynamiques pour optimiser le chargement
-const Industrial3DVisualizerEnhancedV11 = dynamic(
+const Industrial3DVisualizerEnhancedV11 = nextDynamic(
   () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-blue-500 animate-pulse">Initializing V10 Ultra Engine...</div> }
 )
 
-const HybridChartVisualizerExport = dynamic(
+const HybridChartVisualizerExport = nextDynamic(
   () => import('@/components/hybrid-chart-visualizer-export'),
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
-const PINNPerformanceMonitor = dynamic(
+const PINNPerformanceMonitor = nextDynamic(
   () => import('@/components/pinn-performance-monitor'),
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
-const ScenarioMetricsPanel = dynamic(
+const ScenarioMetricsPanel = nextDynamic(
   () => import('@/components/scenario-metrics-panel'),
   { ssr: false, loading: () => <div className="h-64 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
-const ResidualsChart = dynamic(
+const ResidualsChart = nextDynamic(
   () => import('@/components/residuals-chart'),
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
-const Industrial3DVisualizerExport = dynamic(
+const Industrial3DVisualizerExport = nextDynamic(
   () => import('@/components/industrial-3d-visualizer-export'),
   { ssr: false, loading: () => <div className="h-12 bg-slate-950 rounded-xl border border-white/10 animate-pulse" /> }
 )
 
-const AdvancedPhysicsVisualization = dynamic(
+const AdvancedPhysicsVisualization = nextDynamic(
   () => import('@/components/AdvancedPhysicsVisualization'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-emerald-500 animate-pulse">Chargement de l'analyse physique avancée...</div> }
 )
 
-const Streamline3DVisualizer = dynamic(
+const Streamline3DVisualizer = nextDynamic(
   () => import('@/components/streamline-3d-visualizer'),
   { ssr: false, loading: () => <div className="h-[600px] bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
-const ScientificProfileChart = dynamic(
+const ScientificProfileChart = nextDynamic(
   () => import('@/components/scientific-profile-chart'),
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
-const ScientificSocialHub = dynamic(
+const ScientificSocialHub = nextDynamic(
   () => import('@/components/scientific-social-hub'),
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
-const DualPhysicsVisualizer = dynamic(
+const DualPhysicsVisualizer = nextDynamic(
   () => import('@/components/dual-physics-visualizer'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-cyan-500 animate-pulse">Initializing Dual Physics Comparison...</div> }
 )
 
-const ResidualsReliabilityHeatmap = dynamic(
+const ResidualsReliabilityHeatmap = nextDynamic(
   () => import('@/components/residuals-reliability-heatmap'),
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
-const RealtimeParameterControls = dynamic(
+const RealtimeParameterControls = nextDynamic(
   () => import('@/components/realtime-parameter-controls'),
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
