@@ -199,26 +199,33 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         const finalData = finalAnalysisData
 
         if (finalData) {
-          let processed = { ...finalData }
+          // KELLY SENECAL V2.1.7: Truly-industrial data normalization
+          const rawData = finalData as any;
+          let processedResults: any = {};
+          
           try {
-            // Normalisation pour le visualiseur : s'assurer que results.predictions3d existe
-            if (typeof processed.results === 'string') {
-              processed.results = JSON.parse(processed.results)
+            if (rawData.results) {
+              processedResults = typeof rawData.results === 'string' 
+                ? JSON.parse(rawData.results) 
+                : rawData.results;
             }
             
-            // Si on vient de analysis_results, on mappe pinn_predictions vers results.predictions3d pour le visualiseur
-            if (!processed.results || !processed.results.predictions3d) {
-              const predictions = processed.pinn_predictions || (processed.results && processed.results.pinn_predictions)
-              processed.results = {
-                ...processed.results,
-                predictions3d: Array.isArray(predictions) ? predictions : (processed.pinn_predictions || [])
-              }
-            }
-          } catch (e) { 
-            console.error('Error parsing analysis results:', e)
-            processed.results = { predictions3d: [] } 
+            // Map pinn_predictions to results.predictions3d for visualizer compatibility
+            const predictions = rawData.pinn_predictions || processedResults.predictions3d || processedResults.pinn_predictions || [];
+            
+            processedResults = {
+              ...processedResults,
+              predictions3d: Array.isArray(predictions) ? predictions : []
+            };
+          } catch (e) {
+            console.error('Error parsing analysis results:', e);
+            processedResults = { predictions3d: [] };
           }
-          setLatestAnalysis(processed)
+          
+          setLatestAnalysis({
+            ...rawData,
+            results: processedResults
+          });
         }
 
         if (reportsData?.length) setSelectedReport(reportsData[0])
