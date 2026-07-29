@@ -155,7 +155,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
                (desc.includes('mining') || desc.includes('deep') || desc.includes('rock') || name.includes('mining') ? 'DEEP_MINING_BLOCK' : 
                (name.includes('heatsink') || desc.includes('heatsink') || desc.includes('fpga') ? 'FPGA_HEATSINK' : 
                (name.includes('lh2') || desc.includes('lh2') || desc.includes('cryogenic') || desc.includes('hydrog') ? 'LH2_STORAGE' : 'H2_PIPELINE'))));
-    return type as 'H2_PIPELINE' | 'LH2_STORAGE' | 'PORT_ENERGY_OPTIMIZATION' | 'PIPELINE_SAFETY' | 'CRYOGENIC_TRANSPORT' | 'MINING_INDUSTRIAL_SIM' | 'ROCK_ELAST_STRESS' | 'H2_COMPRESSION_STATION' | 'FPGA_HEATSINK' | 'DEEP_MINING_BLOCK'
+    return type as "H2_PIPELINE" | "LH2_STORAGE" | "DEEP_MINING_BLOCK" | "ROCK_ELAST_STRESS" | "H2_PIPELINE_STRATEGIC" | "FPGA_HEATSINK" | "PORT_ENERGY_OPTIMIZATION" | "PIPELINE_SAFETY" | "CRYOGENIC_TRANSPORT" | "MINING_INDUSTRIAL_SIM" | "H2_COMPRESSION_STATION"
   }, [latestAnalysis, project])
 
   useEffect(() => {

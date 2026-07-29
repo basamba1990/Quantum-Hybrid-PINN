@@ -11,7 +11,7 @@ interface DataPoint {
   stress?: number; sigma_1?: number; von_mises?: number;
 }
 
-type ScenarioType = 'H2_PIPELINE' | 'LH2_STORAGE' | 'DEEP_MINING_BLOCK' | 'ROCK_ELAST_STRESS' | 'H2_PIPELINE_STRATEGIC' | 'FPGA_HEATSINK';
+type ScenarioType = "H2_PIPELINE" | "LH2_STORAGE" | "DEEP_MINING_BLOCK" | "ROCK_ELAST_STRESS" | "H2_PIPELINE_STRATEGIC" | "FPGA_HEATSINK" | "PORT_ENERGY_OPTIMIZATION" | "PIPELINE_SAFETY" | "CRYOGENIC_TRANSPORT" | "MINING_INDUSTRIAL_SIM" | "H2_COMPRESSION_STATION";
 
 interface Props {
   data?: DataPoint[];
