@@ -12,6 +12,14 @@ interface DataPoint {
   temperature?: number;
   pressure?: number;
   velocity_magnitude?: number;
+  velocity_u?: number;
+  velocity_v?: number;
+  velocity_w?: number;
+  density?: number;
+  stress?: number;
+  sigma_1?: number;
+  von_mises?: number;
+  damage?: number;
   residual_continuity?: number;
   residual_momentum?: number;
   residual_energy?: number;

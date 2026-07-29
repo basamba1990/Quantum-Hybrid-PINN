@@ -10,6 +10,15 @@ interface DataPoint {
   temperature: number;
   pressure: number;
   velocity?: number;
+  velocity_u?: number;
+  velocity_v?: number;
+  velocity_w?: number;
+  velocity_magnitude?: number;
+  density?: number;
+  stress?: number;
+  sigma_1?: number;
+  von_mises?: number;
+  damage?: number;
 }
 
 interface Props {

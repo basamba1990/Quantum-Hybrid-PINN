@@ -7,8 +7,11 @@ import { Activity, Cpu, Database } from 'lucide-react'
 interface DataPoint {
   x: number; y: number; z: number;
   temperature?: number; pressure?: number;
-  velocity_magnitude?: number; density?: number;
+  velocity_magnitude?: number; 
+  velocity_u?: number; velocity_v?: number; velocity_w?: number;
+  density?: number;
   stress?: number; sigma_1?: number; von_mises?: number;
+  damage?: number;
 }
 
 type ScenarioType = "H2_PIPELINE" | "LH2_STORAGE" | "DEEP_MINING_BLOCK" | "ROCK_ELAST_STRESS" | "H2_PIPELINE_STRATEGIC" | "FPGA_HEATSINK" | "PORT_ENERGY_OPTIMIZATION" | "PIPELINE_SAFETY" | "CRYOGENIC_TRANSPORT" | "MINING_INDUSTRIAL_SIM" | "H2_COMPRESSION_STATION";
