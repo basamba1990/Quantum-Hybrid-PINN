@@ -19,7 +19,7 @@ import {
   Scatter,
   ZAxis,
 } from 'recharts';
-import Industrial3DVisualizerV10Ultra from './industrial-3d-visualizer-v10-ultra';
+import Industrial3DVisualizerEnhancedV11 from './industrial-3d-visualizer-enhanced-v11';
 
 interface AdvancedPhysicsProps {
   simulationId: string;
@@ -47,7 +47,7 @@ export default function AdvancedPhysicsVisualization({
   const [backendResidualData, setBackendResidualData] = useState<any>(null);
   const [backendDerivedFieldsData, setBackendDerivedFieldsData] = useState<any>(null);
 
-  // Use Industrial3DVisualizerV10Ultra (same as standard/simulations) for the Gold view
+  // Use Industrial3DVisualizerEnhancedV11 (same as standard/simulations) for the Gold view
   // Pass the real predictions3d data directly
   const realData3d = useMemo(() => {
     if (!data3d || !Array.isArray(data3d) || data3d.length === 0) return [];
@@ -389,7 +389,7 @@ export default function AdvancedPhysicsVisualization({
                 </button>
               </div>
               <div className="h-[600px] w-full">
-                <Industrial3DVisualizerV10Ultra 
+                <Industrial3DVisualizerEnhancedV11 
                   data={realData3d}
                   title="TRULY-INDUSTRIAL V10-GOLD // Advanced Physics"
                   colorVariable={colorVariable}
