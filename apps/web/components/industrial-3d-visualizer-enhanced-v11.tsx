@@ -234,14 +234,14 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const instances: { position: THREE.Vector3; color: THREE.Color }[] = []
     const dummy = new THREE.Object3D()
 
-    const threshold = vMin + vRange * 0.02
+    const threshold = vMin - 1.0
 
     for (let i = 0; i < gridSize; i++) {
       for (let j = 0; j < gridSize; j++) {
         for (let k = 0; k < gridSize; k++) {
           const idx = i + j * gridSize + k * gridSize * gridSize
           const val = smoothed[idx]
-          if (val >= threshold && countGrid[idx] > 0) {
+          if (countGrid[idx] > 0) {
             const norm = (val - vMin) / vRange
             const [r, g, b] = getIndustrialColor(norm)
             const x = min.x + (i + 0.5) * cellSize.x

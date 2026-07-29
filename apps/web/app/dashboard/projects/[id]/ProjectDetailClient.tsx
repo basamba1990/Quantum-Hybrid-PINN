@@ -207,7 +207,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
               const predictions = processed.pinn_predictions || (processed.results && processed.results.pinn_predictions)
               processed.results = {
                 ...processed.results,
-                predictions3d: Array.isArray(predictions) ? predictions : []
+                predictions3d: Array.isArray(predictions) ? predictions : (processed.pinn_predictions || [])
               }
             }
           } catch (e) { 
