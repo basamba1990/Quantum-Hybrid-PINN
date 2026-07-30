@@ -2,8 +2,8 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { Activity, Cpu, Database, ShieldCheck, Box, Maximize2, Download } from 'lucide-react'
-import ExportButtons from './export-buttons'
+import { Activity, Cpu, Database, ShieldCheck, Box, Download } from 'lucide-react'
+import ExportButtonsImproved from './export-buttons-improved'
 
 interface DataPoint {
   x: number; y: number; z: number;
@@ -44,6 +44,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   const [stats, setStats] = useState({ minV: 0, maxV: 1, avgV: 0, count: 0 })
   const [activeVariable, setActiveVariable] = useState(colorVariable)
   const [showAxes, setShowAxes] = useState(true)
+  const [isLoading, setIsLoading] = useState(data.length === 0)
 
   useEffect(() => { setIsMounted(true); return () => setIsMounted(false) }, [])
 
@@ -56,7 +57,11 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   }, [data])
 
   useEffect(() => {
-    if (!data.length) return
+    if (!data.length) {
+      setIsLoading(true)
+      return
+    }
+    setIsLoading(false)
     const vals = data.map(p => (p as any)[activeVariable] ?? (p as any)[activeVariable.replace(/_/g, '')] ?? 0)
     setStats({
       minV: Math.min(...vals),
@@ -86,7 +91,6 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const size = new THREE.Vector3().subVectors(max, min)
     const axisLen = Math.max(size.x, size.y, size.z) * 0.2
 
-    // Helper function for labels
     const createLabel = (text: string, pos: THREE.Vector3, color: string) => {
       const canvas = document.createElement('canvas')
       canvas.width = 128
@@ -103,27 +107,22 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
       return sprite
     }
 
-    // X Axis (Red)
     const xGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x + axisLen, min.y, min.z)])
     group.add(new THREE.Line(xGeo, new THREE.LineBasicMaterial({ color: 0xff4444, linewidth: 2 })))
     group.add(createLabel('X', new THREE.Vector3(min.x + axisLen * 1.2, min.y, min.z), '#ff4444'))
 
-    // Y Axis (Green)
     const yGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, min.y + axisLen, min.z)])
     group.add(new THREE.Line(yGeo, new THREE.LineBasicMaterial({ color: 0x44ff44, linewidth: 2 })))
     group.add(createLabel('Y', new THREE.Vector3(min.x, min.y + axisLen * 1.2, min.z), '#44ff44'))
 
-    // Z Axis (Blue)
     const zGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, min.y, min.z + axisLen)])
     group.add(new THREE.Line(zGeo, new THREE.LineBasicMaterial({ color: 0x4444ff, linewidth: 2 })))
     group.add(createLabel('Z', new THREE.Vector3(min.x, min.y, min.z + axisLen * 1.2), '#4444ff'))
 
-    // Bounding Box
     const box = new THREE.BoxHelper(new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z)), 0x333333)
     box.position.copy(domainBounds.center)
     group.add(box)
 
-    // Grid at bottom
     const grid = new THREE.GridHelper(Math.max(size.x, size.z) * 1.5, 10, 0x222222, 0x111111)
     grid.position.set(domainBounds.center.x, min.y, domainBounds.center.z)
     group.add(grid)
@@ -143,7 +142,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     meshGroupRef.current = group
     if (!data.length) return
 
-    const gridSize = quality === 'ultra' ? 80 : 50
+    const gridSize = quality === 'ultra' ? 60 : 40
     const { min, max } = domainBounds
     const size = new THREE.Vector3().subVectors(max, min)
     const cellSize = new THREE.Vector3(size.x / gridSize, size.y / gridSize, size.z / gridSize)
@@ -261,7 +260,9 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
 
     return () => {
       window.removeEventListener('resize', handleResize)
-      if (visualizationRef.current && rendererRef.current) visualizationRef.current.removeChild(rendererRef.current.domElement)
+      if (visualizationRef.current && rendererRef.current) {
+        try { visualizationRef.current.removeChild(rendererRef.current.domElement) } catch (e) {}
+      }
       rendererRef.current?.dispose()
     }
   }, [isMounted, data, buildMassiveVolume, createScientificAxes, domainBounds])
@@ -280,95 +281,98 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     return v.toFixed(3)
   }
 
+  if (isLoading) {
+    return (
+      <div ref={containerRef} className="flex items-center justify-center h-[400px] md:h-[600px] bg-slate-950 rounded-[32px] border border-white/10 p-4 md:p-6">
+        <div className="text-center space-y-4">
+          <Activity className="w-12 h-12 text-blue-500 animate-pulse mx-auto" />
+          <p className="text-white font-bold">Chargement des données PINN...</p>
+          <p className="text-gray-400 text-sm">Aucun point de données disponible</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div ref={containerRef} className="flex flex-col h-full w-full bg-slate-950 rounded-[32px] border border-white/10 p-6 backdrop-blur-3xl relative shadow-2xl overflow-hidden group">
+    <div ref={containerRef} className="flex flex-col h-full w-full bg-slate-950 rounded-[32px] border border-white/10 p-3 md:p-6 backdrop-blur-3xl relative shadow-2xl overflow-hidden group">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-600" />
       
-      {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 z-10 mb-6">
+      {/* Header - Mobile Optimized */}
+      <div className="flex flex-col gap-3 md:gap-4 z-10 mb-4 md:mb-6">
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-[10px] font-black text-cyan-500 uppercase tracking-[0.3em]">
-            <Activity className="w-3 h-3" /> TRULY-INDUSTRIAL SCIENTIFIC V11
+          <div className="flex items-center gap-2 text-[9px] md:text-[10px] font-black text-cyan-500 uppercase tracking-[0.2em] md:tracking-[0.3em]">
+            <Activity className="w-3 h-3" /> TRULY-INDUSTRIAL V11
           </div>
-          <h3 className="text-2xl font-black text-white tracking-tighter uppercase">
+          <h3 className="text-lg md:text-2xl font-black text-white tracking-tighter uppercase line-clamp-2">
             {title !== "INDUSTRIAL V11-GOLD STANDARD" ? title : (scenarioType?.replace(/_/g, ' ') || 'QUANTUM HYBRID PINN')}
           </h3>
-          <p className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Physics-Informed Volumetric Engine</p>
+          <p className="text-[8px] md:text-[9px] font-mono text-gray-500 uppercase tracking-widest">Physics-Informed Volumetric Engine</p>
         </div>
         
-        <div className="flex flex-col items-end gap-3">
-          <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/5 flex-wrap">
-            {(['pressure', 'temperature', 'velocity_magnitude', 'von_mises', 'density'] as const).map(v => (
-              <button key={v} onClick={() => setActiveVariable(v)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${activeVariable === v ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>{v}</button>
+        <div className="flex flex-col md:flex-row gap-2 md:gap-3">
+          <div className="flex gap-1 bg-black/40 p-1 rounded-lg md:rounded-xl border border-white/5 flex-wrap">
+            {(['pressure', 'temperature', 'velocity_magnitude', 'von_mises'] as const).map(v => (
+              <button key={v} onClick={() => setActiveVariable(v)} className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[8px] md:text-[9px] font-black uppercase transition-all ${activeVariable === v ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>{v.replace(/_/g, ' ')}</button>
             ))}
           </div>
           <div className="flex gap-2">
             <button onClick={() => setShowAxes(!showAxes)} className={`p-2 rounded-lg border transition-all ${showAxes ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400' : 'bg-white/5 border-white/10 text-gray-500'}`} title="Toggle Axes">
               <Box className="w-4 h-4" />
             </button>
-            <ExportButtons containerRef={containerRef} fileName={title} jsonData={{ data, stats, scenarioType, activeVariable }} />
+            <ExportButtonsImproved containerRef={containerRef} canvasRef={rendererRef as any} fileName={title} jsonData={{ data, stats, scenarioType, activeVariable }} />
           </div>
         </div>
       </div>
 
-      {/* Main Visualization Area */}
-      <div className="flex-1 w-full flex gap-4 min-h-0 relative">
-        <div ref={visualizationRef} className="flex-1 rounded-[24px] overflow-hidden border border-white/10 bg-black/20 relative" />
+      {/* Main Visualization Area - Mobile Responsive */}
+      <div className="flex-1 w-full flex flex-col md:flex-row gap-3 md:gap-4 min-h-0 relative">
+        <div ref={visualizationRef} className="flex-1 rounded-[24px] overflow-hidden border border-white/10 bg-black/20 relative min-h-[300px] md:min-h-[500px]" />
         
-        {/* Scientific Scale Bar */}
-        <div className="w-24 flex flex-col items-center py-4 bg-black/40 rounded-[24px] border border-white/5 relative backdrop-blur-md">
-          <div className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2 text-center leading-tight">
+        {/* Scientific Scale Bar - Mobile Optimized */}
+        <div className="w-full md:w-24 flex md:flex-col items-center justify-between md:justify-start py-3 md:py-4 px-4 md:px-0 bg-black/40 rounded-[24px] border border-white/5 relative backdrop-blur-md gap-2 md:gap-0">
+          <div className="text-[9px] md:text-[10px] font-black text-red-500 uppercase tracking-widest mb-0 md:mb-2 text-center leading-tight">
             {formatScaleValue(stats.maxV)}
-            <span className="block text-[8px] text-gray-500">{getUnit(activeVariable)}</span>
+            <span className="block text-[7px] md:text-[8px] text-gray-500">{getUnit(activeVariable)}</span>
           </div>
-          <div className="flex flex-col items-center justify-between h-[calc(100%-60px)] py-2 w-full">
-            <div className="w-3 h-full bg-gradient-to-t from-blue-600 via-yellow-400 to-red-600 rounded-full border border-white/10" />
-            <div className="absolute left-full ml-2 h-[calc(100%-60px)] flex flex-col justify-between py-2">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="text-[8px] font-mono text-gray-500 leading-none">
-                  {formatScaleValue(stats.maxV - (i/5)*(stats.maxV-stats.minV))}
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-2 text-center leading-tight">
+          <div className="w-32 md:w-3 h-3 md:h-[calc(100%-60px)] bg-gradient-to-r md:bg-gradient-to-t from-blue-600 via-yellow-400 to-red-600 rounded-full border border-white/10" />
+          <div className="text-[9px] md:text-[10px] font-black text-blue-600 uppercase tracking-widest mt-0 md:mt-2 text-center leading-tight">
             {formatScaleValue(stats.minV)}
-            <span className="block text-[8px] text-gray-500">{getUnit(activeVariable)}</span>
+            <span className="block text-[7px] md:text-[8px] text-gray-500">{getUnit(activeVariable)}</span>
           </div>
-        </div>
-
-        {/* Physical Dimension Bar (Scale) */}
-        <div className="absolute bottom-6 left-6 flex items-end gap-2 bg-black/60 px-3 py-2 rounded-lg border border-white/10 backdrop-blur-md z-20">
-          <div className="flex flex-col gap-1">
-            <div className="flex justify-between text-[8px] font-mono text-gray-400">
-              <span>0</span>
-              <span>{(domainBounds.max.x - domainBounds.min.x).toFixed(1)} mm</span>
-            </div>
-            <div className="w-32 h-1.5 bg-white/10 rounded-full overflow-hidden flex">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className={`flex-1 ${i % 2 === 0 ? 'bg-white/40' : 'bg-transparent'}`} />
-              ))}
-            </div>
-          </div>
-          <div className="text-[9px] font-black text-white/60 uppercase tracking-tighter">Scale</div>
         </div>
       </div>
 
-      {/* Footer Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 z-10">
+      {/* Physical Dimension Bar - Mobile Optimized */}
+      <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex items-end gap-2 bg-black/60 px-2 md:px-3 py-1.5 md:py-2 rounded-lg border border-white/10 backdrop-blur-md z-20">
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between text-[7px] md:text-[8px] font-mono text-gray-400">
+            <span>0</span>
+            <span>{(domainBounds.max.x - domainBounds.min.x).toFixed(1)} mm</span>
+          </div>
+          <div className="w-24 md:w-32 h-1 md:h-1.5 bg-white/10 rounded-full overflow-hidden flex">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className={`flex-1 ${i % 2 === 0 ? 'bg-white/40' : 'bg-transparent'}`} />
+            ))}
+          </div>
+        </div>
+        <div className="text-[8px] md:text-[9px] font-black text-white/60 uppercase tracking-tighter">Scale</div>
+      </div>
+
+      {/* Footer Metrics - Mobile Responsive Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mt-4 md:mt-6 z-10">
         {[
-          { l: `Min ${activeVariable}`, v: `${formatScaleValue(stats.minV)} ${getUnit(activeVariable)}`, c: 'text-blue-400', i: Cpu },
-          { l: `Max ${activeVariable}`, v: `${formatScaleValue(stats.maxV)} ${getUnit(activeVariable)}`, c: 'text-red-400', i: Activity },
-          { l: 'Moyenne Physique', v: `${formatScaleValue(stats.avgV)} ${getUnit(activeVariable)}`, c: 'text-emerald-400', i: Database },
-          { l: 'Points PINN Actifs', v: stats.count.toLocaleString(), c: 'text-white', i: ShieldCheck }
+          { l: `Min ${activeVariable}`, v: `${formatScaleValue(stats.minV)}`, c: 'text-blue-400', i: Cpu },
+          { l: `Max ${activeVariable}`, v: `${formatScaleValue(stats.maxV)}`, c: 'text-red-400', i: Activity },
+          { l: 'Moyenne', v: `${formatScaleValue(stats.avgV)}`, c: 'text-emerald-400', i: Database },
+          { l: 'Points Actifs', v: stats.count.toLocaleString(), c: 'text-white', i: ShieldCheck }
         ].map((s, i) => (
-          <div key={i} className="bg-white/[0.03] border border-white/5 p-3 rounded-2xl flex items-center gap-3 hover:bg-white/[0.05] transition-all">
-            <div className="p-2 rounded-xl bg-black/40 border border-white/5">
+          <div key={i} className="bg-white/[0.03] border border-white/5 p-2 md:p-3 rounded-xl md:rounded-2xl flex items-center gap-2 hover:bg-white/[0.05] transition-all">
+            <div className="p-1.5 md:p-2 rounded-lg bg-black/40 border border-white/5 hidden md:block">
               <s.i className="w-4 h-4 text-gray-400" />
             </div>
-            <div>
-              <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-0.5">{s.l}</p>
-              <p className={`text-sm font-black ${s.c} tracking-tight`}>{s.v}</p>
+            <div className="min-w-0">
+              <p className="text-[7px] md:text-[8px] font-black text-gray-500 uppercase tracking-widest mb-0.5 line-clamp-1">{s.l}</p>
+              <p className={`text-xs md:text-sm font-black ${s.c} tracking-tight line-clamp-1`}>{s.v}</p>
             </div>
           </div>
         ))}
