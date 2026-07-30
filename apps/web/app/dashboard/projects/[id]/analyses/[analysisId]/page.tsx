@@ -30,44 +30,62 @@ export default function AnalysisDetailPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchAnalysis = async () => {
-      try {
-        const { data, error: fetchError } = await supabase
-          .from('analyses')
-          .select('*')
-          .eq('id', analysisId)
-          .eq('project_id', projectId)
-          .single()
+        const fetchAnalysis = async () => {
+        try {
+          // 1. Fetch from analyses table for metadata
+          const { data, error: fetchError } = await supabase
+            .from('analyses')
+            .select('*')
+            .eq('id', analysisId)
+            .eq('project_id', projectId)
+            .single()
 
-        if (fetchError) throw fetchError
-        if (!data) throw new Error('Analyse non trouvée')
+          if (fetchError) throw fetchError
+          if (!data) throw new Error('Analyse non trouvée')
 
-        // Parse results if it's a string
-        let results = data.results
-        if (typeof results === 'string') {
-          try {
-            results = JSON.parse(results)
-          } catch {
-            results = {}
+          // 2. KELLY SENECAL V2.1.7: Fetch high-fidelity data from analysis_results
+          const { data: resData, error: resError } = await supabase
+            .from('analysis_results')
+            .select('*')
+            .eq('analysis_id', analysisId)
+            .maybeSingle()
+
+          // Parse results if it's a string
+          let results = data.results
+          if (typeof results === 'string') {
+            try {
+              results = JSON.parse(results)
+            } catch {
+              results = {}
+            }
           }
-        }
 
-        // ✅ Correction: Assurer que le score et les résultats sont correctement structurés
-        const score = data.credibility_score ?? results?.credibility_score ?? results?.credibilityScore ?? 0;
-        
-        // S'assurer que predictions3d existe
-        if (results && !results.predictions3d && results.predictions) {
-          results.predictions3d = results.predictions;
-        }
+          // Merge high-fidelity predictions if available
+          if (resData && resData.pinn_predictions) {
+            results.predictions3d = resData.pinn_predictions;
+            results.extractedData = {
+              ...(results.extractedData || {}),
+              ...(resData.extracted_parameters || {})
+            };
+            results.credibilityScore = resData.credibility_score || results.credibilityScore;
+          }
 
-        console.log("Analysis Data Loaded:", { id: data.id, score, hasPredictions: !!results?.predictions3d });
-        
-        setAnalysis({
-          ...data,
-          credibility_score: score,
-          results: results || {}
-        })
-      } catch (err: any) {
+          // ✅ Correction: Assurer que le score et les résultats sont correctement structurés
+          const score = resData?.credibility_score ?? data.credibility_score ?? results?.credibility_score ?? results?.credibilityScore ?? 0;
+          
+          // S'assurer que predictions3d existe
+          if (results && !results.predictions3d && results.predictions) {
+            results.predictions3d = results.predictions;
+          }
+
+          console.log("Analysis Data Loaded (V2.1.7):", { id: data.id, score, hasPredictions: !!results?.predictions3d, points: results?.predictions3d?.length });
+          
+          setAnalysis({
+            ...data,
+            credibility_score: score,
+            results: results || {}
+          })
+        } catch (err: any) {
         setError(err.message || 'Erreur lors du chargement de l\'analyse')
       } finally {
         setLoading(false)

@@ -64,6 +64,7 @@ class AnalysisProcessor:
             "jobId": job_id,
             "analysisId": request.analysisId,
             "projectId": request.projectId,
+            "userId": request.userId,
             "name": request.name,
             "status": "queued",
             "progress": 0,
@@ -302,24 +303,39 @@ class AnalysisProcessor:
                                    torch.mean(energy_res**2)).item()
 
         # Stocker l'instance du modèle pour les prédictions 3D ultérieures
-        self.jobs[project_id]["pinn_instance"] = pinn_instance
+        if job_id in self.jobs:
+            self.jobs[job_id]["pinn_instance"] = pinn_instance
+        else:
+            # Fallback search by projectId
+            for j_id, j_data in self.jobs.items():
+                if j_data.get("projectId") == project_id:
+                    j_data["pinn_instance"] = pinn_instance
+                    break
 
         results = {
+            "projectId": project_id,
             "training_loss_history": training_history["loss"],
             "final_training_loss": training_history["loss"][-1],
             "residual_norm": residual_norm,
             "fluid_type": fluid_type,
             "geometry_type": geometry_type,
             "geometry_params": geometry_params,
-            # Ajoutez d'autres métriques pertinentes si nécessaire
         }
         return results
     
     async def _validate_results(self, pinn_results: Dict[str, Any]) -> Dict[str, Any]:
         """Validate PINN results against physical constraints by checking conservation laws."""
-        job = self.jobs.get(pinn_results["projectId"])
+        # Find job by projectId if direct lookup fails
+        project_id = pinn_results.get("projectId")
+        job = self.jobs.get(project_id)
+        if not job:
+            for j_id, j_data in self.jobs.items():
+                if j_data.get("projectId") == project_id:
+                    job = j_data
+                    break
+                    
         if not job or "pinn_instance" not in job:
-            logger.error(f"No PINN instance found for project {pinn_results['projectId']}")
+            logger.error(f"No PINN instance found for project {project_id}")
             return {"validation_status": "failed", "reason": "PINN instance not found"}
 
         pinn_instance = job["pinn_instance"]
@@ -375,11 +391,20 @@ class AnalysisProcessor:
     async def _generate_3d_predictions(self, pinn_results: Dict[str, Any], scenario_type: str = 'H2_PIPELINE', physics_params: Dict[str, Any] = {}) -> list:
         """Generate Truly-Industrial Parametric 3D Geometries (V8.5)"""
         predictions = []
-        N_points = 1200 # Résolution accrue pour géométries complexes
+        # KELLY SENECAL GOLD STANDARD: Increase resolution for truly industrial audit
+        N_points = 2500 
 
-        job = self.jobs.get(pinn_results["projectId"])
+        # Find job by projectId if direct lookup fails
+        project_id = pinn_results.get("projectId")
+        job = self.jobs.get(project_id)
+        if not job:
+            for j_id, j_data in self.jobs.items():
+                if j_data.get("projectId") == project_id:
+                    job = j_data
+                    break
+
         if not job or "pinn_instance" not in job:
-            logger.error(f"No PINN instance found for project {pinn_results['projectId']}")
+            logger.error(f"No PINN instance found for project {project_id}")
             return []
 
         pinn_instance = job["pinn_instance"]

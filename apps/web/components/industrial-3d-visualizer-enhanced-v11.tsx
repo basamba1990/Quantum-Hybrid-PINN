@@ -44,6 +44,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   const [stats, setStats] = useState({ minV: 0, maxV: 1, avgV: 0, count: 0 })
   const [activeVariable, setActiveVariable] = useState(colorVariable)
   const [showAxes, setShowAxes] = useState(true)
+  const [renderMode, setRenderMode] = useState<'volume' | 'particles'>('volume')
   const [isLoading, setIsLoading] = useState(data.length === 0)
 
   useEffect(() => { setIsMounted(true); return () => setIsMounted(false) }, [])
@@ -91,33 +92,63 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const size = new THREE.Vector3().subVectors(max, min)
     const axisLen = Math.max(size.x, size.y, size.z) * 0.2
 
-    const createLabel = (text: string, pos: THREE.Vector3, color: string) => {
+    const createLabel = (text: string, pos: THREE.Vector3, color: string, fontSize: number = 80) => {
       const canvas = document.createElement('canvas')
-      canvas.width = 128
-      canvas.height = 128
+      canvas.width = 256
+      canvas.height = 256
       const ctx = canvas.getContext('2d')!
       ctx.fillStyle = color
-      ctx.font = 'bold 80px Arial'
+      ctx.font = `bold ${fontSize}px Arial`
       ctx.textAlign = 'center'
-      ctx.fillText(text, 64, 80)
+      ctx.fillText(text, 128, 128)
       const texture = new THREE.CanvasTexture(canvas)
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }))
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }))
       sprite.position.copy(pos)
-      sprite.scale.set(axisLen * 0.3, axisLen * 0.3, 1)
+      sprite.scale.set(axisLen * 0.4, axisLen * 0.4, 1)
       return sprite
     }
 
-    const xGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x + axisLen, min.y, min.z)])
+    // Main Axes
+    const xGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(max.x, min.y, min.z)])
     group.add(new THREE.Line(xGeo, new THREE.LineBasicMaterial({ color: 0xff4444, linewidth: 2 })))
-    group.add(createLabel('X', new THREE.Vector3(min.x + axisLen * 1.2, min.y, min.z), '#ff4444'))
+    group.add(createLabel('X [cm]', new THREE.Vector3(max.x + axisLen * 0.5, min.y, min.z), '#ff4444'))
 
-    const yGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, min.y + axisLen, min.z)])
+    const yGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, max.y, min.z)])
     group.add(new THREE.Line(yGeo, new THREE.LineBasicMaterial({ color: 0x44ff44, linewidth: 2 })))
-    group.add(createLabel('Y', new THREE.Vector3(min.x, min.y + axisLen * 1.2, min.z), '#44ff44'))
+    group.add(createLabel('Y [cm]', new THREE.Vector3(min.x, max.y + axisLen * 0.5, min.z), '#44ff44'))
 
-    const zGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, min.y, min.z + axisLen)])
+    const zGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, min.y, max.z)])
     group.add(new THREE.Line(zGeo, new THREE.LineBasicMaterial({ color: 0x4444ff, linewidth: 2 })))
-    group.add(createLabel('Z', new THREE.Vector3(min.x, min.y, min.z + axisLen * 1.2), '#4444ff'))
+    group.add(createLabel('Z [cm]', new THREE.Vector3(min.x, min.y, max.z + axisLen * 0.5), '#4444ff'))
+
+    // Ticks and Numbers
+    const addTicks = (start: THREE.Vector3, end: THREE.Vector3, count: number, axis: 'x'|'y'|'z') => {
+      for(let i=0; i<=count; i++) {
+        const t = i / count;
+        const pos = new THREE.Vector3().lerpVectors(start, end, t);
+        const val = axis === 'x' ? min.x + t*(max.x-min.x) : (axis === 'y' ? min.y + t*(max.y-min.y) : min.z + t*(max.z-min.z));
+        
+        // Tick line
+        const tickEnd = pos.clone();
+        if(axis === 'x') tickEnd.y -= axisLen*0.1;
+        else if(axis === 'y') tickEnd.x -= axisLen*0.1;
+        else tickEnd.x -= axisLen*0.1;
+        
+        const tickGeo = new THREE.BufferGeometry().setFromPoints([pos, tickEnd]);
+        group.add(new THREE.Line(tickGeo, new THREE.LineBasicMaterial({ color: 0x555555 })));
+        
+        // Number label
+        const labelPos = tickEnd.clone();
+        if(axis === 'x') labelPos.y -= axisLen*0.15;
+        else if(axis === 'y') labelPos.x -= axisLen*0.15;
+        else labelPos.x -= axisLen*0.15;
+        group.add(createLabel(val.toFixed(1), labelPos, '#888888', 60));
+      }
+    }
+
+    addTicks(new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(max.x, min.y, min.z), 4, 'x');
+    addTicks(new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, max.y, min.z), 4, 'y');
+    addTicks(new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, min.y, max.z), 4, 'z');
 
     const box = new THREE.BoxHelper(new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z)), 0x333333)
     box.position.copy(domainBounds.center)
@@ -239,7 +270,11 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     light.position.set(10, 10, 10)
     scene.add(light)
 
-    buildMassiveVolume(scene)
+    if (renderMode === 'volume') {
+      buildMassiveVolume(scene)
+    } else {
+      buildParticleCloud(scene)
+    }
     createScientificAxes(scene)
 
     const animate = () => {
@@ -265,7 +300,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
       }
       rendererRef.current?.dispose()
     }
-  }, [isMounted, data, buildMassiveVolume, createScientificAxes, domainBounds])
+  }, [isMounted, data, buildMassiveVolume, buildParticleCloud, createScientificAxes, domainBounds, renderMode])
 
   const getUnit = (v: string) => {
     if (v === 'temperature') return 'K'
@@ -293,6 +328,48 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     )
   }
 
+  const buildParticleCloud = useCallback((scene: THREE.Scene) => {
+    if (meshGroupRef.current) {
+      scene.remove(meshGroupRef.current)
+    }
+    const group = new THREE.Group()
+    meshGroupRef.current = group
+    if (!data.length) return
+
+    const positions = new Float32Array(data.length * 3)
+    const colors = new Float32Array(data.length * 3)
+    const vMin = stats.minV, vRange = stats.maxV - vMin || 1
+
+    data.forEach((p, i) => {
+      positions[i * 3] = p.x
+      positions[i * 3 + 1] = p.y
+      positions[i * 3 + 2] = p.z
+      
+      const val = (p as any)[activeVariable] ?? (p as any)[activeVariable.replace(/_/g, '')] ?? 0
+      const norm = (val - vMin) / vRange
+      const [r, g, b] = getIndustrialColor(norm)
+      colors[i * 3] = r
+      colors[i * 3 + 1] = g
+      colors[i * 3 + 2] = b
+    })
+
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    
+    const material = new THREE.PointsMaterial({
+      size: 0.05,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+      sizeAttenuation: true
+    })
+
+    const points = new THREE.Points(geometry, material)
+    group.add(points)
+    scene.add(group)
+  }, [data, activeVariable, stats, getIndustrialColor])
+
   return (
     <div ref={containerRef} className="flex flex-col h-full w-full bg-slate-950 rounded-[32px] border border-white/10 p-3 md:p-6 backdrop-blur-3xl relative shadow-2xl overflow-hidden group">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-600" />
@@ -316,6 +393,9 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
             ))}
           </div>
           <div className="flex gap-2">
+            <button onClick={() => setRenderMode(renderMode === 'volume' ? 'particles' : 'volume')} className={`px-4 py-1.5 rounded-lg border text-[9px] font-black uppercase transition-all ${renderMode === 'particles' ? 'bg-blue-600 text-white border-blue-500' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}>
+              {renderMode === 'volume' ? 'MODE VOLUME' : 'MODE PARTICULES'}
+            </button>
             <button onClick={() => setShowAxes(!showAxes)} className={`p-2 rounded-lg border transition-all ${showAxes ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400' : 'bg-white/5 border-white/10 text-gray-500'}`} title="Toggle Axes">
               <Box className="w-4 h-4" />
             </button>
