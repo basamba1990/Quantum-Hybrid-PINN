@@ -243,6 +243,50 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     scene.add(group)
   }, [data, activeVariable, quality, domainBounds, stats, getIndustrialColor])
 
+
+
+  const buildParticleCloud = useCallback((scene: THREE.Scene) => {
+    if (meshGroupRef.current) {
+      scene.remove(meshGroupRef.current)
+    }
+    const group = new THREE.Group()
+    meshGroupRef.current = group
+    if (!data.length) return
+
+    const positions = new Float32Array(data.length * 3)
+    const colors = new Float32Array(data.length * 3)
+    const vMin = stats.minV, vRange = stats.maxV - vMin || 1
+
+    data.forEach((p, i) => {
+      positions[i * 3] = p.x
+      positions[i * 3 + 1] = p.y
+      positions[i * 3 + 2] = p.z
+      
+      const val = (p as any)[activeVariable] ?? (p as any)[activeVariable.replace(/_/g, '')] ?? 0
+      const norm = (val - vMin) / vRange
+      const [r, g, b] = getIndustrialColor(norm)
+      colors[i * 3] = r
+      colors[i * 3 + 1] = g
+      colors[i * 3 + 2] = b
+    })
+
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    
+    const material = new THREE.PointsMaterial({
+      size: 0.05,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+      sizeAttenuation: true
+    })
+
+    const points = new THREE.Points(geometry, material)
+    group.add(points)
+    scene.add(group)
+  }, [data, activeVariable, stats, getIndustrialColor])
+
   useEffect(() => {
     if (!isMounted || !visualizationRef.current || !data.length) return
     
@@ -328,47 +372,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     )
   }
 
-  const buildParticleCloud = useCallback((scene: THREE.Scene) => {
-    if (meshGroupRef.current) {
-      scene.remove(meshGroupRef.current)
-    }
-    const group = new THREE.Group()
-    meshGroupRef.current = group
-    if (!data.length) return
 
-    const positions = new Float32Array(data.length * 3)
-    const colors = new Float32Array(data.length * 3)
-    const vMin = stats.minV, vRange = stats.maxV - vMin || 1
-
-    data.forEach((p, i) => {
-      positions[i * 3] = p.x
-      positions[i * 3 + 1] = p.y
-      positions[i * 3 + 2] = p.z
-      
-      const val = (p as any)[activeVariable] ?? (p as any)[activeVariable.replace(/_/g, '')] ?? 0
-      const norm = (val - vMin) / vRange
-      const [r, g, b] = getIndustrialColor(norm)
-      colors[i * 3] = r
-      colors[i * 3 + 1] = g
-      colors[i * 3 + 2] = b
-    })
-
-    const geometry = new THREE.BufferGeometry()
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
-    
-    const material = new THREE.PointsMaterial({
-      size: 0.05,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.8,
-      sizeAttenuation: true
-    })
-
-    const points = new THREE.Points(geometry, material)
-    group.add(points)
-    scene.add(group)
-  }, [data, activeVariable, stats, getIndustrialColor])
 
   return (
     <div ref={containerRef} className="flex flex-col h-full w-full bg-slate-950 rounded-[32px] border border-white/10 p-3 md:p-6 backdrop-blur-3xl relative shadow-2xl overflow-hidden group">
