@@ -2,7 +2,8 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { Activity, Cpu, Database } from 'lucide-react'
+import { Activity, Cpu, Database, ShieldCheck, Box, Maximize2, Download } from 'lucide-react'
+import ExportButtons from './export-buttons'
 
 interface DataPoint {
   x: number; y: number; z: number;
@@ -32,15 +33,17 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   scenarioType = 'H2_PIPELINE'
 }) => {
   const containerRef = useRef<HTMLDivElement>(null)
+  const visualizationRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const controlsRef = useRef<any>(null)
   const meshGroupRef = useRef<THREE.Group | null>(null)
+  const axesGroupRef = useRef<THREE.Group | null>(null)
   const [isMounted, setIsMounted] = useState(false)
   const [stats, setStats] = useState({ minV: 0, maxV: 1, avgV: 0, count: 0 })
   const [activeVariable, setActiveVariable] = useState(colorVariable)
-  const [renderTime, setRenderTime] = useState(0)
+  const [showAxes, setShowAxes] = useState(true)
 
   useEffect(() => { setIsMounted(true); return () => setIsMounted(false) }, [])
 
@@ -54,7 +57,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
 
   useEffect(() => {
     if (!data.length) return
-    const vals = data.map(p => (p as any)[activeVariable] ?? 0)
+    const vals = data.map(p => (p as any)[activeVariable] ?? (p as any)[activeVariable.replace(/_/g, '')] ?? 0)
     setStats({
       minV: Math.min(...vals),
       maxV: Math.max(...vals),
@@ -72,6 +75,62 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     return [1, 0, 0];
   }, []);
 
+  const createScientificAxes = useCallback((scene: THREE.Scene) => {
+    if (axesGroupRef.current) {
+      scene.remove(axesGroupRef.current)
+    }
+    const group = new THREE.Group()
+    axesGroupRef.current = group
+
+    const { min, max } = domainBounds
+    const size = new THREE.Vector3().subVectors(max, min)
+    const axisLen = Math.max(size.x, size.y, size.z) * 0.2
+
+    // Helper function for labels
+    const createLabel = (text: string, pos: THREE.Vector3, color: string) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 128
+      canvas.height = 128
+      const ctx = canvas.getContext('2d')!
+      ctx.fillStyle = color
+      ctx.font = 'bold 80px Arial'
+      ctx.textAlign = 'center'
+      ctx.fillText(text, 64, 80)
+      const texture = new THREE.CanvasTexture(canvas)
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }))
+      sprite.position.copy(pos)
+      sprite.scale.set(axisLen * 0.3, axisLen * 0.3, 1)
+      return sprite
+    }
+
+    // X Axis (Red)
+    const xGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x + axisLen, min.y, min.z)])
+    group.add(new THREE.Line(xGeo, new THREE.LineBasicMaterial({ color: 0xff4444, linewidth: 2 })))
+    group.add(createLabel('X', new THREE.Vector3(min.x + axisLen * 1.2, min.y, min.z), '#ff4444'))
+
+    // Y Axis (Green)
+    const yGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, min.y + axisLen, min.z)])
+    group.add(new THREE.Line(yGeo, new THREE.LineBasicMaterial({ color: 0x44ff44, linewidth: 2 })))
+    group.add(createLabel('Y', new THREE.Vector3(min.x, min.y + axisLen * 1.2, min.z), '#44ff44'))
+
+    // Z Axis (Blue)
+    const zGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, min.y, min.z + axisLen)])
+    group.add(new THREE.Line(zGeo, new THREE.LineBasicMaterial({ color: 0x4444ff, linewidth: 2 })))
+    group.add(createLabel('Z', new THREE.Vector3(min.x, min.y, min.z + axisLen * 1.2), '#4444ff'))
+
+    // Bounding Box
+    const box = new THREE.BoxHelper(new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z)), 0x333333)
+    box.position.copy(domainBounds.center)
+    group.add(box)
+
+    // Grid at bottom
+    const grid = new THREE.GridHelper(Math.max(size.x, size.z) * 1.5, 10, 0x222222, 0x111111)
+    grid.position.set(domainBounds.center.x, min.y, domainBounds.center.z)
+    group.add(grid)
+
+    scene.add(group)
+  }, [domainBounds])
+
   const buildMassiveVolume = useCallback((scene: THREE.Scene) => {
     if (meshGroupRef.current) {
       scene.remove(meshGroupRef.current)
@@ -84,9 +143,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     meshGroupRef.current = group
     if (!data.length) return
 
-    // TRULY-INDUSTRIAL VOXEL DENSITY
-    // KELLY SENECAL V2.1.7: Truly-industrial resolution (min 1000 points)
-    const gridSize = quality === 'ultra' ? 100 : 60
+    const gridSize = quality === 'ultra' ? 80 : 50
     const { min, max } = domainBounds
     const size = new THREE.Vector3().subVectors(max, min)
     const cellSize = new THREE.Vector3(size.x / gridSize, size.y / gridSize, size.z / gridSize)
@@ -94,29 +151,13 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const grid = new Float32Array(gridSize * gridSize * gridSize).fill(-1)
     const weightGrid = new Float32Array(gridSize * gridSize * gridSize).fill(0)
 
-    // KELLY SENECAL V2.1.7: Data Normalizer for Backend/Frontend formats
-    const normalizedData = data.map(p => ({
-      x: p.x, y: p.y, z: p.z,
-      pressure: Number(p.pressure ?? (p as any).p ?? 0),
-      temperature: Number(p.temperature ?? (p as any).temp ?? 0),
-      velocity_magnitude: Number(p.velocity_magnitude ?? (p as any).velocityMagnitude ?? 0),
-      velocity_u: Number(p.velocity_u ?? (p as any).velocityU ?? 0),
-      velocity_v: Number(p.velocity_v ?? (p as any).velocityV ?? 0),
-      velocity_w: Number(p.velocity_w ?? (p as any).velocityW ?? 0),
-      von_mises: Number(p.von_mises ?? (p as any).vonMises ?? 0),
-      sigma_1: Number(p.sigma_1 ?? (p as any).sigma1 ?? 0),
-      damage: Number(p.damage ?? 0)
-    }));
-
-    // Splot data into grid with Gaussian-like splatting for "Full Volume"
-    normalizedData.forEach(p => {
-      const gx = Math.floor(((p.x - min.x) / size.x) * (gridSize - 1))
-      const gy = Math.floor(((p.y - min.y) / size.y) * (gridSize - 1))
-      const gz = Math.floor(((p.z - min.z) / size.z) * (gridSize - 1))
+    data.forEach(p => {
+      const gx = Math.floor(((p.x - min.x) / (size.x || 1)) * (gridSize - 1))
+      const gy = Math.floor(((p.y - min.y) / (size.y || 1)) * (gridSize - 1))
+      const gz = Math.floor(((p.z - min.z) / (size.z || 1)) * (gridSize - 1))
       
-      const val = (p as any)[activeVariable] ?? 0
+      const val = (p as any)[activeVariable] ?? (p as any)[activeVariable.replace(/_/g, '')] ?? 0
       
-      // Splat to neighbors to ensure no holes
       for (let di = -1; di <= 1; di++) {
         for (let dj = -1; dj <= 1; dj++) {
           for (let dk = -1; dk <= 1; dk++) {
@@ -134,7 +175,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     })
 
     const vMin = stats.minV, vRange = stats.maxV - vMin || 1
-    const cubeGeo = new THREE.BoxGeometry(cellSize.x * 1.05, cellSize.y * 1.05, cellSize.z * 1.05) // Overlap to prevent gaps
+    const cubeGeo = new THREE.BoxGeometry(cellSize.x * 1.02, cellSize.y * 1.02, cellSize.z * 1.02)
     
     const instances: { pos: THREE.Vector3, col: THREE.Color }[] = []
     for (let i = 0; i < gridSize; i++) {
@@ -155,9 +196,9 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
 
     if (instances.length > 0) {
       const instMesh = new THREE.InstancedMesh(cubeGeo, new THREE.MeshPhongMaterial({
-        transparent: false, // Truly massive, no transparency holes
-        shininess: 50,
-        specular: new THREE.Color(0x222222)
+        transparent: false,
+        shininess: 30,
+        specular: new THREE.Color(0x111111)
       }), instances.length)
       
       const dummy = new THREE.Object3D()
@@ -173,34 +214,34 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   }, [data, activeVariable, quality, domainBounds, stats, getIndustrialColor])
 
   useEffect(() => {
-    if (!isMounted || !containerRef.current || !data.length) return
-    const start = performance.now()
+    if (!isMounted || !visualizationRef.current || !data.length) return
     
     const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x050505)
+    scene.background = new THREE.Color(0x020617)
     sceneRef.current = scene
 
-    const camera = new THREE.PerspectiveCamera(45, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000)
-    camera.position.set(domainBounds.max.x * 2, domainBounds.max.y * 2, domainBounds.max.z * 2)
+    const camera = new THREE.PerspectiveCamera(45, visualizationRef.current.clientWidth / visualizationRef.current.clientHeight, 0.1, 1000)
+    camera.position.set(domainBounds.max.x * 2.5, domainBounds.max.y * 2.5, domainBounds.max.z * 2.5)
     camera.lookAt(domainBounds.center)
     cameraRef.current = camera
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight)
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true })
+    renderer.setSize(visualizationRef.current.clientWidth, visualizationRef.current.clientHeight)
     renderer.setPixelRatio(window.devicePixelRatio)
-    containerRef.current.appendChild(renderer.domElement)
+    visualizationRef.current.appendChild(renderer.domElement)
     rendererRef.current = renderer
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
     controlsRef.current = controls
 
-    scene.add(new THREE.AmbientLight(0x444444))
+    scene.add(new THREE.AmbientLight(0x666666))
     const light = new THREE.DirectionalLight(0xffffff, 1)
     light.position.set(10, 10, 10)
     scene.add(light)
 
     buildMassiveVolume(scene)
+    createScientificAxes(scene)
 
     const animate = () => {
       if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return
@@ -210,84 +251,129 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     }
     animate()
 
-    setRenderTime(performance.now() - start)
-
     const handleResize = () => {
-      if (!containerRef.current || !cameraRef.current || !rendererRef.current) return
-      cameraRef.current.aspect = containerRef.current.clientWidth / containerRef.current.clientHeight
+      if (!visualizationRef.current || !cameraRef.current || !rendererRef.current) return
+      cameraRef.current.aspect = visualizationRef.current.clientWidth / visualizationRef.current.clientHeight
       cameraRef.current.updateProjectionMatrix()
-      rendererRef.current.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight)
+      rendererRef.current.setSize(visualizationRef.current.clientWidth, visualizationRef.current.clientHeight)
     }
     window.addEventListener('resize', handleResize)
 
     return () => {
       window.removeEventListener('resize', handleResize)
-      if (containerRef.current && rendererRef.current) containerRef.current.removeChild(rendererRef.current.domElement)
+      if (visualizationRef.current && rendererRef.current) visualizationRef.current.removeChild(rendererRef.current.domElement)
       rendererRef.current?.dispose()
     }
-  }, [isMounted, data, buildMassiveVolume, domainBounds])
+  }, [isMounted, data, buildMassiveVolume, createScientificAxes, domainBounds])
+
+  const getUnit = (v: string) => {
+    if (v === 'temperature') return 'K'
+    if (v.includes('pressure') || v.includes('stress') || v.includes('von_mises') || v.includes('sigma')) return 'MPa'
+    if (v.includes('velocity')) return 'm/s'
+    if (v === 'density') return 'kg/m³'
+    return ''
+  }
 
   const formatScaleValue = (v: number) => {
     if (Math.abs(v) > 1e6) return (v / 1e6).toFixed(2) + 'M'
     if (Math.abs(v) > 1e3) return (v / 1e3).toFixed(2) + 'k'
-    return v.toFixed(2)
+    return v.toFixed(3)
   }
 
   return (
-    <div className="flex flex-col h-full w-full bg-slate-950/50 rounded-[40px] border border-white/10 p-6 backdrop-blur-3xl relative shadow-2xl overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-cyan-500 to-red-600" />
+    <div ref={containerRef} className="flex flex-col h-full w-full bg-slate-950 rounded-[32px] border border-white/10 p-6 backdrop-blur-3xl relative shadow-2xl overflow-hidden group">
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-600" />
+      
+      {/* Header */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 z-10 mb-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-[10px] font-black text-cyan-500 uppercase tracking-[0.3em]">
-            <Activity className="w-3 h-3" /> TRULY-INDUSTRIAL V11-GOLD
+            <Activity className="w-3 h-3" /> TRULY-INDUSTRIAL SCIENTIFIC V11
           </div>
-          <h3 className="text-2xl font-black text-white tracking-tighter uppercase">{title !== "INDUSTRIAL V11-GOLD STANDARD" ? title : (scenarioType?.replace(/_/g, ' ') || 'QUANTUM HYBRID PINN')}</h3>
-          <p className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Truly-Massive Volumetric Voxel Engine</p>
+          <h3 className="text-2xl font-black text-white tracking-tighter uppercase">
+            {title !== "INDUSTRIAL V11-GOLD STANDARD" ? title : (scenarioType?.replace(/_/g, ' ') || 'QUANTUM HYBRID PINN')}
+          </h3>
+          <p className="text-[9px] font-mono text-gray-500 uppercase tracking-widest">Physics-Informed Volumetric Engine</p>
         </div>
-        <div className="flex gap-1.5 bg-black/60 p-1.5 rounded-2xl border border-white/5 flex-wrap">
-          {(['pressure', 'temperature', 'velocity_magnitude', 'stress', 'von_mises', 'density'] as const).map(v => (
-            <button key={v} onClick={() => setActiveVariable(v)} className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all ${activeVariable === v ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}>{v}</button>
-          ))}
-        </div>
-      </div>
-      <div className="flex-1 w-full flex gap-4 min-h-0">
-        <div ref={containerRef} className="flex-1 rounded-[24px] overflow-hidden border border-white/10 bg-black/40 relative" />
-        <div className="w-28 flex flex-col items-center py-4 bg-black/50 rounded-[24px] border border-white/5 relative">
-          <div className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2 text-center leading-tight">{formatScaleValue(stats.maxV)}</div>
-          <div className="flex flex-col items-center justify-between h-[calc(100%-40px)] py-2">
-            {[...Array(9)].map((_, i) => (
-              <div key={i} className="flex items-center gap-1.5 w-full">
-                <div className="text-[8px] font-mono text-gray-400 text-right flex-1 leading-none">{formatScaleValue(stats.maxV - (i/8)*(stats.maxV-stats.minV))}</div>
-                <div className={`w-3 h-[2px] rounded ${i === 0 ? 'bg-red-500' : i === 8 ? 'bg-blue-700' : 'bg-yellow-400'}`} />
-              </div>
+        
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex gap-1 bg-black/40 p-1 rounded-xl border border-white/5 flex-wrap">
+            {(['pressure', 'temperature', 'velocity_magnitude', 'von_mises', 'density'] as const).map(v => (
+              <button key={v} onClick={() => setActiveVariable(v)} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${activeVariable === v ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>{v}</button>
             ))}
           </div>
-          <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-2 text-center leading-tight">{formatScaleValue(stats.minV)}</div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowAxes(!showAxes)} className={`p-2 rounded-lg border transition-all ${showAxes ? 'bg-emerald-600/20 border-emerald-500/50 text-emerald-400' : 'bg-white/5 border-white/10 text-gray-500'}`} title="Toggle Axes">
+              <Box className="w-4 h-4" />
+            </button>
+            <ExportButtons containerRef={containerRef} fileName={title} jsonData={{ data, stats, scenarioType, activeVariable }} />
+          </div>
         </div>
       </div>
+
+      {/* Main Visualization Area */}
+      <div className="flex-1 w-full flex gap-4 min-h-0 relative">
+        <div ref={visualizationRef} className="flex-1 rounded-[24px] overflow-hidden border border-white/10 bg-black/20 relative" />
+        
+        {/* Scientific Scale Bar */}
+        <div className="w-24 flex flex-col items-center py-4 bg-black/40 rounded-[24px] border border-white/5 relative backdrop-blur-md">
+          <div className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2 text-center leading-tight">
+            {formatScaleValue(stats.maxV)}
+            <span className="block text-[8px] text-gray-500">{getUnit(activeVariable)}</span>
+          </div>
+          <div className="flex flex-col items-center justify-between h-[calc(100%-60px)] py-2 w-full">
+            <div className="w-3 h-full bg-gradient-to-t from-blue-600 via-yellow-400 to-red-600 rounded-full border border-white/10" />
+            <div className="absolute left-full ml-2 h-[calc(100%-60px)] flex flex-col justify-between py-2">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="text-[8px] font-mono text-gray-500 leading-none">
+                  {formatScaleValue(stats.maxV - (i/5)*(stats.maxV-stats.minV))}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest mt-2 text-center leading-tight">
+            {formatScaleValue(stats.minV)}
+            <span className="block text-[8px] text-gray-500">{getUnit(activeVariable)}</span>
+          </div>
+        </div>
+
+        {/* Physical Dimension Bar (Scale) */}
+        <div className="absolute bottom-6 left-6 flex items-end gap-2 bg-black/60 px-3 py-2 rounded-lg border border-white/10 backdrop-blur-md z-20">
+          <div className="flex flex-col gap-1">
+            <div className="flex justify-between text-[8px] font-mono text-gray-400">
+              <span>0</span>
+              <span>{(domainBounds.max.x - domainBounds.min.x).toFixed(1)} mm</span>
+            </div>
+            <div className="w-32 h-1.5 bg-white/10 rounded-full overflow-hidden flex">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className={`flex-1 ${i % 2 === 0 ? 'bg-white/40' : 'bg-transparent'}`} />
+              ))}
+            </div>
+          </div>
+          <div className="text-[9px] font-black text-white/60 uppercase tracking-tighter">Scale</div>
+        </div>
+      </div>
+
+      {/* Footer Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 z-10">
         {[
-          { l: `Min ${activeVariable} (${activeVariable === 'temperature' ? 'K' : activeVariable.includes('stress') || activeVariable.includes('von_mises') ? 'MPa' : 'Pa'})`, v: formatScaleValue(stats.minV), c: 'text-blue-400', i: Cpu },
-          { l: `Max ${activeVariable} (${activeVariable === 'temperature' ? 'K' : activeVariable.includes('stress') || activeVariable.includes('von_mises') ? 'MPa' : 'Pa'})`, v: formatScaleValue(stats.maxV), c: 'text-red-400', i: Activity },
-          { l: 'Moyenne Physique', v: formatScaleValue(stats.avgV), c: 'text-cyan-400', i: Database },
+          { l: `Min ${activeVariable}`, v: `${formatScaleValue(stats.minV)} ${getUnit(activeVariable)}`, c: 'text-blue-400', i: Cpu },
+          { l: `Max ${activeVariable}`, v: `${formatScaleValue(stats.maxV)} ${getUnit(activeVariable)}`, c: 'text-red-400', i: Activity },
+          { l: 'Moyenne Physique', v: `${formatScaleValue(stats.avgV)} ${getUnit(activeVariable)}`, c: 'text-emerald-400', i: Database },
           { l: 'Points PINN Actifs', v: stats.count.toLocaleString(), c: 'text-white', i: ShieldCheck }
         ].map((s, i) => (
-          <div key={i} className="bg-white/[0.03] border border-white/5 p-3 rounded-xl flex items-center gap-3">
-            <s.i className="w-4 h-4 text-gray-600" />
+          <div key={i} className="bg-white/[0.03] border border-white/5 p-3 rounded-2xl flex items-center gap-3 hover:bg-white/[0.05] transition-all">
+            <div className="p-2 rounded-xl bg-black/40 border border-white/5">
+              <s.i className="w-4 h-4 text-gray-400" />
+            </div>
             <div>
               <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-0.5">{s.l}</p>
-              <p className={`text-base font-black ${s.c} tracking-tight`}>{s.v}</p>
+              <p className={`text-sm font-black ${s.c} tracking-tight`}>{s.v}</p>
             </div>
           </div>
         ))}
       </div>
     </div>
-  )
-}
-
-function ShieldCheck(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
   )
 }
 
