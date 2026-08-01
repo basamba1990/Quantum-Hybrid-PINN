@@ -25,6 +25,182 @@ interface Props {
   scenarioType?: ScenarioType;
 }
 
+/**
+ * TRULY-INDUSTRIAL V11-ENHANCED
+ * Physics-Informed Volumetric Engine with Scenario-Adaptive Geometry
+ * 
+ * Chaque scénario industriel a sa propre forme géométrique physique :
+ * - Pipeline H2 → Cylindre horizontal (forme tubulaire)
+ * - Stockage LH2 → Sphère/Cylindre vertical (réservoir pressurisé)
+ * - Bloc minier → Parallélépipède massif (roche)
+ * - Heatsink FPGA → Plaque rectangulaire avec ailettes
+ * - Compression → Cylindre vertical compact
+ */
+
+// ============================================================================
+// SCENARIO GEOMETRY DEFINITIONS - Formes géométriques industrielles réelles
+// ============================================================================
+interface ScenarioGeometry {
+  shape: 'cylinder_horizontal' | 'cylinder_vertical' | 'sphere' | 'box' | 'rectangular_plate';
+  /** Dimensions physiques (rayon ou demi-axes) */
+  radius?: number;
+  height?: number;
+  length?: number;
+  width?: number;
+  wallThickness?: number;
+  /** Contrainte : point doit être à l'intérieur de la forme */
+  isInsideShape: (x: number, y: number, z: number, geom: ScenarioGeometry) => boolean;
+  /** Description industrielle */
+  industrialDescription: string;
+  /** Symbole visuel */
+  icon: string;
+}
+
+const SCENARIO_GEOMETRIES: Record<ScenarioType, ScenarioGeometry> = {
+  H2_PIPELINE: {
+    shape: 'cylinder_horizontal',
+    radius: 0.15,
+    length: 5.0,
+    wallThickness: 0.015,
+    industrialDescription: 'Pipeline H2 haute pression (DN300, PN200)',
+    icon: '🔵',
+    isInsideShape: (x, y, z, geom) => {
+      // Cylindre horizontal le long de l'axe X
+      const distFromAxis = Math.sqrt(y * y + z * z);
+      return distFromAxis <= geom.radius!;
+    }
+  },
+  H2_PIPELINE_STRATEGIC: {
+    shape: 'cylinder_horizontal',
+    radius: 0.20,
+    length: 10.0,
+    wallThickness: 0.025,
+    industrialDescription: 'Pipeline H2 stratégique (DN400, PN300)',
+    icon: '🔵',
+    isInsideShape: (x, y, z, geom) => {
+      const distFromAxis = Math.sqrt(y * y + z * z);
+      return distFromAxis <= geom.radius!;
+    }
+  },
+  PIPELINE_SAFETY: {
+    shape: 'cylinder_horizontal',
+    radius: 0.15,
+    length: 5.0,
+    wallThickness: 0.015,
+    industrialDescription: 'Pipeline H2 sécurité (audit intégrité)',
+    icon: '🔵',
+    isInsideShape: (x, y, z, geom) => {
+      const distFromAxis = Math.sqrt(y * y + z * z);
+      return distFromAxis <= geom.radius!;
+    }
+  },
+  LH2_STORAGE: {
+    shape: 'cylinder_vertical',
+    radius: 1.0,
+    height: 4.0,
+    wallThickness: 0.05,
+    industrialDescription: 'Réservoir LH2 cryogénique (5000L)',
+    icon: '🔴',
+    isInsideShape: (x, y, z, geom) => {
+      // Cylindre vertical le long de l'axe Y
+      const distFromAxis = Math.sqrt(x * x + z * z);
+      return distFromAxis <= geom.radius! && Math.abs(y) <= geom.height! / 2;
+    }
+  },
+  H2_COMPRESSION_STATION: {
+    shape: 'cylinder_vertical',
+    radius: 0.5,
+    height: 2.5,
+    wallThickness: 0.03,
+    industrialDescription: 'Station de compression H2 (700 bar)',
+    icon: '🟢',
+    isInsideShape: (x, y, z, geom) => {
+      const distFromAxis = Math.sqrt(x * x + z * z);
+      return distFromAxis <= geom.radius! && Math.abs(y) <= geom.height! / 2;
+    }
+  },
+  CRYOGENIC_TRANSPORT: {
+    shape: 'cylinder_horizontal',
+    radius: 0.8,
+    length: 8.0,
+    wallThickness: 0.04,
+    industrialDescription: 'Citerne cryogénique de transport',
+    icon: '🔵',
+    isInsideShape: (x, y, z, geom) => {
+      const distFromAxis = Math.sqrt(y * y + z * z);
+      return distFromAxis <= geom.radius!;
+    }
+  },
+  DEEP_MINING_BLOCK: {
+    shape: 'box',
+    length: 50.0,
+    width: 50.0,
+    height: 50.0,
+    industrialDescription: 'Bloc minier profond (stress géomécanique)',
+    icon: '⬛',
+    isInsideShape: (x, y, z, geom) => {
+      return Math.abs(x) <= geom.length! / 2 && 
+             Math.abs(y) <= geom.height! / 2 && 
+             Math.abs(z) <= geom.width! / 2;
+    }
+  },
+  MINING_INDUSTRIAL_SIM: {
+    shape: 'box',
+    length: 100.0,
+    width: 100.0,
+    height: 100.0,
+    industrialDescription: 'Simulation minière industrielle (100m³)',
+    icon: '⬛',
+    isInsideShape: (x, y, z, geom) => {
+      return Math.abs(x) <= geom.length! / 2 && 
+             Math.abs(y) <= geom.height! / 2 && 
+             Math.abs(z) <= geom.width! / 2;
+    }
+  },
+  ROCK_ELAST_STRESS: {
+    shape: 'box',
+    length: 20.0,
+    width: 20.0,
+    height: 20.0,
+    industrialDescription: 'Échantillon rocheux (contrainte élastique)',
+    icon: '⬛',
+    isInsideShape: (x, y, z, geom) => {
+      return Math.abs(x) <= geom.length! / 2 && 
+             Math.abs(y) <= geom.height! / 2 && 
+             Math.abs(z) <= geom.width! / 2;
+    }
+  },
+  FPGA_HEATSINK: {
+    shape: 'rectangular_plate',
+    length: 0.15,
+    width: 0.15,
+    height: 0.05,
+    industrialDescription: 'Dissipateur thermique FPGA (150×150×50mm)',
+    icon: '🟫',
+    isInsideShape: (x, y, z, geom) => {
+      return Math.abs(x) <= geom.length! / 2 && 
+             Math.abs(y) <= geom.height! / 2 && 
+             Math.abs(z) <= geom.width! / 2;
+    }
+  },
+  PORT_ENERGY_OPTIMIZATION: {
+    shape: 'box',
+    length: 500.0,
+    width: 300.0,
+    height: 100.0,
+    industrialDescription: 'Zone portuaire (optimisation énergétique)',
+    icon: '⬛',
+    isInsideShape: (x, y, z, geom) => {
+      return Math.abs(x) <= geom.length! / 2 && 
+             Math.abs(y) <= geom.height! / 2 && 
+             Math.abs(z) <= geom.width! / 2;
+    }
+  }
+};
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   data = [],
   title = "INDUSTRIAL V11-GOLD STANDARD",
@@ -40,6 +216,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   const controlsRef = useRef<any>(null)
   const meshGroupRef = useRef<THREE.Group | null>(null)
   const axesGroupRef = useRef<THREE.Group | null>(null)
+  const geometryOutlineRef = useRef<THREE.Object3D | null>(null)
   const [isMounted, setIsMounted] = useState(false)
   const [stats, setStats] = useState({ minV: 0, maxV: 1, avgV: 0, count: 0 })
   const [activeVariable, setActiveVariable] = useState(colorVariable)
@@ -47,15 +224,36 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   const [renderMode, setRenderMode] = useState<'volume' | 'particles'>('volume')
   const [isLoading, setIsLoading] = useState(data.length === 0)
 
+  // Get current scenario geometry
+  const scenarioGeometry = useMemo(() => {
+    return SCENARIO_GEOMETRIES[scenarioType] || SCENARIO_GEOMETRIES.H2_PIPELINE;
+  }, [scenarioType]);
+
   useEffect(() => { setIsMounted(true); return () => setIsMounted(false) }, [])
 
   const domainBounds = useMemo(() => {
-    if (!data.length) return { min: new THREE.Vector3(-1, -1, -1), max: new THREE.Vector3(1, 1, 1), center: new THREE.Vector3(0, 0, 0) }
+    if (!data.length) {
+      // Default domain based on scenario geometry
+      const geom = scenarioGeometry;
+      let halfSize = 1;
+      if (geom.shape === 'cylinder_horizontal') {
+        halfSize = Math.max(geom.radius || 0.5, (geom.length || 5) / 4);
+      } else if (geom.shape === 'cylinder_vertical') {
+        halfSize = Math.max(geom.radius || 1, (geom.height || 4) / 2);
+      } else {
+        halfSize = Math.max(geom.length || 10, geom.width || 10, geom.height || 10) / 2;
+      }
+      return { 
+        min: new THREE.Vector3(-halfSize, -halfSize, -halfSize), 
+        max: new THREE.Vector3(halfSize, halfSize, halfSize), 
+        center: new THREE.Vector3(0, 0, 0) 
+      };
+    }
     const xs = data.map(p => p.x), ys = data.map(p => p.y), zs = data.map(p => p.z)
     const min = new THREE.Vector3(Math.min(...xs), Math.min(...ys), Math.min(...zs))
     const max = new THREE.Vector3(Math.max(...xs), Math.max(...ys), Math.max(...zs))
     return { min, max, center: new THREE.Vector3().addVectors(min, max).multiplyScalar(0.5) }
-  }, [data])
+  }, [data, scenarioGeometry])
 
   useEffect(() => {
     if (!data.length) {
@@ -80,6 +278,144 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     if (v < 0.8) return [1, 1 - (v - 0.6) * 5, 0];
     return [1, 0, 0];
   }, []);
+
+  // ============================================================================
+  // SCENARIO-ADAPTIVE GEOMETRY: Build the physical shape outline
+  // ============================================================================
+  const buildScenarioOutline = useCallback((scene: THREE.Scene) => {
+    // Remove old outline
+    if (geometryOutlineRef.current) {
+      scene.remove(geometryOutlineRef.current);
+      geometryOutlineRef.current.traverse((child: any) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+      });
+    }
+
+    const group = new THREE.Group();
+    geometryOutlineRef.current = group;
+    const geom = scenarioGeometry;
+    const { min, max } = domainBounds;
+    const center = new THREE.Vector3().addVectors(min, max).multiplyScalar(0.5);
+
+    const wallMaterial = new THREE.MeshPhongMaterial({
+      color: 0x4488ff,
+      transparent: true,
+      opacity: 0.12,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    const wireframeMaterial = new THREE.MeshBasicMaterial({
+      color: 0x2266cc,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.25
+    });
+
+    if (geom.shape === 'cylinder_horizontal') {
+      // Cylindre horizontal le long de l'axe X (pipeline)
+      const length = geom.length || 5.0;
+      const radius = geom.radius || 0.15;
+      const geo = new THREE.CylinderGeometry(radius, radius, length, 64, 1, true);
+      geo.rotateZ(Math.PI / 2); // Orienter le long de X
+      
+      const mesh = new THREE.Mesh(geo, wallMaterial);
+      mesh.position.copy(center);
+      group.add(mesh);
+      
+      const wireframe = new THREE.Mesh(geo, wireframeMaterial);
+      wireframe.position.copy(center);
+      group.add(wireframe);
+
+      // Bouchons aux extrémités
+      const capGeo = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+      const capMat = new THREE.MeshPhongMaterial({
+        color: 0x3366aa,
+        transparent: true,
+        opacity: 0.15,
+        side: THREE.DoubleSide
+      });
+      
+      const cap1 = new THREE.Mesh(capGeo, capMat);
+      cap1.rotation.z = -Math.PI / 2;
+      cap1.position.set(center.x - length / 2, center.y, center.z);
+      group.add(cap1);
+      
+      const cap2 = new THREE.Mesh(capGeo, capMat);
+      cap2.rotation.z = Math.PI / 2;
+      cap2.position.set(center.x + length / 2, center.y, center.z);
+      group.add(cap2);
+
+    } else if (geom.shape === 'cylinder_vertical') {
+      // Cylindre vertical le long de l'axe Y (réservoir)
+      const radius = geom.radius || 1.0;
+      const height = geom.height || 4.0;
+      const geo = new THREE.CylinderGeometry(radius, radius, height, 64, 1, true);
+      
+      const mesh = new THREE.Mesh(geo, wallMaterial);
+      mesh.position.copy(center);
+      group.add(mesh);
+      
+      const wireframe = new THREE.Mesh(geo, wireframeMaterial);
+      wireframe.position.copy(center);
+      group.add(wireframe);
+
+      // Bouchons haut et bas
+      const capGeo = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+      const capMat = new THREE.MeshPhongMaterial({
+        color: 0x3366aa,
+        transparent: true,
+        opacity: 0.15,
+        side: THREE.DoubleSide
+      });
+      
+      const capBottom = new THREE.Mesh(capGeo, capMat);
+      capBottom.rotation.x = Math.PI;
+      capBottom.position.set(center.x, center.y - height / 2, center.z);
+      group.add(capBottom);
+      
+      const capTop = new THREE.Mesh(capGeo, capMat);
+      capTop.position.set(center.x, center.y + height / 2, center.z);
+      group.add(capTop);
+
+    } else if (geom.shape === 'sphere') {
+      // Sphère (réservoir sphérique)
+      const radius = geom.radius || 1.0;
+      const geo = new THREE.SphereGeometry(radius, 64, 32);
+      
+      const mesh = new THREE.Mesh(geo, wallMaterial);
+      mesh.position.copy(center);
+      group.add(mesh);
+      
+      const wireframe = new THREE.Mesh(geo, wireframeMaterial);
+      wireframe.position.copy(center);
+      group.add(wireframe);
+
+    } else {
+      // Boîte (bloc minier, heatsink, zone portuaire)
+      const length = geom.length || 10;
+      const width = geom.width || 10;
+      const height = geom.height || 10;
+      const geo = new THREE.BoxGeometry(length, height, width);
+      
+      const mesh = new THREE.Mesh(geo, wallMaterial);
+      mesh.position.copy(center);
+      group.add(mesh);
+      
+      const wireframe = new THREE.Mesh(geo, wireframeMaterial);
+      wireframe.position.copy(center);
+      group.add(wireframe);
+
+      // Arêtes visibles
+      const edges = new THREE.EdgesGeometry(geo);
+      const edgesMat = new THREE.LineBasicMaterial({ color: 0x4488ff, opacity: 0.5, transparent: true });
+      const edgesLine = new THREE.LineSegments(edges, edgesMat);
+      edgesLine.position.copy(center);
+      group.add(edgesLine);
+    }
+
+    scene.add(group);
+  }, [domainBounds, scenarioGeometry]);
 
   const createScientificAxes = useCallback((scene: THREE.Scene) => {
     if (axesGroupRef.current) {
@@ -161,6 +497,10 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     scene.add(group)
   }, [domainBounds])
 
+  // ============================================================================
+  // SCENARIO-ADAPTIVE VOLUME BUILDING
+  // Les voxels ne sont créés que SI le point est physiquement dans la forme
+  // ============================================================================
   const buildMassiveVolume = useCallback((scene: THREE.Scene) => {
     if (meshGroupRef.current) {
       scene.remove(meshGroupRef.current)
@@ -181,7 +521,13 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const grid = new Float32Array(gridSize * gridSize * gridSize).fill(-1)
     const weightGrid = new Float32Array(gridSize * gridSize * gridSize).fill(0)
 
+    // PHYSICAL CONSTRAINT: Only populate cells that are inside the scenario geometry
+    const geom = scenarioGeometry;
+
     data.forEach(p => {
+      // Vérifier que le point est physiquement dans la forme industrielle
+      if (!geom.isInsideShape(p.x, p.y, p.z, geom)) return;
+
       const gx = Math.floor(((p.x - min.x) / (size.x || 1)) * (gridSize - 1))
       const gy = Math.floor(((p.y - min.y) / (size.y || 1)) * (gridSize - 1))
       const gz = Math.floor(((p.z - min.z) / (size.z || 1)) * (gridSize - 1))
@@ -194,6 +540,13 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
             const ni = gx + di, nj = gy + dj, nk = gz + dk
             if (ni >= 0 && ni < gridSize && nj >= 0 && nj < gridSize && nk >= 0 && nk < gridSize) {
               const idx = ni + nj * gridSize + nk * gridSize * gridSize
+              
+              // Vérifier que la cellule interpolée est aussi dans la forme
+              const cx = min.x + ni * cellSize.x
+              const cy = min.y + nj * cellSize.y
+              const cz = min.z + nk * cellSize.z
+              if (!geom.isInsideShape(cx, cy, cz, geom)) continue;
+              
               const weight = 1.0 / (1.0 + Math.sqrt(di*di + dj*dj + dk*dk))
               if (grid[idx] === -1) grid[idx] = val
               else grid[idx] = (grid[idx] * weightGrid[idx] + val * weight) / (weightGrid[idx] + weight)
@@ -241,9 +594,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
       group.add(instMesh)
     }
     scene.add(group)
-  }, [data, activeVariable, quality, domainBounds, stats, getIndustrialColor])
-
-
+  }, [data, activeVariable, quality, domainBounds, stats, getIndustrialColor, scenarioGeometry])
 
   const buildParticleCloud = useCallback((scene: THREE.Scene) => {
     if (meshGroupRef.current) {
@@ -253,39 +604,50 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     meshGroupRef.current = group
     if (!data.length) return
 
+    const geom = scenarioGeometry;
     const positions = new Float32Array(data.length * 3)
     const colors = new Float32Array(data.length * 3)
+    const sizes = new Float32Array(data.length)
     const vMin = stats.minV, vRange = stats.maxV - vMin || 1
 
+    let validCount = 0;
     data.forEach((p, i) => {
-      positions[i * 3] = p.x
-      positions[i * 3 + 1] = p.y
-      positions[i * 3 + 2] = p.z
+      // Filtrer les points hors de la forme géométrique
+      if (!geom.isInsideShape(p.x, p.y, p.z, geom)) return;
+
+      positions[validCount * 3] = p.x
+      positions[validCount * 3 + 1] = p.y
+      positions[validCount * 3 + 2] = p.z
       
       const val = (p as any)[activeVariable] ?? (p as any)[activeVariable.replace(/_/g, '')] ?? 0
       const norm = (val - vMin) / vRange
       const [r, g, b] = getIndustrialColor(norm)
-      colors[i * 3] = r
-      colors[i * 3 + 1] = g
-      colors[i * 3 + 2] = b
+      colors[validCount * 3] = r
+      colors[validCount * 3 + 1] = g
+      colors[validCount * 3 + 2] = b
+      sizes[validCount] = 0.05 * (0.5 + norm * 0.5); // Taille proportionnelle à la valeur
+      validCount++;
     })
 
+    if (validCount === 0) return;
+
     const geometry = new THREE.BufferGeometry()
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions.slice(0, validCount * 3), 3))
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors.slice(0, validCount * 3), 3))
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes.slice(0, validCount), 1))
     
     const material = new THREE.PointsMaterial({
       size: 0.05,
       vertexColors: true,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.85,
       sizeAttenuation: true
     })
 
     const points = new THREE.Points(geometry, material)
     group.add(points)
     scene.add(group)
-  }, [data, activeVariable, stats, getIndustrialColor])
+  }, [data, activeVariable, stats, getIndustrialColor, scenarioGeometry])
 
   useEffect(() => {
     if (!isMounted || !visualizationRef.current || !data.length) return
@@ -295,7 +657,22 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     sceneRef.current = scene
 
     const camera = new THREE.PerspectiveCamera(45, visualizationRef.current.clientWidth / visualizationRef.current.clientHeight, 0.1, 1000)
-    camera.position.set(domainBounds.max.x * 2.5, domainBounds.max.y * 2.5, domainBounds.max.z * 2.5)
+    
+    // Adapter la position caméra selon la forme géométrique
+    const { min, max } = domainBounds;
+    const size = new THREE.Vector3().subVectors(max, min);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    
+    if (scenarioGeometry.shape === 'cylinder_horizontal') {
+      // Vue latérale pour pipeline
+      camera.position.set(0, maxDim * 0.8, maxDim * 2.0)
+    } else if (scenarioGeometry.shape === 'cylinder_vertical') {
+      // Vue 3/4 pour réservoir
+      camera.position.set(maxDim * 2.0, maxDim * 0.8, maxDim * 2.0)
+    } else {
+      // Vue générale pour boîte/sphère
+      camera.position.set(maxDim * 1.5, maxDim * 1.5, maxDim * 2.0)
+    }
     camera.lookAt(domainBounds.center)
     cameraRef.current = camera
 
@@ -313,6 +690,14 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const light = new THREE.DirectionalLight(0xffffff, 1)
     light.position.set(10, 10, 10)
     scene.add(light)
+    
+    // Lumière supplémentaire pour mieux voir les formes
+    const light2 = new THREE.DirectionalLight(0x4488ff, 0.5)
+    light2.position.set(-10, -5, 10)
+    scene.add(light2)
+
+    // Build scenario outline (forme géométrique)
+    buildScenarioOutline(scene)
 
     if (renderMode === 'volume') {
       buildMassiveVolume(scene)
@@ -344,7 +729,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
       }
       rendererRef.current?.dispose()
     }
-  }, [isMounted, data, buildMassiveVolume, buildParticleCloud, createScientificAxes, domainBounds, renderMode])
+  }, [isMounted, data, buildMassiveVolume, buildParticleCloud, buildScenarioOutline, createScientificAxes, domainBounds, renderMode, scenarioGeometry])
 
   const getUnit = (v: string) => {
     if (v === 'temperature') return 'K'
@@ -372,8 +757,6 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     )
   }
 
-
-
   return (
     <div ref={containerRef} className="flex flex-col h-full w-full bg-slate-950 rounded-[32px] border border-white/10 p-3 md:p-6 backdrop-blur-3xl relative shadow-2xl overflow-hidden group">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-cyan-500 to-emerald-600" />
@@ -387,7 +770,12 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
           <h3 className="text-lg md:text-2xl font-black text-white tracking-tighter uppercase line-clamp-2">
             {title !== "INDUSTRIAL V11-GOLD STANDARD" ? title : (scenarioType?.replace(/_/g, ' ') || 'QUANTUM HYBRID PINN')}
           </h3>
-          <p className="text-[8px] md:text-[9px] font-mono text-gray-500 uppercase tracking-widest">Physics-Informed Volumetric Engine</p>
+          <p className="text-[8px] md:text-[9px] font-mono text-gray-500 uppercase tracking-widest">
+            Physics-Informed Volumetric Engine — {scenarioGeometry.industrialDescription}
+          </p>
+          <p className="text-[7px] md:text-[8px] font-mono text-cyan-400/60 tracking-wider">
+            Forme: {scenarioGeometry.shape.replace('_', ' ').toUpperCase()} | {scenarioGeometry.icon}
+          </p>
         </div>
         
         <div className="flex flex-col md:flex-row gap-2 md:gap-3">
