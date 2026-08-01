@@ -18,10 +18,10 @@ const BACKEND_TIMEOUT = 120000;
 // ============================================================================
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const analysisId = params.id;
+    const { id: analysisId } = await params;
 
     // Fetch the analysis
     const { data: analysis, error: fetchError } = await supabase
