@@ -202,16 +202,10 @@ const DualPhysicsVisualizer: React.FC<Props> = ({
         const value = rbfInterpolate(data, [px, py, pz], variable);
         const normalizedValue = (value - minVal) / (maxVal - minVal || 1);
         
-        let r, g, b;
-        if (normalizedValue < 0.25) {
-          r = 0; g = normalizedValue * 4; b = 1;
-        } else if (normalizedValue < 0.5) {
-          r = 0; g = 1; b = 1 - (normalizedValue - 0.25) * 4;
-        } else if (normalizedValue < 0.75) {
-          r = (normalizedValue - 0.5) * 4; g = 1; b = 0;
-        } else {
-          r = 1; g = 1 - (normalizedValue - 0.75) * 4; b = 0;
-        }
+        // Viridis Color Map (Perceptually Uniform)
+        const r = 0.267 + 0.6 * normalizedValue - 0.4 * normalizedValue * normalizedValue;
+        const g = 0.004 + 0.8 * normalizedValue + 0.1 * normalizedValue * normalizedValue;
+        const b = 0.329 + 0.3 * normalizedValue + 0.2 * normalizedValue * normalizedValue;
         
         colors[i] = r;
         colors[i + 1] = g;

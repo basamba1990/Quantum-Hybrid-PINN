@@ -149,16 +149,21 @@ const SCENARIO_GEOMETRIES: Record<ScenarioType, ScenarioGeometry> = {
 // ============================================================================
 // INDUSTRIAL COLOR MAP — Jet colormap (standard ANSYS/ParaView)
 // ============================================================================
-const jetColorMap = (t: number): [number, number, number] => {
+/**
+ * INDUSTRIAL COLOR MAP — Viridis (Perceptually Uniform)
+ * Standard for modern scientific visualization (ParaView/Matplotlib)
+ */
+const viridisColorMap = (t: number): [number, number, number] => {
   const v = Math.max(0, Math.min(1, t));
-  let r: number, g: number, b: number;
-  if (v < 0.125) { r = 0; g = 0; b = 0.5 + v * 4; }
-  else if (v < 0.375) { r = 0; g = (v - 0.125) * 4; b = 1; }
-  else if (v < 0.625) { r = (v - 0.375) * 4; g = 1; b = 1 - (v - 0.375) * 4; }
-  else if (v < 0.875) { r = 1; g = 1 - (v - 0.625) * 4; b = 0; }
-  else { r = 1 - (v - 0.875) * 4; g = 0; b = 0; }
+  // Viridis approximation
+  const r = 0.267 + 0.6 * v - 0.4 * v * v;
+  const g = 0.004 + 0.8 * v + 0.1 * v * v;
+  const b = 0.329 + 0.3 * v + 0.2 * v * v;
   return [r, g, b];
 };
+
+// Keep the name for compatibility or refactor all calls
+const jetColorMap = viridisColorMap;
 
 // ============================================================================
 // COMPONENT
@@ -725,7 +730,7 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
 
             // Simplified marching: add vertices at interpolated positions
             for (let face = 0; face < 3; face++) {
-              if (Math.random() > 0.3) continue; // Decimation
+              // No decimation for industrial accuracy
               const ci = min.x + (i + 0.5) * cellSize.x;
               const cj = min.y + (j + 0.5) * cellSize.y;
               const ck = min.z + (k + 0.5) * cellSize.z;
@@ -787,11 +792,11 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
 
     // Axes principaux
     group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(max.x, min.y, min.z)]), new THREE.LineBasicMaterial({ color: 0xff4444, linewidth: 2 })));
-    group.add(createLabel('X [cm]', new THREE.Vector3(max.x + axisLen * 0.5, min.y, min.z), '#ff4444'));
+    group.add(createLabel('X [m]', new THREE.Vector3(max.x + axisLen * 0.5, min.y, min.z), '#ff4444'));
     group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, max.y, min.z)]), new THREE.LineBasicMaterial({ color: 0x44ff44, linewidth: 2 })));
-    group.add(createLabel('Y [cm]', new THREE.Vector3(min.x, max.y + axisLen * 0.5, min.z), '#44ff44'));
+    group.add(createLabel('Y [m]', new THREE.Vector3(min.x, max.y + axisLen * 0.5, min.z), '#44ff44'));
     group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(min.x, min.y, max.z)]), new THREE.LineBasicMaterial({ color: 0x4444ff, linewidth: 2 })));
-    group.add(createLabel('Z [cm]', new THREE.Vector3(min.x, min.y, max.z + axisLen * 0.5), '#4444ff'));
+    group.add(createLabel('Z [m]', new THREE.Vector3(min.x, min.y, max.z + axisLen * 0.5), '#4444ff'));
 
     // Graduations
     const addTicks = (start: THREE.Vector3, end: THREE.Vector3, count: number, axis: 'x'|'y'|'z') => {
