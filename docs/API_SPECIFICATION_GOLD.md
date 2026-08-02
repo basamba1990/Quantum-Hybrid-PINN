@@ -28,6 +28,17 @@ Destiné à l'optimisation du refroidissement des composants de calcul haute per
 | `fin_thickness` | Épaisseur des ailettes de refroidissement | mètres (m) | ASME Heat Transfer |
 | `num_fins` | Nombre total d'ailettes | - | Paramètre géométrique |
 
+### Distribution d'Hydrogène Haute Pression (H2_DISTRIBUTION_HIGH_PRESSURE)
+
+Ce moteur simule le transport et le stockage d'hydrogène gazeux à des pressions allant de 35 MPa à 70 MPa (700 bar). Il utilise les équations d'état standardisées du NIST pour garantir une précision thermodynamique maximale, incluant les effets de compressibilité et l'effet Joule-Thomson.
+
+| Paramètre | Description | Unité | Source de Référence |
+|-----------|-------------|-------|---------------------|
+| `pressure` | Pression nominale de service | Pascal (Pa) | NIST Lemmon (2008) |
+| `temperature` | Température du gaz | Kelvin (K) | NIST WebBook |
+| `flow_rate` | Débit massique | kg/s | Standard SAE J2601 |
+| `diameter` | Diamètre de la conduite | mètres (m) | Spécification Type IV |
+
 ## Structure des Données Volumétriques
 
 La sortie principale de l'API consiste en un champ de prédictions 3D densifié, garantissant un minimum de 2000 points par scénario pour une résolution spatiale conforme aux standards industriels.

@@ -9,6 +9,7 @@ import numpy as np
 from typing import Dict, Any, List
 from fpga_heatsink_engine import run_fpga_heatsink_scenario, generate_fpga_predictions_3d
 from deep_mining_engine import run_deep_mining_scenario, generate_deep_mining_predictions_3d
+from h2_distribution_engine import H2_DISTRIBUTION_ENGINE, H2_DISTRIBUTION_3D_GENERATOR
 
 # ============================================================================
 # CONSTANTES PHYSIQUES
@@ -272,6 +273,7 @@ SCENARIO_ENGINES = {
     "H2_COMPRESSION_STATION": run_compression_station_scenario,
     "FPGA_HEATSINK": run_fpga_heatsink_scenario,
     "DEEP_MINING_BLOCK": run_deep_mining_scenario,
+    "H2_DISTRIBUTION_HIGH_PRESSURE": H2_DISTRIBUTION_ENGINE,
 }
 
 # ============================================================================
@@ -281,4 +283,5 @@ SCENARIO_ENGINES = {
 SCENARIO_3D_GENERATORS = {
     "FPGA_HEATSINK": generate_fpga_predictions_3d,
     "DEEP_MINING_BLOCK": generate_deep_mining_predictions_3d,
+    "H2_DISTRIBUTION_HIGH_PRESSURE": H2_DISTRIBUTION_3D_GENERATOR,
 }

@@ -212,6 +212,14 @@ class AnalysisProcessor:
                 "fin_height": extract_val(r"(?:hauteur|height)\s*:?\s*(\d+(?:[.,]\d+)?)", transcription, 0.025),
                 "num_fins": int(extract_val(r"(?:nombre|fins)\s*:?\s*(\d+)", transcription, 30)),
             }
+        elif scenario_type == "H2_DISTRIBUTION_HIGH_PRESSURE":
+            params = {
+                "pressure": extract_val(r"(?:pression|pressure)\s*:?\s*(\d+(?:[.,]\d+)?)", transcription, 70.0),
+                "temperature": extract_val(r"(?:température|temperature)\s*:?\s*(\d+(?:[.,]\d+)?)", transcription, 293.15),
+                "flow_rate": extract_val(r"(?:débit|flow\s*rate)\s*:?\s*(\d+(?:[.,]\d+)?)", transcription, 5.0),
+                "diameter": extract_val(r"(?:diamètre|diameter)\s*:?\s*(\d+(?:[.,]\d+)?)", transcription, 0.1),
+                "length": extract_val(r"(?:longueur|length)\s*:?\s*(\d+(?:[.,]\d+)?)", transcription, 10.0),
+            }
         else:
             # Fallback for H2 Pipeline and others
             pressure = extract_val(r"(?:pression|pressure)\s*:?\s*(\d+(?:[.,]\d+)?)", transcription, 80.0)

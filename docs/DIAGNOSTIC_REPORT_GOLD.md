@@ -20,6 +20,7 @@ Nous avons éliminé tous les "fallbacks" génériques pour implémenter des mot
 |----------|----------------------|----------------------|
 | Deep Mining | Hoek-Brown Geomechanics | Hoek & Diederichs (2006) |
 | FPGA Heatsink | Navier-Stokes & Conduction | NIST / NVIDIA PhysicsNeMo |
+| H2 Distribution | High-Pressure Gas Dynamics | NIST Lemmon (2008) |
 | H2 Pipeline | Cryogenic Flow Dynamics | NIST Hydrogen Properties |
 
 ## Améliorations de l'Infrastructure et du Frontend
