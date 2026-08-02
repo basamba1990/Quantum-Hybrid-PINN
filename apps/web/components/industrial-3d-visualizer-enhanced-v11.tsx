@@ -214,13 +214,19 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
       if (geom.shape === 'cylinder_horizontal') halfSize = Math.max(geom.radius || 0.5, (geom.length || 5) / 4);
       else if (geom.shape === 'cylinder_vertical') halfSize = Math.max(geom.radius || 1, (geom.height || 4) / 2);
       else halfSize = Math.max(geom.length || 10, geom.width || 10, geom.height || 10) / 2;
-      return { min: new THREE.Vector3(-halfSize, -halfSize, -halfSize), max: new THREE.Vector3(halfSize, halfSize, halfSize), center: new THREE.Vector3(0, 0, 0) };
+      const min = new THREE.Vector3(-halfSize, -halfSize, -halfSize);
+      const max = new THREE.Vector3(halfSize, halfSize, halfSize);
+      return { min, max, center: new THREE.Vector3(0, 0, 0) };
     }
     const xs = data.map(p => p.x), ys = data.map(p => p.y), zs = data.map(p => p.z)
     const min = new THREE.Vector3(Math.min(...xs), Math.min(...ys), Math.min(...zs))
     const max = new THREE.Vector3(Math.max(...xs), Math.max(...ys), Math.max(...zs))
     return { min, max, center: new THREE.Vector3().addVectors(min, max).multiplyScalar(0.5) }
   }, [data, scenarioGeometry])
+
+  const size = useMemo(() => {
+    return new THREE.Vector3().subVectors(domainBounds.max, domainBounds.min);
+  }, [domainBounds]);
 
   useEffect(() => {
     if (!data.length) { setIsLoading(true); return; }
