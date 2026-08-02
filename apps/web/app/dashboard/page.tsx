@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   ChevronRight,
   Atom,
-  Users
+  Users,
+  Target
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import ScientificSocialHub from '@/components/scientific-social-hub'
@@ -138,14 +139,24 @@ export default function DashboardPage() {
             Supervision des simulations Quantum-Hybrid-FNO et orchestration des validations physiques en temps réel.
           </p>
         </div>
-        <Link href="/dashboard/projects/new">
-          <button className="group relative px-8 py-4 bg-white text-black font-bold rounded-2xl overflow-hidden transition-all hover:scale-105 active:scale-95">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-emerald-500 opacity-0 group-hover:opacity-10 transition-opacity" />
-            <span className="relative flex items-center gap-2">
-              <Plus className="w-5 h-5" /> Nouveau Projet de Recherche
-            </span>
-          </button>
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Link href="/dashboard/sweet-spot-analysis">
+            <button className="group relative px-8 py-4 bg-blue-600 text-white font-bold rounded-2xl overflow-hidden transition-all hover:scale-105 active:scale-95 border border-blue-400/30">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 opacity-0 group-hover:opacity-20 transition-opacity" />
+              <span className="relative flex items-center gap-2">
+                <Target className="w-5 h-5" /> Sweet Spot Analysis
+              </span>
+            </button>
+          </Link>
+          <Link href="/dashboard/projects/new">
+            <button className="group relative px-8 py-4 bg-white text-black font-bold rounded-2xl overflow-hidden transition-all hover:scale-105 active:scale-95">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-emerald-500 opacity-0 group-hover:opacity-10 transition-opacity" />
+              <span className="relative flex items-center gap-2">
+                <Plus className="w-5 h-5" /> Nouveau Projet
+              </span>
+            </button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats Grid */}
