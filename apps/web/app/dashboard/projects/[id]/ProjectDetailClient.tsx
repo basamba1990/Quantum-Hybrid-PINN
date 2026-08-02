@@ -51,6 +51,10 @@ const AdvancedPhysicsVisualization = nextDynamic(
   () => import('@/components/AdvancedPhysicsVisualization'),
   { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-white/10 text-emerald-500 animate-pulse">Chargement de l'analyse physique avancée...</div> }
 )
+const SweetSpotAnalysisPanel = nextDynamic(
+  () => import('@/components/sweet-spot-analysis-panel'),
+  { ssr: false, loading: () => <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 animate-pulse"><div className="h-6 w-48 bg-white/5 rounded" /><div className="h-32 bg-white/5 rounded mt-4" /></div> }
+)
 
 const Streamline3DVisualizer = nextDynamic(
   () => import('@/components/streamline-3d-visualizer'),
@@ -329,6 +333,13 @@ export default function ProjectDetailClient({ id }: { id: string }) {
 
         {/* Center - 3D Visualizer & Metrics */}
         <div className="xl:col-span-3 space-y-8">
+          {/* Sweet Spot Analysis — Displayed above 3D visualizer when available */}
+          {latestAnalysis && results?.sweet_spot_analysis && results.sweet_spot_analysis.status !== 'SKIPPED' && (
+            <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-blue-500/20 rounded-[32px] p-8 shadow-xl shadow-blue-900/10">
+              <SweetSpotAnalysisPanel data={results.sweet_spot_analysis as any} />
+            </div>
+          )}
+
           {!latestAnalysis ? (
             <div className="h-[600px] flex flex-col items-center justify-center bg-slate-950 rounded-[32px] border border-white/10 text-center p-8 space-y-6">
               <Activity className="w-16 h-16 text-blue-500 animate-pulse" />

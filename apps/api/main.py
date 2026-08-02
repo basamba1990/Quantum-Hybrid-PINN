@@ -35,6 +35,11 @@ from analysis_processor import router as analysis_router, init_processor
 from pgd_pinn_api import router as pgd_pinn_router
 from export_router import router as export_router
 
+# Sweet Spot Analyzer — Lazy import (Industrial Grade Stability Analysis)
+def _get_sweet_spot_analyzer():
+    from sweet_spot_analyzer import run_sweet_spot_analysis as _ssa
+    return _ssa
+
 # IMPORT V2 APP LAZILY to avoid blocking port binding
 # This prevents Render timeout when heavy modules take too long to import
 hydrogen_api_v2_app = None
@@ -435,6 +440,29 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             "scenario_type": request.scenario_type or "H2_PIPELINE",
             "updated_at": datetime.utcnow().isoformat()
         }
+        
+        # ====================================================================
+        # SWEET SPOT ANALYSIS — Analyse automatique de stabilité thermodynamique
+        # S'exécute à CHAQUE simulation pour identifier le point idéal de stabilité
+        # sans transition de phase non désirée (Peng-Robinson EoS, ANSYS-level)
+        # ====================================================================
+        try:
+            _ssa = _get_sweet_spot_analyzer()
+            fluid_type = "H2"  # Par défaut H2, configurable via scenario_inputs
+            if request.scenario_inputs and 'fluid_type' in request.scenario_inputs:
+                fluid_type = request.scenario_inputs['fluid_type']
+            sweet_spot_result = _ssa(
+                scenario_inputs=request.scenario_inputs or {},
+                fluid_type=fluid_type,
+            )
+            final_result["sweet_spot_analysis"] = sweet_spot_result.get("sweet_spot_analysis", {})
+            print(f"[SWEET SPOT] Analysis completed for scenario={request.scenario_type}")
+        except Exception as ss_error:
+            print(f"[SWEET SPOT] Analysis skipped (non-critical): {ss_error}")
+            final_result["sweet_spot_analysis"] = {
+                "status": "SKIPPED",
+                "reason": str(ss_error)
+            }
         
         # KELLY SENECAL TRULY-INDUSTRIAL PERSISTENCE V2.1.7
         if supabase_client and request.analysis_id:
