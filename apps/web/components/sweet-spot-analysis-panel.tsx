@@ -176,11 +176,12 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
     )
   }
 
-  const certColor = CERT_COLORS[data.certification] || CERT_COLORS['INDUSTRIAL-BRONZE']
-  const op = data.operating_point
-  const tp = data.thermodynamic_properties
-  const sa = data.stability_assessment
-  const pp = data.pipeline_profile
+  const certName: string = data.certification || 'INDUSTRIAL-BRONZE'
+  const certColor = CERT_COLORS[certName] || CERT_COLORS['INDUSTRIAL-BRONZE']
+  const op = data.operating_point!
+  const tp = data.thermodynamic_properties!
+  const sa = data.stability_assessment!
+  const pp = data.pipeline_profile!
   const pa = pp.pipeline_analysis
 
   // Stability bar percentage
