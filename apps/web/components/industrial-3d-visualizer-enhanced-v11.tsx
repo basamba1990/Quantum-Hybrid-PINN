@@ -11,7 +11,9 @@ interface DataPoint {
   velocity_magnitude?: number; 
   velocity_u?: number; velocity_v?: number; velocity_w?: number;
   density?: number;
-  stress?: number; sigma_1?: number; von_mises?: number;
+  stress?: number; 
+  sigma_1?: number; sigma_2?: number; sigma_3?: number;
+  von_mises?: number;
   damage?: number;
 }
 
@@ -929,9 +931,13 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
 
   const getUnit = (v: string) => {
     if (v === 'temperature') return 'K';
-    if (v.includes('pressure') || v.includes('stress') || v.includes('von_mises') || v.includes('sigma')) return 'MPa';
+    if (v.includes('pressure') || v.includes('stress') || v.includes('von_mises') || v.includes('sigma')) {
+      // Pour le gazoduc, la pression est souvent en bar ou Pa, mais le standard industriel demande du MPa pour la cohérence
+      return 'MPa';
+    }
     if (v.includes('velocity')) return 'm/s';
     if (v === 'density') return 'kg/m³';
+    if (v === 'damage') return '%';
     return '';
   };
 
@@ -943,8 +949,9 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
 
   const getVariableIcon = (v: string) => {
     if (v === 'temperature') return Thermometer;
-    if (v.includes('pressure')) return Gauge;
+    if (v.includes('pressure') || v.includes('sigma') || v.includes('von_mises')) return Gauge;
     if (v.includes('velocity')) return Wind;
+    if (v === 'damage') return ShieldCheck;
     return Zap;
   };
 
@@ -984,12 +991,24 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
         <div className="flex flex-col md:flex-row gap-2 md:gap-3">
           {/* Variable selector */}
           <div className="flex gap-1 bg-black/40 p-1 rounded-lg md:rounded-xl border border-white/5 flex-wrap">
-            {(['pressure', 'temperature', 'velocity_magnitude', 'von_mises'] as const).map(v => (
-              <button key={v} onClick={() => setActiveVariable(v)} className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[8px] md:text-[9px] font-black uppercase transition-all flex items-center gap-1 ${activeVariable === v ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
-                {React.createElement(getVariableIcon(v), { className: 'w-3 h-3' })}
-                {v.replace(/_/g, ' ')}
-              </button>
-            ))}
+            {useMemo(() => {
+              let vars: string[] = ['pressure', 'temperature', 'velocity_magnitude'];
+              if (scenarioType === 'DEEP_MINING_BLOCK' || scenarioType === 'ROCK_ELAST_STRESS') {
+                vars = ['sigma_1', 'sigma_2', 'sigma_3', 'von_mises', 'damage'];
+              } else if (scenarioType === 'FPGA_HEATSINK') {
+                vars = ['temperature', 'velocity_magnitude', 'pressure'];
+              } else if (scenarioType === 'LH2_STORAGE') {
+                vars = ['temperature', 'density', 'pressure'];
+              } else {
+                vars = ['pressure', 'temperature', 'velocity_magnitude', 'von_mises'];
+              }
+              return vars.map(v => (
+                <button key={v} onClick={() => setActiveVariable(v)} className={`px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[8px] md:text-[9px] font-black uppercase transition-all flex items-center gap-1 ${activeVariable === v ? 'bg-cyan-600 text-white shadow-lg' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
+                  {React.createElement(getVariableIcon(v), { className: 'w-3 h-3' })}
+                  {v.replace(/_/g, ' ')}
+                </button>
+              ));
+            }, [scenarioType, activeVariable])}
           </div>
           {/* Render mode */}
           <div className="flex gap-1 bg-black/40 p-1 rounded-lg md:rounded-xl border border-white/5">
