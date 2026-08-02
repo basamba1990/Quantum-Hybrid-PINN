@@ -86,16 +86,22 @@ interface PipelineProfile {
   critical_properties: { Pc_MPa: number; Tc_K: number }
 }
 
+interface SweetSpotSkipped {
+  status: 'SKIPPED'
+  reason?: string
+}
+
 interface SweetSpotData {
-  fluid_type: string
-  fluid_name: string
-  operating_point: OperatingPoint
-  thermodynamic_properties: ThermodynamicProperties
-  state_classification: StateClassification
-  stability_assessment: StabilityAssessment
-  verdict: string
-  certification: string
-  pipeline_profile: PipelineProfile
+  status?: 'SKIPPED'
+  fluid_type?: string
+  fluid_name?: string
+  operating_point?: OperatingPoint
+  thermodynamic_properties?: ThermodynamicProperties
+  state_classification?: StateClassification
+  stability_assessment?: StabilityAssessment
+  verdict?: string
+  certification?: string
+  pipeline_profile?: PipelineProfile
   generated_at?: string
 }
 
@@ -156,7 +162,7 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
     )
   }
 
-  if (!data || data.status === 'SKIPPED') {
+  if (!data || data.status === 'SKIPPED' || !data.operating_point) {
     return (
       <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-4">
