@@ -573,30 +573,41 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     meshGroupRef.current = group;
     if (!data.length) return;
 
-    const gridSize = quality === 'ultra' ? 60 : 40;
+    const baseGridSize = quality === 'ultra' ? 60 : 40;
     const { min, max } = domainBounds;
     const size = new THREE.Vector3().subVectors(max, min);
-    const cellSize = new THREE.Vector3(size.x / gridSize, size.y / gridSize, size.z / gridSize);
-    const grid = new Float32Array(gridSize * gridSize * gridSize).fill(-1);
-    const weightGrid = new Float32Array(gridSize * gridSize * gridSize).fill(0);
+    
+    // Ajustement de la grille pour conserver des voxels cubiques (Truly-Industrial)
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    const gridSizeX = Math.max(8, Math.round((size.x / maxDim) * baseGridSize));
+    const gridSizeY = Math.max(8, Math.round((size.y / maxDim) * baseGridSize));
+    const gridSizeZ = Math.max(8, Math.round((size.z / maxDim) * baseGridSize));
+    
+    const cellSize = new THREE.Vector3(size.x / gridSizeX, size.y / gridSizeY, size.z / gridSizeZ);
+    const grid = new Float32Array(gridSizeX * gridSizeY * gridSizeZ).fill(-1);
+    const weightGrid = new Float32Array(gridSizeX * gridSizeY * gridSizeZ).fill(0);
     const geom = scenarioGeometry;
 
     data.forEach(p => {
       if (!geom.isInsideShape(p.x, p.y, p.z, geom)) return;
-      const gx = Math.floor(((p.x - min.x) / (size.x || 1)) * (gridSize - 1));
-      const gy = Math.floor(((p.y - min.y) / (size.y || 1)) * (gridSize - 1));
-      const gz = Math.floor(((p.z - min.z) / (size.z || 1)) * (gridSize - 1));
+      const gx = Math.floor(((p.x - min.x) / (size.x || 1)) * (gridSizeX - 1));
+      const gy = Math.floor(((p.y - min.y) / (size.y || 1)) * (gridSizeY - 1));
+      const gz = Math.floor(((p.z - min.z) / (size.z || 1)) * (gridSizeZ - 1));
       const val = (p as any)[activeVariable] ?? (p as any)[activeVariable.replace(/_/g, '')] ?? 0;
 
-      for (let di = -1; di <= 1; di++) {
-        for (let dj = -1; dj <= 1; dj++) {
-          for (let dk = -1; dk <= 1; dk++) {
+      // Rayon de recherche adaptatif pour gérer les données éparses
+      const searchRadius = data.length < 200 ? 3 : 1;
+
+      for (let di = -searchRadius; di <= searchRadius; di++) {
+        for (let dj = -searchRadius; dj <= searchRadius; dj++) {
+          for (let dk = -searchRadius; dk <= searchRadius; dk++) {
             const ni = gx + di, nj = gy + dj, nk = gz + dk;
-            if (ni >= 0 && ni < gridSize && nj >= 0 && nj < gridSize && nk >= 0 && nk < gridSize) {
+            if (ni >= 0 && ni < gridSizeX && nj >= 0 && nj < gridSizeY && nk >= 0 && nk < gridSizeZ) {
               const cx = min.x + ni * cellSize.x, cy = min.y + nj * cellSize.y, cz = min.z + nk * cellSize.z;
               if (!geom.isInsideShape(cx, cy, cz, geom)) continue;
-              const idx = ni + nj * gridSize + nk * gridSize * gridSize;
-              const weight = 1.0 / (1.0 + Math.sqrt(di*di + dj*dj + dk*dk));
+              const idx = ni + nj * gridSizeX + nk * gridSizeX * gridSizeY;
+              const distSq = di*di + dj*dj + dk*dk;
+              const weight = 1.0 / (1.0 + Math.sqrt(distSq));
               if (grid[idx] === -1) grid[idx] = val;
               else grid[idx] = (grid[idx] * weightGrid[idx] + val * weight) / (weightGrid[idx] + weight);
               weightGrid[idx] += weight;
@@ -610,10 +621,10 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const cubeGeo = new THREE.BoxGeometry(cellSize.x * 1.02, cellSize.y * 1.02, cellSize.z * 1.02);
     const instances: { pos: THREE.Vector3; col: THREE.Color }[] = [];
 
-    for (let i = 0; i < gridSize; i++) {
-      for (let j = 0; j < gridSize; j++) {
-        for (let k = 0; k < gridSize; k++) {
-          const idx = i + j * gridSize + k * gridSize * gridSize;
+    for (let i = 0; i < gridSizeX; i++) {
+      for (let j = 0; j < gridSizeY; j++) {
+        for (let k = 0; k < gridSizeZ; k++) {
+          const idx = i + j * gridSizeX + k * gridSizeX * gridSizeY;
           if (grid[idx] !== -1) {
             const norm = (grid[idx] - vMin) / vRange;
             const [r, g, b] = jetColorMap(norm);
@@ -786,7 +797,9 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
       const texture = new THREE.CanvasTexture(canvas);
       const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
       sprite.position.copy(pos);
-      sprite.scale.set(axisLen * 0.4, axisLen * 0.4, 1);
+      // Réduction de l'échelle des sprites pour éviter l'effet "géant" sur mobile
+      const responsiveScale = axisLen * 0.15;
+      sprite.scale.set(responsiveScale, responsiveScale, 1);
       return sprite;
     };
 
@@ -1019,7 +1032,11 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
         <div className="flex flex-col gap-1">
           <div className="flex justify-between text-[7px] md:text-[8px] font-mono text-gray-400">
             <span>0</span>
-            <span>{(domainBounds.max.x - domainBounds.min.x).toFixed(1)} mm</span>
+            <span>
+              {Math.max(size.x, size.y, size.z) > 1 
+                ? `${Math.max(size.x, size.y, size.z).toFixed(1)} m` 
+                : `${(Math.max(size.x, size.y, size.z) * 1000).toFixed(1)} mm`}
+            </span>
           </div>
           <div className="w-24 md:w-32 h-1 md:h-1.5 bg-white/10 rounded-full overflow-hidden flex">
             {[...Array(4)].map((_, i) => (<div key={i} className={`flex-1 ${i % 2 === 0 ? 'bg-white/40' : 'bg-transparent'}`} />))}
