@@ -1,0 +1,18 @@
+{
+  "sweet_spot": {
+    "x": 0.846,
+    "y": 0.0,
+    "z": -2.323,
+    "temperature": 20.39,
+    "pressure": 123376.0,
+    "density": 70.8,
+    "velocity_magnitude": 0.00089
+  },
+  "analysis_metadata": {
+    "total_points_analyzed": 162,
+    "stability_score": 0.044700121302899104,
+    "critical_distance": 0.9830348760657001,
+    "gas": "Liquid Hydrogen (LH2)",
+    "recommendation": "Maintain operating conditions near T=20.39K and P=123376.00Pa for maximum stability."
+  }
+}
