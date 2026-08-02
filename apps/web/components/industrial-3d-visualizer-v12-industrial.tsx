@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * ============================================================================
  * INDUSTRIAL 3D VISUALIZER V12 — INDUSTRIAL GRADE
@@ -141,7 +143,7 @@ function validateAndNormalizeSI(
   const pFactor = SI_CONVERSIONS.pressure[pUnit] as number
   const tConvert = typeof SI_CONVERSIONS.temperature[tUnit] === 'function'
     ? (SI_CONVERSIONS.temperature[tUnit] as (v: number) => number)
-    : ((v: number) => v * (SI_CONVERSIONS.temperature[tUnit] as number))
+    : ((v: number) => v * (SI_CONVERSIONS.temperature[tUnit] as unknown as number))
   const vFactor = SI_CONVERSIONS.velocity[vUnit] as number
   const dFactor = SI_CONVERSIONS.density[dUnit] as number
   const sFactor = SI_CONVERSIONS.stress[sUnit] as number
@@ -1055,7 +1057,7 @@ const Industrial3DVisualizerV12: React.FC<Props> = ({
     })
 
     // Élargir légèrement les bornes
-    const pad = (max - min: number) => (max - min) * 0.05
+    const pad = (range: number) => range * 0.05
     const xRange = xMax - xMin || 1
     const yRange = yMax - yMin || 1
     const zRange = zMax - zMin || 1
