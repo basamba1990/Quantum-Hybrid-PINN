@@ -164,17 +164,29 @@ const SCENARIO_GEOMETRIES: Record<ScenarioType, ScenarioGeometry> = {
  * INDUSTRIAL COLOR MAP — Viridis (Perceptually Uniform)
  * Standard for modern scientific visualization (ParaView/Matplotlib)
  */
+/**
+ * SCIENTIFIC COLOR MAP — Viridis (Perceptually Uniform)
+ */
 const viridisColorMap = (t: number): [number, number, number] => {
   const v = Math.max(0, Math.min(1, t));
-  // Viridis approximation
   const r = 0.267 + 0.6 * v - 0.4 * v * v;
   const g = 0.004 + 0.8 * v + 0.1 * v * v;
   const b = 0.329 + 0.3 * v + 0.2 * v * v;
   return [r, g, b];
 };
 
-// Keep the name for compatibility or refactor all calls
-const jetColorMap = viridisColorMap;
+/**
+ * INDUSTRIAL COLOR MAP — Jet (Rainbow)
+ * Standard for industrial CFD (ANSYS, ParaView)
+ */
+const jetColorMap = (t: number): [number, number, number] => {
+  const v = Math.max(0, Math.min(1, t));
+  // Jet colormap approximation: Blue -> Cyan -> Green -> Yellow -> Red
+  const r = v < 0.7 ? (v < 0.3 ? 0 : (v - 0.3) / 0.4) : 1;
+  const g = v < 0.3 ? v / 0.3 : (v < 0.7 ? 1 : 1 - (v - 0.7) / 0.3);
+  const b = v < 0.3 ? 1 : (v < 0.7 ? 1 - (v - 0.3) / 0.4 : 0);
+  return [r, g, b];
+};
 
 // ============================================================================
 // COMPONENT
@@ -205,10 +217,10 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   const [activeVariable, setActiveVariable] = useState(colorVariable)
   const [showVectors, setShowVectors] = useState(true)
   const [showStreamlines, setShowStreamlines] = useState(true)
-  const [showCutPlanes, setShowCutPlanes] = useState(false)
+  const [showCutPlanes, setShowCutPlanes] = useState(scenarioType.includes('PIPELINE') || scenarioType.includes('H2'))
   const [renderMode, setRenderMode] = useState<'volume' | 'particles' | 'isosurface'>('volume')
   const [isLoading, setIsLoading] = useState(data.length === 0)
-  const [crossSections, setCrossSections] = useState<number[]>([0.25, 0.5, 0.75])
+  const [crossSections, setCrossSections] = useState<number[]>([0.01, 0.25, 0.5, 0.75, 0.99])
 
   const scenarioGeometry = useMemo(() => {
     return SCENARIO_GEOMETRIES[scenarioType] || SCENARIO_GEOMETRIES.H2_PIPELINE;
@@ -873,8 +885,8 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     
     // Position caméra adaptée à la géométrie - Optimisation Zoom Industriel
     if (scenarioGeometry.shape === 'cylinder_horizontal') {
-      // Pour un pipeline horizontal, on se rapproche significativement pour un rendu "plein volume"
-      camera.position.set(domainBounds.center.x, domainBounds.center.y + maxDim * 0.4, domainBounds.center.z + maxDim * 1.2);
+      // Vue industrielle 3/4 pour voir les extrémités et le profil
+      camera.position.set(domainBounds.center.x - maxDim * 0.6, domainBounds.center.y + maxDim * 0.5, domainBounds.center.z + maxDim * 0.8);
     } else if (scenarioGeometry.shape === 'cylinder_vertical') {
       camera.position.set(domainBounds.center.x + maxDim * 1.2, domainBounds.center.y, domainBounds.center.z + maxDim * 1.2);
     } else {
@@ -1048,16 +1060,37 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
       <div className="flex-1 w-full flex flex-col md:flex-row gap-3 md:gap-4 min-h-0 relative">
         <div ref={visualizationRef} className="flex-1 rounded-[24px] overflow-hidden border border-white/10 bg-black/20 relative min-h-[300px] md:min-h-[500px]" />
         
-        {/* Scale Bar */}
-        <div className="w-full md:w-24 flex md:flex-col items-center justify-between md:justify-start py-3 md:py-4 px-4 md:px-0 bg-black/40 rounded-[24px] border border-white/5 relative backdrop-blur-md gap-2 md:gap-0">
-          <div className="text-[9px] md:text-[10px] font-black text-red-500 uppercase tracking-widest mb-0 md:mb-2 text-center leading-tight">
-            {formatScaleValue(stats.maxV)}
-            <span className="block text-[7px] md:text-[8px] text-gray-500">{getUnit(activeVariable)}</span>
+        {/* Scientific Scale Bar - Aligned with Jet ColorMap */}
+        <div className="w-full md:w-28 flex md:flex-col items-center justify-between py-3 md:py-6 px-4 md:px-2 bg-black/60 rounded-[24px] border border-cyan-500/20 relative backdrop-blur-xl shadow-2xl">
+          <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent rounded-[24px] pointer-events-none" />
+          
+          <div className="text-[9px] md:text-[11px] font-black text-white mb-2 text-center w-full border-b border-white/10 pb-1">
+            {activeVariable.toUpperCase().replace('_', ' ')}
+            <span className="block text-[8px] text-cyan-400">[{getUnit(activeVariable)}]</span>
           </div>
-          <div className="w-32 md:w-3 h-3 md:h-[calc(100%-60px)] rounded-full border border-white/10" style={{ background: 'linear-gradient(to top, blue, cyan, green, yellow, red)' }} />
-          <div className="text-[9px] md:text-[10px] font-black text-blue-600 uppercase tracking-widest mt-0 md:mt-2 text-center leading-tight">
-            {formatScaleValue(stats.minV)}
-            <span className="block text-[7px] md:text-[8px] text-gray-500">{getUnit(activeVariable)}</span>
+
+          <div className="flex-1 w-full flex md:flex-row items-center gap-2 relative min-h-[150px] md:min-h-[350px]">
+            {/* Ticks */}
+            <div className="hidden md:flex flex-col justify-between h-full text-[8px] font-mono text-gray-400 text-right pr-1">
+              {[...Array(6)].map((_, i) => (
+                <span key={i}>{formatScaleValue(stats.maxV - (i/5) * (stats.maxV - stats.minV))}</span>
+              ))}
+            </div>
+            
+            {/* Gradient Bar */}
+            <div className="flex-1 h-2 md:h-full w-full md:w-4 rounded-sm border border-white/20 shadow-[0_0_15px_rgba(0,255,255,0.1)]" 
+                 style={{ background: 'linear-gradient(to top, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000)' }} />
+            
+            {/* Ticks markers */}
+            <div className="hidden md:flex flex-col justify-between h-full py-0.5">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="w-1.5 h-px bg-white/30" />
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-2 text-[8px] font-bold text-gray-500 uppercase tracking-tighter">
+            Industrial Scale
           </div>
         </div>
       </div>
