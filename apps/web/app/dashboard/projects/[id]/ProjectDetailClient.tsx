@@ -343,11 +343,7 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         {/* Center - 3D Visualizer & Metrics */}
         <div className="xl:col-span-3 space-y-8">
           {/* Sweet Spot Analysis — Displayed above 3D visualizer when available */}
-          {latestAnalysis && results?.sweet_spot_analysis && results.sweet_spot_analysis.status !== 'SKIPPED' && (
-            <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-blue-500/20 rounded-[32px] p-8 shadow-xl shadow-blue-900/10">
-              <SweetSpotAnalysisPanel data={results.sweet_spot_analysis as any} />
-            </div>
-          )}
+          {/* SweetSpotAnalysisPanel disabled for debugging */}
 
           {!latestAnalysis ? (
             <div className="h-[600px] flex flex-col items-center justify-center bg-slate-950 rounded-[32px] border border-white/10 text-center p-8 space-y-6">
