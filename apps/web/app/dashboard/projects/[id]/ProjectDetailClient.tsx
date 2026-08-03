@@ -28,6 +28,9 @@ const SweetSpotAnalysisPanel = nextDynamic(
   { ssr: false, loading: () => <div className="h-48 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 60
+
 export default function ProjectDetailClient({ id, project, initialAnalyses }: any) {
   const [analyses, setAnalyses] = useState<any[]>(initialAnalyses || [])
   const [latestAnalysis, setLatestAnalysis] = useState<any | null>(null)
