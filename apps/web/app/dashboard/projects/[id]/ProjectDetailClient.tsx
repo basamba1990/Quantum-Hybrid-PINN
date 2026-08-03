@@ -407,13 +407,9 @@ export default function ProjectDetailClient({ id }: { id: string }) {
             )
           ) : (
             <div className="space-y-4">
-              <Industrial3DVisualizerEnhancedV11 
-                data={predictions3d} 
-                title="INDUSTRIAL V11-ENHANCED"
-                colorVariable={scenarioType === 'ROCK_ELAST_STRESS' ? 'prediction' : scenarioType === 'DEEP_MINING_BLOCK' ? 'sigma_1' : 'temperature'}
-                quality="ultra"
-                scenarioType={scenarioType}
-              />
+              <div className="h-[600px] bg-slate-900 rounded-[32px] flex items-center justify-center border border-white/10">
+                <p className="text-white">Visualizer temporarily disabled for debugging...</p>
+              </div>
             </div>
           )}
         </div>
