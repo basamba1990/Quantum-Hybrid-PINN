@@ -871,13 +871,14 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const size = new THREE.Vector3().subVectors(max, min);
     const maxDim = Math.max(size.x, size.y, size.z);
     
-    // Position caméra adaptée à la géométrie
+    // Position caméra adaptée à la géométrie - Optimisation Zoom Industriel
     if (scenarioGeometry.shape === 'cylinder_horizontal') {
-      camera.position.set(0, maxDim * 1.2, maxDim * 2.5);
+      // Pour un pipeline horizontal, on se rapproche significativement pour un rendu "plein volume"
+      camera.position.set(domainBounds.center.x, domainBounds.center.y + maxDim * 0.4, domainBounds.center.z + maxDim * 1.2);
     } else if (scenarioGeometry.shape === 'cylinder_vertical') {
-      camera.position.set(maxDim * 2.2, maxDim * 1.5, maxDim * 2.2);
+      camera.position.set(domainBounds.center.x + maxDim * 1.2, domainBounds.center.y, domainBounds.center.z + maxDim * 1.2);
     } else {
-      camera.position.set(maxDim * 1.8, maxDim * 1.8, maxDim * 2.5);
+      camera.position.set(domainBounds.center.x + maxDim * 1.0, domainBounds.center.y + maxDim * 1.0, domainBounds.center.z + maxDim * 1.5);
     }
     camera.lookAt(domainBounds.center);
     cameraRef.current = camera;

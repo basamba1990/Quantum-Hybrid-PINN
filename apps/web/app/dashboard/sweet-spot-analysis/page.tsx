@@ -27,7 +27,28 @@ export default function SweetSpotAnalysisPage() {
         if (error) throw error
 
         if (data?.results?.sweet_spot_analysis) {
-          setAnalysisData(data.results.sweet_spot_analysis)
+          const raw = data.results.sweet_spot_analysis;
+          // Normalize if it's the new complex schema
+          if (raw.operating_point) {
+            setAnalysisData({
+              sweet_spot: {
+                x: 0, y: 0, z: 0,
+                temperature: raw.operating_point.temperature_K,
+                pressure: raw.operating_point.pressure_Pa,
+                density: raw.thermodynamic_properties.density_kg_m3,
+                velocity_magnitude: raw.thermodynamic_properties.mach_number * 1000 // approx
+              },
+              analysis_metadata: {
+                total_points_analyzed: raw.pipeline_profile?.segments?.length || 4000,
+                stability_score: raw.stability_assessment.stability_score,
+                critical_distance: 0.99,
+                gas: raw.fluid_name,
+                recommendation: raw.verdict
+              }
+            })
+          } else {
+            setAnalysisData(raw)
+          }
         } else {
           // Fallback to static data if no analysis found
           setAnalysisData({

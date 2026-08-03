@@ -178,7 +178,16 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         setReports(reportsData || [])
 
         // TRULY-INDUSTRIAL POLLING & FETCHING (Kelly Senecal V2.1.7)
-        // Prioritize analysis_results for high-fidelity volumetric data
+        // 1. Fetch the latest analysis first to get metadata and results JSON
+        const { data: fallbackData } = await supabase
+          .from('analyses')
+          .select('*')
+          .eq('project_id', id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        
+        // 2. Prioritize analysis_results for high-fidelity volumetric data
         const { data: analysisData } = await supabase
           .from('analysis_results')
           .select('pinn_predictions, extracted_parameters, credibility_score, context, analysis_id, project_id, user_id')
@@ -187,17 +196,15 @@ export default function ProjectDetailClient({ id }: { id: string }) {
           .limit(1)
           .maybeSingle()
         
-        // Polling fallback: if analysis_results is empty, fetch the latest analysis (even if processing)
-        let finalAnalysisData = analysisData
-        if (!finalAnalysisData) {
-          const { data: fallbackData } = await supabase
-            .from('analyses')
-            .select('*')
-            .eq('project_id', id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-          finalAnalysisData = fallbackData
+        // Merge data: metadata from 'analyses' + fidelity from 'analysis_results'
+        let finalAnalysisData = fallbackData;
+        if (analysisData) {
+          finalAnalysisData = {
+            ...fallbackData,
+            ...analysisData,
+            // Ensure ID is from the analyses table if analysis_id is not set
+            id: fallbackData?.id || analysisData.analysis_id
+          };
         }
         
         const finalData = finalAnalysisData
@@ -378,12 +385,13 @@ export default function ProjectDetailClient({ id }: { id: string }) {
               />
             </div>
           ) : activeView === 'advanced' ? (
-            latestAnalysis && latestAnalysis.id ? (
+            latestAnalysis && (latestAnalysis.id || (latestAnalysis as any).analysis_id) ? (
               <div className="space-y-6">
                 <AdvancedPhysicsVisualization 
-                  simulationId={results?.jobId || latestAnalysis.id} 
+                  simulationId={results?.jobId || latestAnalysis.id || (latestAnalysis as any).analysis_id} 
                   time={results?.totalTime || 0}
                   data3d={predictions3d}
+                  scenarioType={scenarioType}
                 />
               </div>
             ) : (
