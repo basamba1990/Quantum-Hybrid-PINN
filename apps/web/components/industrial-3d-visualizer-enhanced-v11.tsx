@@ -1094,58 +1094,56 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
       </div>
 
       {/* Main Visualization */}
-      <div className="flex-1 w-full flex flex-col md:flex-row gap-3 md:gap-4 min-h-0 relative">
-        <div ref={visualizationRef} className="flex-1 rounded-[24px] overflow-hidden border border-white/10 bg-black/20 relative min-h-[300px] md:min-h-[500px]" />
+      <div className="flex-1 w-full flex flex-col min-h-0 relative">
+        <div ref={visualizationRef} className="flex-1 rounded-[24px] overflow-hidden border border-white/10 bg-black/20 relative min-h-[300px] md:min-h-[600px]" />
         
-        {/* SCIENTIFIC COLORBAR — Standard ANSYS/Fluent Level (Image 2 Correction) */}
-        <div className="w-full md:w-48 flex md:flex-col items-center justify-between py-6 md:py-10 px-6 md:px-4 bg-black/95 rounded-[40px] border border-white/20 relative backdrop-blur-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] z-50">
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 via-transparent to-red-600/10 rounded-[40px] pointer-events-none" />
-          
-          <div className="text-[12px] md:text-[14px] font-black text-white mb-6 text-center w-full border-b-2 border-white/10 pb-3 tracking-tighter italic">
+        {/* SCIENTIFIC COLORBAR — Overlay Responsive (Correction pour petits écrans) */}
+        <div className="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 w-auto md:w-40 flex flex-col items-center py-4 md:py-8 px-2 md:px-3 bg-black/90 rounded-[32px] border border-white/20 backdrop-blur-3xl shadow-[0_0_40px_rgba(0,0,0,0.8)] z-40">
+          <div className="text-[10px] md:text-[12px] font-black text-white text-center w-full border-b border-white/10 pb-2 tracking-tighter italic">
             {activeVariable.toUpperCase().replace('_', ' ')}
-            <span className="block text-[10px] text-cyan-400 mt-2 font-mono not-italic">[{getUnit(activeVariable)}]</span>
+            <span className="block text-[8px] text-cyan-400 mt-1 font-mono not-italic">[{getUnit(activeVariable)}]</span>
           </div>
 
-          <div className="flex-1 w-full flex flex-row items-stretch gap-5 relative min-h-[60px] md:min-h-[500px]">
+          <div className="flex items-stretch gap-2 mt-3 h-[250px] md:h-[400px]">
             {/* Ticks Values — High Precision */}
-            <div className="flex flex-col justify-between h-full text-[11px] font-mono text-white font-bold text-right pr-2 min-w-[80px]">
-              {[...Array(11)].map((_, i) => (
+            <div className="flex flex-col justify-between text-[9px] md:text-[10px] font-mono text-white font-bold text-right pr-1 min-w-[50px]">
+              {[...Array(6)].map((_, i) => (
                 <span key={i} className="leading-none drop-shadow-md">
-                  {formatScaleValue(stats.maxV - (i/10) * (stats.maxV - stats.minV))}
+                  {formatScaleValue(stats.maxV - (i/5) * (stats.maxV - stats.minV))}
                 </span>
               ))}
             </div>
             
-            {/* Gradient Bar — Ultra Wide & Vivid Jet Colormap */}
-            <div className="w-6 md:w-10 h-full rounded-lg border-2 border-white/40 shadow-[0_0_40px_rgba(0,0,0,1)] overflow-hidden relative" 
-                 style={{ background: 'linear-gradient(to top, #00008b 0%, #0000ff 10%, #00ffff 30%, #00ff00 50%, #ffff00 70%, #ff0000 90%, #8b0000 100%)' }}>
+            {/* Gradient Bar — Compact & Vivid Jet Colormap */}
+            <div className="w-4 md:w-6 h-full rounded-md border border-white/30 shadow-[0_0_30px_rgba(0,0,0,0.8)] overflow-hidden relative" 
+                 style={{ background: 'linear-gradient(to top, #0000ff 0%, #00ffff 25%, #00ff00 50%, #ffff00 75%, #ff0000 100%)' }}>
               {/* Highlight effect */}
-              <div className="absolute inset-y-0 left-0 w-1/3 bg-white/20 blur-[2px]" />
+              <div className="absolute inset-y-0 left-0 w-1/3 bg-white/15 blur-[1px]" />
             </div>
             
-            {/* Ticks markers — Major & Minor */}
+            {/* Ticks markers — Simplified */}
             <div className="flex flex-col justify-between h-full py-0.5">
-              {[...Array(21)].map((_, i) => (
-                <div key={i} className={`${i % 2 === 0 ? 'w-4 bg-white' : 'w-2 bg-white/40'} h-[1.5px]`} />
+              {[...Array(11)].map((_, i) => (
+                <div key={i} className={`${i % 2 === 0 ? 'w-2.5 bg-white' : 'w-1.5 bg-white/40'} h-px`} />
               ))}
             </div>
           </div>
 
-          <div className="mt-6 text-[11px] font-black text-emerald-400 uppercase tracking-[0.2em] bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/30 shadow-lg shadow-emerald-900/20">
-            SCIENTIFIC VALIDATED
+          <div className="mt-2 text-[8px] md:text-[9px] font-black text-emerald-400 uppercase tracking-wider bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/30">
+            VALIDATED
           </div>
         </div>
       </div>
 
       {/* Dimension bar */}
-      <div className="absolute bottom-4 md:bottom-6 left-4 md:left-6 flex items-end gap-2 bg-black/60 px-2 md:px-3 py-1.5 md:py-2 rounded-lg border border-white/10 backdrop-blur-md z-20">
-        <div className="flex flex-col gap-1">
-          <div className="flex justify-between text-[7px] md:text-[8px] font-mono text-gray-400">
-            <span>0</span>
-            <span>
+      <div className="absolute bottom-3 md:bottom-4 left-3 md:left-4 flex items-end gap-2 bg-black/70 px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-white/10 backdrop-blur-md z-20">
+        <div className="flex flex-col gap-0.5">
+          <div className="flex justify-between text-[6px] md:text-[7px] font-mono text-gray-400">
+            <span className="text-[6px] md:text-[7px]">0</span>
+            <span className="text-[6px] md:text-[7px]">
               {Math.max(size.x, size.y, size.z) > 1 
-                ? `${Math.max(size.x, size.y, size.z).toFixed(1)} m` 
-                : `${(Math.max(size.x, size.y, size.z) * 1000).toFixed(1)} mm`}
+                ? `${Math.max(size.x, size.y, size.z).toFixed(1)}m` 
+                : `${(Math.max(size.x, size.y, size.z) * 1000).toFixed(0)}mm`}
             </span>
           </div>
           <div className="w-24 md:w-32 h-1 md:h-1.5 bg-white/10 rounded-full overflow-hidden flex">
