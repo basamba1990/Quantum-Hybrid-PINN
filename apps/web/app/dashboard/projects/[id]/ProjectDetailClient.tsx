@@ -208,14 +208,16 @@ export default function ProjectDetailClient({ id }: { id: string }) {
         }
         
         const finalData = finalAnalysisData
-
-        if (finalData) {
-          // KELLY SENECAL V2.1.7: Truly-industrial data normalization
-          const rawData = finalData as any;
-          let processedResults: any = {};
-          
-          try {
-            if (rawData.results) {
+	
+	        if (finalData) {
+	          // KELLY SENECAL V2.1.7: Truly-industrial data normalization
+	          const rawData = finalData as any;
+	          if (!rawData) return;
+	          
+	          let processedResults: any = {};
+	          
+	          try {
+	            if (rawData && rawData.results) {
               processedResults = typeof rawData.results === 'string' 
                 ? JSON.parse(rawData.results) 
                 : rawData.results;

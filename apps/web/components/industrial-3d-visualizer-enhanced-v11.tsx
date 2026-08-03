@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { Activity, Cpu, Database, ShieldCheck, Box, Download, Thermometer, Gauge, Wind, Zap } from 'lucide-react'
 import ExportButtonsImproved from './export-buttons-improved'
 
@@ -217,13 +217,14 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   const [activeVariable, setActiveVariable] = useState(colorVariable)
   const [showVectors, setShowVectors] = useState(true)
   const [showStreamlines, setShowStreamlines] = useState(true)
-  const [showCutPlanes, setShowCutPlanes] = useState(scenarioType.includes('PIPELINE') || scenarioType.includes('H2'))
+  const [showCutPlanes, setShowCutPlanes] = useState(scenarioType?.includes('PIPELINE') || scenarioType?.includes('H2') || false)
   const [renderMode, setRenderMode] = useState<'volume' | 'particles' | 'isosurface'>('volume')
   const [isLoading, setIsLoading] = useState(data.length === 0)
   const [crossSections, setCrossSections] = useState<number[]>([0.01, 0.25, 0.5, 0.75, 0.99])
 
   const scenarioGeometry = useMemo(() => {
-    return SCENARIO_GEOMETRIES[scenarioType] || SCENARIO_GEOMETRIES.H2_PIPELINE;
+    if (!scenarioType || !SCENARIO_GEOMETRIES[scenarioType]) return SCENARIO_GEOMETRIES.H2_PIPELINE;
+    return SCENARIO_GEOMETRIES[scenarioType];
   }, [scenarioType]);
 
   useEffect(() => { setIsMounted(true); return () => setIsMounted(false) }, [])
