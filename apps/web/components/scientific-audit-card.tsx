@@ -43,6 +43,7 @@ interface ScientificAuditCardProps {
   projectName: string
   onDownloadReport?: () => void
   isLoading?: boolean
+  scenarioType?: any
 }
 
 export default function ScientificAuditCard({
@@ -50,6 +51,7 @@ export default function ScientificAuditCard({
   projectName,
   onDownloadReport,
   isLoading = false,
+  scenarioType,
 }: ScientificAuditCardProps) {
   const [showDetails, setShowDetails] = useState(false)
   const [visualizationType, setVisualizationType] = useState<'trajectory' | 'field'>('field')
@@ -160,6 +162,7 @@ export default function ScientificAuditCard({
                   title={`${projectName} - SCIENTIFIC AUDIT`}
                   colorVariable={visualizationType === 'field' ? 'temperature' : 'pressure'}
                   quality="ultra"
+                  scenarioType={scenarioType}
                 />
               </div>
 

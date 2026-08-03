@@ -167,6 +167,7 @@ export default function AnalysisDetailPage() {
           <ScientificAuditCard
             auditData={auditData}
             projectName={analysis.title}
+            scenarioType={analysis.results?.scenario_type || analysis.results?.scenarioType}
           />
         </div>
 
