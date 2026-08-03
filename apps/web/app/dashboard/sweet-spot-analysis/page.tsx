@@ -16,18 +16,27 @@ export default function SweetSpotAnalysisPage() {
     const fetchData = async () => {
       try {
         const supabase = createClient()
+        // ✅ Correction : Rechercher la dernière analyse ayant un sweet spot, quel que soit le scénario
         const { data, error } = await supabase
           .from('analyses')
-          .select('results')
-          .eq('scenario_type', 'H2_DISTRIBUTION_HIGH_PRESSURE')
+          .select('results, scenario_type')
+          .not('results', 'is', null)
           .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
+          .limit(20); // On prend les 20 dernières pour trouver celle qui a un sweet spot
 
         if (error) throw error
 
-        if (data?.results?.sweet_spot_analysis) {
-          const raw = data.results.sweet_spot_analysis;
+        // Trouver la première analyse qui contient effectivement un sweet_spot_analysis
+        const analysisWithSweetSpot = data?.find((d: any) => {
+          const res = typeof d.results === 'string' ? JSON.parse(d.results) : d.results;
+          return res?.sweet_spot_analysis;
+        });
+
+        const targetData = analysisWithSweetSpot;
+        const results = targetData ? (typeof targetData.results === 'string' ? JSON.parse(targetData.results) : targetData.results) : null;
+
+        if (results?.sweet_spot_analysis) {
+          const raw = results.sweet_spot_analysis;
           // Normalize if it's the new complex schema
           if (raw.operating_point) {
             setAnalysisData({

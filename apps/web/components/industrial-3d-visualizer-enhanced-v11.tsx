@@ -254,7 +254,16 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     if (!data.length) { setIsLoading(true); return; }
     setIsLoading(false)
     const vals = data.map(p => (p as any)[activeVariable] ?? (p as any)[activeVariable.replace(/_/g, '')] ?? 0)
-    setStats({ minV: Math.min(...vals), maxV: Math.max(...vals), avgV: vals.reduce((a, b) => a + b, 0) / vals.length, count: data.length })
+    if (vals.length > 0) {
+      setStats({ 
+        minV: Math.min(...vals), 
+        maxV: Math.max(...vals), 
+        avgV: vals.reduce((a, b) => a + b, 0) / vals.length, 
+        count: data.length 
+      })
+    } else {
+      setStats({ minV: 0, maxV: 1, avgV: 0, count: 0 })
+    }
   }, [data, activeVariable])
 
   // ============================================================================
@@ -355,6 +364,50 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
   }, [domainBounds, scenarioGeometry]);
 
   // ============================================================================
+  // PHYSICS UTILS — Interpolation et Intégration RK4 (Truly-Industrial)
+  // ============================================================================
+  const interpolateVelocity = useCallback((x: number, y: number, z: number): [number, number, number] => {
+    if (!data || data.length === 0) return [0, 0, 0];
+    const nearest = data
+      .map(p => ({ p, d2: (p.x-x)**2 + (p.y-y)**2 + (p.z-z)**2 }))
+      .sort((a, b) => a.d2 - b.d2)
+      .slice(0, 4);
+    
+    let u=0, v=0, w=0, ws=0;
+    nearest.forEach(({p, d2}) => {
+      const weight = 1 / (Math.sqrt(d2) + 1e-6);
+      u += (p.velocity_u ?? 0) * weight;
+      v += (p.velocity_v ?? 0) * weight;
+      w += (p.velocity_w ?? 0) * weight;
+      ws += weight;
+    });
+    return ws > 0 ? [u/ws, v/ws, w/ws] : [0,0,0];
+  }, [data]);
+
+  const computeStreamlineRK4 = useCallback((start: {x:number, y:number, z:number}, maxSteps=150) => {
+    const pts: THREE.Vector3[] = [];
+    let {x, y, z} = start;
+    const dt = 0.02;
+    const {min, max} = domainBounds;
+
+    for(let i=0; i<maxSteps; i++) {
+      pts.push(new THREE.Vector3(x, y, z));
+      const [u1,v1,w1] = interpolateVelocity(x, y, z);
+      const [u2,v2,w2] = interpolateVelocity(x+u1*dt/2, y+v1*dt/2, z+w1*dt/2);
+      const [u3,v3,w3] = interpolateVelocity(x+u2*dt/2, y+v2*dt/2, z+w2*dt/2);
+      const [u4,v4,w4] = interpolateVelocity(x+u3*dt, y+v3*dt, z+w3*dt);
+      
+      x += (u1 + 2*u2 + 2*u3 + u4) * dt / 6;
+      y += (v1 + 2*v2 + 2*v3 + v4) * dt / 6;
+      z += (w1 + 2*w2 + 2*w3 + w4) * dt / 6;
+
+      if (x<min.x || x>max.x || y<min.y || y>max.y || z<min.z || z>max.z) break;
+      if (!scenarioGeometry.isInsideShape(x, y, z, scenarioGeometry)) break;
+    }
+    return pts;
+  }, [domainBounds, interpolateVelocity, scenarioGeometry]);
+
+  // ============================================================================
   // VECTEURS DE VITESSE — Quiver plot (style ANSYS/ParaView)
   // ============================================================================
   const buildVelocityVectors = useCallback((scene: THREE.Scene) => {
@@ -406,68 +459,39 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     streamlineGroupRef.current = group;
     if (!data.length) return;
 
-    const geom = scenarioGeometry;
-    const { min, max } = domainBounds;
+    const numSeeds = 12;
+    const { min } = domainBounds;
+    const radius = scenarioGeometry.radius || 0.15;
 
-    // Créer des lignes de courant le long de l'axe principal
-    const numStreamlines = geom.shape === 'cylinder_horizontal' ? 12 : 8;
-    
-    for (let s = 0; s < numStreamlines; s++) {
-      const points: THREE.Vector3[] = [];
-      const numPoints = 50;
-      let cx: number, cy: number, cz: number;
+    for (let s = 0; s < numSeeds; s++) {
+      const angle = (s / numSeeds) * Math.PI * 2;
+      const r = radius * 0.6;
+      const start = scenarioGeometry.shape === 'cylinder_horizontal' 
+        ? { x: min.x + 0.01, y: r * Math.cos(angle), z: r * Math.sin(angle) }
+        : { x: r * Math.cos(angle), y: min.y + 0.01, z: r * Math.sin(angle) };
 
-      if (geom.shape === 'cylinder_horizontal') {
-        const angle = (s / numStreamlines) * Math.PI * 2;
-        const r = (geom.radius || 0.15) * 0.7;
-        cx = 0; cy = r * Math.cos(angle); cz = r * Math.sin(angle);
-      } else if (geom.shape === 'cylinder_vertical') {
-        const angle = (s / numStreamlines) * Math.PI * 2;
-        const r = (geom.radius || 1.0) * 0.7;
-        cx = r * Math.cos(angle); cy = 0; cz = r * Math.sin(angle);
-      } else {
-        const xOff = (s % 3 - 1) * (geom.length || 10) / 6;
-        const zOff = (Math.floor(s / 3) % 3 - 1) * (geom.width || 10) / 6;
-        cx = xOff; cy = 0; cz = zOff;
-      }
-
-      for (let i = 0; i < numPoints; i++) {
-        const t = i / (numPoints - 1);
-        if (geom.shape === 'cylinder_horizontal') {
-          points.push(new THREE.Vector3(
-            min.x + t * (max.x - min.x),
-            cy,
-            cz
-          ));
-        } else if (geom.shape === 'cylinder_vertical') {
-          points.push(new THREE.Vector3(
-            cx,
-            min.y + t * (max.y - min.y),
-            cz
-          ));
-        } else {
-          points.push(new THREE.Vector3(
-            min.x + t * (max.x - min.x),
-            cy,
-            cz
-          ));
-        }
-      }
+      const points = computeStreamlineRK4(start);
+      if (points.length < 3) continue;
 
       const curve = new THREE.CatmullRomCurve3(points);
-      const tubeGeo = new THREE.TubeGeometry(curve, 40, 0.008, 6, false);
-      const hue = s / numStreamlines;
+      const tubeGeo = new THREE.TubeGeometry(curve, points.length, 0.005, 8, false);
+      
+      // Coloration basée sur la magnitude de vitesse pour un aspect scientifique
+      const [u, v, w] = interpolateVelocity(start.x, start.y, start.z);
+      const vmag = Math.sqrt(u*u + v*v + w*w);
+      const norm = Math.min(1, vmag / (stats.maxV || 1));
+      const [cr, cg, cb] = jetColorMap(norm);
+
       const tubeMat = new THREE.MeshPhongMaterial({
-        color: new THREE.Color().setHSL(hue, 0.8, 0.6),
+        color: new THREE.Color(cr, cg, cb),
         transparent: true,
-        opacity: 0.5,
-        emissive: new THREE.Color().setHSL(hue, 0.8, 0.2)
+        opacity: 0.6,
+        emissive: new THREE.Color(cr, cg, cb).multiplyScalar(0.2)
       });
       group.add(new THREE.Mesh(tubeGeo, tubeMat));
     }
-
     scene.add(group);
-  }, [data, domainBounds, scenarioGeometry]);
+  }, [data, domainBounds, scenarioGeometry, computeStreamlineRK4, interpolateVelocity, stats.maxV]);
 
   // ============================================================================
   // COUPES TRANSVERSALES — Cross-section slices (style ANSYS Contour)
@@ -884,17 +908,26 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const size = new THREE.Vector3().subVectors(max, min);
     const maxDim = Math.max(size.x, size.y, size.z);
     
-    // Position caméra adaptée à la géométrie - Optimisation Zoom Industriel
+    // ✅ Position caméra intelligente et adaptative (Truly-Industrial Auto-Fit)
+    const { center } = domainBounds;
+    const distance = maxDim * 1.5;
+    
     if (scenarioGeometry.shape === 'cylinder_horizontal') {
-      // Vue industrielle 3/4 pour voir les extrémités et le profil
-      camera.position.set(domainBounds.center.x - maxDim * 0.6, domainBounds.center.y + maxDim * 0.5, domainBounds.center.z + maxDim * 0.8);
+      camera.position.set(center.x, center.y + maxDim * 0.5, center.z + distance);
     } else if (scenarioGeometry.shape === 'cylinder_vertical') {
-      camera.position.set(domainBounds.center.x + maxDim * 1.2, domainBounds.center.y, domainBounds.center.z + maxDim * 1.2);
+      camera.position.set(center.x + distance, center.y, center.z + distance);
     } else {
-      camera.position.set(domainBounds.center.x + maxDim * 1.0, domainBounds.center.y + maxDim * 1.0, domainBounds.center.z + maxDim * 1.5);
+      camera.position.set(center.x + distance, center.y + distance, center.z + distance);
     }
-    camera.lookAt(domainBounds.center);
+    
+    camera.lookAt(center);
     cameraRef.current = camera;
+
+    // Ajustement automatique du zoom pour ne rien cacher
+    if (controls) {
+      controls.target.copy(center);
+      controls.update();
+    }
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setSize(visualizationRef.current.clientWidth, visualizationRef.current.clientHeight);
@@ -1065,37 +1098,37 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
       <div className="flex-1 w-full flex flex-col md:flex-row gap-3 md:gap-4 min-h-0 relative">
         <div ref={visualizationRef} className="flex-1 rounded-[24px] overflow-hidden border border-white/10 bg-black/20 relative min-h-[300px] md:min-h-[500px]" />
         
-        {/* Scientific Scale Bar - Aligned with Jet ColorMap */}
-        <div className="w-full md:w-28 flex md:flex-col items-center justify-between py-3 md:py-6 px-4 md:px-2 bg-black/60 rounded-[24px] border border-cyan-500/20 relative backdrop-blur-xl shadow-2xl">
-          <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent rounded-[24px] pointer-events-none" />
+        {/* Scientific Scale Bar - Aligned with Jet ColorMap - Enhanced for Visibility */}
+        <div className="w-full md:w-32 flex md:flex-col items-center justify-between py-4 md:py-8 px-4 md:px-3 bg-black/90 rounded-[32px] border border-white/10 relative backdrop-blur-3xl shadow-2xl z-40">
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/10 to-transparent rounded-[32px] pointer-events-none" />
           
-          <div className="text-[9px] md:text-[11px] font-black text-white mb-2 text-center w-full border-b border-white/10 pb-1">
+          <div className="text-[10px] md:text-[12px] font-black text-white mb-4 text-center w-full border-b border-white/10 pb-2">
             {activeVariable.toUpperCase().replace('_', ' ')}
-            <span className="block text-[8px] text-cyan-400">[{getUnit(activeVariable)}]</span>
+            <span className="block text-[9px] text-cyan-400 mt-1">[{getUnit(activeVariable)}]</span>
           </div>
 
-          <div className="flex-1 w-full flex md:flex-row items-center gap-2 relative min-h-[150px] md:min-h-[350px]">
-            {/* Ticks */}
-            <div className="hidden md:flex flex-col justify-between h-full text-[8px] font-mono text-gray-400 text-right pr-1">
-              {[...Array(6)].map((_, i) => (
-                <span key={i}>{formatScaleValue(stats.maxV - (i/5) * (stats.maxV - stats.minV))}</span>
+          <div className="flex-1 w-full flex flex-row md:flex-row items-stretch gap-4 relative min-h-[50px] md:min-h-[450px]">
+            {/* Ticks Values */}
+            <div className="flex flex-col justify-between h-full text-[10px] font-mono text-white/90 text-right pr-1 min-w-[60px]">
+              {[...Array(11)].map((_, i) => (
+                <span key={i} className="leading-none">{formatScaleValue(stats.maxV - (i/10) * (stats.maxV - stats.minV))}</span>
               ))}
             </div>
             
-            {/* Gradient Bar */}
-            <div className="flex-1 h-2 md:h-full w-full md:w-4 rounded-sm border border-white/20 shadow-[0_0_15px_rgba(0,255,255,0.1)]" 
-                 style={{ background: 'linear-gradient(to top, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000)' }} />
+            {/* Gradient Bar - Scientific Jet alignment */}
+            <div className="w-4 md:w-8 h-full rounded-md border border-white/30 shadow-[0_0_30px_rgba(0,0,0,0.6)] overflow-hidden" 
+                 style={{ background: 'linear-gradient(to top, #0000ff 0%, #00ffff 25%, #00ff00 50%, #ffff00 75%, #ff0000 100%)' }} />
             
             {/* Ticks markers */}
-            <div className="hidden md:flex flex-col justify-between h-full py-0.5">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="w-1.5 h-px bg-white/30" />
+            <div className="flex flex-col justify-between h-full py-0.5">
+              {[...Array(11)].map((_, i) => (
+                <div key={i} className="w-3 h-px bg-white/60" />
               ))}
             </div>
           </div>
 
-          <div className="mt-2 text-[8px] font-bold text-gray-500 uppercase tracking-tighter">
-            Industrial Scale
+          <div className="mt-4 text-[10px] font-black text-cyan-500 uppercase tracking-widest bg-cyan-500/10 px-3 py-1.5 rounded-full border border-cyan-500/30">
+            CFD SCALE
           </div>
         </div>
       </div>

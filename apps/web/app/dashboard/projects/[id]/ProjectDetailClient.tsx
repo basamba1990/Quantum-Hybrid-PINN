@@ -51,16 +51,21 @@ export default function ProjectDetailClient({ id, project, initialAnalyses }: an
   const predictions3d = useMemo(() => {
     const data = results?.predictions3d || latestAnalysis?.pinn_predictions || []
     if (!Array.isArray(data)) return []
-    // Limiter à 3000 points pour la stabilité client-side
-    return data.slice(0, 3000).map((p: any) => ({
+    // ✅ Augmentation de la limite pour une meilleure résolution scientifique
+    return data.slice(0, 10000).map((p: any) => ({
       x: Number(p.x) || 0,
       y: Number(p.y) || 0,
       z: Number(p.z) || 0,
-      temperature: p.temperature,
-      pressure: p.pressure,
-      velocity_magnitude: p.velocity_magnitude || p.velocity,
-      sigma_1: p.sigma_1,
-      von_mises: p.von_mises
+      temperature: Number(p.temperature ?? p.temp ?? 0),
+      pressure: Number(p.pressure ?? p.p ?? 0),
+      velocity_magnitude: Number(p.velocity_magnitude ?? p.velocity ?? 0),
+      velocity_u: Number(p.velocity_u ?? p.u ?? 0),
+      velocity_v: Number(p.velocity_v ?? p.v ?? 0),
+      velocity_w: Number(p.velocity_w ?? p.w ?? 0),
+      density: Number(p.density ?? p.rho ?? 0),
+      damage: Number(p.damage ?? 0),
+      sigma_1: Number(p.sigma_1 ?? 0),
+      von_mises: Number(p.von_mises ?? 0)
     }))
   }, [results, latestAnalysis])
 
@@ -203,7 +208,7 @@ export default function ProjectDetailClient({ id, project, initialAnalyses }: an
                       title={project?.name || "H2-DISTRIBUTION-V12"}
                       colorVariable="temperature"
                       quality="ultra"
-                      scenarioType="H2_DISTRIBUTION_HIGH_PRESSURE"
+                      scenarioType={latestAnalysis?.scenario_type || "H2_PIPELINE"}
                     />
                   </div>
                 ) : (
