@@ -923,12 +923,6 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     camera.lookAt(center);
     cameraRef.current = camera;
 
-    // Ajustement automatique du zoom pour ne rien cacher
-    if (controls) {
-      controls.target.copy(center);
-      controls.update();
-    }
-
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setSize(visualizationRef.current.clientWidth, visualizationRef.current.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -940,6 +934,11 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
+    
+    // ✅ Ajustement automatique du zoom pour ne rien cacher (Correction Scope Error)
+    controls.target.copy(center);
+    controls.update();
+    
     controlsRef.current = controls;
 
     // Éclairage industriel multi-source
