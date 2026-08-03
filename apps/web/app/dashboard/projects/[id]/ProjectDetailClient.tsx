@@ -85,7 +85,7 @@ export default function ProjectDetailClient({ id, project, initialAnalyses }: an
           .single()
 
         if (resultData) setLatestAnalysis(resultData)
-        else if (analysesData?.length > 0) setLatestAnalysis(analysesData[0])
+        else if (analysesData && analysesData.length > 0) setLatestAnalysis(analysesData[0])
         
       } catch (err) {
         console.error('Fetch error:', err)
