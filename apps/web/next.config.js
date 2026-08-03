@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   distDir: 'dist',
+  transpilePackages: ['three'],
   
   // Optimisations de performance (SWC est activé par défaut dans Next.js 15+)
   compress: true,

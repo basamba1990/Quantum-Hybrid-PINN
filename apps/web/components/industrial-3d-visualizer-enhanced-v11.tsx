@@ -1,7 +1,7 @@
 'use client'
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Activity, Cpu, Database, ShieldCheck, Box, Download, Thermometer, Gauge, Wind, Zap } from 'lucide-react'
 import ExportButtonsImproved from './export-buttons-improved'
 
@@ -921,17 +921,21 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     rimLight.position.set(0, 0, -15);
     scene.add(rimLight);
 
-    // Construire tous les éléments
-    buildPipelineWall(scene);
-    
-    if (renderMode === 'volume') buildMassiveVolume(scene);
-    else if (renderMode === 'isosurface') buildIsosurface(scene);
-    else buildParticleCloud(scene);
+    // Construire tous les éléments avec gestion d'erreurs
+    try {
+      buildPipelineWall(scene);
+      
+      if (renderMode === 'volume') buildMassiveVolume(scene);
+      else if (renderMode === 'isosurface') buildIsosurface(scene);
+      else buildParticleCloud(scene);
 
-    if (showVectors) buildVelocityVectors(scene);
-    if (showStreamlines) buildStreamlines(scene);
-    if (showCutPlanes) buildCutPlanes(scene);
-    createScientificAxes(scene);
+      if (showVectors) buildVelocityVectors(scene);
+      if (showStreamlines) buildStreamlines(scene);
+      if (showCutPlanes) buildCutPlanes(scene);
+      createScientificAxes(scene);
+    } catch (err) {
+      console.error("Erreur lors de la construction de la scène 3D:", err);
+    }
 
     const animate = () => {
       if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
