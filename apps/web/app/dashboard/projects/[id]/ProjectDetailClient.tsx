@@ -43,7 +43,7 @@ export default function ProjectDetailClient({ id, project, initialAnalyses }: Pr
   const [latestAnalysis, setLatestAnalysis] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeView, setActiveView] = useState<'standard' | 'advanced' | 'comparative' | 'reliability' | 'interactive'>('standard')
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   // Mémorisation des résultats pour éviter les re-renders inutiles
   const results = useMemo(() => {
