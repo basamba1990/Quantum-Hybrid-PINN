@@ -909,15 +909,32 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const maxDim = Math.max(size.x, size.y, size.z);
     
     // ✅ Position caméra intelligente et adaptative (Truly-Industrial Auto-Fit)
+    // Ajustée pour zoom réduit et angle isométrique optimisé
     const { center } = domainBounds;
-    const distance = maxDim * 1.5;
+    const distance = maxDim * 1.2; // Réduit de 1.5 à 1.2 pour meilleur zoom
     
     if (scenarioGeometry.shape === 'cylinder_horizontal') {
-      camera.position.set(center.x, center.y + maxDim * 0.5, center.z + distance);
+      // Angle isométrique optimisé pour pipeline horizontal
+      // Position: légèrement au-dessus, à droite et derrière
+      camera.position.set(
+        center.x + distance * 0.6,
+        center.y + maxDim * 0.4,
+        center.z + distance * 0.8
+      );
     } else if (scenarioGeometry.shape === 'cylinder_vertical') {
-      camera.position.set(center.x + distance, center.y, center.z + distance);
+      // Angle isométrique pour réservoir vertical
+      camera.position.set(
+        center.x + distance * 0.7,
+        center.y + maxDim * 0.3,
+        center.z + distance * 0.7
+      );
     } else {
-      camera.position.set(center.x + distance, center.y + distance, center.z + distance);
+      // Angle isométrique générique
+      camera.position.set(
+        center.x + distance * 0.6,
+        center.y + distance * 0.6,
+        center.z + distance * 0.6
+      );
     }
     
     camera.lookAt(center);
@@ -934,9 +951,17 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
+    controls.enableZoom = true;
+    controls.minDistance = maxDim * 0.5; // Distance minimale de zoom
+    controls.maxDistance = maxDim * 3; // Distance maximale de zoom
     
     // ✅ Ajustement automatique du zoom pour ne rien cacher (Correction Scope Error)
+    // Avec zoom réduit pour meilleure visualisation
     controls.target.copy(center);
+    controls.autoRotate = false; // Désactiver rotation auto pour contrôle utilisateur
+    controls.autoRotateSpeed = 2;
+    controls.zoomSpeed = 1.2; // Vitesse de zoom réduite pour plus de contrôle
+    controls.rotateSpeed = 0.8; // Vitesse de rotation réduite
     controls.update();
     
     controlsRef.current = controls;
