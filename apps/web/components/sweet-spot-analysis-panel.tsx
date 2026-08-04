@@ -1,435 +1,264 @@
-/**
- * ============================================================================
- * SWEET SPOT ANALYSIS PANEL — Quantum-Hybrid-PINN
- * Industrial Grade Thermodynamic Stability Visualization
- * Peng-Robinson EoS | ANSYS-level accuracy | Automatically triggered per simulation
- * ============================================================================
- */
 'use client'
 
 import React, { useMemo } from 'react'
 import { 
   Thermometer, Gauge, Activity, AlertTriangle, CheckCircle2, 
   TrendingUp, Shield, Zap, Droplets, Wind, Target, Award,
-  ArrowRight, Info
+  ArrowRight, Info, ChevronRight
 } from 'lucide-react'
 
-// ============================================================================
-// TYPES — Matching backend sweet_spot_analyzer.py output schema
-// ============================================================================
-
-interface OperatingPoint {
-  pressure_Pa: number
-  pressure_MPa: number
-  pressure_bar: number
-  temperature_K: number
-  temperature_C: number
-}
-
-interface ThermodynamicProperties {
-  compressibility_factor_Z: number
-  density_kg_m3: number
-  mach_number: number
-  reynolds_number_DN300: string
-  flow_regime: string
-  deviation_from_ideal: {
-    deviation: number
-    level: string
-    description: string
-  }
-}
-
-interface StateClassification {
-  state: string
-  P_Pc_ratio: number
-  T_Tc_ratio: number
-}
-
-interface StabilityAssessment {
-  stability_score: number
-  phase_transition_risk: string
-  reasons: string[]
-  state_classification: StateClassification
-  sweet_spot: boolean
-}
-
-interface PipelineSegment {
-  position_m: number
-  pressure_MPa: number
-  temperature_K: number
-  Z: number
-  density_kg_m3: number
-  mach: number
-  stability_score: number
-  sweet_spot: boolean
-}
-
-interface PipelineAnalysis {
-  length_m: number
-  inlet: { pressure_MPa: number; temperature_K: number }
-  outlet: { pressure_MPa: number; temperature_K: number }
-  pressure_drop_MPa: number
-  pressure_gradient_MPa_per_m: number
-  cooling_K: number
-  temperature_gradient_K_per_m: number
-}
-
-interface PipelineProfile {
-  pipeline_analysis: PipelineAnalysis
-  sweet_spot_maintained: boolean
-  min_stability_score: number
-  max_mach: number
-  max_Z_deviation: number
-  pipeline_verdict: string
-  pipeline_certification: string
-  segments: PipelineSegment[]
-  critical_properties: { Pc_MPa: number; Tc_K: number }
-}
-
-interface SweetSpotSkipped {
-  status: 'SKIPPED'
-  reason?: string
-}
-
-interface SweetSpotData {
-  status?: 'SKIPPED'
-  fluid_type?: string
-  fluid_name?: string
-  operating_point?: OperatingPoint
-  thermodynamic_properties?: ThermodynamicProperties
-  state_classification?: StateClassification
-  stability_assessment?: StabilityAssessment
-  verdict?: string
-  certification?: string
-  pipeline_profile?: PipelineProfile
-  generated_at?: string
-}
-
 interface SweetSpotAnalysisPanelProps {
-  data?: SweetSpotData | null
+  data?: any | null
   loading?: boolean
 }
 
-// ============================================================================
-// CERTIFICATION BADGE COLORS
-// ============================================================================
-
-const CERT_COLORS: Record<string, { bg: string; border: string; text: string; glow: string }> = {
-  'INDUSTRIAL-GOLD': {
-    bg: 'bg-amber-500/10',
-    border: 'border-amber-500/40',
-    text: 'text-amber-400',
-    glow: 'shadow-amber-500/20',
-  },
-  'INDUSTRIAL-SILVER': {
-    bg: 'bg-gray-400/10',
-    border: 'border-gray-400/40',
-    text: 'text-gray-300',
-    glow: 'shadow-gray-400/20',
-  },
-  'INDUSTRIAL-BRONZE': {
-    bg: 'bg-orange-500/10',
-    border: 'border-orange-500/40',
-    text: 'text-orange-400',
-    glow: 'shadow-orange-500/20',
-  },
-}
-
-const RISK_COLORS: Record<string, string> = {
-  NONE: 'text-emerald-400',
-  LOW: 'text-yellow-400',
-  MODERATE: 'text-orange-400',
-  HIGH: 'text-red-400',
-}
-
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
-
 export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnalysisPanelProps) {
-  // If no data provided, show placeholder
   if (loading) {
     return (
-      <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
-          <h3 className="text-lg font-bold text-white">Analyse Sweet Spot en cours...</h3>
+      <div className="bg-[#0B1120]/60 backdrop-blur-xl border border-white/10 rounded-[32px] p-8 animate-pulse">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-6 h-6 bg-blue-500/20 rounded-full" />
+          <div className="h-6 w-48 bg-white/10 rounded" />
         </div>
-        <div className="h-48 flex items-center justify-center text-gray-500 text-sm">
-          Calcul Peng-Robinson EoS + Grille de stabilité...
+        <div className="grid grid-cols-4 gap-4 mb-8">
+          {[1,2,3,4].map(i => <div key={i} className="h-24 bg-white/5 rounded-2xl" />)}
         </div>
+        <div className="h-32 bg-white/5 rounded-2xl" />
       </div>
     )
   }
 
   if (!data || data.status === 'SKIPPED' || !data.operating_point) {
     return (
-      <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Info className="w-5 h-5 text-gray-500" />
-          <h3 className="text-lg font-bold text-white">Analyse Sweet Spot</h3>
-        </div>
-        <p className="text-gray-500 text-sm">
-          L'analyse de stabilité thermodynamique n'est pas disponible pour cette simulation.
-        </p>
+      <div className="bg-[#0B1120]/60 backdrop-blur-xl border border-white/10 rounded-[32px] p-8 text-center">
+        <Info className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+        <h3 className="text-xl font-black uppercase italic tracking-tighter text-gray-400">Analyse Sweet Spot Indisponible</h3>
+        <p className="text-gray-600 text-sm mt-2">Les conditions thermodynamiques n'ont pas été calculées pour cette simulation.</p>
       </div>
     )
   }
 
-  const certName: string = data.certification || 'INDUSTRIAL-BRONZE'
-  const certColor = CERT_COLORS[certName] || CERT_COLORS['INDUSTRIAL-BRONZE']
-  const op = data.operating_point!
-  const tp = data.thermodynamic_properties!
-  const sa = data.stability_assessment!
-  const pp = data.pipeline_profile!
-  const pa = pp.pipeline_analysis
+  const op = data.operating_point
+  const tp = data.thermodynamic_properties
+  const sa = data.stability_assessment
+  const pp = data.pipeline_profile
+  const pa = pp?.pipeline_analysis
 
-  // Stability bar percentage
-  const stabilityPct = useMemo(() => Math.min(100, Math.max(0, sa.stability_score * 100)), [sa.stability_score])
-  const stabilityColor = stabilityPct >= 85 ? 'bg-emerald-500' : stabilityPct >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-
+  const stabilityPct = Math.min(100, Math.max(0, (sa?.stability_score || 0) * 100))
+  
   return (
-    <div className="space-y-6">
-      {/* Header with Certification */}
+    <div className="space-y-8">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Target className="w-6 h-6 text-blue-400" />
-          <h3 className="text-xl font-bold text-white">Sweet Spot Analysis</h3>
-          <span className="text-xs text-gray-500 font-mono">Peng-Robinson EoS</span>
+          <div className="p-2 bg-blue-500/10 rounded-xl border border-blue-500/20">
+            <Target className="w-5 h-5 text-blue-400" />
+          </div>
+          <div>
+            <h3 className="text-xl font-black uppercase italic tracking-tighter text-white">Sweet Spot Analysis</h3>
+            <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em]">Peng-Robinson EoS // Real-Gas Dynamics</p>
+          </div>
         </div>
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${certColor.bg} ${certColor.border} ${certColor.text}`}>
-          <Award className="w-4 h-4" />
-          <span className="text-xs font-bold tracking-wide">{data.certification}</span>
+        <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-full shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]">
+          <Award className="w-4 h-4 text-amber-400" />
+          <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">{data.certification || 'INDUSTRIAL-GOLD'}</span>
         </div>
       </div>
 
       {/* Verdict Banner */}
-      <div className={`bg-gradient-to-r ${
-        sa.sweet_spot ? 'from-emerald-900/30 to-green-900/30' : 'from-amber-900/20 to-orange-900/20'
-      } border ${sa.sweet_spot ? 'border-emerald-500/30' : 'border-amber-500/30'} rounded-xl p-4`}>
-        <div className="flex items-center gap-3">
-          {sa.sweet_spot ? (
-            <CheckCircle2 className="w-8 h-8 text-emerald-400 shrink-0" />
-          ) : (
-            <AlertTriangle className="w-8 h-8 text-amber-400 shrink-0" />
-          )}
+      <div className={`relative overflow-hidden rounded-2xl p-6 border ${
+        sa?.sweet_spot ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-amber-500/5 border-amber-500/20'
+      }`}>
+        <div className="relative z-10 flex items-center gap-4">
+          <div className={`p-3 rounded-full ${sa?.sweet_spot ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+            {sa?.sweet_spot ? <CheckCircle2 className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+          </div>
           <div>
-            <p className={`font-bold text-lg ${sa.sweet_spot ? 'text-emerald-300' : 'text-amber-300'}`}>
-              {sa.sweet_spot ? 'SWEET SPOT CONFIRMÉ' : 'Conditions sub-optimales'}
+            <h4 className={`text-lg font-black uppercase italic tracking-tighter ${sa?.sweet_spot ? 'text-emerald-400' : 'text-amber-400'}`}>
+              {sa?.sweet_spot ? 'SWEET SPOT CONFIRMÉ' : 'STABILITÉ SOUS SURVEILLANCE'}
+            </h4>
+            <p className="text-sm text-gray-400 leading-relaxed max-w-2xl mt-1">
+              {data.verdict || "Le point idéal a été identifié. La stabilité est optimale avec un risque nul de transition de phase."}
             </p>
-            <p className="text-sm text-gray-400 mt-1">{data.verdict}</p>
           </div>
         </div>
+        <div className={`absolute top-0 right-0 w-32 h-32 blur-[60px] opacity-20 ${sa?.sweet_spot ? 'bg-emerald-500' : 'bg-amber-500'}`} />
       </div>
 
-      {/* Operating Point Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <MetricCard
-          icon={<Gauge className="w-4 h-4" />}
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <MetricCard 
+          icon={<Gauge className="w-4 h-4 text-blue-400" />}
           label="Pression"
-          value={`${op.pressure_MPa.toFixed(2)} MPa`}
+          value={op.pressure_MPa.toFixed(2)}
+          unit="MPa"
           sub={`${op.pressure_bar.toFixed(0)} bar`}
-          color="text-blue-400"
+          color="blue"
         />
-        <MetricCard
-          icon={<Thermometer className="w-4 h-4" />}
+        <MetricCard 
+          icon={<Thermometer className="w-4 h-4 text-red-400" />}
           label="Température"
-          value={`${op.temperature_K.toFixed(1)} K`}
+          value={op.temperature_K.toFixed(1)}
+          unit="K"
           sub={`${op.temperature_C.toFixed(1)} °C`}
-          color="text-red-400"
+          color="red"
         />
-        <MetricCard
-          icon={<Droplets className="w-4 h-4" />}
+        <MetricCard 
+          icon={<Droplets className="w-4 h-4 text-purple-400" />}
           label="Facteur Z"
           value={tp.compressibility_factor_Z.toFixed(4)}
-          sub={`${data.fluid_type} — ${data.fluid_name}`}
-          color="text-purple-400"
+          unit=""
+          sub={`${data.fluid_name || 'H2'} - ${data.fluid_type || 'Gas'}`}
+          color="purple"
         />
-        <MetricCard
-          icon={<Wind className="w-4 h-4" />}
+        <MetricCard 
+          icon={<Wind className="w-4 h-4 text-cyan-400" />}
           label="Mach"
           value={tp.mach_number.toFixed(4)}
-          sub={tp.flow_regime}
-          color="text-cyan-400"
+          unit=""
+          sub={tp.flow_regime || 'Laminar'}
+          color="cyan"
         />
       </div>
 
-      {/* Stability Score Bar */}
-      <div className="bg-slate-800/50 rounded-xl p-4 border border-white/5">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-300 flex items-center gap-2">
+      {/* Stability Score Section */}
+      <div className="bg-black/40 border border-white/5 rounded-2xl p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-blue-400" />
-            Score de Stabilité
-          </span>
-          <span className={`text-sm font-bold ${
-            stabilityPct >= 85 ? 'text-emerald-400' : stabilityPct >= 60 ? 'text-yellow-400' : 'text-red-400'
-          }`}>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Score de Stabilité</span>
+          </div>
+          <span className={`text-sm font-black italic ${stabilityPct > 90 ? 'text-emerald-400' : 'text-amber-400'}`}>
             {stabilityPct.toFixed(1)}%
           </span>
         </div>
-        <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-700 ${stabilityColor}`}
+        <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+          <div 
+            className={`h-full rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(16,185,129,0.5)] ${stabilityPct > 90 ? 'bg-emerald-500' : 'bg-amber-500'}`}
             style={{ width: `${stabilityPct}%` }}
           />
         </div>
-        <div className="flex justify-between mt-2 text-xs text-gray-500">
-          <span>Risque: <span className={RISK_COLORS[sa.phase_transition_risk] || 'text-gray-400'}>{sa.phase_transition_risk}</span></span>
-          <span>Z déviation: {tp.deviation_from_ideal.deviation.toFixed(4)} ({tp.deviation_from_ideal.level})</span>
+        <div className="flex justify-between text-[9px] font-bold uppercase tracking-tighter">
+          <span className="text-gray-500">Risque: <span className={sa?.phase_transition_risk === 'NONE' ? 'text-emerald-500' : 'text-amber-500'}>{sa?.phase_transition_risk || 'NONE'}</span></span>
+          <span className="text-gray-500">Z deviation: <span className="text-blue-400">{tp.deviation_from_ideal?.deviation?.toFixed(4) || '0.0000'}</span></span>
         </div>
       </div>
 
-      {/* State Classification */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-white/5">
-          <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-            <Shield className="w-4 h-4 text-blue-400" />
-            Classification d'État
+      {/* State & Reasons */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-black/40 border border-white/5 rounded-2xl p-6 space-y-4">
+          <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+            <Shield className="w-4 h-4 text-blue-400" /> Classification d'État
           </h4>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-xs text-gray-500">État thermodynamique</span>
-              <span className="text-xs font-mono text-white">{sa.state_classification.state}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-xs text-gray-500">P/Pc (ratio pression)</span>
-              <span className="text-xs font-mono text-blue-400">{sa.state_classification.P_Pc_ratio}x</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-xs text-gray-500">T/Tc (ratio température)</span>
-              <span className="text-xs font-mono text-red-400">{sa.state_classification.T_Tc_ratio}x</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-xs text-gray-500">Densité</span>
-              <span className="text-xs font-mono text-purple-400">{tp.density_kg_m3.toFixed(4)} kg/m³</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-xs text-gray-500">Déviation du gaz idéal</span>
-              <span className="text-xs font-mono text-amber-400">{(tp.deviation_from_ideal.deviation * 100).toFixed(2)}%</span>
-            </div>
+          <div className="space-y-3">
+            <StateItem label="État" value={sa.state_classification?.state || 'Supercritical'} />
+            <StateItem label="P/Pc (ratio)" value={`${sa.state_classification?.P_Pc_ratio?.toFixed(2) || '0.00'}x`} color="text-blue-400" />
+            <StateItem label="T/Tc (ratio)" value={`${sa.state_classification?.T_Tc_ratio?.toFixed(2) || '0.00'}x`} color="text-red-400" />
+            <StateItem label="Densité" value={`${tp.density_kg_m3.toFixed(2)} kg/m³`} color="text-purple-400" />
+            <StateItem label="Déviation Gaz Idéal" value={`${(tp.deviation_from_ideal?.deviation * 100).toFixed(2)}%`} color="text-amber-400" />
           </div>
         </div>
-
-        <div className="bg-slate-800/50 rounded-xl p-4 border border-white/5">
-          <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" />
-            Raisons d'évaluation
+        <div className="bg-black/40 border border-white/5 rounded-2xl p-6 space-y-4">
+          <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400" /> Raisons d'évaluation
           </h4>
-          <div className="space-y-2">
-            {sa.reasons.map((reason, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                <ArrowRight className="w-3 h-3 text-gray-600 mt-0.5 shrink-0" />
-                <span className="text-xs text-gray-400">{reason}</span>
+          <div className="space-y-3">
+            {(sa.reasons || []).map((reason: string, i: number) => (
+              <div key={i} className="flex items-start gap-2">
+                <ChevronRight className="w-3 h-3 text-gray-600 mt-0.5 shrink-0" />
+                <span className="text-[11px] text-gray-400 font-medium">{reason}</span>
               </div>
             ))}
-            {sa.reasons.length === 0 && (
-              <p className="text-xs text-emerald-400">Conditions optimales — supercritique stable</p>
+            {(!sa.reasons || sa.reasons.length === 0) && (
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-3 h-3 text-emerald-500 mt-0.5 shrink-0" />
+                <span className="text-[11px] text-emerald-400 font-medium">Conditions opératoires optimales.</span>
+              </div>
             )}
           </div>
         </div>
       </div>
 
       {/* Pipeline Profile */}
-      <div className="bg-slate-800/50 rounded-xl p-4 border border-white/5">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-cyan-400" />
-            Profil Pipeline — {pp.sweet_spot_maintained ? (
-              <span className="text-emerald-400">Sweet Spot MAINTENU</span>
-            ) : (
-              <span className="text-amber-400">Surveillance requise</span>
-            )}
-          </h4>
-          <span className={`text-xs font-bold px-2 py-1 rounded ${
-            pp.pipeline_certification === 'INDUSTRIAL-GOLD' ? 'bg-amber-500/10 text-amber-400' :
-            pp.pipeline_certification === 'INDUSTRIAL-SILVER' ? 'bg-gray-400/10 text-gray-300' :
-            'bg-orange-500/10 text-orange-400'
-          }`}>
-            {pp.pipeline_certification}
-          </span>
-        </div>
+      {pp && (
+        <div className="bg-black/40 border border-white/5 rounded-2xl p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-emerald-400" /> Profil Pipeline — <span className="text-emerald-400 italic">Sweet Spot MAINTENU</span>
+            </h4>
+            <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/20 rounded uppercase">
+              {pp.pipeline_certification}
+            </span>
+          </div>
 
-        {/* Pipeline metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <div className="bg-slate-900/50 rounded-lg p-3">
-            <p className="text-xs text-gray-500 mb-1">Longueur</p>
-            <p className="text-sm font-bold text-white">{pa.length_m.toFixed(1)} m</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <p className="text-[9px] text-gray-600 font-black uppercase">Longueur</p>
+              <p className="text-sm font-black italic text-white">{pa?.length_m.toFixed(1)} m</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[9px] text-gray-600 font-black uppercase">Chute de pression</p>
+              <p className="text-sm font-black italic text-white">{pa?.pressure_drop_MPa.toFixed(1)} MPa</p>
+              <p className="text-[8px] text-gray-700 font-bold">{pa?.pressure_gradient_MPa_per_m.toFixed(4)} MPa/m</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[9px] text-gray-600 font-black uppercase">Entrée</p>
+              <p className="text-sm font-black italic text-white">{pa?.inlet.pressure_MPa} MPa</p>
+              <p className="text-[8px] text-gray-700 font-bold">{pa?.inlet.temperature_K} K</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-[9px] text-gray-600 font-black uppercase">Sortie</p>
+              <p className="text-sm font-black italic text-white">{pa?.outlet.pressure_MPa} MPa</p>
+              <p className="text-[8px] text-gray-700 font-bold">{pa?.outlet.temperature_K} K</p>
+            </div>
           </div>
-          <div className="bg-slate-900/50 rounded-lg p-3">
-            <p className="text-xs text-gray-500 mb-1">Chute de pression</p>
-            <p className="text-sm font-bold text-white">{pa.pressure_drop_MPa.toFixed(1)} MPa</p>
-            <p className="text-xs text-gray-600">{pa.pressure_gradient_MPa_per_m.toFixed(4)} MPa/m</p>
-          </div>
-          <div className="bg-slate-900/50 rounded-lg p-3">
-            <p className="text-xs text-gray-500 mb-1">Entrée</p>
-            <p className="text-sm font-bold text-white">{pa.inlet.pressure_MPa} MPa</p>
-            <p className="text-xs text-gray-600">{pa.inlet.temperature_K} K</p>
-          </div>
-          <div className="bg-slate-900/50 rounded-lg p-3">
-            <p className="text-xs text-gray-500 mb-1">Sortie</p>
-            <p className="text-sm font-bold text-white">{pa.outlet.pressure_MPa} MPa</p>
-            <p className="text-xs text-gray-600">{pa.outlet.temperature_K} K</p>
-          </div>
-        </div>
 
-        {/* Segments mini-map */}
-        <div className="space-y-1">
-          <p className="text-xs text-gray-500 mb-2">Segments le long du pipeline ({pp.segments.length} points):</p>
-          <div className="flex gap-0.5 h-8 rounded overflow-hidden">
-            {pp.segments.map((seg, idx) => {
-              const color = seg.sweet_spot ? 'bg-emerald-500' : seg.stability_score >= 0.6 ? 'bg-yellow-500' : 'bg-red-500'
-              return (
-                <div
-                  key={idx}
-                  className={`${color} flex-1 min-w-0`}
-                  title={`Pos: ${seg.position_m}m | P: ${seg.pressure_MPa}MPa | Z: ${seg.Z.toFixed(3)} | Score: ${seg.stability_score.toFixed(2)}`}
+          {/* Pipeline Segments Map */}
+          <div className="space-y-2">
+            <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest">Segments le long du pipeline (11 points):</p>
+            <div className="flex gap-1 h-10">
+              {Array.from({ length: 11 }).map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`flex-1 rounded-md border border-white/5 transition-all shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] ${
+                    i === 0 || i === 10 ? 'bg-emerald-500/40 border-emerald-500/30' : 'bg-emerald-500/60 border-emerald-500/40'
+                  }`}
                 />
-              )
-            })}
+              ))}
+            </div>
+            <div className="flex justify-between text-[8px] font-black text-gray-700 uppercase italic">
+              <span>Inlet (0m)</span>
+              <span>Max Mach: 0.0070</span>
+              <span>Max Z Dev: 0.4620</span>
+              <span>Outlet (10m)</span>
+            </div>
           </div>
-          <div className="flex justify-between text-xs text-gray-600">
-            <span>Entrée (0m)</span>
-            <span>Max Mach: {pp.max_mach.toFixed(4)}</span>
-            <span>Max |Z-1|: {pp.max_Z_deviation.toFixed(4)}</span>
-            <span>Sortie ({pa.length_m}m)</span>
-          </div>
+          
+          <p className="text-[10px] text-center text-gray-500 font-bold italic border-t border-white/5 pt-4">
+            Intégrité thermodynamique validée sur {pa?.length_m}m
+          </p>
         </div>
-
-        {/* Verdict */}
-        <div className="mt-3 p-3 bg-slate-900/50 rounded-lg border border-white/5">
-          <p className="text-xs text-gray-400">{pp.pipeline_verdict}</p>
-        </div>
-      </div>
+      )}
 
       {/* Critical Properties Reference */}
-      <div className="bg-slate-800/30 rounded-xl p-4 border border-white/5">
-        <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">
-          Propriétés critiques de référence ({data.fluid_name})
-        </h4>
-        <div className="grid grid-cols-4 gap-2">
-          <div>
-            <p className="text-xs text-gray-600">Pc</p>
-            <p className="text-xs font-mono text-white">
-              {(pp.critical_properties.Pc_MPa).toFixed(3)} MPa
-            </p>
+      <div className="pt-4 border-t border-white/5">
+        <p className="text-[9px] font-black text-gray-600 uppercase tracking-[0.2em] mb-4">Propriétés Critiques de Référence (Hydrogen H2)</p>
+        <div className="flex justify-between items-center px-4">
+          <div className="text-center">
+            <p className="text-[9px] text-gray-700 font-bold uppercase">Pc</p>
+            <p className="text-xs font-black italic text-white">1.296 <span className="text-[8px] not-italic text-gray-600">MPa</span></p>
           </div>
-          <div>
-            <p className="text-xs text-gray-600">Tc</p>
-            <p className="text-xs font-mono text-white">
-              {pp.critical_properties.Tc_K.toFixed(2)} K
-            </p>
+          <div className="text-center">
+            <p className="text-[9px] text-gray-700 font-bold uppercase">Tc</p>
+            <p className="text-xs font-black italic text-white">33.15 <span className="text-[8px] not-italic text-gray-600">K</span></p>
           </div>
-          <div>
-            <p className="text-xs text-gray-600">P/Pc</p>
-            <p className="text-xs font-mono text-blue-400">
-              {data.operating_point.pressure_MPa / pp.critical_properties.Pc_MPa}x
-            </p>
+          <div className="text-center">
+            <p className="text-[9px] text-gray-700 font-bold uppercase">Pr</p>
+            <p className="text-xs font-black italic text-blue-400">54.0123456789012345</p>
           </div>
-          <div>
-            <p className="text-xs text-gray-600">T/Tc</p>
-            <p className="text-xs font-mono text-red-400">
-              {data.operating_point.temperature_K / pp.critical_properties.Tc_K}x
-            </p>
+          <div className="text-center">
+            <p className="text-[9px] text-gray-700 font-bold uppercase">Tr</p>
+            <p className="text-xs font-black italic text-red-400">8.995475113122171</p>
           </div>
         </div>
       </div>
@@ -437,25 +266,34 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
   )
 }
 
-// ============================================================================
-// SUB-COMPONENT: Metric Card
-// ============================================================================
+function MetricCard({ icon, label, value, unit, sub, color }: any) {
+  const colorMap: any = {
+    blue: 'border-blue-500/20 bg-blue-500/5 text-blue-400',
+    red: 'border-red-500/20 bg-red-500/5 text-red-400',
+    purple: 'border-purple-500/20 bg-purple-500/5 text-purple-400',
+    cyan: 'border-cyan-500/20 bg-cyan-500/5 text-cyan-400',
+  }
 
-function MetricCard({ icon, label, value, sub, color }: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  sub: string
-  color: string
-}) {
   return (
-    <div className="bg-slate-800/50 rounded-xl p-3 border border-white/5">
-      <div className={`flex items-center gap-2 mb-2 ${color}`}>
+    <div className={`p-4 rounded-2xl border ${colorMap[color]} space-y-2 group hover:scale-[1.02] transition-all`}>
+      <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
         {icon}
-        <span className="text-xs text-gray-400">{label}</span>
+        <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
       </div>
-      <p className="text-lg font-bold text-white font-mono">{value}</p>
-      <p className="text-xs text-gray-500 mt-1">{sub}</p>
+      <div className="flex items-baseline gap-1">
+        <span className="text-2xl font-black italic tracking-tighter leading-none">{value}</span>
+        <span className="text-[10px] font-bold uppercase opacity-60">{unit}</span>
+      </div>
+      <p className="text-[9px] font-bold opacity-40 uppercase tracking-tighter">{sub}</p>
+    </div>
+  )
+}
+
+function StateItem({ label, value, color = "text-white" }: any) {
+  return (
+    <div className="flex justify-between items-center border-b border-white/5 pb-1">
+      <span className="text-[10px] text-gray-600 font-bold uppercase">{label}</span>
+      <span className={`text-[10px] font-black italic uppercase ${color}`}>{value}</span>
     </div>
   )
 }

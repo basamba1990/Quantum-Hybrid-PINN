@@ -271,10 +271,10 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     if (geom.shape === 'cylinder_horizontal') {
       const radius = geom.radius || 0.15;
       const length = geom.length || 5.0;
-      const wallThick = geom.wallThickness || 0.015;
+      const wallThick = geom.wallThickness || 0.025; // Paroi plus robuste
 
       // Paroi extérieure (acier poli)
-      const outerGeo = new THREE.CylinderGeometry(radius + wallThick, radius + wallThick, length, 64, 1, true);
+      const outerGeo = new THREE.CylinderGeometry(radius + wallThick, radius + wallThick, length, 128, 1, true); // Haute résolution géométrique
       outerGeo.rotateZ(Math.PI / 2);
       const wallMat = new THREE.MeshStandardMaterial({
         color: 0xc0c8d0, metalness: 0.85, roughness: 0.15, side: THREE.DoubleSide
@@ -879,19 +879,19 @@ const Industrial3DVisualizerEnhancedV11: React.FC<Props> = ({
     scene.background = new THREE.Color(0x020617);
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(45, visualizationRef.current.clientWidth / visualizationRef.current.clientHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(35, visualizationRef.current.clientWidth / visualizationRef.current.clientHeight, 0.1, 1000);
     const { min, max } = domainBounds;
     const size = new THREE.Vector3().subVectors(max, min);
     const maxDim = Math.max(size.x, size.y, size.z);
     
-    // Position caméra adaptée à la géométrie - Optimisation Zoom Industriel
+    // Position caméra adaptée à la géométrie - Optimisation Zoom Industriel (Plus proche)
     if (scenarioGeometry.shape === 'cylinder_horizontal') {
-      // Vue industrielle 3/4 pour voir les extrémités et le profil
-      camera.position.set(domainBounds.center.x - maxDim * 0.6, domainBounds.center.y + maxDim * 0.5, domainBounds.center.z + maxDim * 0.8);
+      // Vue industrielle 3/4 plus immersive
+      camera.position.set(domainBounds.center.x - maxDim * 0.45, domainBounds.center.y + maxDim * 0.35, domainBounds.center.z + maxDim * 0.6);
     } else if (scenarioGeometry.shape === 'cylinder_vertical') {
-      camera.position.set(domainBounds.center.x + maxDim * 1.2, domainBounds.center.y, domainBounds.center.z + maxDim * 1.2);
+      camera.position.set(domainBounds.center.x + maxDim * 0.8, domainBounds.center.y, domainBounds.center.z + maxDim * 0.8);
     } else {
-      camera.position.set(domainBounds.center.x + maxDim * 1.0, domainBounds.center.y + maxDim * 1.0, domainBounds.center.z + maxDim * 1.5);
+      camera.position.set(domainBounds.center.x + maxDim * 0.7, domainBounds.center.y + maxDim * 0.7, domainBounds.center.z + maxDim * 1.0);
     }
     camera.lookAt(domainBounds.center);
     cameraRef.current = camera;
