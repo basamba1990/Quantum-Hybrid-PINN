@@ -76,7 +76,24 @@ export default function SimulationsPage() {
   const predictions3d = useMemo(() => {
     let results = selectedAnalysis?.results || {}
     if (typeof results === 'string') try { results = JSON.parse(results) } catch { results = {} }
-    return results.predictions3d || results.pinn_predictions || selectedAnalysis?.pinn_predictions || []
+    const data = results.predictions3d || results.pinn_predictions || selectedAnalysis?.pinn_predictions || []
+    if (!Array.isArray(data)) return []
+    // ✅ Normalisation industrielle pour le moteur V11
+    return data.slice(0, 10000).map((p: any) => ({
+      x: Number(p.x) || 0,
+      y: Number(p.y) || 0,
+      z: Number(p.z) || 0,
+      temperature: Number(p.temperature ?? p.temp ?? 0),
+      pressure: Number(p.pressure ?? p.p ?? 0),
+      velocity_magnitude: Number(p.velocity_magnitude ?? p.velocity ?? 0),
+      velocity_u: Number(p.velocity_u ?? p.u ?? 0),
+      velocity_v: Number(p.velocity_v ?? p.v ?? 0),
+      velocity_w: Number(p.velocity_w ?? p.w ?? 0),
+      density: Number(p.density ?? p.rho ?? 0),
+      damage: Number(p.damage ?? 0),
+      sigma_1: Number(p.sigma_1 ?? 0),
+      von_mises: Number(p.von_mises ?? 0)
+    }))
   }, [selectedAnalysis])
 
   const scenarioType = useMemo(() => (selectedAnalysis?.scenario_type || 'H2_PIPELINE') as any, [selectedAnalysis])
