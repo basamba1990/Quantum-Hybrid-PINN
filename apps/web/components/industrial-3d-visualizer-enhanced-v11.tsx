@@ -46,9 +46,16 @@ const SCENARIO_GEOMETRIES: Record<ScenarioType, any> = {
     physicsProfile: 'Écoulement turbulent compressible (Lemmon 2008)',
     isInsideShape: (x: number, y: number, z: number, g: any) => Math.sqrt(y*y + z*z) <= g.radius!
   },
-  // ... other scenarios simplified for restoration
   LH2_STORAGE: { shape: 'cylinder_vertical', radius: 1.0, height: 4.0, wallThickness: 0.05, industrialDescription: 'Réservoir LH2 cryogénique', physicsProfile: 'Convection naturelle', isInsideShape: (x:any, y:any, z:any, g:any) => Math.sqrt(x*x + z*z) <= g.radius! && Math.abs(y) <= g.height!/2 },
-  DEEP_MINING_BLOCK: { shape: 'box', length: 50.0, width: 50.0, height: 50.0, industrialDescription: 'Bloc minier profond', physicsProfile: 'Stress triaxial', isInsideShape: (x:any, y:any, z:any, g:any) => Math.abs(x)<=g.length!/2 && Math.abs(y)<=g.height!/2 && Math.abs(z)<=g.width!/2 }
+  DEEP_MINING_BLOCK: { shape: 'box', length: 50.0, width: 50.0, height: 50.0, industrialDescription: 'Bloc minier profond', physicsProfile: 'Stress triaxial', isInsideShape: (x:any, y:any, z:any, g:any) => Math.abs(x)<=g.length!/2 && Math.abs(y)<=g.height!/2 && Math.abs(z)<=g.width!/2 },
+  ROCK_ELAST_STRESS: { shape: 'box', length: 1.0, width: 1.0, height: 1.0, industrialDescription: 'Contrainte élastique rocheuse', physicsProfile: 'Modèle de Mohr-Coulomb', isInsideShape: (x:any, y:any, z:any, g:any) => Math.abs(x)<=g.length!/2 && Math.abs(y)<=g.height!/2 && Math.abs(z)<=g.width!/2 },
+  H2_PIPELINE_STRATEGIC: { shape: 'cylinder_horizontal', radius: 0.5, length: 100.0, wallThickness: 0.05, industrialDescription: 'Pipeline H2 Stratégique', physicsProfile: 'Transport longue distance', isInsideShape: (x: number, y: number, z: number, g: any) => Math.sqrt(y*y + z*z) <= g.radius! },
+  FPGA_HEATSINK: { shape: 'box', length: 0.1, width: 0.1, height: 0.05, industrialDescription: 'Dissipateur thermique FPGA', physicsProfile: 'Transfert thermique par convection', isInsideShape: (x:any, y:any, z:any, g:any) => Math.abs(x)<=g.length!/2 && Math.abs(y)<=g.height!/2 && Math.abs(z)<=g.width!/2 },
+  PORT_ENERGY_OPTIMIZATION: { shape: 'box', length: 10.0, width: 10.0, height: 5.0, industrialDescription: 'Optimisation énergétique portuaire', physicsProfile: 'Flux d\'énergie multi-modale', isInsideShape: (x:any, y:any, z:any, g:any) => Math.abs(x)<=g.length!/2 && Math.abs(y)<=g.height!/2 && Math.abs(z)<=g.width!/2 },
+  PIPELINE_SAFETY: { shape: 'cylinder_horizontal', radius: 0.2, length: 20.0, wallThickness: 0.03, industrialDescription: 'Sécurité des pipelines', physicsProfile: 'Détection de fuites et intégrité', isInsideShape: (x: number, y: number, z: number, g: any) => Math.sqrt(y*y + z*z) <= g.radius! },
+  CRYOGENIC_TRANSPORT: { shape: 'cylinder_horizontal', radius: 0.8, length: 15.0, wallThickness: 0.1, industrialDescription: 'Transport cryogénique', physicsProfile: 'Isolation thermique avancée', isInsideShape: (x: number, y: number, z: number, g: any) => Math.sqrt(y*y + z*z) <= g.radius! },
+  MINING_INDUSTRIAL_SIM: { shape: 'box', length: 20.0, width: 20.0, height: 20.0, industrialDescription: 'Simulation minière industrielle', physicsProfile: 'Mécanique des roches et dynamique des fluides', isInsideShape: (x:any, y:any, z:any, g:any) => Math.abs(x)<=g.length!/2 && Math.abs(y)<=g.height!/2 && Math.abs(z)<=g.width!/2 },
+  H2_COMPRESSION_STATION: { shape: 'box', length: 5.0, width: 5.0, height: 5.0, industrialDescription: 'Station de compression H2', physicsProfile: 'Compression multi-étages', isInsideShape: (x:any, y:any, z:any, g:any) => Math.abs(x)<=g.length!/2 && Math.abs(y)<=g.height!/2 && Math.abs(z)<=g.width!/2 }
 };
 
 const jetColorMap = (t: number): [number, number, number] => {
