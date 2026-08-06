@@ -15,7 +15,7 @@ interface DataPoint {
   damage?: number;
 }
 
-type ScenarioType = "H2_PIPELINE" | "LH2_STORAGE" | "DEEP_MINING_BLOCK" | "ROCK_ELAST_STRESS" | "H2_PIPELINE_STRATEGIC" | "FPGA_HEATSINK" | "PORT_ENERGY_OPTIMIZATION" | "PIPELINE_SAFETY" | "CRYOGENIC_TRANSPORT" | "MINING_INDUSTRIAL_SIM" | "H2_COMPRESSION_STATION";
+type ScenarioType = "H2_PIPELINE" | "LH2_STORAGE" | "DEEP_MINING_BLOCK" | "ROCK_ELAST_STRESS" | "H2_PIPELINE_STRATEGIC" | "FPGA_HEATSINK" | "PORT_ENERGY_OPTIMIZATION" | "PIPELINE_SAFETY" | "CRYOGENIC_TRANSPORT" | "MINING_INDUSTRIAL_SIM" | "H2_COMPRESSION_STATION" | "H2_DISTRIBUTION_HIGH_PRESSURE";
 
 interface Props {
   data?: DataPoint[];
@@ -143,6 +143,15 @@ const SCENARIO_GEOMETRIES: Record<ScenarioType, ScenarioGeometry> = {
     industrialDescription: 'Zone portuaire 500×300×100m — Optimisation énergétique',
     physicsProfile: 'Bilan énergétique + éolien + solaire intégré',
     isInsideShape: (x, y, z, g) => Math.abs(x)<=g.length!/2 && Math.abs(y)<=g.height!/2 && Math.abs(z)<=g.width!/2
+  },
+  H2_DISTRIBUTION_HIGH_PRESSURE: {
+    shape: 'cylinder_horizontal',
+    radius: 0.1,
+    length: 10.0,
+    wallThickness: 0.025,
+    industrialDescription: 'Distribution H2 Haute Pression (70 MPa) — NIST Standard',
+    physicsProfile: 'Écoulement turbulent compressible (Lemmon 2008)',
+    isInsideShape: (x: number, y: number, z: number, g: any) => Math.sqrt(y*y + z*z) <= g.radius!
   }
 };
 
