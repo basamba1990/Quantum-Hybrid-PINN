@@ -1,0 +1,4528 @@
+{
+  "scenario_type": "LH2_INFRASTRUCTURE_INTEGRITY",
+  "extracted_parameters": {
+    "fluid": "Liquid Hydrogen (LH2)",
+    "operating_pressure_mpa": 1.2,
+    "storage_temperature_k": 20.28,
+    "ambient_temperature_k": 293.15,
+    "density_lh2_kg_m3": 70.85,
+    "viscosity_pa_s": 1.3e-05,
+    "thermal_conductivity_w_mk": 0.1,
+    "leak_discontinuity_diameter_mm": 5.0,
+    "source": "NIST Standard Reference Database / ScienceDirect Cryogenics 2024"
+  },
+  "pinn_predictions": [
+    {
+      "x": -0.5018,
+      "y": 1.8029,
+      "z": 3.66,
+      "temperature": 275.74,
+      "pressure": 0.1135,
+      "stress": 21.37,
+      "velocity_magnitude": 0.49
+    },
+    {
+      "x": 0.3946,
+      "y": -1.3759,
+      "z": 0.78,
+      "temperature": 276.51,
+      "pressure": 0.1125,
+      "stress": 21.0,
+      "velocity_magnitude": 0.45
+    },
+    {
+      "x": -1.7677,
+      "y": 1.4647,
+      "z": 3.0056,
+      "temperature": 278.7,
+      "pressure": 0.11,
+      "stress": 19.97,
+      "velocity_magnitude": 0.34
+    },
+    {
+      "x": 0.8323,
+      "y": -1.9177,
+      "z": 4.8495,
+      "temperature": 287.8,
+      "pressure": 0.102,
+      "stress": 16.32,
+      "velocity_magnitude": 0.05
+    },
+    {
+      "x": 1.3298,
+      "y": -1.1506,
+      "z": 0.9091,
+      "temperature": 279.07,
+      "pressure": 0.1096,
+      "stress": 19.8,
+      "velocity_magnitude": 0.32
+    },
+    {
+      "x": -1.2664,
+      "y": -0.783,
+      "z": 2.6238,
+      "temperature": 250.99,
+      "pressure": 0.1554,
+      "stress": 35.73,
+      "velocity_magnitude": 2.86
+    },
+    {
+      "x": -0.2722,
+      "y": -0.8351,
+      "z": 3.0593,
+      "temperature": 218.9,
+      "pressure": 0.2371,
+      "stress": 59.08,
+      "velocity_magnitude": 8.88
+    },
+    {
+      "x": -1.442,
+      "y": -0.8314,
+      "z": 1.8318,
+      "temperature": 264.16,
+      "pressure": 0.1304,
+      "stress": 27.58,
+      "velocity_magnitude": 1.35
+    },
+    {
+      "x": -0.1757,
+      "y": 1.1407,
+      "z": 0.9984,
+      "temperature": 267.58,
+      "pressure": 0.1249,
+      "stress": 25.64,
+      "velocity_magnitude": 1.05
+    },
+    {
+      "x": 0.0569,
+      "y": 0.3697,
+      "z": 0.2323,
+      "temperature": 277.72,
+      "pressure": 0.1111,
+      "stress": 20.42,
+      "velocity_magnitude": 0.38
+    },
+    {
+      "x": 0.4302,
+      "y": -1.3179,
+      "z": 0.3253,
+      "temperature": 282.29,
+      "pressure": 0.1063,
+      "stress": 18.4,
+      "velocity_magnitude": 0.19
+    },
+    {
+      "x": 1.7955,
+      "y": 1.8625,
+      "z": 4.042,
+      "temperature": 286.83,
+      "pressure": 0.1027,
+      "stress": 16.65,
+      "velocity_magnitude": 0.06
+    },
+    {
+      "x": -0.7815,
+      "y": -1.6093,
+      "z": 3.4212,
+      "temperature": 271.09,
+      "pressure": 0.1197,
+      "stress": 23.74,
+      "velocity_magnitude": 0.78
+    },
+    {
+      "x": -0.2394,
+      "y": -1.5118,
+      "z": 2.4759,
+      "temperature": 252.89,
+      "pressure": 0.1515,
+      "stress": 34.49,
+      "velocity_magnitude": 2.61
+    },
+    {
+      "x": -1.8624,
+      "y": 1.6373,
+      "z": 1.2939,
+      "temperature": 284.46,
+      "pressure": 0.1044,
+      "stress": 17.52,
+      "velocity_magnitude": 0.12
+    },
+    {
+      "x": 0.6501,
+      "y": -0.7532,
+      "z": 2.6003,
+      "temperature": 214.97,
+      "pressure": 0.2489,
+      "stress": 62.22,
+      "velocity_magnitude": 9.85
+    },
+    {
+      "x": 0.1868,
+      "y": -1.2606,
+      "z": 4.8479,
+      "temperature": 283.47,
+      "pressure": 0.1053,
+      "stress": 17.91,
+      "velocity_magnitude": 0.15
+    },
+    {
+      "x": 1.1005,
+      "y": 1.758,
+      "z": 4.4741,
+      "temperature": 285.54,
+      "pressure": 0.1036,
+      "stress": 17.12,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": 0.3916,
+      "y": 1.6875,
+      "z": 0.4425,
+      "temperature": 283.69,
+      "pressure": 0.1051,
+      "stress": 17.83,
+      "velocity_magnitude": 0.14
+    },
+    {
+      "x": -1.2161,
+      "y": -1.8191,
+      "z": 1.6267,
+      "temperature": 278.8,
+      "pressure": 0.1099,
+      "stress": 19.93,
+      "velocity_magnitude": 0.33
+    },
+    {
+      "x": -0.4453,
+      "y": -0.9146,
+      "z": 4.1437,
+      "temperature": 268.79,
+      "pressure": 0.123,
+      "stress": 24.97,
+      "velocity_magnitude": 0.96
+    },
+    {
+      "x": -0.573,
+      "y": -0.8763,
+      "z": 2.7135,
+      "temperature": 221.39,
+      "pressure": 0.2298,
+      "stress": 57.12,
+      "velocity_magnitude": 8.3
+    },
+    {
+      "x": -1.4363,
+      "y": 1.2088,
+      "z": 0.3728,
+      "temperature": 285.28,
+      "pressure": 0.1038,
+      "stress": 17.21,
+      "velocity_magnitude": 0.1
+    },
+    {
+      "x": 1.9475,
+      "y": 1.089,
+      "z": 0.9936,
+      "temperature": 283.72,
+      "pressure": 0.105,
+      "stress": 17.81,
+      "velocity_magnitude": 0.14
+    },
+    {
+      "x": -1.9779,
+      "y": 1.2618,
+      "z": 3.5343,
+      "temperature": 282.08,
+      "pressure": 0.1065,
+      "stress": 18.48,
+      "velocity_magnitude": 0.2
+    },
+    {
+      "x": 0.916,
+      "y": 1.0851,
+      "z": 0.3702,
+      "temperature": 282.02,
+      "pressure": 0.1066,
+      "stress": 18.51,
+      "velocity_magnitude": 0.2
+    },
+    {
+      "x": -0.5661,
+      "y": -1.5365,
+      "z": 4.3155,
+      "temperature": 280.31,
+      "pressure": 0.1083,
+      "stress": 19.25,
+      "velocity_magnitude": 0.27
+    },
+    {
+      "x": 0.4932,
+      "y": -0.6764,
+      "z": 0.3178,
+      "temperature": 278.46,
+      "pressure": 0.1103,
+      "stress": 20.08,
+      "velocity_magnitude": 0.35
+    },
+    {
+      "x": -0.7561,
+      "y": -0.6993,
+      "z": 3.648,
+      "temperature": 253.46,
+      "pressure": 0.1503,
+      "stress": 34.13,
+      "velocity_magnitude": 2.54
+    },
+    {
+      "x": 0.5502,
+      "y": 1.5489,
+      "z": 2.3611,
+      "temperature": 258.44,
+      "pressure": 0.1406,
+      "stress": 30.99,
+      "velocity_magnitude": 1.94
+    },
+    {
+      "x": -1.5216,
+      "y": 0.853,
+      "z": 3.8039,
+      "temperature": 275.22,
+      "pressure": 0.1141,
+      "stress": 21.63,
+      "velocity_magnitude": 0.52
+    },
+    {
+      "x": 0.2451,
+      "y": 1.0839,
+      "z": 2.469,
+      "temperature": 225.16,
+      "pressure": 0.2191,
+      "stress": 54.2,
+      "velocity_magnitude": 7.45
+    },
+    {
+      "x": 0.0909,
+      "y": -0.2898,
+      "z": 0.1271,
+      "temperature": 279.43,
+      "pressure": 0.1092,
+      "stress": 19.64,
+      "velocity_magnitude": 0.3
+    },
+    {
+      "x": -1.5684,
+      "y": -1.8743,
+      "z": 3.1821,
+      "temperature": 281.71,
+      "pressure": 0.1069,
+      "stress": 18.64,
+      "velocity_magnitude": 0.21
+    },
+    {
+      "x": -0.7426,
+      "y": 0.0343,
+      "z": 4.5378,
+      "temperature": 275.02,
+      "pressure": 0.1144,
+      "stress": 21.73,
+      "velocity_magnitude": 0.53
+    },
+    {
+      "x": -1.0028,
+      "y": -0.3585,
+      "z": 3.7778,
+      "temperature": 259.03,
+      "pressure": 0.1395,
+      "stress": 30.63,
+      "velocity_magnitude": 1.88
+    },
+    {
+      "x": -1.0848,
+      "y": -1.6921,
+      "z": 1.4488,
+      "temperature": 277.13,
+      "pressure": 0.1118,
+      "stress": 20.7,
+      "velocity_magnitude": 0.41
+    },
+    {
+      "x": -1.3551,
+      "y": 1.7188,
+      "z": 4.0406,
+      "temperature": 283.54,
+      "pressure": 0.1052,
+      "stress": 17.89,
+      "velocity_magnitude": 0.15
+    },
+    {
+      "x": 0.5336,
+      "y": 1.4858,
+      "z": 4.0184,
+      "temperature": 275.5,
+      "pressure": 0.1138,
+      "stress": 21.49,
+      "velocity_magnitude": 0.5
+    },
+    {
+      "x": -1.2537,
+      "y": 1.5702,
+      "z": 2.6967,
+      "temperature": 271.28,
+      "pressure": 0.1194,
+      "stress": 23.64,
+      "velocity_magnitude": 0.77
+    },
+    {
+      "x": 1.2298,
+      "y": 1.5844,
+      "z": 1.59,
+      "temperature": 275.76,
+      "pressure": 0.1134,
+      "stress": 21.36,
+      "velocity_magnitude": 0.49
+    },
+    {
+      "x": -1.5598,
+      "y": -1.0883,
+      "z": 2.1355,
+      "temperature": 268.9,
+      "pressure": 0.1229,
+      "stress": 24.91,
+      "velocity_magnitude": 0.95
+    },
+    {
+      "x": 1.2721,
+      "y": 1.4429,
+      "z": 0.0348,
+      "temperature": 287.67,
+      "pressure": 0.1021,
+      "stress": 16.36,
+      "velocity_magnitude": 0.05
+    },
+    {
+      "x": 0.043,
+      "y": -0.3304,
+      "z": 1.1105,
+      "temperature": 247.41,
+      "pressure": 0.1631,
+      "stress": 38.11,
+      "velocity_magnitude": 3.37
+    },
+    {
+      "x": -1.5205,
+      "y": -0.6495,
+      "z": 4.7145,
+      "temperature": 284.53,
+      "pressure": 0.1044,
+      "stress": 17.5,
+      "velocity_magnitude": 0.12
+    },
+    {
+      "x": -0.7072,
+      "y": 0.0752,
+      "z": 3.5151,
+      "temperature": 235.19,
+      "pressure": 0.1922,
+      "stress": 46.68,
+      "velocity_magnitude": 5.41
+    },
+    {
+      "x": -0.5455,
+      "y": 1.8871,
+      "z": 4.8122,
+      "temperature": 287.0,
+      "pressure": 0.1025,
+      "stress": 16.59,
+      "velocity_magnitude": 0.06
+    },
+    {
+      "x": -0.9929,
+      "y": -0.011,
+      "z": 1.5044,
+      "temperature": 246.09,
+      "pressure": 0.1661,
+      "stress": 39.0,
+      "velocity_magnitude": 3.57
+    },
+    {
+      "x": -0.8606,
+      "y": -1.8525,
+      "z": 3.0478,
+      "temperature": 273.75,
+      "pressure": 0.116,
+      "stress": 22.37,
+      "velocity_magnitude": 0.61
+    },
+    {
+      "x": 0.0107,
+      "y": -1.7941,
+      "z": 1.3932,
+      "temperature": 273.58,
+      "pressure": 0.1162,
+      "stress": 22.45,
+      "velocity_magnitude": 0.62
+    },
+    {
+      "x": 1.6331,
+      "y": -1.0418,
+      "z": 0.7245,
+      "temperature": 282.93,
+      "pressure": 0.1057,
+      "stress": 18.13,
+      "velocity_magnitude": 0.17
+    },
+    {
+      "x": -0.0422,
+      "y": 1.9426,
+      "z": 1.2103,
+      "temperature": 278.36,
+      "pressure": 0.1104,
+      "stress": 20.13,
+      "velocity_magnitude": 0.35
+    },
+    {
+      "x": 0.6885,
+      "y": 1.0465,
+      "z": 1.1882,
+      "temperature": 264.88,
+      "pressure": 0.1292,
+      "stress": 27.16,
+      "velocity_magnitude": 1.29
+    },
+    {
+      "x": 0.9129,
+      "y": -0.5289,
+      "z": 3.1615,
+      "temperature": 235.61,
+      "pressure": 0.1912,
+      "stress": 46.38,
+      "velocity_magnitude": 5.34
+    },
+    {
+      "x": 0.5341,
+      "y": 0.1431,
+      "z": 0.4514,
+      "temperature": 273.92,
+      "pressure": 0.1158,
+      "stress": 22.28,
+      "velocity_magnitude": 0.6
+    },
+    {
+      "x": 1.3412,
+      "y": -0.7169,
+      "z": 0.9326,
+      "temperature": 275.35,
+      "pressure": 0.1139,
+      "stress": 21.56,
+      "velocity_magnitude": 0.51
+    },
+    {
+      "x": -1.8369,
+      "y": 0.3636,
+      "z": 3.3878,
+      "temperature": 272.69,
+      "pressure": 0.1174,
+      "stress": 22.91,
+      "velocity_magnitude": 0.67
+    },
+    {
+      "x": -1.9336,
+      "y": 0.0484,
+      "z": 1.1325,
+      "temperature": 279.03,
+      "pressure": 0.1096,
+      "stress": 19.82,
+      "velocity_magnitude": 0.32
+    },
+    {
+      "x": 0.5807,
+      "y": -1.3025,
+      "z": 3.4547,
+      "temperature": 261.21,
+      "pressure": 0.1355,
+      "stress": 29.31,
+      "velocity_magnitude": 1.64
+    },
+    {
+      "x": -0.4531,
+      "y": 1.7469,
+      "z": 0.6876,
+      "temperature": 282.0,
+      "pressure": 0.1066,
+      "stress": 18.52,
+      "velocity_magnitude": 0.2
+    },
+    {
+      "x": -0.6357,
+      "y": -1.5461,
+      "z": 4.6235,
+      "temperature": 283.84,
+      "pressure": 0.1049,
+      "stress": 17.77,
+      "velocity_magnitude": 0.14
+    },
+    {
+      "x": 1.5094,
+      "y": -0.9682,
+      "z": 3.2999,
+      "temperature": 269.71,
+      "pressure": 0.1217,
+      "stress": 24.48,
+      "velocity_magnitude": 0.89
+    },
+    {
+      "x": 1.2689,
+      "y": 0.2208,
+      "z": 2.6483,
+      "temperature": 239.18,
+      "pressure": 0.1823,
+      "stress": 43.81,
+      "velocity_magnitude": 4.69
+    },
+    {
+      "x": -1.0326,
+      "y": -1.6276,
+      "z": 4.4861,
+      "temperature": 284.57,
+      "pressure": 0.1043,
+      "stress": 17.48,
+      "velocity_magnitude": 0.12
+    },
+    {
+      "x": 1.6017,
+      "y": 0.5324,
+      "z": 1.6951,
+      "temperature": 266.8,
+      "pressure": 0.1261,
+      "stress": 26.08,
+      "velocity_magnitude": 1.12
+    },
+    {
+      "x": -0.6032,
+      "y": 0.9038,
+      "z": 4.4856,
+      "temperature": 277.04,
+      "pressure": 0.1119,
+      "stress": 20.75,
+      "velocity_magnitude": 0.42
+    },
+    {
+      "x": 1.5483,
+      "y": 1.1195,
+      "z": 3.2102,
+      "temperature": 271.8,
+      "pressure": 0.1187,
+      "stress": 23.37,
+      "velocity_magnitude": 0.73
+    },
+    {
+      "x": -1.6634,
+      "y": -1.3535,
+      "z": 4.4928,
+      "temperature": 286.12,
+      "pressure": 0.1032,
+      "stress": 16.9,
+      "velocity_magnitude": 0.08
+    },
+    {
+      "x": 0.4257,
+      "y": -1.9632,
+      "z": 0.5074,
+      "temperature": 285.21,
+      "pressure": 0.1038,
+      "stress": 17.24,
+      "velocity_magnitude": 0.1
+    },
+    {
+      "x": 0.654,
+      "y": -1.9798,
+      "z": 0.804,
+      "temperature": 283.67,
+      "pressure": 0.1051,
+      "stress": 17.84,
+      "velocity_magnitude": 0.14
+    },
+    {
+      "x": 0.1949,
+      "y": 0.7676,
+      "z": 3.2598,
+      "temperature": 223.94,
+      "pressure": 0.2225,
+      "stress": 55.14,
+      "velocity_magnitude": 7.72
+    },
+    {
+      "x": -1.1029,
+      "y": 0.8487,
+      "z": 1.1862,
+      "temperature": 268.2,
+      "pressure": 0.1239,
+      "stress": 25.3,
+      "velocity_magnitude": 1.0
+    },
+    {
+      "x": -0.6984,
+      "y": 0.986,
+      "z": 3.2482,
+      "temperature": 246.97,
+      "pressure": 0.1641,
+      "stress": 38.4,
+      "velocity_magnitude": 3.44
+    },
+    {
+      "x": 1.3969,
+      "y": 0.6305,
+      "z": 2.8415,
+      "temperature": 254.82,
+      "pressure": 0.1476,
+      "stress": 33.26,
+      "velocity_magnitude": 2.37
+    },
+    {
+      "x": -1.6253,
+      "y": -0.5291,
+      "z": 1.326,
+      "temperature": 272.72,
+      "pressure": 0.1174,
+      "stress": 22.89,
+      "velocity_magnitude": 0.67
+    },
+    {
+      "x": -1.024,
+      "y": 1.892,
+      "z": 1.9655,
+      "temperature": 276.07,
+      "pressure": 0.1131,
+      "stress": 21.21,
+      "velocity_magnitude": 0.47
+    },
+    {
+      "x": 1.5682,
+      "y": 0.5246,
+      "z": 3.9741,
+      "temperature": 276.03,
+      "pressure": 0.1131,
+      "stress": 21.23,
+      "velocity_magnitude": 0.47
+    },
+    {
+      "x": 0.0105,
+      "y": 0.3076,
+      "z": 2.4626,
+      "temperature": 107.95,
+      "pressure": 0.6917,
+      "stress": 164.11,
+      "velocity_magnitude": 55.28
+    },
+    {
+      "x": -1.219,
+      "y": 0.8898,
+      "z": 1.4039,
+      "temperature": 266.64,
+      "pressure": 0.1264,
+      "stress": 26.16,
+      "velocity_magnitude": 1.13
+    },
+    {
+      "x": -1.9027,
+      "y": 0.5819,
+      "z": 0.8856,
+      "temperature": 282.06,
+      "pressure": 0.1065,
+      "stress": 18.49,
+      "velocity_magnitude": 0.2
+    },
+    {
+      "x": 1.7618,
+      "y": 1.8157,
+      "z": 4.5743,
+      "temperature": 288.58,
+      "pressure": 0.1016,
+      "stress": 16.07,
+      "velocity_magnitude": 0.03
+    },
+    {
+      "x": -0.5194,
+      "y": -1.9382,
+      "z": 4.6416,
+      "temperature": 286.19,
+      "pressure": 0.1031,
+      "stress": 16.88,
+      "velocity_magnitude": 0.08
+    },
+    {
+      "x": -0.2873,
+      "y": 1.8666,
+      "z": 4.8181,
+      "temperature": 286.65,
+      "pressure": 0.1028,
+      "stress": 16.71,
+      "velocity_magnitude": 0.07
+    },
+    {
+      "x": 1.412,
+      "y": -0.8222,
+      "z": 1.9255,
+      "temperature": 261.84,
+      "pressure": 0.1344,
+      "stress": 28.94,
+      "velocity_magnitude": 1.58
+    },
+    {
+      "x": 1.4045,
+      "y": -0.7323,
+      "z": 0.8475,
+      "temperature": 277.54,
+      "pressure": 0.1113,
+      "stress": 20.51,
+      "velocity_magnitude": 0.39
+    },
+    {
+      "x": 0.2272,
+      "y": 1.7446,
+      "z": 3.4801,
+      "temperature": 271.14,
+      "pressure": 0.1196,
+      "stress": 23.71,
+      "velocity_magnitude": 0.78
+    },
+    {
+      "x": 0.2802,
+      "y": -1.6113,
+      "z": 3.075,
+      "temperature": 261.9,
+      "pressure": 0.1343,
+      "stress": 28.9,
+      "velocity_magnitude": 1.57
+    },
+    {
+      "x": 1.9602,
+      "y": -1.4397,
+      "z": 2.5916,
+      "temperature": 280.13,
+      "pressure": 0.1085,
+      "stress": 19.33,
+      "velocity_magnitude": 0.27
+    },
+    {
+      "x": 1.5095,
+      "y": 0.9631,
+      "z": 3.4851,
+      "temperature": 271.94,
+      "pressure": 0.1185,
+      "stress": 23.29,
+      "velocity_magnitude": 0.72
+    },
+    {
+      "x": 0.8099,
+      "y": -0.562,
+      "z": 1.468,
+      "temperature": 247.32,
+      "pressure": 0.1633,
+      "stress": 38.17,
+      "velocity_magnitude": 3.39
+    },
+    {
+      "x": 1.2374,
+      "y": 1.2405,
+      "z": 4.3354,
+      "temperature": 281.71,
+      "pressure": 0.1069,
+      "stress": 18.64,
+      "velocity_magnitude": 0.21
+    },
+    {
+      "x": 1.653,
+      "y": 0.0454,
+      "z": 2.5076,
+      "temperature": 258.61,
+      "pressure": 0.1403,
+      "stress": 30.89,
+      "velocity_magnitude": 1.92
+    },
+    {
+      "x": 1.1932,
+      "y": 0.5999,
+      "z": 3.5098,
+      "temperature": 259.5,
+      "pressure": 0.1386,
+      "stress": 30.35,
+      "velocity_magnitude": 1.83
+    },
+    {
+      "x": 1.1832,
+      "y": 1.56,
+      "z": 1.69,
+      "temperature": 273.84,
+      "pressure": 0.1159,
+      "stress": 22.32,
+      "velocity_magnitude": 0.6
+    },
+    {
+      "x": -0.4977,
+      "y": -1.6241,
+      "z": 2.8914,
+      "temperature": 262.27,
+      "pressure": 0.1337,
+      "stress": 28.68,
+      "velocity_magnitude": 1.54
+    },
+    {
+      "x": -1.8562,
+      "y": -0.1376,
+      "z": 2.7132,
+      "temperature": 266.91,
+      "pressure": 0.1259,
+      "stress": 26.01,
+      "velocity_magnitude": 1.11
+    },
+    {
+      "x": -0.8538,
+      "y": 0.3633,
+      "z": 0.1525,
+      "temperature": 281.52,
+      "pressure": 0.1071,
+      "stress": 18.72,
+      "velocity_magnitude": 0.22
+    },
+    {
+      "x": -1.8506,
+      "y": 1.2904,
+      "z": 1.801,
+      "temperature": 278.9,
+      "pressure": 0.1098,
+      "stress": 19.88,
+      "velocity_magnitude": 0.33
+    },
+    {
+      "x": -1.4918,
+      "y": 0.089,
+      "z": 3.85,
+      "temperature": 271.14,
+      "pressure": 0.1196,
+      "stress": 23.71,
+      "velocity_magnitude": 0.78
+    },
+    {
+      "x": -1.1367,
+      "y": 0.4916,
+      "z": 0.4267,
+      "temperature": 279.82,
+      "pressure": 0.1088,
+      "stress": 19.47,
+      "velocity_magnitude": 0.29
+    },
+    {
+      "x": -1.7933,
+      "y": 0.1254,
+      "z": 2.7032,
+      "temperature": 264.71,
+      "pressure": 0.1295,
+      "stress": 27.26,
+      "velocity_magnitude": 1.3
+    },
+    {
+      "x": 0.5497,
+      "y": 0.9044,
+      "z": 4.8793,
+      "temperature": 282.62,
+      "pressure": 0.106,
+      "stress": 18.26,
+      "velocity_magnitude": 0.18
+    },
+    {
+      "x": 0.0652,
+      "y": -0.7082,
+      "z": 3.9759,
+      "temperature": 257.95,
+      "pressure": 0.1415,
+      "stress": 31.3,
+      "velocity_magnitude": 2.0
+    },
+    {
+      "x": -0.9167,
+      "y": -0.2441,
+      "z": 0.3923,
+      "temperature": 277.97,
+      "pressure": 0.1108,
+      "stress": 20.31,
+      "velocity_magnitude": 0.37
+    },
+    {
+      "x": -1.8986,
+      "y": 1.8506,
+      "z": 4.1799,
+      "temperature": 287.75,
+      "pressure": 0.1021,
+      "stress": 16.34,
+      "velocity_magnitude": 0.05
+    },
+    {
+      "x": 0.7839,
+      "y": -0.3642,
+      "z": 0.8665,
+      "temperature": 266.07,
+      "pressure": 0.1273,
+      "stress": 26.49,
+      "velocity_magnitude": 1.18
+    },
+    {
+      "x": -1.3743,
+      "y": -0.999,
+      "z": 2.7461,
+      "temperature": 261.24,
+      "pressure": 0.1355,
+      "stress": 29.3,
+      "velocity_magnitude": 1.64
+    },
+    {
+      "x": 0.8584,
+      "y": 0.6408,
+      "z": 1.3997,
+      "temperature": 253.13,
+      "pressure": 0.151,
+      "stress": 34.34,
+      "velocity_magnitude": 2.58
+    },
+    {
+      "x": 1.8195,
+      "y": 0.9516,
+      "z": 2.7718,
+      "temperature": 272.66,
+      "pressure": 0.1175,
+      "stress": 22.92,
+      "velocity_magnitude": 0.68
+    },
+    {
+      "x": 0.4469,
+      "y": -0.3216,
+      "z": 1.2387,
+      "temperature": 244.3,
+      "pressure": 0.1701,
+      "stress": 40.22,
+      "velocity_magnitude": 3.85
+    },
+    {
+      "x": -0.5761,
+      "y": 1.0314,
+      "z": 0.072,
+      "temperature": 283.82,
+      "pressure": 0.105,
+      "stress": 17.78,
+      "velocity_magnitude": 0.14
+    },
+    {
+      "x": -1.5357,
+      "y": -1.816,
+      "z": 0.2036,
+      "temperature": 288.77,
+      "pressure": 0.1015,
+      "stress": 16.01,
+      "velocity_magnitude": 0.03
+    },
+    {
+      "x": 1.4218,
+      "y": 0.8146,
+      "z": 2.3709,
+      "temperature": 258.19,
+      "pressure": 0.1411,
+      "stress": 31.15,
+      "velocity_magnitude": 1.97
+    },
+    {
+      "x": -1.6087,
+      "y": -0.0335,
+      "z": 2.3674,
+      "temperature": 256.88,
+      "pressure": 0.1436,
+      "stress": 31.96,
+      "velocity_magnitude": 2.12
+    },
+    {
+      "x": -1.3072,
+      "y": -0.2646,
+      "z": 1.9925,
+      "temperature": 247.31,
+      "pressure": 0.1634,
+      "stress": 38.18,
+      "velocity_magnitude": 3.39
+    },
+    {
+      "x": 0.4634,
+      "y": 0.5404,
+      "z": 0.2265,
+      "temperature": 279.26,
+      "pressure": 0.1094,
+      "stress": 19.72,
+      "velocity_magnitude": 0.31
+    },
+    {
+      "x": -0.5015,
+      "y": 0.5034,
+      "z": 2.5157,
+      "temperature": 180.93,
+      "pressure": 0.3655,
+      "stress": 91.46,
+      "velocity_magnitude": 20.3
+    },
+    {
+      "x": 1.426,
+      "y": 0.6348,
+      "z": 0.8147,
+      "temperature": 277.7,
+      "pressure": 0.1111,
+      "stress": 20.44,
+      "velocity_magnitude": 0.38
+    },
+    {
+      "x": -1.7177,
+      "y": 0.5697,
+      "z": 0.1326,
+      "temperature": 286.57,
+      "pressure": 0.1028,
+      "stress": 16.74,
+      "velocity_magnitude": 0.07
+    },
+    {
+      "x": 0.3431,
+      "y": 1.7609,
+      "z": 2.8774,
+      "temperature": 265.56,
+      "pressure": 0.1281,
+      "stress": 26.77,
+      "velocity_magnitude": 1.23
+    },
+    {
+      "x": -0.4473,
+      "y": 0.5732,
+      "z": 2.2913,
+      "temperature": 187.15,
+      "pressure": 0.3423,
+      "stress": 85.86,
+      "velocity_magnitude": 18.11
+    },
+    {
+      "x": 0.1825,
+      "y": 1.7659,
+      "z": 1.9305,
+      "temperature": 266.61,
+      "pressure": 0.1264,
+      "stress": 26.18,
+      "velocity_magnitude": 1.13
+    },
+    {
+      "x": 1.8448,
+      "y": 1.6214,
+      "z": 0.979,
+      "temperature": 285.78,
+      "pressure": 0.1034,
+      "stress": 17.03,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": -1.7226,
+      "y": -1.5969,
+      "z": 0.0911,
+      "temperature": 289.08,
+      "pressure": 0.1013,
+      "stress": 15.92,
+      "velocity_magnitude": 0.03
+    },
+    {
+      "x": -1.6222,
+      "y": 0.732,
+      "z": 0.3559,
+      "temperature": 284.77,
+      "pressure": 0.1042,
+      "stress": 17.4,
+      "velocity_magnitude": 0.11
+    },
+    {
+      "x": -0.7241,
+      "y": 1.3795,
+      "z": 0.1164,
+      "temperature": 285.39,
+      "pressure": 0.1037,
+      "stress": 17.17,
+      "velocity_magnitude": 0.1
+    },
+    {
+      "x": 1.2579,
+      "y": -0.8726,
+      "z": 0.5908,
+      "temperature": 280.34,
+      "pressure": 0.1082,
+      "stress": 19.23,
+      "velocity_magnitude": 0.26
+    },
+    {
+      "x": 0.7869,
+      "y": 0.5158,
+      "z": 4.3874,
+      "temperature": 273.6,
+      "pressure": 0.1162,
+      "stress": 22.44,
+      "velocity_magnitude": 0.62
+    },
+    {
+      "x": 0.9403,
+      "y": 1.2139,
+      "z": 1.4102,
+      "temperature": 267.22,
+      "pressure": 0.1255,
+      "stress": 25.84,
+      "velocity_magnitude": 1.08
+    },
+    {
+      "x": -1.2902,
+      "y": 1.0025,
+      "z": 4.0342,
+      "temperature": 276.58,
+      "pressure": 0.1124,
+      "stress": 20.97,
+      "velocity_magnitude": 0.44
+    },
+    {
+      "x": 1.962,
+      "y": -0.3495,
+      "z": 1.8601,
+      "temperature": 273.21,
+      "pressure": 0.1167,
+      "stress": 22.64,
+      "velocity_magnitude": 0.64
+    },
+    {
+      "x": 1.1057,
+      "y": -0.6368,
+      "z": 4.6538,
+      "temperature": 281.21,
+      "pressure": 0.1074,
+      "stress": 18.85,
+      "velocity_magnitude": 0.23
+    },
+    {
+      "x": 1.4337,
+      "y": -0.284,
+      "z": 3.7544,
+      "temperature": 268.58,
+      "pressure": 0.1234,
+      "stress": 25.09,
+      "velocity_magnitude": 0.97
+    },
+    {
+      "x": 1.0182,
+      "y": -1.5875,
+      "z": 4.5128,
+      "temperature": 284.47,
+      "pressure": 0.1044,
+      "stress": 17.52,
+      "velocity_magnitude": 0.12
+    },
+    {
+      "x": 0.021,
+      "y": 1.3058,
+      "z": 1.6002,
+      "temperature": 255.57,
+      "pressure": 0.1461,
+      "stress": 32.78,
+      "velocity_magnitude": 2.28
+    },
+    {
+      "x": 1.5821,
+      "y": -0.4432,
+      "z": 0.0542,
+      "temperature": 286.29,
+      "pressure": 0.103,
+      "stress": 16.84,
+      "velocity_magnitude": 0.08
+    },
+    {
+      "x": 1.6215,
+      "y": -1.6349,
+      "z": 1.5966,
+      "temperature": 280.76,
+      "pressure": 0.1078,
+      "stress": 19.05,
+      "velocity_magnitude": 0.25
+    },
+    {
+      "x": 1.8002,
+      "y": 1.8024,
+      "z": 2.8672,
+      "temperature": 282.22,
+      "pressure": 0.1064,
+      "stress": 18.43,
+      "velocity_magnitude": 0.19
+    },
+    {
+      "x": 0.5273,
+      "y": -0.2062,
+      "z": 1.4661,
+      "temperature": 230.63,
+      "pressure": 0.2041,
+      "stress": 50.05,
+      "velocity_magnitude": 6.3
+    },
+    {
+      "x": -0.6853,
+      "y": 0.6901,
+      "z": 3.7619,
+      "temperature": 255.9,
+      "pressure": 0.1455,
+      "stress": 32.57,
+      "velocity_magnitude": 2.24
+    },
+    {
+      "x": 1.1663,
+      "y": 1.1585,
+      "z": 0.456,
+      "temperature": 282.87,
+      "pressure": 0.1058,
+      "stress": 18.16,
+      "velocity_magnitude": 0.17
+    },
+    {
+      "x": -0.0223,
+      "y": -1.7698,
+      "z": 2.7476,
+      "temperature": 263.92,
+      "pressure": 0.1308,
+      "stress": 27.72,
+      "velocity_magnitude": 1.38
+    },
+    {
+      "x": -0.2339,
+      "y": 1.5508,
+      "z": 1.7546,
+      "temperature": 262.01,
+      "pressure": 0.1341,
+      "stress": 28.84,
+      "velocity_magnitude": 1.56
+    },
+    {
+      "x": -1.5317,
+      "y": -1.428,
+      "z": 3.8076,
+      "temperature": 280.68,
+      "pressure": 0.1079,
+      "stress": 19.08,
+      "velocity_magnitude": 0.25
+    },
+    {
+      "x": 0.4729,
+      "y": -1.5955,
+      "z": 0.4205,
+      "temperature": 283.38,
+      "pressure": 0.1053,
+      "stress": 17.95,
+      "velocity_magnitude": 0.15
+    },
+    {
+      "x": 0.8039,
+      "y": -1.7089,
+      "z": 4.1093,
+      "temperature": 280.88,
+      "pressure": 0.1077,
+      "stress": 19.0,
+      "velocity_magnitude": 0.24
+    },
+    {
+      "x": 0.825,
+      "y": -1.6746,
+      "z": 0.4242,
+      "temperature": 284.82,
+      "pressure": 0.1041,
+      "stress": 17.38,
+      "velocity_magnitude": 0.11
+    },
+    {
+      "x": 1.9466,
+      "y": -0.5029,
+      "z": 1.8532,
+      "temperature": 273.68,
+      "pressure": 0.1161,
+      "stress": 22.4,
+      "velocity_magnitude": 0.61
+    },
+    {
+      "x": 1.2512,
+      "y": 1.789,
+      "z": 4.93,
+      "temperature": 288.55,
+      "pressure": 0.1016,
+      "stress": 16.08,
+      "velocity_magnitude": 0.03
+    },
+    {
+      "x": 1.0135,
+      "y": -0.495,
+      "z": 0.4175,
+      "temperature": 279.02,
+      "pressure": 0.1096,
+      "stress": 19.83,
+      "velocity_magnitude": 0.32
+    },
+    {
+      "x": 1.1086,
+      "y": 0.2336,
+      "z": 2.1211,
+      "temperature": 231.85,
+      "pressure": 0.2009,
+      "stress": 49.14,
+      "velocity_magnitude": 6.06
+    },
+    {
+      "x": 1.6254,
+      "y": -1.5552,
+      "z": 2.4631,
+      "temperature": 276.76,
+      "pressure": 0.1122,
+      "stress": 20.88,
+      "velocity_magnitude": 0.43
+    },
+    {
+      "x": -1.9546,
+      "y": -0.1254,
+      "z": 0.2815,
+      "temperature": 286.4,
+      "pressure": 0.103,
+      "stress": 16.8,
+      "velocity_magnitude": 0.07
+    },
+    {
+      "x": -1.5247,
+      "y": -1.5299,
+      "z": 3.2461,
+      "temperature": 277.47,
+      "pressure": 0.1114,
+      "stress": 20.54,
+      "velocity_magnitude": 0.4
+    },
+    {
+      "x": 0.9842,
+      "y": 0.3335,
+      "z": 4.8109,
+      "temperature": 281.66,
+      "pressure": 0.1069,
+      "stress": 18.66,
+      "velocity_magnitude": 0.21
+    },
+    {
+      "x": -0.5005,
+      "y": -0.8572,
+      "z": 4.343,
+      "temperature": 273.22,
+      "pressure": 0.1167,
+      "stress": 22.63,
+      "velocity_magnitude": 0.64
+    },
+    {
+      "x": -1.1056,
+      "y": 1.8529,
+      "z": 0.0608,
+      "temperature": 288.49,
+      "pressure": 0.1016,
+      "stress": 16.1,
+      "velocity_magnitude": 0.03
+    },
+    {
+      "x": 1.8795,
+      "y": -1.8274,
+      "z": 4.4557,
+      "temperature": 288.57,
+      "pressure": 0.1016,
+      "stress": 16.07,
+      "velocity_magnitude": 0.03
+    },
+    {
+      "x": 0.1108,
+      "y": 1.9719,
+      "z": 0.369,
+      "temperature": 285.93,
+      "pressure": 0.1033,
+      "stress": 16.97,
+      "velocity_magnitude": 0.08
+    },
+    {
+      "x": 0.2154,
+      "y": 1.8772,
+      "z": 2.6155,
+      "temperature": 267.55,
+      "pressure": 0.125,
+      "stress": 25.66,
+      "velocity_magnitude": 1.06
+    },
+    {
+      "x": 0.5176,
+      "y": 0.783,
+      "z": 2.2727,
+      "temperature": 211.55,
+      "pressure": 0.2594,
+      "stress": 64.99,
+      "velocity_magnitude": 10.73
+    },
+    {
+      "x": 0.5102,
+      "y": 0.3373,
+      "z": 4.5058,
+      "temperature": 273.31,
+      "pressure": 0.1166,
+      "stress": 22.59,
+      "velocity_magnitude": 0.63
+    },
+    {
+      "x": -1.8182,
+      "y": -0.8761,
+      "z": 4.7521,
+      "temperature": 286.92,
+      "pressure": 0.1026,
+      "stress": 16.62,
+      "velocity_magnitude": 0.06
+    },
+    {
+      "x": 1.5611,
+      "y": -0.1774,
+      "z": 3.1007,
+      "temperature": 259.82,
+      "pressure": 0.1381,
+      "stress": 30.15,
+      "velocity_magnitude": 1.79
+    },
+    {
+      "x": -0.8905,
+      "y": -1.2475,
+      "z": 2.3185,
+      "temperature": 253.52,
+      "pressure": 0.1502,
+      "stress": 34.09,
+      "velocity_magnitude": 2.53
+    },
+    {
+      "x": -0.5866,
+      "y": 0.3346,
+      "z": 0.3887,
+      "temperature": 276.07,
+      "pressure": 0.1131,
+      "stress": 21.21,
+      "velocity_magnitude": 0.47
+    },
+    {
+      "x": 1.8976,
+      "y": 1.9448,
+      "z": 3.4908,
+      "temperature": 285.81,
+      "pressure": 0.1034,
+      "stress": 17.02,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": 0.1444,
+      "y": -0.7619,
+      "z": 4.069,
+      "temperature": 262.54,
+      "pressure": 0.1332,
+      "stress": 28.53,
+      "velocity_magnitude": 1.51
+    },
+    {
+      "x": 0.7389,
+      "y": -1.3495,
+      "z": 4.5546,
+      "temperature": 282.12,
+      "pressure": 0.1065,
+      "stress": 18.47,
+      "velocity_magnitude": 0.2
+    },
+    {
+      "x": 1.2901,
+      "y": 1.7992,
+      "z": 3.6286,
+      "temperature": 280.93,
+      "pressure": 0.1076,
+      "stress": 18.97,
+      "velocity_magnitude": 0.24
+    },
+    {
+      "x": 0.4537,
+      "y": -0.327,
+      "z": 4.6636,
+      "temperature": 276.45,
+      "pressure": 0.1126,
+      "stress": 21.03,
+      "velocity_magnitude": 0.45
+    },
+    {
+      "x": 1.4643,
+      "y": -1.8191,
+      "z": 0.1318,
+      "temperature": 288.88,
+      "pressure": 0.1014,
+      "stress": 15.98,
+      "velocity_magnitude": 0.03
+    },
+    {
+      "x": -0.4941,
+      "y": 1.2422,
+      "z": 4.9364,
+      "temperature": 284.69,
+      "pressure": 0.1042,
+      "stress": 17.43,
+      "velocity_magnitude": 0.12
+    },
+    {
+      "x": -1.3983,
+      "y": 0.3765,
+      "z": 1.9045,
+      "temperature": 254.61,
+      "pressure": 0.148,
+      "stress": 33.39,
+      "velocity_magnitude": 2.39
+    },
+    {
+      "x": 1.8797,
+      "y": 1.3685,
+      "z": 4.1916,
+      "temperature": 285.65,
+      "pressure": 0.1035,
+      "stress": 17.07,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": -0.1252,
+      "y": -0.3407,
+      "z": 1.367,
+      "temperature": 231.48,
+      "pressure": 0.2019,
+      "stress": 49.42,
+      "velocity_magnitude": 6.13
+    },
+    {
+      "x": -1.7745,
+      "y": 1.4589,
+      "z": 4.0645,
+      "temperature": 284.69,
+      "pressure": 0.1042,
+      "stress": 17.43,
+      "velocity_magnitude": 0.12
+    },
+    {
+      "x": 1.9989,
+      "y": 1.9865,
+      "z": 2.7772,
+      "temperature": 285.23,
+      "pressure": 0.1038,
+      "stress": 17.23,
+      "velocity_magnitude": 0.1
+    },
+    {
+      "x": 1.0759,
+      "y": 1.7791,
+      "z": 4.2482,
+      "temperature": 284.0,
+      "pressure": 0.1048,
+      "stress": 17.7,
+      "velocity_magnitude": 0.13
+    },
+    {
+      "x": -1.0106,
+      "y": -0.1978,
+      "z": 0.6458,
+      "temperature": 273.89,
+      "pressure": 0.1158,
+      "stress": 22.29,
+      "velocity_magnitude": 0.6
+    },
+    {
+      "x": 1.8162,
+      "y": 0.4247,
+      "z": 1.1432,
+      "temperature": 277.88,
+      "pressure": 0.1109,
+      "stress": 20.35,
+      "velocity_magnitude": 0.38
+    },
+    {
+      "x": 0.6868,
+      "y": 0.4725,
+      "z": 1.7908,
+      "temperature": 223.68,
+      "pressure": 0.2232,
+      "stress": 55.34,
+      "velocity_magnitude": 7.78
+    },
+    {
+      "x": -1.5458,
+      "y": 0.6863,
+      "z": 2.6015,
+      "temperature": 260.33,
+      "pressure": 0.1371,
+      "stress": 29.84,
+      "velocity_magnitude": 1.74
+    },
+    {
+      "x": 1.0893,
+      "y": 0.0807,
+      "z": 4.2609,
+      "temperature": 272.68,
+      "pressure": 0.1174,
+      "stress": 22.91,
+      "velocity_magnitude": 0.68
+    },
+    {
+      "x": 0.2076,
+      "y": 0.2438,
+      "z": 4.3833,
+      "temperature": 268.09,
+      "pressure": 0.1241,
+      "stress": 25.36,
+      "velocity_magnitude": 1.01
+    },
+    {
+      "x": -0.3861,
+      "y": -1.4639,
+      "z": 0.1439,
+      "temperature": 284.92,
+      "pressure": 0.1041,
+      "stress": 17.35,
+      "velocity_magnitude": 0.11
+    },
+    {
+      "x": 1.0205,
+      "y": 0.4812,
+      "z": 3.5204,
+      "temperature": 252.4,
+      "pressure": 0.1525,
+      "stress": 34.81,
+      "velocity_magnitude": 2.68
+    },
+    {
+      "x": -1.1481,
+      "y": -1.4545,
+      "z": 0.0727,
+      "temperature": 287.15,
+      "pressure": 0.1024,
+      "stress": 16.54,
+      "velocity_magnitude": 0.06
+    },
+    {
+      "x": -0.5976,
+      "y": 0.3597,
+      "z": 1.9612,
+      "temperature": 202.48,
+      "pressure": 0.2887,
+      "stress": 72.54,
+      "velocity_magnitude": 13.25
+    },
+    {
+      "x": -0.2501,
+      "y": 1.6166,
+      "z": 1.7413,
+      "temperature": 264.51,
+      "pressure": 0.1299,
+      "stress": 27.38,
+      "velocity_magnitude": 1.32
+    },
+    {
+      "x": 0.056,
+      "y": 1.1346,
+      "z": 1.9827,
+      "temperature": 235.83,
+      "pressure": 0.1906,
+      "stress": 46.22,
+      "velocity_magnitude": 5.3
+    },
+    {
+      "x": 0.4883,
+      "y": 1.4495,
+      "z": 4.7476,
+      "temperature": 284.03,
+      "pressure": 0.1048,
+      "stress": 17.69,
+      "velocity_magnitude": 0.13
+    },
+    {
+      "x": -1.4117,
+      "y": 1.7064,
+      "z": 2.4606,
+      "temperature": 276.03,
+      "pressure": 0.1131,
+      "stress": 21.23,
+      "velocity_magnitude": 0.47
+    },
+    {
+      "x": -0.967,
+      "y": -0.1635,
+      "z": 4.9002,
+      "temperature": 282.47,
+      "pressure": 0.1062,
+      "stress": 18.32,
+      "velocity_magnitude": 0.18
+    },
+    {
+      "x": -0.0295,
+      "y": -0.685,
+      "z": 3.167,
+      "temperature": 210.61,
+      "pressure": 0.2624,
+      "stress": 65.77,
+      "velocity_magnitude": 10.98
+    },
+    {
+      "x": -1.0394,
+      "y": -1.6965,
+      "z": 0.6444,
+      "temperature": 284.05,
+      "pressure": 0.1048,
+      "stress": 17.68,
+      "velocity_magnitude": 0.13
+    },
+    {
+      "x": -1.4878,
+      "y": -1.3924,
+      "z": 0.6941,
+      "temperature": 284.07,
+      "pressure": 0.1047,
+      "stress": 17.67,
+      "velocity_magnitude": 0.13
+    },
+    {
+      "x": 0.5635,
+      "y": -1.2725,
+      "z": 1.7283,
+      "temperature": 255.82,
+      "pressure": 0.1456,
+      "stress": 32.62,
+      "velocity_magnitude": 2.25
+    },
+    {
+      "x": 1.5872,
+      "y": -0.1042,
+      "z": 3.3378,
+      "temperature": 264.31,
+      "pressure": 0.1302,
+      "stress": 27.49,
+      "velocity_magnitude": 1.34
+    },
+    {
+      "x": -1.3107,
+      "y": -1.2308,
+      "z": 0.2043,
+      "temperature": 286.02,
+      "pressure": 0.1032,
+      "stress": 16.94,
+      "velocity_magnitude": 0.08
+    },
+    {
+      "x": -1.3243,
+      "y": -0.8856,
+      "z": 0.8851,
+      "temperature": 277.14,
+      "pressure": 0.1118,
+      "stress": 20.7,
+      "velocity_magnitude": 0.41
+    },
+    {
+      "x": -1.6452,
+      "y": -1.5175,
+      "z": 2.3039,
+      "temperature": 276.7,
+      "pressure": 0.1123,
+      "stress": 20.91,
+      "velocity_magnitude": 0.44
+    },
+    {
+      "x": -1.1747,
+      "y": -0.5429,
+      "z": 2.5171,
+      "temperature": 239.03,
+      "pressure": 0.1827,
+      "stress": 43.92,
+      "velocity_magnitude": 4.72
+    },
+    {
+      "x": 0.7616,
+      "y": -1.8428,
+      "z": 3.9971,
+      "temperature": 281.06,
+      "pressure": 0.1075,
+      "stress": 18.92,
+      "velocity_magnitude": 0.24
+    },
+    {
+      "x": 0.5116,
+      "y": -1.673,
+      "z": 4.3679,
+      "temperature": 282.02,
+      "pressure": 0.1066,
+      "stress": 18.51,
+      "velocity_magnitude": 0.2
+    },
+    {
+      "x": 1.6835,
+      "y": -1.7557,
+      "z": 1.3844,
+      "temperature": 283.53,
+      "pressure": 0.1052,
+      "stress": 17.89,
+      "velocity_magnitude": 0.15
+    },
+    {
+      "x": 1.2248,
+      "y": 0.993,
+      "z": 0.9226,
+      "temperature": 276.36,
+      "pressure": 0.1127,
+      "stress": 21.08,
+      "velocity_magnitude": 0.45
+    },
+    {
+      "x": -1.1626,
+      "y": -0.5181,
+      "z": 2.4226,
+      "temperature": 237.73,
+      "pressure": 0.1859,
+      "stress": 44.85,
+      "velocity_magnitude": 4.95
+    },
+    {
+      "x": 0.473,
+      "y": -0.5243,
+      "z": 2.3127,
+      "temperature": 183.67,
+      "pressure": 0.3552,
+      "stress": 88.98,
+      "velocity_magnitude": 19.32
+    },
+    {
+      "x": 0.9899,
+      "y": -1.8533,
+      "z": 1.2622,
+      "temperature": 280.2,
+      "pressure": 0.1084,
+      "stress": 19.29,
+      "velocity_magnitude": 0.27
+    },
+    {
+      "x": 0.8534,
+      "y": 1.5808,
+      "z": 2.5584,
+      "temperature": 264.3,
+      "pressure": 0.1302,
+      "stress": 27.5,
+      "velocity_magnitude": 1.34
+    },
+    {
+      "x": 0.1285,
+      "y": -1.5713,
+      "z": 2.2371,
+      "temperature": 256.14,
+      "pressure": 0.145,
+      "stress": 32.42,
+      "velocity_magnitude": 2.21
+    },
+    {
+      "x": 0.1305,
+      "y": -1.0301,
+      "z": 1.3462,
+      "temperature": 253.95,
+      "pressure": 0.1493,
+      "stress": 33.81,
+      "velocity_magnitude": 2.48
+    },
+    {
+      "x": -0.4909,
+      "y": -1.9197,
+      "z": 1.6104,
+      "temperature": 275.08,
+      "pressure": 0.1143,
+      "stress": 21.7,
+      "velocity_magnitude": 0.53
+    },
+    {
+      "x": -1.1542,
+      "y": -0.69,
+      "z": 0.5988,
+      "temperature": 278.3,
+      "pressure": 0.1104,
+      "stress": 20.16,
+      "velocity_magnitude": 0.36
+    },
+    {
+      "x": 1.5621,
+      "y": 0.3744,
+      "z": 3.3955,
+      "temperature": 265.76,
+      "pressure": 0.1278,
+      "stress": 26.66,
+      "velocity_magnitude": 1.21
+    },
+    {
+      "x": 1.1567,
+      "y": -0.0062,
+      "z": 0.4346,
+      "temperature": 279.0,
+      "pressure": 0.1097,
+      "stress": 19.84,
+      "velocity_magnitude": 0.32
+    },
+    {
+      "x": 0.1484,
+      "y": 0.3474,
+      "z": 3.7272,
+      "temperature": 238.33,
+      "pressure": 0.1844,
+      "stress": 44.41,
+      "velocity_magnitude": 4.84
+    },
+    {
+      "x": -0.2734,
+      "y": -1.4897,
+      "z": 1.4189,
+      "temperature": 266.5,
+      "pressure": 0.1266,
+      "stress": 26.25,
+      "velocity_magnitude": 1.15
+    },
+    {
+      "x": -0.5477,
+      "y": 0.5837,
+      "z": 2.8539,
+      "temperature": 201.76,
+      "pressure": 0.2911,
+      "stress": 73.14,
+      "velocity_magnitude": 13.46
+    },
+    {
+      "x": -0.5756,
+      "y": 1.9461,
+      "z": 3.0289,
+      "temperature": 273.31,
+      "pressure": 0.1166,
+      "stress": 22.58,
+      "velocity_magnitude": 0.63
+    },
+    {
+      "x": -1.0511,
+      "y": -1.5929,
+      "z": 0.7643,
+      "temperature": 282.3,
+      "pressure": 0.1063,
+      "stress": 18.39,
+      "velocity_magnitude": 0.19
+    },
+    {
+      "x": -1.0162,
+      "y": -1.3573,
+      "z": 0.9328,
+      "temperature": 277.93,
+      "pressure": 0.1109,
+      "stress": 20.33,
+      "velocity_magnitude": 0.37
+    },
+    {
+      "x": -0.8596,
+      "y": -1.3065,
+      "z": 4.4838,
+      "temperature": 281.55,
+      "pressure": 0.107,
+      "stress": 18.71,
+      "velocity_magnitude": 0.22
+    },
+    {
+      "x": -1.6791,
+      "y": 0.098,
+      "z": 2.052,
+      "temperature": 262.17,
+      "pressure": 0.1338,
+      "stress": 28.74,
+      "velocity_magnitude": 1.55
+    },
+    {
+      "x": 1.9295,
+      "y": -1.5518,
+      "z": 1.9893,
+      "temperature": 281.58,
+      "pressure": 0.107,
+      "stress": 18.7,
+      "velocity_magnitude": 0.22
+    },
+    {
+      "x": 1.8779,
+      "y": 1.462,
+      "z": 4.0854,
+      "temperature": 285.5,
+      "pressure": 0.1036,
+      "stress": 17.13,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": -0.9684,
+      "y": -1.3164,
+      "z": 3.3432,
+      "temperature": 265.76,
+      "pressure": 0.1278,
+      "stress": 26.66,
+      "velocity_magnitude": 1.21
+    },
+    {
+      "x": 1.7175,
+      "y": 0.2271,
+      "z": 2.8581,
+      "temperature": 263.26,
+      "pressure": 0.132,
+      "stress": 28.11,
+      "velocity_magnitude": 1.44
+    },
+    {
+      "x": -0.8801,
+      "y": 1.078,
+      "z": 0.9352,
+      "temperature": 273.24,
+      "pressure": 0.1167,
+      "stress": 22.62,
+      "velocity_magnitude": 0.64
+    },
+    {
+      "x": -0.7053,
+      "y": -0.2983,
+      "z": 2.5381,
+      "temperature": 188.5,
+      "pressure": 0.3374,
+      "stress": 84.66,
+      "velocity_magnitude": 17.65
+    },
+    {
+      "x": -1.0304,
+      "y": -1.5407,
+      "z": 3.0531,
+      "temperature": 268.83,
+      "pressure": 0.123,
+      "stress": 24.95,
+      "velocity_magnitude": 0.95
+    },
+    {
+      "x": -0.8455,
+      "y": 0.325,
+      "z": 0.7718,
+      "temperature": 269.34,
+      "pressure": 0.1222,
+      "stress": 24.67,
+      "velocity_magnitude": 0.91
+    },
+    {
+      "x": -0.0754,
+      "y": 0.1304,
+      "z": 0.2591,
+      "temperature": 276.68,
+      "pressure": 0.1123,
+      "stress": 20.92,
+      "velocity_magnitude": 0.44
+    },
+    {
+      "x": -0.6536,
+      "y": -1.4623,
+      "z": 0.3169,
+      "temperature": 283.9,
+      "pressure": 0.1049,
+      "stress": 17.74,
+      "velocity_magnitude": 0.14
+    },
+    {
+      "x": 1.9598,
+      "y": -0.7106,
+      "z": 4.0494,
+      "temperature": 282.54,
+      "pressure": 0.1061,
+      "stress": 18.3,
+      "velocity_magnitude": 0.18
+    },
+    {
+      "x": -0.9814,
+      "y": 0.726,
+      "z": 3.8011,
+      "temperature": 263.82,
+      "pressure": 0.131,
+      "stress": 27.78,
+      "velocity_magnitude": 1.39
+    },
+    {
+      "x": 0.3826,
+      "y": -0.1137,
+      "z": 2.0592,
+      "temperature": 163.39,
+      "pressure": 0.4349,
+      "stress": 107.8,
+      "velocity_magnitude": 27.14
+    },
+    {
+      "x": -0.6045,
+      "y": 1.7181,
+      "z": 4.1531,
+      "temperature": 280.54,
+      "pressure": 0.108,
+      "stress": 19.15,
+      "velocity_magnitude": 0.26
+    },
+    {
+      "x": 1.8601,
+      "y": -1.5028,
+      "z": 3.6543,
+      "temperature": 283.28,
+      "pressure": 0.1054,
+      "stress": 17.99,
+      "velocity_magnitude": 0.16
+    },
+    {
+      "x": 1.7534,
+      "y": -1.2751,
+      "z": 0.3325,
+      "temperature": 287.24,
+      "pressure": 0.1024,
+      "stress": 16.51,
+      "velocity_magnitude": 0.06
+    },
+    {
+      "x": 0.9645,
+      "y": 0.2979,
+      "z": 4.2091,
+      "temperature": 270.33,
+      "pressure": 0.1208,
+      "stress": 24.14,
+      "velocity_magnitude": 0.84
+    },
+    {
+      "x": -1.4409,
+      "y": 1.1811,
+      "z": 1.0081,
+      "temperature": 279.34,
+      "pressure": 0.1093,
+      "stress": 19.68,
+      "velocity_magnitude": 0.31
+    },
+    {
+      "x": -1.3454,
+      "y": -1.3429,
+      "z": 4.0729,
+      "temperature": 280.66,
+      "pressure": 0.1079,
+      "stress": 19.09,
+      "velocity_magnitude": 0.25
+    },
+    {
+      "x": 0.6608,
+      "y": 0.0923,
+      "z": 1.7942,
+      "temperature": 212.11,
+      "pressure": 0.2577,
+      "stress": 64.53,
+      "velocity_magnitude": 10.58
+    },
+    {
+      "x": 1.5088,
+      "y": -0.4302,
+      "z": 4.083,
+      "temperature": 276.32,
+      "pressure": 0.1127,
+      "stress": 21.09,
+      "velocity_magnitude": 0.46
+    },
+    {
+      "x": -0.2435,
+      "y": -0.4922,
+      "z": 2.3134,
+      "temperature": 160.99,
+      "pressure": 0.4448,
+      "stress": 110.09,
+      "velocity_magnitude": 28.15
+    },
+    {
+      "x": -0.7945,
+      "y": 0.9904,
+      "z": 2.5136,
+      "temperature": 237.35,
+      "pressure": 0.1868,
+      "stress": 45.12,
+      "velocity_magnitude": 5.02
+    },
+    {
+      "x": -1.0711,
+      "y": 1.5983,
+      "z": 1.9195,
+      "temperature": 271.02,
+      "pressure": 0.1198,
+      "stress": 23.78,
+      "velocity_magnitude": 0.79
+    },
+    {
+      "x": 0.1742,
+      "y": 1.6259,
+      "z": 3.1212,
+      "temperature": 262.5,
+      "pressure": 0.1333,
+      "stress": 28.55,
+      "velocity_magnitude": 1.51
+    },
+    {
+      "x": -1.5324,
+      "y": 1.7593,
+      "z": 3.1385,
+      "temperature": 279.88,
+      "pressure": 0.1087,
+      "stress": 19.44,
+      "velocity_magnitude": 0.28
+    },
+    {
+      "x": -0.6604,
+      "y": -1.4429,
+      "z": 3.9701,
+      "temperature": 274.88,
+      "pressure": 0.1145,
+      "stress": 21.79,
+      "velocity_magnitude": 0.54
+    },
+    {
+      "x": 0.4803,
+      "y": 0.1338,
+      "z": 4.4695,
+      "temperature": 271.62,
+      "pressure": 0.1189,
+      "stress": 23.46,
+      "velocity_magnitude": 0.75
+    },
+    {
+      "x": 1.1544,
+      "y": -1.3933,
+      "z": 1.5586,
+      "temperature": 271.83,
+      "pressure": 0.1186,
+      "stress": 23.35,
+      "velocity_magnitude": 0.73
+    },
+    {
+      "x": -1.006,
+      "y": 0.9758,
+      "z": 0.1677,
+      "temperature": 284.06,
+      "pressure": 0.1048,
+      "stress": 17.68,
+      "velocity_magnitude": 0.13
+    },
+    {
+      "x": 0.2796,
+      "y": 1.0498,
+      "z": 4.3838,
+      "temperature": 275.14,
+      "pressure": 0.1142,
+      "stress": 21.67,
+      "velocity_magnitude": 0.52
+    },
+    {
+      "x": -0.6317,
+      "y": 1.285,
+      "z": 0.5532,
+      "temperature": 279.85,
+      "pressure": 0.1088,
+      "stress": 19.45,
+      "velocity_magnitude": 0.29
+    },
+    {
+      "x": 1.3858,
+      "y": -1.49,
+      "z": 1.9864,
+      "temperature": 273.35,
+      "pressure": 0.1165,
+      "stress": 22.57,
+      "velocity_magnitude": 0.63
+    },
+    {
+      "x": 1.1892,
+      "y": -1.4003,
+      "z": 1.1463,
+      "temperature": 277.41,
+      "pressure": 0.1115,
+      "stress": 20.57,
+      "velocity_magnitude": 0.4
+    },
+    {
+      "x": 0.889,
+      "y": 0.8801,
+      "z": 3.2057,
+      "temperature": 247.84,
+      "pressure": 0.1622,
+      "stress": 37.82,
+      "velocity_magnitude": 3.31
+    },
+    {
+      "x": 0.7758,
+      "y": 0.1709,
+      "z": 1.259,
+      "temperature": 249.89,
+      "pressure": 0.1577,
+      "stress": 36.45,
+      "velocity_magnitude": 3.02
+    },
+    {
+      "x": -0.6172,
+      "y": -1.2736,
+      "z": 4.5423,
+      "temperature": 280.93,
+      "pressure": 0.1076,
+      "stress": 18.98,
+      "velocity_magnitude": 0.24
+    },
+    {
+      "x": 0.3336,
+      "y": -0.3966,
+      "z": 2.31,
+      "temperature": 156.28,
+      "pressure": 0.4647,
+      "stress": 114.64,
+      "velocity_magnitude": 30.19
+    },
+    {
+      "x": 1.7891,
+      "y": -1.3866,
+      "z": 2.9311,
+      "temperature": 277.84,
+      "pressure": 0.111,
+      "stress": 20.37,
+      "velocity_magnitude": 0.38
+    },
+    {
+      "x": 0.0236,
+      "y": 0.4458,
+      "z": 0.0906,
+      "temperature": 280.4,
+      "pressure": 0.1082,
+      "stress": 19.21,
+      "velocity_magnitude": 0.26
+    },
+    {
+      "x": 1.4885,
+      "y": 1.7285,
+      "z": 2.8257,
+      "temperature": 277.84,
+      "pressure": 0.111,
+      "stress": 20.37,
+      "velocity_magnitude": 0.38
+    },
+    {
+      "x": 0.7866,
+      "y": 1.69,
+      "z": 3.5362,
+      "temperature": 274.18,
+      "pressure": 0.1154,
+      "stress": 22.15,
+      "velocity_magnitude": 0.58
+    },
+    {
+      "x": -1.3898,
+      "y": 0.3052,
+      "z": 3.0336,
+      "temperature": 252.32,
+      "pressure": 0.1526,
+      "stress": 34.86,
+      "velocity_magnitude": 2.69
+    },
+    {
+      "x": -0.3035,
+      "y": 0.9458,
+      "z": 4.6718,
+      "temperature": 279.36,
+      "pressure": 0.1093,
+      "stress": 19.67,
+      "velocity_magnitude": 0.31
+    },
+    {
+      "x": 1.7023,
+      "y": -0.1966,
+      "z": 0.5662,
+      "temperature": 282.35,
+      "pressure": 0.1063,
+      "stress": 18.37,
+      "velocity_magnitude": 0.19
+    },
+    {
+      "x": 1.9394,
+      "y": 1.3556,
+      "z": 0.6233,
+      "temperature": 286.89,
+      "pressure": 0.1026,
+      "stress": 16.63,
+      "velocity_magnitude": 0.06
+    },
+    {
+      "x": 1.6834,
+      "y": 1.4796,
+      "z": 2.5942,
+      "temperature": 276.62,
+      "pressure": 0.1124,
+      "stress": 20.95,
+      "velocity_magnitude": 0.44
+    },
+    {
+      "x": 0.3651,
+      "y": -0.404,
+      "z": 0.2738,
+      "temperature": 277.6,
+      "pressure": 0.1112,
+      "stress": 20.48,
+      "velocity_magnitude": 0.39
+    },
+    {
+      "x": -0.6592,
+      "y": 1.2114,
+      "z": 0.0232,
+      "temperature": 285.26,
+      "pressure": 0.1038,
+      "stress": 17.22,
+      "velocity_magnitude": 0.1
+    },
+    {
+      "x": -0.666,
+      "y": -0.4073,
+      "z": 2.687,
+      "temperature": 193.11,
+      "pressure": 0.3209,
+      "stress": 80.6,
+      "velocity_magnitude": 16.13
+    },
+    {
+      "x": 1.6794,
+      "y": -0.6146,
+      "z": 1.7348,
+      "temperature": 269.16,
+      "pressure": 0.1225,
+      "stress": 24.77,
+      "velocity_magnitude": 0.93
+    },
+    {
+      "x": 0.95,
+      "y": -0.1911,
+      "z": 1.123,
+      "temperature": 259.89,
+      "pressure": 0.1379,
+      "stress": 30.11,
+      "velocity_magnitude": 1.78
+    },
+    {
+      "x": -0.1902,
+      "y": -1.4366,
+      "z": 0.8819,
+      "temperature": 275.09,
+      "pressure": 0.1143,
+      "stress": 21.69,
+      "velocity_magnitude": 0.53
+    },
+    {
+      "x": -0.0065,
+      "y": -0.3243,
+      "z": 4.5742,
+      "temperature": 273.37,
+      "pressure": 0.1165,
+      "stress": 22.56,
+      "velocity_magnitude": 0.63
+    },
+    {
+      "x": -0.5504,
+      "y": 0.3224,
+      "z": 3.1613,
+      "temperature": 206.62,
+      "pressure": 0.2751,
+      "stress": 69.06,
+      "velocity_magnitude": 12.07
+    },
+    {
+      "x": -1.9476,
+      "y": 0.6541,
+      "z": 0.8902,
+      "temperature": 282.7,
+      "pressure": 0.1059,
+      "stress": 18.23,
+      "velocity_magnitude": 0.18
+    },
+    {
+      "x": 1.8443,
+      "y": -1.4053,
+      "z": 2.0731,
+      "temperature": 278.83,
+      "pressure": 0.1099,
+      "stress": 19.91,
+      "velocity_magnitude": 0.33
+    },
+    {
+      "x": -1.6586,
+      "y": 1.9875,
+      "z": 2.511,
+      "temperature": 282.42,
+      "pressure": 0.1062,
+      "stress": 18.34,
+      "velocity_magnitude": 0.19
+    },
+    {
+      "x": 0.3815,
+      "y": -1.7317,
+      "z": 3.7498,
+      "temperature": 275.03,
+      "pressure": 0.1144,
+      "stress": 21.72,
+      "velocity_magnitude": 0.53
+    },
+    {
+      "x": -1.1604,
+      "y": 1.5922,
+      "z": 1.0257,
+      "temperature": 280.56,
+      "pressure": 0.108,
+      "stress": 19.14,
+      "velocity_magnitude": 0.26
+    },
+    {
+      "x": -1.2372,
+      "y": -1.8538,
+      "z": 2.3603,
+      "temperature": 276.41,
+      "pressure": 0.1126,
+      "stress": 21.05,
+      "velocity_magnitude": 0.45
+    },
+    {
+      "x": 0.2594,
+      "y": -1.7372,
+      "z": 3.8776,
+      "temperature": 276.4,
+      "pressure": 0.1127,
+      "stress": 21.06,
+      "velocity_magnitude": 0.45
+    },
+    {
+      "x": -0.1868,
+      "y": 0.0976,
+      "z": 2.2038,
+      "temperature": 119.93,
+      "pressure": 0.6317,
+      "stress": 151.4,
+      "velocity_magnitude": 48.36
+    },
+    {
+      "x": -0.3969,
+      "y": 0.2386,
+      "z": 0.7762,
+      "temperature": 263.84,
+      "pressure": 0.131,
+      "stress": 27.76,
+      "velocity_magnitude": 1.38
+    },
+    {
+      "x": -1.2723,
+      "y": 1.4471,
+      "z": 4.7306,
+      "temperature": 286.3,
+      "pressure": 0.103,
+      "stress": 16.84,
+      "velocity_magnitude": 0.08
+    },
+    {
+      "x": -0.5068,
+      "y": -0.917,
+      "z": 3.22,
+      "temperature": 237.45,
+      "pressure": 0.1865,
+      "stress": 45.04,
+      "velocity_magnitude": 5.0
+    },
+    {
+      "x": -0.3651,
+      "y": -1.8985,
+      "z": 0.7808,
+      "temperature": 282.4,
+      "pressure": 0.1062,
+      "stress": 18.35,
+      "velocity_magnitude": 0.19
+    },
+    {
+      "x": 0.8639,
+      "y": 0.6357,
+      "z": 0.1355,
+      "temperature": 282.52,
+      "pressure": 0.1061,
+      "stress": 18.3,
+      "velocity_magnitude": 0.18
+    },
+    {
+      "x": -1.1121,
+      "y": -1.0757,
+      "z": 3.3595,
+      "temperature": 263.29,
+      "pressure": 0.1319,
+      "stress": 28.09,
+      "velocity_magnitude": 1.44
+    },
+    {
+      "x": -1.9212,
+      "y": -1.5836,
+      "z": 3.9996,
+      "temperature": 285.94,
+      "pressure": 0.1033,
+      "stress": 16.97,
+      "velocity_magnitude": 0.08
+    },
+    {
+      "x": -1.2858,
+      "y": 0.611,
+      "z": 1.1909,
+      "temperature": 268.83,
+      "pressure": 0.123,
+      "stress": 24.96,
+      "velocity_magnitude": 0.95
+    },
+    {
+      "x": -1.6022,
+      "y": -1.0273,
+      "z": 3.6113,
+      "temperature": 275.79,
+      "pressure": 0.1134,
+      "stress": 21.35,
+      "velocity_magnitude": 0.49
+    },
+    {
+      "x": 1.4228,
+      "y": 1.3209,
+      "z": 1.9859,
+      "temperature": 270.98,
+      "pressure": 0.1198,
+      "stress": 23.8,
+      "velocity_magnitude": 0.79
+    },
+    {
+      "x": 0.6723,
+      "y": -1.1801,
+      "z": 1.4657,
+      "temperature": 260.85,
+      "pressure": 0.1362,
+      "stress": 29.53,
+      "velocity_magnitude": 1.68
+    },
+    {
+      "x": 1.5853,
+      "y": -1.948,
+      "z": 0.4275,
+      "temperature": 288.49,
+      "pressure": 0.1016,
+      "stress": 16.1,
+      "velocity_magnitude": 0.03
+    },
+    {
+      "x": -1.1685,
+      "y": -1.8939,
+      "z": 0.9072,
+      "temperature": 284.23,
+      "pressure": 0.1046,
+      "stress": 17.61,
+      "velocity_magnitude": 0.13
+    },
+    {
+      "x": 0.3322,
+      "y": -0.3143,
+      "z": 4.4634,
+      "temperature": 271.19,
+      "pressure": 0.1195,
+      "stress": 23.69,
+      "velocity_magnitude": 0.78
+    },
+    {
+      "x": 1.2698,
+      "y": -0.6327,
+      "z": 1.2971,
+      "temperature": 266.47,
+      "pressure": 0.1267,
+      "stress": 26.26,
+      "velocity_magnitude": 1.15
+    },
+    {
+      "x": -0.4812,
+      "y": 0.3612,
+      "z": 1.3403,
+      "temperature": 239.85,
+      "pressure": 0.1806,
+      "stress": 43.33,
+      "velocity_magnitude": 4.58
+    },
+    {
+      "x": 0.4966,
+      "y": -0.3624,
+      "z": 2.7602,
+      "temperature": 174.69,
+      "pressure": 0.3894,
+      "stress": 97.18,
+      "velocity_magnitude": 22.61
+    },
+    {
+      "x": -0.2555,
+      "y": -0.8221,
+      "z": 4.7423,
+      "temperature": 279.6,
+      "pressure": 0.109,
+      "stress": 19.56,
+      "velocity_magnitude": 0.3
+    },
+    {
+      "x": 1.0544,
+      "y": -1.4395,
+      "z": 4.3423,
+      "temperature": 282.09,
+      "pressure": 0.1065,
+      "stress": 18.48,
+      "velocity_magnitude": 0.2
+    },
+    {
+      "x": -0.0503,
+      "y": 1.5782,
+      "z": 3.9993,
+      "temperature": 275.21,
+      "pressure": 0.1141,
+      "stress": 21.64,
+      "velocity_magnitude": 0.52
+    },
+    {
+      "x": -0.2991,
+      "y": -1.9101,
+      "z": 1.3434,
+      "temperature": 276.82,
+      "pressure": 0.1121,
+      "stress": 20.85,
+      "velocity_magnitude": 0.43
+    },
+    {
+      "x": 0.1665,
+      "y": 0.5339,
+      "z": 1.2894,
+      "temperature": 241.62,
+      "pressure": 0.1764,
+      "stress": 42.08,
+      "velocity_magnitude": 4.28
+    },
+    {
+      "x": -1.4426,
+      "y": 1.3397,
+      "z": 4.922,
+      "temperature": 287.64,
+      "pressure": 0.1021,
+      "stress": 16.38,
+      "velocity_magnitude": 0.05
+    },
+    {
+      "x": 0.1028,
+      "y": -1.3133,
+      "z": 1.3615,
+      "temperature": 262.19,
+      "pressure": 0.1338,
+      "stress": 28.73,
+      "velocity_magnitude": 1.54
+    },
+    {
+      "x": -1.9264,
+      "y": 1.6572,
+      "z": 0.5888,
+      "temperature": 288.02,
+      "pressure": 0.1019,
+      "stress": 16.25,
+      "velocity_magnitude": 0.04
+    },
+    {
+      "x": 0.3061,
+      "y": -0.9038,
+      "z": 2.7709,
+      "temperature": 214.18,
+      "pressure": 0.2513,
+      "stress": 62.86,
+      "velocity_magnitude": 10.05
+    },
+    {
+      "x": 0.6057,
+      "y": 1.319,
+      "z": 1.0321,
+      "temperature": 272.48,
+      "pressure": 0.1177,
+      "stress": 23.01,
+      "velocity_magnitude": 0.69
+    },
+    {
+      "x": -1.956,
+      "y": -1.4525,
+      "z": 4.5001,
+      "temperature": 287.84,
+      "pressure": 0.102,
+      "stress": 16.31,
+      "velocity_magnitude": 0.05
+    },
+    {
+      "x": 1.4956,
+      "y": 0.3897,
+      "z": 3.0026,
+      "temperature": 257.36,
+      "pressure": 0.1426,
+      "stress": 31.66,
+      "velocity_magnitude": 2.06
+    },
+    {
+      "x": 0.6601,
+      "y": -1.2985,
+      "z": 4.5721,
+      "temperature": 281.64,
+      "pressure": 0.1069,
+      "stress": 18.67,
+      "velocity_magnitude": 0.21
+    },
+    {
+      "x": -0.3249,
+      "y": -0.4674,
+      "z": 2.5946,
+      "temperature": 160.51,
+      "pressure": 0.4469,
+      "stress": 110.55,
+      "velocity_magnitude": 28.35
+    },
+    {
+      "x": -1.8121,
+      "y": -1.3349,
+      "z": 3.6902,
+      "temperature": 281.83,
+      "pressure": 0.1068,
+      "stress": 18.59,
+      "velocity_magnitude": 0.21
+    },
+    {
+      "x": -1.6688,
+      "y": 0.4126,
+      "z": 1.2267,
+      "temperature": 274.33,
+      "pressure": 0.1153,
+      "stress": 22.07,
+      "velocity_magnitude": 0.57
+    },
+    {
+      "x": -0.4428,
+      "y": -0.8452,
+      "z": 1.7784,
+      "temperature": 231.99,
+      "pressure": 0.2005,
+      "stress": 49.04,
+      "velocity_magnitude": 6.03
+    },
+    {
+      "x": 0.8762,
+      "y": -0.8115,
+      "z": 2.832,
+      "temperature": 235.2,
+      "pressure": 0.1922,
+      "stress": 46.68,
+      "velocity_magnitude": 5.41
+    },
+    {
+      "x": -0.0958,
+      "y": 0.6547,
+      "z": 4.6841,
+      "temperature": 277.41,
+      "pressure": 0.1115,
+      "stress": 20.57,
+      "velocity_magnitude": 0.4
+    },
+    {
+      "x": 0.9303,
+      "y": -1.1402,
+      "z": 0.1559,
+      "temperature": 284.57,
+      "pressure": 0.1043,
+      "stress": 17.48,
+      "velocity_magnitude": 0.12
+    },
+    {
+      "x": -0.9509,
+      "y": 0.3803,
+      "z": 0.2571,
+      "temperature": 280.63,
+      "pressure": 0.1079,
+      "stress": 19.1,
+      "velocity_magnitude": 0.25
+    },
+    {
+      "x": -0.0145,
+      "y": 0.3874,
+      "z": 1.6712,
+      "temperature": 206.2,
+      "pressure": 0.2765,
+      "stress": 69.41,
+      "velocity_magnitude": 12.18
+    },
+    {
+      "x": 1.0836,
+      "y": -1.5736,
+      "z": 0.3757,
+      "temperature": 285.48,
+      "pressure": 0.1036,
+      "stress": 17.14,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": 0.9128,
+      "y": -0.018,
+      "z": 3.442,
+      "temperature": 240.21,
+      "pressure": 0.1798,
+      "stress": 43.08,
+      "velocity_magnitude": 4.52
+    },
+    {
+      "x": -0.2607,
+      "y": -1.0144,
+      "z": 4.0955,
+      "temperature": 268.04,
+      "pressure": 0.1242,
+      "stress": 25.39,
+      "velocity_magnitude": 1.02
+    },
+    {
+      "x": 1.1977,
+      "y": 0.7788,
+      "z": 1.3607,
+      "temperature": 265.35,
+      "pressure": 0.1285,
+      "stress": 26.89,
+      "velocity_magnitude": 1.25
+    },
+    {
+      "x": 0.3609,
+      "y": -0.5561,
+      "z": 0.4579,
+      "temperature": 274.51,
+      "pressure": 0.115,
+      "stress": 21.98,
+      "velocity_magnitude": 0.56
+    },
+    {
+      "x": 1.6693,
+      "y": -1.4527,
+      "z": 4.7512,
+      "temperature": 287.87,
+      "pressure": 0.102,
+      "stress": 16.3,
+      "velocity_magnitude": 0.04
+    },
+    {
+      "x": -0.216,
+      "y": -1.2595,
+      "z": 2.7095,
+      "temperature": 239.08,
+      "pressure": 0.1825,
+      "stress": 43.88,
+      "velocity_magnitude": 4.71
+    },
+    {
+      "x": 1.4918,
+      "y": 0.9289,
+      "z": 4.0328,
+      "temperature": 278.36,
+      "pressure": 0.1104,
+      "stress": 20.13,
+      "velocity_magnitude": 0.35
+    },
+    {
+      "x": 0.6351,
+      "y": 0.7691,
+      "z": 4.246,
+      "temperature": 271.05,
+      "pressure": 0.1197,
+      "stress": 23.76,
+      "velocity_magnitude": 0.79
+    },
+    {
+      "x": -1.0013,
+      "y": -0.0423,
+      "z": 1.106,
+      "temperature": 261.24,
+      "pressure": 0.1355,
+      "stress": 29.3,
+      "velocity_magnitude": 1.64
+    },
+    {
+      "x": 1.9507,
+      "y": 1.7762,
+      "z": 0.1971,
+      "temperature": 289.72,
+      "pressure": 0.101,
+      "stress": 15.73,
+      "velocity_magnitude": 0.02
+    },
+    {
+      "x": 0.8223,
+      "y": 1.701,
+      "z": 0.9029,
+      "temperature": 280.76,
+      "pressure": 0.1078,
+      "stress": 19.05,
+      "velocity_magnitude": 0.25
+    },
+    {
+      "x": 0.2718,
+      "y": 1.662,
+      "z": 0.1697,
+      "temperature": 285.65,
+      "pressure": 0.1035,
+      "stress": 17.07,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": 0.7897,
+      "y": -0.8106,
+      "z": 4.622,
+      "temperature": 279.65,
+      "pressure": 0.109,
+      "stress": 19.54,
+      "velocity_magnitude": 0.29
+    },
+    {
+      "x": 1.8842,
+      "y": 1.7771,
+      "z": 2.3711,
+      "temperature": 282.48,
+      "pressure": 0.1062,
+      "stress": 18.32,
+      "velocity_magnitude": 0.18
+    },
+    {
+      "x": 1.4482,
+      "y": 1.3782,
+      "z": 1.5955,
+      "temperature": 275.58,
+      "pressure": 0.1137,
+      "stress": 21.45,
+      "velocity_magnitude": 0.5
+    },
+    {
+      "x": 1.3157,
+      "y": -1.852,
+      "z": 2.9813,
+      "temperature": 278.18,
+      "pressure": 0.1106,
+      "stress": 20.21,
+      "velocity_magnitude": 0.36
+    },
+    {
+      "x": -1.08,
+      "y": -1.5177,
+      "z": 0.3848,
+      "temperature": 285.1,
+      "pressure": 0.1039,
+      "stress": 17.28,
+      "velocity_magnitude": 0.1
+    },
+    {
+      "x": 0.7852,
+      "y": -0.6405,
+      "z": 3.6238,
+      "temperature": 251.99,
+      "pressure": 0.1533,
+      "stress": 35.08,
+      "velocity_magnitude": 2.73
+    },
+    {
+      "x": -1.7386,
+      "y": -0.7388,
+      "z": 2.6975,
+      "temperature": 267.75,
+      "pressure": 0.1246,
+      "stress": 25.55,
+      "velocity_magnitude": 1.04
+    },
+    {
+      "x": 1.1629,
+      "y": -0.725,
+      "z": 3.1295,
+      "temperature": 251.72,
+      "pressure": 0.1539,
+      "stress": 35.25,
+      "velocity_magnitude": 2.77
+    },
+    {
+      "x": 1.5439,
+      "y": 0.4635,
+      "z": 1.1648,
+      "temperature": 273.21,
+      "pressure": 0.1167,
+      "stress": 22.64,
+      "velocity_magnitude": 0.64
+    },
+    {
+      "x": -1.9024,
+      "y": 1.4804,
+      "z": 0.1063,
+      "temperature": 289.24,
+      "pressure": 0.1012,
+      "stress": 15.87,
+      "velocity_magnitude": 0.02
+    },
+    {
+      "x": 1.4988,
+      "y": 0.1157,
+      "z": 4.6953,
+      "temperature": 283.34,
+      "pressure": 0.1054,
+      "stress": 17.97,
+      "velocity_magnitude": 0.16
+    },
+    {
+      "x": 1.1951,
+      "y": 1.9917,
+      "z": 1.7536,
+      "temperature": 280.22,
+      "pressure": 0.1084,
+      "stress": 19.29,
+      "velocity_magnitude": 0.27
+    },
+    {
+      "x": 1.0688,
+      "y": -0.3923,
+      "z": 2.3994,
+      "temperature": 227.76,
+      "pressure": 0.2119,
+      "stress": 52.21,
+      "velocity_magnitude": 6.89
+    },
+    {
+      "x": 0.51,
+      "y": 1.4947,
+      "z": 4.9204,
+      "temperature": 285.79,
+      "pressure": 0.1034,
+      "stress": 17.02,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": 1.0731,
+      "y": -0.3289,
+      "z": 2.1068,
+      "temperature": 231.44,
+      "pressure": 0.202,
+      "stress": 49.44,
+      "velocity_magnitude": 6.14
+    },
+    {
+      "x": 0.9503,
+      "y": -1.0449,
+      "z": 0.5524,
+      "temperature": 279.66,
+      "pressure": 0.1089,
+      "stress": 19.53,
+      "velocity_magnitude": 0.29
+    },
+    {
+      "x": -0.5815,
+      "y": -0.851,
+      "z": 1.4815,
+      "temperature": 248.55,
+      "pressure": 0.1606,
+      "stress": 37.34,
+      "velocity_magnitude": 3.21
+    },
+    {
+      "x": -1.0656,
+      "y": -1.8316,
+      "z": 0.0894,
+      "temperature": 288.21,
+      "pressure": 0.1018,
+      "stress": 16.19,
+      "velocity_magnitude": 0.04
+    },
+    {
+      "x": 1.9509,
+      "y": -0.2889,
+      "z": 1.9216,
+      "temperature": 272.25,
+      "pressure": 0.118,
+      "stress": 23.13,
+      "velocity_magnitude": 0.7
+    },
+    {
+      "x": 0.7186,
+      "y": -1.127,
+      "z": 4.7498,
+      "temperature": 282.79,
+      "pressure": 0.1059,
+      "stress": 18.19,
+      "velocity_magnitude": 0.17
+    },
+    {
+      "x": 1.1454,
+      "y": -1.6424,
+      "z": 2.0879,
+      "temperature": 271.96,
+      "pressure": 0.1184,
+      "stress": 23.28,
+      "velocity_magnitude": 0.72
+    },
+    {
+      "x": 1.5165,
+      "y": 1.7789,
+      "z": 2.337,
+      "temperature": 278.57,
+      "pressure": 0.1101,
+      "stress": 20.03,
+      "velocity_magnitude": 0.34
+    },
+    {
+      "x": 0.4536,
+      "y": -1.3319,
+      "z": 4.9558,
+      "temperature": 285.22,
+      "pressure": 0.1038,
+      "stress": 17.23,
+      "velocity_magnitude": 0.1
+    },
+    {
+      "x": -1.0733,
+      "y": 1.7709,
+      "z": 3.2482,
+      "temperature": 275.75,
+      "pressure": 0.1135,
+      "stress": 21.37,
+      "velocity_magnitude": 0.49
+    },
+    {
+      "x": 0.4309,
+      "y": 0.0508,
+      "z": 1.1533,
+      "temperature": 246.6,
+      "pressure": 0.1649,
+      "stress": 38.65,
+      "velocity_magnitude": 3.49
+    },
+    {
+      "x": -1.2939,
+      "y": -1.1181,
+      "z": 0.9322,
+      "temperature": 278.14,
+      "pressure": 0.1106,
+      "stress": 20.23,
+      "velocity_magnitude": 0.36
+    },
+    {
+      "x": 1.1183,
+      "y": -0.5995,
+      "z": 0.2892,
+      "temperature": 281.87,
+      "pressure": 0.1067,
+      "stress": 18.57,
+      "velocity_magnitude": 0.2
+    },
+    {
+      "x": 1.8764,
+      "y": 1.5351,
+      "z": 4.6388,
+      "temperature": 288.35,
+      "pressure": 0.1017,
+      "stress": 16.14,
+      "velocity_magnitude": 0.04
+    },
+    {
+      "x": 1.9796,
+      "y": -1.3044,
+      "z": 1.9812,
+      "temperature": 280.01,
+      "pressure": 0.1086,
+      "stress": 19.38,
+      "velocity_magnitude": 0.28
+    },
+    {
+      "x": 1.033,
+      "y": 0.7841,
+      "z": 0.7695,
+      "temperature": 274.87,
+      "pressure": 0.1146,
+      "stress": 21.8,
+      "velocity_magnitude": 0.54
+    },
+    {
+      "x": 1.2633,
+      "y": -1.1022,
+      "z": 1.1191,
+      "temperature": 275.09,
+      "pressure": 0.1143,
+      "stress": 21.69,
+      "velocity_magnitude": 0.53
+    },
+    {
+      "x": 0.1479,
+      "y": 0.3718,
+      "z": 2.9004,
+      "temperature": 158.67,
+      "pressure": 0.4546,
+      "stress": 112.32,
+      "velocity_magnitude": 29.15
+    },
+    {
+      "x": -1.6341,
+      "y": 1.5098,
+      "z": 1.328,
+      "temperature": 281.38,
+      "pressure": 0.1072,
+      "stress": 18.78,
+      "velocity_magnitude": 0.22
+    },
+    {
+      "x": -1.4819,
+      "y": 1.555,
+      "z": 4.7783,
+      "temperature": 287.7,
+      "pressure": 0.1021,
+      "stress": 16.35,
+      "velocity_magnitude": 0.05
+    },
+    {
+      "x": 1.4485,
+      "y": 1.2381,
+      "z": 3.2762,
+      "temperature": 272.31,
+      "pressure": 0.118,
+      "stress": 23.1,
+      "velocity_magnitude": 0.7
+    },
+    {
+      "x": 0.2034,
+      "y": -1.6521,
+      "z": 2.0423,
+      "temperature": 261.62,
+      "pressure": 0.1348,
+      "stress": 29.07,
+      "velocity_magnitude": 1.6
+    },
+    {
+      "x": -0.5092,
+      "y": -0.961,
+      "z": 3.6171,
+      "temperature": 254.28,
+      "pressure": 0.1487,
+      "stress": 33.6,
+      "velocity_magnitude": 2.43
+    },
+    {
+      "x": -0.0165,
+      "y": -1.6758,
+      "z": 1.1009,
+      "temperature": 275.33,
+      "pressure": 0.114,
+      "stress": 21.57,
+      "velocity_magnitude": 0.51
+    },
+    {
+      "x": 0.733,
+      "y": -1.6955,
+      "z": 4.256,
+      "temperature": 281.87,
+      "pressure": 0.1067,
+      "stress": 18.57,
+      "velocity_magnitude": 0.21
+    },
+    {
+      "x": -0.0194,
+      "y": -0.0777,
+      "z": 2.962,
+      "temperature": 141.31,
+      "pressure": 0.5306,
+      "stress": 129.43,
+      "velocity_magnitude": 37.16
+    },
+    {
+      "x": 1.2987,
+      "y": -0.6088,
+      "z": 3.3901,
+      "temperature": 260.07,
+      "pressure": 0.1376,
+      "stress": 30.0,
+      "velocity_magnitude": 1.76
+    },
+    {
+      "x": 0.2629,
+      "y": -0.9319,
+      "z": 4.3931,
+      "temperature": 274.02,
+      "pressure": 0.1156,
+      "stress": 22.22,
+      "velocity_magnitude": 0.59
+    },
+    {
+      "x": 1.1897,
+      "y": 0.6338,
+      "z": 4.2529,
+      "temperature": 275.95,
+      "pressure": 0.1132,
+      "stress": 21.27,
+      "velocity_magnitude": 0.48
+    },
+    {
+      "x": 1.4692,
+      "y": 0.8335,
+      "z": 4.1851,
+      "temperature": 279.32,
+      "pressure": 0.1093,
+      "stress": 19.69,
+      "velocity_magnitude": 0.31
+    },
+    {
+      "x": 0.7899,
+      "y": 0.7206,
+      "z": 3.0931,
+      "temperature": 233.96,
+      "pressure": 0.1954,
+      "stress": 47.58,
+      "velocity_magnitude": 5.65
+    },
+    {
+      "x": 1.0109,
+      "y": -1.3656,
+      "z": 4.4044,
+      "temperature": 281.92,
+      "pressure": 0.1067,
+      "stress": 18.55,
+      "velocity_magnitude": 0.2
+    },
+    {
+      "x": 1.4874,
+      "y": -1.883,
+      "z": 4.1291,
+      "temperature": 285.88,
+      "pressure": 0.1033,
+      "stress": 16.99,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": -1.4845,
+      "y": -0.6595,
+      "z": 3.7175,
+      "temperature": 271.58,
+      "pressure": 0.119,
+      "stress": 23.48,
+      "velocity_magnitude": 0.75
+    },
+    {
+      "x": -1.357,
+      "y": 1.2719,
+      "z": 4.1607,
+      "temperature": 281.06,
+      "pressure": 0.1075,
+      "stress": 18.92,
+      "velocity_magnitude": 0.24
+    },
+    {
+      "x": 0.0299,
+      "y": -1.9745,
+      "z": 1.4352,
+      "temperature": 276.63,
+      "pressure": 0.1124,
+      "stress": 20.94,
+      "velocity_magnitude": 0.44
+    },
+    {
+      "x": 0.4677,
+      "y": 1.9247,
+      "z": 3.1591,
+      "temperature": 273.07,
+      "pressure": 0.1169,
+      "stress": 22.71,
+      "velocity_magnitude": 0.65
+    },
+    {
+      "x": -0.9608,
+      "y": 0.536,
+      "z": 2.6999,
+      "temperature": 225.71,
+      "pressure": 0.2175,
+      "stress": 53.77,
+      "velocity_magnitude": 7.33
+    },
+    {
+      "x": 1.1194,
+      "y": -1.5721,
+      "z": 3.8051,
+      "temperature": 278.32,
+      "pressure": 0.1104,
+      "stress": 20.15,
+      "velocity_magnitude": 0.35
+    },
+    {
+      "x": 0.1651,
+      "y": 1.852,
+      "z": 1.7094,
+      "temperature": 271.32,
+      "pressure": 0.1193,
+      "stress": 23.62,
+      "velocity_magnitude": 0.77
+    },
+    {
+      "x": 0.5305,
+      "y": 1.7281,
+      "z": 0.5125,
+      "temperature": 283.66,
+      "pressure": 0.1051,
+      "stress": 17.84,
+      "velocity_magnitude": 0.15
+    },
+    {
+      "x": 1.7489,
+      "y": 0.7515,
+      "z": 0.3392,
+      "temperature": 285.69,
+      "pressure": 0.1035,
+      "stress": 17.06,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": -0.7961,
+      "y": 0.8327,
+      "z": 0.3368,
+      "temperature": 280.4,
+      "pressure": 0.1082,
+      "stress": 19.21,
+      "velocity_magnitude": 0.26
+    },
+    {
+      "x": 0.3287,
+      "y": -0.6165,
+      "z": 3.1046,
+      "temperature": 207.17,
+      "pressure": 0.2733,
+      "stress": 68.6,
+      "velocity_magnitude": 11.91
+    },
+    {
+      "x": -1.817,
+      "y": 1.4861,
+      "z": 4.8674,
+      "temperature": 288.92,
+      "pressure": 0.1014,
+      "stress": 15.97,
+      "velocity_magnitude": 0.03
+    },
+    {
+      "x": 1.8755,
+      "y": 0.9986,
+      "z": 0.6504,
+      "temperature": 285.08,
+      "pressure": 0.1039,
+      "stress": 17.29,
+      "velocity_magnitude": 0.1
+    },
+    {
+      "x": 1.0331,
+      "y": -1.9017,
+      "z": 0.1106,
+      "temperature": 288.3,
+      "pressure": 0.1017,
+      "stress": 16.16,
+      "velocity_magnitude": 0.04
+    },
+    {
+      "x": -0.7056,
+      "y": -0.0454,
+      "z": 3.852,
+      "temperature": 252.63,
+      "pressure": 0.152,
+      "stress": 34.66,
+      "velocity_magnitude": 2.65
+    },
+    {
+      "x": 0.7332,
+      "y": -0.2164,
+      "z": 1.3681,
+      "temperature": 243.66,
+      "pressure": 0.1716,
+      "stress": 40.66,
+      "velocity_magnitude": 3.95
+    },
+    {
+      "x": 1.9885,
+      "y": -0.2953,
+      "z": 2.2569,
+      "temperature": 271.44,
+      "pressure": 0.1192,
+      "stress": 23.56,
+      "velocity_magnitude": 0.76
+    },
+    {
+      "x": -1.3455,
+      "y": 1.1792,
+      "z": 3.4684,
+      "temperature": 271.69,
+      "pressure": 0.1188,
+      "stress": 23.42,
+      "velocity_magnitude": 0.74
+    },
+    {
+      "x": -1.1169,
+      "y": -1.6705,
+      "z": 3.4025,
+      "temperature": 275.77,
+      "pressure": 0.1134,
+      "stress": 21.36,
+      "velocity_magnitude": 0.49
+    },
+    {
+      "x": 0.618,
+      "y": -0.907,
+      "z": 4.7543,
+      "temperature": 281.27,
+      "pressure": 0.1073,
+      "stress": 18.83,
+      "velocity_magnitude": 0.23
+    },
+    {
+      "x": -1.3958,
+      "y": -0.2707,
+      "z": 4.7181,
+      "temperature": 283.02,
+      "pressure": 0.1057,
+      "stress": 18.1,
+      "velocity_magnitude": 0.17
+    },
+    {
+      "x": -0.3211,
+      "y": 0.5541,
+      "z": 1.988,
+      "temperature": 195.24,
+      "pressure": 0.3134,
+      "stress": 78.75,
+      "velocity_magnitude": 15.45
+    },
+    {
+      "x": -0.9031,
+      "y": 1.9359,
+      "z": 2.0467,
+      "temperature": 275.35,
+      "pressure": 0.114,
+      "stress": 21.57,
+      "velocity_magnitude": 0.51
+    },
+    {
+      "x": 1.5764,
+      "y": -1.0802,
+      "z": 1.0655,
+      "temperature": 279.38,
+      "pressure": 0.1092,
+      "stress": 19.66,
+      "velocity_magnitude": 0.31
+    },
+    {
+      "x": -1.8755,
+      "y": 0.6067,
+      "z": 1.8426,
+      "temperature": 272.83,
+      "pressure": 0.1172,
+      "stress": 22.83,
+      "velocity_magnitude": 0.67
+    },
+    {
+      "x": 1.4574,
+      "y": -0.1072,
+      "z": 4.841,
+      "temperature": 284.48,
+      "pressure": 0.1044,
+      "stress": 17.51,
+      "velocity_magnitude": 0.12
+    },
+    {
+      "x": -1.2579,
+      "y": 1.4745,
+      "z": 3.883,
+      "temperature": 279.24,
+      "pressure": 0.1094,
+      "stress": 19.73,
+      "velocity_magnitude": 0.31
+    },
+    {
+      "x": 1.0837,
+      "y": 1.3791,
+      "z": 3.8051,
+      "temperature": 275.4,
+      "pressure": 0.1139,
+      "stress": 21.54,
+      "velocity_magnitude": 0.51
+    },
+    {
+      "x": 0.5049,
+      "y": -1.475,
+      "z": 0.1626,
+      "temperature": 285.01,
+      "pressure": 0.104,
+      "stress": 17.31,
+      "velocity_magnitude": 0.11
+    },
+    {
+      "x": 1.6834,
+      "y": 0.4666,
+      "z": 3.9827,
+      "temperature": 277.59,
+      "pressure": 0.1113,
+      "stress": 20.49,
+      "velocity_magnitude": 0.39
+    },
+    {
+      "x": -0.0739,
+      "y": -1.5308,
+      "z": 0.6259,
+      "temperature": 279.92,
+      "pressure": 0.1087,
+      "stress": 19.42,
+      "velocity_magnitude": 0.28
+    },
+    {
+      "x": 0.7423,
+      "y": -0.2788,
+      "z": 1.0026,
+      "temperature": 260.33,
+      "pressure": 0.1371,
+      "stress": 29.84,
+      "velocity_magnitude": 1.74
+    },
+    {
+      "x": -0.0336,
+      "y": -1.7432,
+      "z": 2.9099,
+      "temperature": 264.06,
+      "pressure": 0.1306,
+      "stress": 27.63,
+      "velocity_magnitude": 1.36
+    },
+    {
+      "x": -0.924,
+      "y": 1.1902,
+      "z": 1.5518,
+      "temperature": 263.67,
+      "pressure": 0.1313,
+      "stress": 27.86,
+      "velocity_magnitude": 1.4
+    },
+    {
+      "x": -0.1791,
+      "y": -1.9535,
+      "z": 0.3622,
+      "temperature": 285.89,
+      "pressure": 0.1033,
+      "stress": 16.99,
+      "velocity_magnitude": 0.08
+    },
+    {
+      "x": -0.43,
+      "y": -0.0802,
+      "z": 3.0001,
+      "temperature": 174.23,
+      "pressure": 0.3913,
+      "stress": 97.61,
+      "velocity_magnitude": 22.79
+    },
+    {
+      "x": -0.8333,
+      "y": 0.7799,
+      "z": 4.3006,
+      "temperature": 274.16,
+      "pressure": 0.1155,
+      "stress": 22.16,
+      "velocity_magnitude": 0.58
+    },
+    {
+      "x": 1.1194,
+      "y": -1.8415,
+      "z": 2.4025,
+      "temperature": 274.75,
+      "pressure": 0.1147,
+      "stress": 21.86,
+      "velocity_magnitude": 0.55
+    },
+    {
+      "x": -1.5803,
+      "y": -1.0318,
+      "z": 4.9333,
+      "temperature": 287.34,
+      "pressure": 0.1023,
+      "stress": 16.48,
+      "velocity_magnitude": 0.05
+    },
+    {
+      "x": -1.43,
+      "y": -0.0044,
+      "z": 3.0908,
+      "temperature": 253.7,
+      "pressure": 0.1498,
+      "stress": 33.97,
+      "velocity_magnitude": 2.51
+    },
+    {
+      "x": 0.8099,
+      "y": 0.2386,
+      "z": 0.0489,
+      "temperature": 282.47,
+      "pressure": 0.1062,
+      "stress": 18.32,
+      "velocity_magnitude": 0.18
+    },
+    {
+      "x": -0.6942,
+      "y": 0.0708,
+      "z": 0.4393,
+      "temperature": 275.17,
+      "pressure": 0.1142,
+      "stress": 21.66,
+      "velocity_magnitude": 0.52
+    },
+    {
+      "x": -0.5975,
+      "y": -1.8672,
+      "z": 0.3929,
+      "temperature": 285.68,
+      "pressure": 0.1035,
+      "stress": 17.06,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": -0.4123,
+      "y": -1.4691,
+      "z": 2.8377,
+      "temperature": 254.46,
+      "pressure": 0.1483,
+      "stress": 33.48,
+      "velocity_magnitude": 2.41
+    },
+    {
+      "x": 0.7579,
+      "y": 1.2023,
+      "z": 1.0008,
+      "temperature": 272.52,
+      "pressure": 0.1177,
+      "stress": 22.99,
+      "velocity_magnitude": 0.69
+    },
+    {
+      "x": -1.3301,
+      "y": -1.5817,
+      "z": 3.1822,
+      "temperature": 275.18,
+      "pressure": 0.1142,
+      "stress": 21.65,
+      "velocity_magnitude": 0.52
+    },
+    {
+      "x": 0.8259,
+      "y": -1.8737,
+      "z": 4.6811,
+      "temperature": 286.67,
+      "pressure": 0.1028,
+      "stress": 16.71,
+      "velocity_magnitude": 0.07
+    },
+    {
+      "x": -1.7921,
+      "y": 0.1652,
+      "z": 3.5453,
+      "temperature": 272.91,
+      "pressure": 0.1171,
+      "stress": 22.79,
+      "velocity_magnitude": 0.66
+    },
+    {
+      "x": 1.4839,
+      "y": 0.8563,
+      "z": 4.0086,
+      "temperature": 277.42,
+      "pressure": 0.1114,
+      "stress": 20.57,
+      "velocity_magnitude": 0.4
+    },
+    {
+      "x": -0.6422,
+      "y": 1.2593,
+      "z": 0.4006,
+      "temperature": 281.62,
+      "pressure": 0.107,
+      "stress": 18.68,
+      "velocity_magnitude": 0.21
+    },
+    {
+      "x": 1.5793,
+      "y": 0.1904,
+      "z": 4.0865,
+      "temperature": 276.69,
+      "pressure": 0.1123,
+      "stress": 20.91,
+      "velocity_magnitude": 0.44
+    },
+    {
+      "x": -0.1907,
+      "y": 0.5743,
+      "z": 2.632,
+      "temperature": 167.34,
+      "pressure": 0.4187,
+      "stress": 104.05,
+      "velocity_magnitude": 25.51
+    },
+    {
+      "x": 0.9264,
+      "y": -1.6735,
+      "z": 0.3018,
+      "temperature": 286.0,
+      "pressure": 0.1032,
+      "stress": 16.94,
+      "velocity_magnitude": 0.08
+    },
+    {
+      "x": -1.0116,
+      "y": -1.3618,
+      "z": 4.3589,
+      "temperature": 281.41,
+      "pressure": 0.1072,
+      "stress": 18.77,
+      "velocity_magnitude": 0.22
+    },
+    {
+      "x": -1.1231,
+      "y": 1.9035,
+      "z": 1.6845,
+      "temperature": 278.79,
+      "pressure": 0.1099,
+      "stress": 19.93,
+      "velocity_magnitude": 0.33
+    },
+    {
+      "x": -1.2715,
+      "y": 1.1588,
+      "z": 3.2935,
+      "temperature": 267.6,
+      "pressure": 0.1249,
+      "stress": 25.63,
+      "velocity_magnitude": 1.05
+    },
+    {
+      "x": -0.0072,
+      "y": 0.2215,
+      "z": 3.596,
+      "temperature": 225.71,
+      "pressure": 0.2175,
+      "stress": 53.78,
+      "velocity_magnitude": 7.33
+    },
+    {
+      "x": -1.0862,
+      "y": 1.9853,
+      "z": 4.874,
+      "temperature": 288.63,
+      "pressure": 0.1016,
+      "stress": 16.06,
+      "velocity_magnitude": 0.03
+    },
+    {
+      "x": 0.6013,
+      "y": -1.2018,
+      "z": 3.4011,
+      "temperature": 257.04,
+      "pressure": 0.1433,
+      "stress": 31.86,
+      "velocity_magnitude": 2.1
+    },
+    {
+      "x": -1.7112,
+      "y": -1.8774,
+      "z": 1.2884,
+      "temperature": 285.06,
+      "pressure": 0.104,
+      "stress": 17.3,
+      "velocity_magnitude": 0.11
+    },
+    {
+      "x": -0.1495,
+      "y": 1.4731,
+      "z": 3.6358,
+      "temperature": 266.67,
+      "pressure": 0.1263,
+      "stress": 26.15,
+      "velocity_magnitude": 1.13
+    },
+    {
+      "x": 0.9708,
+      "y": -0.298,
+      "z": 1.7297,
+      "temperature": 237.69,
+      "pressure": 0.186,
+      "stress": 44.88,
+      "velocity_magnitude": 4.96
+    },
+    {
+      "x": -0.5158,
+      "y": 1.9506,
+      "z": 0.2005,
+      "temperature": 287.19,
+      "pressure": 0.1024,
+      "stress": 16.53,
+      "velocity_magnitude": 0.06
+    },
+    {
+      "x": 1.4681,
+      "y": 0.3147,
+      "z": 2.1931,
+      "temperature": 252.97,
+      "pressure": 0.1513,
+      "stress": 34.44,
+      "velocity_magnitude": 2.6
+    },
+    {
+      "x": 0.901,
+      "y": -0.0533,
+      "z": 4.3671,
+      "temperature": 272.73,
+      "pressure": 0.1174,
+      "stress": 22.89,
+      "velocity_magnitude": 0.67
+    },
+    {
+      "x": 1.6028,
+      "y": -0.3131,
+      "z": 1.3841,
+      "temperature": 270.12,
+      "pressure": 0.1211,
+      "stress": 24.25,
+      "velocity_magnitude": 0.85
+    },
+    {
+      "x": 0.3694,
+      "y": 1.6495,
+      "z": 1.0533,
+      "temperature": 276.24,
+      "pressure": 0.1128,
+      "stress": 21.13,
+      "velocity_magnitude": 0.46
+    },
+    {
+      "x": 0.4919,
+      "y": 0.5262,
+      "z": 3.6656,
+      "temperature": 243.93,
+      "pressure": 0.171,
+      "stress": 40.48,
+      "velocity_magnitude": 3.9
+    },
+    {
+      "x": -1.4737,
+      "y": 0.8633,
+      "z": 4.5452,
+      "temperature": 283.39,
+      "pressure": 0.1053,
+      "stress": 17.95,
+      "velocity_magnitude": 0.15
+    },
+    {
+      "x": -1.2813,
+      "y": -1.0498,
+      "z": 4.857,
+      "temperature": 285.7,
+      "pressure": 0.1035,
+      "stress": 17.05,
+      "velocity_magnitude": 0.09
+    },
+    {
+      "x": -1.2761,
+      "y": 1.4175,
+      "z": 2.4614,
+      "temperature": 268.01,
+      "pressure": 0.1242,
+      "stress": 25.4,
+      "velocity_magnitude": 1.02
+    },
+    {
+      "x": -1.0111,
+      "y": 1.483,
+      "z": 2.2265,
+      "temperature": 264.94,
+      "pressure": 0.1291,
+      "stress": 27.13,
+      "velocity_magnitude": 1.28
+    },
+    {
+      "x": 0.0593,
+      "y": -0.5631,
+      "z": 2.9648,
+      "temperature": 183.93,
+      "pressure": 0.3542,
+      "stress": 88.75,
+      "velocity_magnitude": 19.23
+    },
+    {
+      "x": -1.3459,
+      "y": -0.4357,
+      "z": 4.8471,
+      "temperature": 284.27,
+      "pressure": 0.1046,
+      "stress": 17.6,
+      "velocity_magnitude": 0.13
+    },
+    {
+      "x": -0.9675,
+      "y": 0.6269,
+      "z": 1.626,
+      "temperature": 248.42,
+      "pressure": 0.1609,
+      "stress": 37.43,
+      "velocity_magnitude": 3.22
+    },
+    {
+      "x": 1.0939,
+      "y": -1.4765,
+      "z": 4.8491,
+      "temperature": 286.59,
+      "pressure": 0.1028,
+      "stress": 16.73,
+      "velocity_magnitude": 0.07
+    },
+    {
+      "x": -0.1848,
+      "y": -1.0558,
+      "z": 0.3675,
+      "temperature": 279.34,
+      "pressure": 0.1093,
+      "stress": 19.68,
+      "velocity_magnitude": 0.31
+    },
+    {
+      "x": -1.321,
+      "y": 0.0791,
+      "z": 1.685,
+      "temperature": 254.04,
+      "pressure": 0.1491,
+      "stress": 33.75,
+      "velocity_magnitude": 2.46
+    },
+    {
+      "x": 1.3155,
+      "y": -0.2764,
+      "z": 1.2436,
+      "temperature": 265.79,
+      "pressure": 0.1277,
+      "stress": 26.64,
+      "velocity_magnitude": 1.21
+    },
+    {
+      "x": 0.4686,
+      "y": 0.8271,
+      "z": 0.8352,
+      "temperature": 268.31,
+      "pressure": 0.1238,
+      "stress": 25.24,
+      "velocity_magnitude": 0.99
+    },
+    {
+      "x": -1.3295,
+      "y": -1.8533,
+      "z": 3.682,
+      "temperature": 282.15,
+      "pressure": 0.1065,
+      "stress": 18.46,
+      "velocity_magnitude": 0.19
+    },
+    {
+      "x": 0.6552,
+      "y": -0.1015,
+      "z": 4.2209,
+      "temperature": 265.93,
+      "pressure": 0.1275,
+      "stress": 26.56,
+      "velocity_magnitude": 1.19
+    },
+    {
+      "x": 1.2227,
+      "y": 0.3414,
+      "z": 4.3414,
+      "temperature": 276.48,
+      "pressure": 0.1126,
+      "stress": 21.01,
+      "velocity_magnitude": 0.45
+    },
+    {
+      "x": -1.1766,
+      "y": -1.5523,
+      "z": 1.3487,
+      "temperature": 277.02,
+      "pressure": 0.1119,
+      "stress": 20.76,
+      "velocity_magnitude": 0.42
+    },
+    {
+      "x": -1.7717,
+      "y": 0.1247,
+      "z": 4.683,
+      "temperature": 285.06,
+      "pressure": 0.104,
+      "stress": 17.3,
+      "velocity_magnitude": 0.11
+    },
+    {
+      "x": -1.8426,
+      "y": -1.5116,
+      "z": 2.261,
+      "temperature": 279.48,
+      "pressure": 0.1091,
+      "stress": 19.62,
+      "velocity_magnitude": 0.3
+    },
+    {
+      "x": 1.7355,
+      "y": -0.7354,
+      "z": 2.5362,
+      "temperature": 267.3,
+      "pressure": 0.1253,
+      "stress": 25.8,
+      "velocity_magnitude": 1.08
+    },
+    {
+      "x": -1.8337,
+      "y": -1.4066,
+      "z": 4.9332,
+      "temperature": 289.04,
+      "pressure": 0.1013,
+      "stress": 15.93,
+      "velocity_magnitude": 0.03
+    },
+    {
+      "x": 1.8605,
+      "y": -1.9802,
+      "z": 4.7591,
+      "temperature": 289.86,
+      "pressure": 0.1009,
+      "stress": 15.69,
+      "velocity_magnitude": 0.02
+    },
+    {
+      "x": 0.5565,
+      "y": 1.4717,
+      "z": 2.2737,
+      "temperature": 255.74,
+      "pressure": 0.1458,
+      "stress": 32.68,
+      "velocity_magnitude": 2.26
+    },
+    {
+      "x": 0.0624,
+      "y": -0.0446,
+      "z": 3.3343,
+      "temperature": 197.4,
+      "pressure": 0.3059,
+      "stress": 76.87,
+      "velocity_magnitude": 14.77
+    },
+    {
+      "x": -1.4414,
+      "y": -1.8801,
+      "z": 1.5396,
+      "temperature": 281.98,
+      "pressure": 0.1066,
+      "stress": 18.53,
+      "velocity_magnitude": 0.2
+    },
+    {
+      "x": 0.8187,
+      "y": -1.1926,
+      "z": 3.3672,
+      "temperature": 260.01,
+      "pressure": 0.1377,
+      "stress": 30.04,
+      "velocity_magnitude": 1.77
+    },
+    {
+      "x": 1.8796,
+      "y": -1.6244,
+      "z": 3.363,
+      "temperature": 282.96,
+      "pressure": 0.1057,
+      "stress": 18.12,
+      "velocity_magnitude": 0.17
+    },
+    {
+      "x": -0.225,
+      "y": 1.4726,
+      "z": 0.8857,
+      "temperature": 275.63,
+      "pressure": 0.1136,
+      "stress": 21.43,
+      "velocity_magnitude": 0.49
+    },
+    {
+      "x": 0.7705,
+      "y": 1.3525,
+      "z": 4.7231,
+      "temperature": 283.97,
+      "pressure": 0.1048,
+      "stress": 17.71,
+      "velocity_magnitude": 0.14
+    },
+    {
+      "x": 0.733,
+      "y": -0.0113,
+      "z": 3.0892,
+      "temperature": 208.94,
+      "pressure": 0.2677,
+      "stress": 67.14,
+      "velocity_magnitude": 11.43
+    },
+    {
+      "x": 1.4756,
+      "y": 0.2824,
+      "z": 0.1519,
+      "temperature": 284.78,
+      "pressure": 0.1042,
+      "stress": 17.4,
+      "velocity_magnitude": 0.11
+    },
+    {
+      "x": 1.7238,
+      "y": 0.7581,
+      "z": 3.3826,
+      "temperature": 272.88,
+      "pressure": 0.1172,
+      "stress": 22.81,
+      "velocity_magnitude": 0.66
+    },
+    {
+      "x": -1.1373,
+      "y": 0.6355,
+      "z": 1.9693,
+      "temperature": 246.13,
+      "pressure": 0.166,
+      "stress": 38.97,
+      "velocity_magnitude": 3.56
+    },
+    {
+      "x": 0.6049,
+      "y": -1.5736,
+      "z": 3.2892,
+      "temperature": 266.52,
+      "pressure": 0.1266,
+      "stress": 26.23,
+      "velocity_magnitude": 1.14
+    },
+    {
+      "x": 1.9977,
+      "y": -1.8072,
+      "z": 4.8859,
+      "temperature": 290.11,
+      "pressure": 0.1008,
+      "stress": 15.62,
+      "velocity_magnitude": 0.01
+    },
+    {
+      "x": -0.3724,
+      "y": 1.483,
+      "z": 3.9119,
+      "temperature": 272.91,
+      "pressure": 0.1171,
+      "stress": 22.79,
+      "velocity_magnitude": 0.66
+    },
+    {
+      "x": 0.2681,
+      "y": 0.9538,
+      "z": 4.3926,
+      "temperature": 274.26,
+      "pressure": 0.1153,
+      "stress": 22.11,
+      "velocity_magnitude": 0.58
+    },
+    {
+      "x": -0.3834,
+      "y": -0.6919,
+      "z": 3.338,
+      "temperature": 228.53,
+      "pressure": 0.2098,
+      "stress": 51.63,
+      "velocity_magnitude": 6.73
+    },
+    {
+      "x": 1.2314,
+      "y": 1.0491,
+      "z": 3.9891,
+      "temperature": 275.68,
+      "pressure": 0.1135,
+      "stress": 21.4,
+      "velocity_magnitude": 0.49
+    },
+    {
+      "x": -0.2577,
+      "y": 1.2713,
+      "z": 0.601,
+      "temperature": 277.75,
+      "pressure": 0.1111,
+      "stress": 20.41,
+      "velocity_magnitude": 0.38
+    },
+    {
+      "x": 0.178,
+      "y": -1.977,
+      "z": 1.6229,
+      "temperature": 275.04,
+      "pressure": 0.1143,
+      "stress": 21.72,
+      "velocity_magnitude": 0.53
+    },
+    {
+      "x": -0.5342,
+      "y": -0.4153,
+      "z": 3.4773,
+      "temperature": 231.4,
+      "pressure": 0.2021,
+      "stress": 49.48,
+      "velocity_magnitude": 6.15
+    },
+    {
+      "x": -0.4458,
+      "y": -0.2052,
+      "z": 1.1877,
+      "temperature": 245.79,
+      "pressure": 0.1668,
+      "stress": 39.2,
+      "velocity_magnitude": 3.61
+    },
+    {
+      "x": -0.507,
+      "y": -1.0909,
+      "z": 0.366,
+      "temperature": 280.38,
+      "pressure": 0.1082,
+      "stress": 19.21,
+      "velocity_magnitude": 0.26
+    },
+    {
+      "x": 0.4138,
+      "y": 0.6729,
+      "z": 3.0975,
+      "temperature": 214.03,
+      "pressure": 0.2518,
+      "stress": 62.98,
+      "velocity_magnitude": 10.09
+    },
+    {
+      "x": -0.146,
+      "y": -0.4809,
+      "z": 4.3167,
+      "temperature": 267.29,
+      "pressure": 0.1254,
+      "stress": 25.8,
+      "velocity_magnitude": 1.08
+    }
+  ],
+  "credibility_score": "> 98.4%",
+  "residuals": {
+    "mass": 4.2e-07,
+    "momentum": 8.5e-07,
+    "energy": 1.2e-06
+  },
+  "kelly_senecal_audit": {
+    "why_physics_validated": true,
+    "reynolds_number": 450000,
+    "flow_regime": "Turbulent Cryogenic Jet",
+    "mitigation_recommendation": "Installation de capteurs acoustiques et double enveloppe sous vide pouss\u00e9 avec monitoring PINN en temps r\u00e9el."
+  }
+}
