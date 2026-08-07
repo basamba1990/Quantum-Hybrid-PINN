@@ -7,7 +7,8 @@ export type ScenarioType =
   | 'MINING_INDUSTRIAL_SIM'
   | 'H2_COMPRESSION_STATION'
   | 'FPGA_HEATSINK'
-  | 'SMART_RADIATOR';
+  | 'SMART_RADIATOR'
+  | 'LH2_INFRASTRUCTURE_INTEGRITY';
 
 export interface ScenarioConfig {
   id: ScenarioType;
@@ -203,6 +204,25 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
       { name: 'boilOffRisk', label: 'Risque d\'Évaporation', unit: '%' },
       { name: 'thermalStability', label: 'Stabilité Thermique', unit: 'K' },
       { name: 'aiCorrectionFactor', label: 'Facteur Correction IA', unit: '' }
+    ]
+  },
+  LH2_INFRASTRUCTURE_INTEGRITY: {
+    id: 'LH2_INFRASTRUCTURE_INTEGRITY',
+    name: 'Intégrité Infrastructures LH2 (Kelly Senecal)',
+    description: 'Modélisation PINN avancée des discontinuités de fuite cryogénique (20.28K, 1.2 MPa), gradients thermiques et contraintes de von Mises avec validation des résidus Navier-Stokes.',
+    inputs: [
+      { name: 'operating_pressure', label: 'Pression de Service', type: 'number', unit: 'MPa', defaultValue: 1.2 },
+      { name: 'storage_temp', label: 'Température Stockage', type: 'number', unit: 'K', defaultValue: 20.28 },
+      { name: 'leak_diameter', label: 'Diamètre Discontinuité de Fuite', type: 'number', unit: 'mm', defaultValue: 5.0 },
+      { name: 'ambient_temp', label: 'Température Ambiante', type: 'number', unit: 'K', defaultValue: 293.15 }
+    ],
+    outputs: [
+      { name: 'credibilityScore', label: 'Score de Crédibilité PINN', unit: '%' },
+      { name: 'massResidual', label: 'Résidu Masse', unit: '' },
+      { name: 'momentumResidual', label: 'Résidu Momentum', unit: '' },
+      { name: 'energyResidual', label: 'Résidu Énergie', unit: '' },
+      { name: 'maxStress', label: 'Contrainte Von Mises Max', unit: 'MPa' },
+      { name: 'reynoldsNumber', label: 'Nombre de Reynolds', unit: '' }
     ]
   }
 };
