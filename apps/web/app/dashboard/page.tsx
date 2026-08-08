@@ -23,6 +23,21 @@ import ScientificSocialHub from '@/components/scientific-social-hub'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
+const PINNED_PROJECT_NAME = 'LH2_INFRASTRUCTURE_INTEGRITY'
+
+const sortProjectsWithPinnedScenario = (items: Project[]) => {
+  return [...items].sort((a, b) => {
+    const aIsPinned = (a.name || '').trim().toUpperCase() === PINNED_PROJECT_NAME
+    const bIsPinned = (b.name || '').trim().toUpperCase() === PINNED_PROJECT_NAME
+
+    if (aIsPinned !== bIsPinned) return aIsPinned ? -1 : 1
+
+    const aCreatedAt = a.created_at ? new Date(a.created_at).getTime() : 0
+    const bCreatedAt = b.created_at ? new Date(b.created_at).getTime() : 0
+    return bCreatedAt - aCreatedAt
+  })
+}
+
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [analysesCount, setAnalysesCount] = useState(0)
@@ -49,7 +64,7 @@ export default function DashboardPage() {
           .order('created_at', { ascending: false })
         
         if (projectsError) console.error('Fetch projects error:', projectsError)
-        setProjects(projectsData || [])
+        setProjects(sortProjectsWithPinnedScenario(projectsData || []))
 
         // Fetch total analyses count
         const { count, error: analysesError } = await supabase
