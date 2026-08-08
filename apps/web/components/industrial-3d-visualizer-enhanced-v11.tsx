@@ -25,6 +25,14 @@ interface Props {
   colorVariable?: string;
   quality?: 'low' | 'medium' | 'high' | 'ultra';
   scenarioType?: ScenarioType;
+  metrics?: {
+    credibilityScore?: number;
+    residuals?: {
+      continuity?: number;
+      momentum?: number;
+      energy?: number;
+    };
+  };
 }
 
 const SCENARIO_GEOMETRIES: Record<ScenarioType, any> = {
@@ -47,7 +55,8 @@ export default function Industrial3DVisualizerEnhancedV11({
   data = [],
   title = "SIMULATION INDUSTRIELLE 3D - KELLY SENECAL GOLD STANDARD",
   colorVariable = 'pressure',
-  scenarioType = 'LH2_INFRASTRUCTURE_INTEGRITY'
+  scenarioType = 'LH2_INFRASTRUCTURE_INTEGRITY',
+  metrics
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
@@ -75,6 +84,12 @@ export default function Industrial3DVisualizerEnhancedV11({
   }, [data, activeVariable])
 
   // Palette de couleur dynamique
+  const colorScaleGradient = colorScale === 'thermal'
+    ? 'linear-gradient(to right, #0000ff, #00ffff, #ffff00, #ff0000)'
+    : colorScale === 'jet'
+      ? 'linear-gradient(to right, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000)'
+      : 'linear-gradient(to right, #440154, #31688e, #35b779, #fde725)'
+
   const getColorFromScale = useCallback((val: number, min: number, max: number, scale: string) => {
     const norm = Math.max(0, Math.min(1, (val - min) / (max - min || 1)))
     if (scale === 'thermal') {
@@ -244,10 +259,22 @@ export default function Industrial3DVisualizerEnhancedV11({
       y: sample.map(p => (p as any)[activeVariable] ?? 0),
       type: 'scatter',
       mode: 'lines+markers',
-      marker: { color: '#3b82f6', size: 6 },
-      line: { color: '#60a5fa', width: 2 }
+      marker: {
+        color: sample.map(p => (p as any)[activeVariable] ?? 0),
+        colorscale: colorScale === 'thermal'
+          ? [[0, '#0000ff'], [0.33, '#00ffff'], [0.66, '#ffff00'], [1, '#ff0000']]
+          : colorScale === 'jet'
+            ? [[0, '#0000ff'], [0.25, '#00ffff'], [0.5, '#00ff00'], [0.75, '#ffff00'], [1, '#ff0000']]
+            : [[0, '#440154'], [0.33, '#31688e'], [0.66, '#35b779'], [1, '#fde725']],
+        cmin: stats.minV,
+        cmax: stats.maxV,
+        size: 6,
+        showscale: true,
+        colorbar: { title: stats.unit }
+      },
+      line: { color: '#94a3b8', width: 1 }
     }]
-  }, [data, activeVariable])
+  }, [data, activeVariable, colorScale, stats])
 
   return (
     <div className="flex flex-col h-full w-full bg-[#020617] rounded-[32px] border border-white/10 p-6 md:p-8 shadow-2xl relative overflow-hidden">
@@ -289,7 +316,7 @@ export default function Industrial3DVisualizerEnhancedV11({
                 <span>{activeVariable}</span>
                 <span className="text-cyan-400">{stats.unit}</span>
               </div>
-              <div className="h-4 w-full rounded-lg bg-gradient-to-r from-blue-600 via-cyan-400 to-emerald-400 border border-white/20" />
+              <div className="h-4 w-full rounded-lg border border-white/20" style={{ background: colorScaleGradient }} />
               <div className="flex justify-between text-[9px] font-bold text-gray-400">
                 <span>{stats.minV.toFixed(2)}</span>
                 <span>{stats.avgV.toFixed(2)}</span>
@@ -369,7 +396,7 @@ export default function Industrial3DVisualizerEnhancedV11({
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Score de Crédibilité</p>
-                <p className="text-3xl font-black text-emerald-400 mt-1">98.4%</p>
+                <p className="text-3xl font-black text-emerald-400 mt-1">{typeof metrics?.credibilityScore === 'number' ? `${metrics.credibilityScore.toFixed(1)}%` : 'N/D'}</p>
                 <p className="text-[9px] text-gray-500 mt-1">Conforme Standard Kelly Senecal</p>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
@@ -382,15 +409,15 @@ export default function Industrial3DVisualizerEnhancedV11({
               <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Résidus des Équations de Conservation</p>
               <div className="flex justify-between items-center text-xs font-bold border-b border-white/5 pb-2">
                 <span className="text-gray-400">Continuité (Masse)</span>
-                <span className="text-emerald-400 font-mono">4.2e-7</span>
+                <span className="text-emerald-400 font-mono">{metrics?.residuals?.continuity != null ? metrics.residuals.continuity.toExponential(2) : 'N/D'}</span>
               </div>
               <div className="flex justify-between items-center text-xs font-bold border-b border-white/5 pb-2">
                 <span className="text-gray-400">Navier-Stokes (Momentum)</span>
-                <span className="text-emerald-400 font-mono">8.5e-7</span>
+                <span className="text-emerald-400 font-mono">{metrics?.residuals?.momentum != null ? metrics.residuals.momentum.toExponential(2) : 'N/D'}</span>
               </div>
               <div className="flex justify-between items-center text-xs font-bold">
                 <span className="text-gray-400">Conservation de l'Énergie</span>
-                <span className="text-emerald-400 font-mono">1.2e-6</span>
+                <span className="text-emerald-400 font-mono">{metrics?.residuals?.energy != null ? metrics.residuals.energy.toExponential(2) : 'N/D'}</span>
               </div>
             </div>
           </div>

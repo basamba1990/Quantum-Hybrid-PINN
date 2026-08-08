@@ -58,6 +58,19 @@ export default function ProjectDetailClient({ id, project }: any) {
     return Array.isArray(data) ? data.slice(0, 3000) : []
   }, [results, latestAnalysis])
 
+  const scenarioType = useMemo(() => {
+    const identity = `${project?.name || ''} ${project?.description || ''}`.toUpperCase()
+    if (identity.includes('LH2') && (identity.includes('INTEGRITY') || identity.includes('INFRASTRUCTURE') || identity.includes('LEAK'))) {
+      return 'LH2_INFRASTRUCTURE_INTEGRITY' as const
+    }
+    return 'H2_DISTRIBUTION_HIGH_PRESSURE' as const
+  }, [project])
+
+  const visualizationMetrics = useMemo(() => ({
+    credibilityScore: results?.credibilityScore ?? results?.credibility_score ?? latestAnalysis?.credibility_score,
+    residuals: results?.residuals || undefined
+  }), [results, latestAnalysis])
+
   return (
     <div className="flex min-h-screen bg-[#020617] text-white">
       {/* Sidebar Navigation */}
@@ -115,7 +128,8 @@ export default function ProjectDetailClient({ id, project }: any) {
                       data={predictions3d} 
                       title={project?.name || "H2-DISTRIBUTION-V12"}
                       colorVariable="temperature"
-                      scenarioType="H2_DISTRIBUTION_HIGH_PRESSURE"
+                      scenarioType={scenarioType}
+                      metrics={visualizationMetrics}
                     />
                   </div>
                 </TabsContent>
