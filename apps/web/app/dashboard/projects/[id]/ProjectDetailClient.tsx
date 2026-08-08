@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import nextDynamic from 'next/dynamic'
 import { 
-  ArrowLeft, Activity, Zap, ShieldCheck, Gauge, Thermometer, Wind, Database, Cpu, LayoutDashboard, FlaskConical, Layers, LogOut, ChevronRight, Settings, Box
+  ArrowLeft, Activity, Zap, ShieldCheck, Gauge, Thermometer, Wind, Database, Cpu, LayoutDashboard, FlaskConical, Layers, LogOut, ChevronRight, Settings, Box, Trash2
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -22,6 +22,7 @@ const SweetSpotAnalysisPanel = nextDynamic(
 export default function ProjectDetailClient({ id, project }: any) {
   const [latestAnalysis, setLatestAnalysis] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(false)
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
@@ -71,6 +72,23 @@ export default function ProjectDetailClient({ id, project }: any) {
     residuals: results?.residuals || undefined
   }), [results, latestAnalysis])
 
+  const handleDeleteProject = async () => {
+    if (!window.confirm(`Supprimer définitivement le projet « ${project?.name || 'sans nom'} » et ses résultats associés ?`)) return
+    setDeleting(true)
+    try {
+      await supabase.from('analysis_results').delete().eq('project_id', id)
+      await supabase.from('analyses').delete().eq('project_id', id)
+      const { error } = await supabase.from('projects').delete().eq('id', id)
+      if (error) throw error
+      window.location.assign('/dashboard')
+    } catch (error) {
+      console.error('Project deletion failed:', error)
+      window.alert('La suppression a échoué. Vérifiez les permissions Supabase et réessayez.')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-[#020617] text-white">
       {/* Sidebar Navigation */}
@@ -102,9 +120,14 @@ export default function ProjectDetailClient({ id, project }: any) {
             <Link href="/dashboard" className="flex items-center gap-2 text-gray-500 hover:text-white text-[9px] font-black uppercase tracking-[0.2em]"><ArrowLeft className="w-3 h-3" /> Retour</Link>
             <h1 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none">{project?.name || 'H2 Distribution'}</h1>
           </div>
-          <button className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase italic tracking-tighter shadow-2xl shadow-blue-900/40 hover:scale-[1.02] active:scale-[0.98]">
-            <Zap className="w-5 h-5 fill-white mr-2 inline" /> New Analysis
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase italic tracking-tighter shadow-2xl shadow-blue-900/40 hover:scale-[1.02] active:scale-[0.98]">
+              <Zap className="w-4 h-4 fill-white mr-2 inline" /> New Analysis
+            </button>
+            <button onClick={handleDeleteProject} disabled={deleting} className="px-5 py-3 bg-red-950/60 hover:bg-red-700 disabled:opacity-50 text-red-200 rounded-2xl border border-red-500/30 font-black uppercase italic tracking-tighter transition-colors" title="Supprimer le projet">
+              <Trash2 className="w-4 h-4 mr-2 inline" /> {deleting ? 'Suppression...' : 'Supprimer'}
+            </button>
+          </div>
         </div>
 
         <div className="space-y-10">
@@ -123,7 +146,7 @@ export default function ProjectDetailClient({ id, project }: any) {
                   </TabsList>
                 </div>
                 <TabsContent value="volumetric" className="m-0 p-8">
-                  <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 h-[600px]">
+                  <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 min-h-[760px]">
                     <Industrial3DVisualizerEnhancedV11 
                       data={predictions3d} 
                       title={project?.name || "H2-DISTRIBUTION-V12"}

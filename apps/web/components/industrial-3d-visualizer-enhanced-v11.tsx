@@ -290,80 +290,44 @@ export default function Industrial3DVisualizerEnhancedV11({
           <p className="text-[10px] text-gray-400 font-medium">{geometryMeta.description} — {stats.count} points volumétriques</p>
         </div>
 
-        {/* View Switcher & Exports */}
-        <div className="flex flex-wrap items-center gap-2">
-          <button onClick={() => setActiveTab('3d')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === '3d' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
-            Vue 3D WebGPU
-          </button>
-          <button onClick={() => setActiveTab('plotly')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'plotly' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
-            Plotly 2D
-          </button>
-          <button onClick={() => setActiveTab('metrics')} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'metrics' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
-            Métriques & Résidus
-          </button>
+        {/* View Switcher & Exports — hors de la scène pour préserver la lisibilité */}
+        <div className="flex flex-wrap items-center justify-end gap-2 max-w-full">
+          <button onClick={() => setActiveTab('3d')} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === '3d' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>Vue 3D</button>
+          <button onClick={() => setActiveTab('plotly')} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'plotly' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>Plotly 2D</button>
+          <button onClick={() => setActiveTab('metrics')} className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'metrics' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>Métriques</button>
+          <span className="hidden md:block h-6 w-px bg-white/10 mx-1" />
+          <button onClick={exportCSV} className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-700">CSV</button>
+          <button onClick={exportPNG} className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 hover:bg-cyan-700">PNG</button>
+          <button onClick={exportSTL} className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest bg-blue-950/60 border border-blue-500/30 text-blue-300 hover:bg-blue-700">STL</button>
+          <button onClick={exportGLTF} className="px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest bg-purple-950/60 border border-purple-500/30 text-purple-300 hover:bg-purple-700">glTF</button>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 relative min-h-[550px] rounded-[24px] border border-white/10 bg-black/50 overflow-hidden flex flex-col">
+      <div className="flex-1 rounded-[24px] border border-white/10 bg-black/50 overflow-hidden">
         {activeTab === '3d' && (
-          <div className="relative w-full h-full flex-1">
-            <div ref={containerRef} className="w-full h-full min-h-[550px]" />
-
-            {/* Dynamic Colorbar Overlay */}
-            <div className="absolute bottom-6 right-6 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col gap-2 min-w-[200px]">
-              <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-white">
-                <span>{activeVariable}</span>
-                <span className="text-cyan-400">{stats.unit}</span>
-              </div>
-              <div className="h-4 w-full rounded-lg border border-white/20" style={{ background: colorScaleGradient }} />
-              <div className="flex justify-between text-[9px] font-bold text-gray-400">
-                <span>{stats.minV.toFixed(2)}</span>
-                <span>{stats.avgV.toFixed(2)}</span>
-                <span>{stats.maxV.toFixed(2)}</span>
-              </div>
-            </div>
-
-            {/* Floating Physics & Cut Controls */}
-            <div className="absolute top-6 left-6 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col gap-4 max-w-xs">
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-                  <Thermometer className="w-3 h-3 text-cyan-400" /> Variable Physique
-                </label>
-                <select 
-                  value={activeVariable} 
-                  onChange={(e) => setActiveVariable(e.target.value)}
-                  className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white uppercase focus:outline-none focus:border-blue-500"
-                >
-                  <option value="pressure">Pression (MPa)</option>
-                  <option value="temperature">Température (K)</option>
-                  <option value="velocity_magnitude">Vitesse (m/s)</option>
-                  <option value="stress">Contrainte (MPa)</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-                  <Scissors className="w-3 h-3 text-cyan-400" /> Plan de Coupe Spatial (Clipping)
-                </label>
-                <input 
-                  type="range" min="0" max="1" step="0.05" value={cutPosition} 
-                  onChange={(e) => setCutPosition(parseFloat(e.target.value))}
-                  className="w-full accent-blue-500 cursor-pointer"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-                  <Layers className="w-3 h-3 text-cyan-400" /> Échelle de Couleur
-                </label>
-                <div className="grid grid-cols-3 gap-1">
-                  {(['viridis', 'thermal', 'jet'] as const).map(s => (
-                    <button key={s} onClick={() => setColorScale(s)} className={`py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tighter ${colorScale === s ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400'}`}>
-                      {s}
-                    </button>
-                  ))}
+          <div className="p-4 md:p-6 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_112px] gap-4 items-stretch">
+              <div ref={containerRef} className="w-full h-[420px] md:h-[560px] rounded-2xl border border-white/10 bg-[#020617] overflow-hidden" />
+              <aside className="rounded-2xl border border-white/10 bg-slate-900/80 p-3 flex lg:flex-col gap-3 items-center justify-center">
+                <div className="text-center text-[9px] font-black uppercase tracking-widest text-white break-words">{activeVariable}<span className="block text-cyan-400 mt-1">{stats.unit}</span></div>
+                <div className="h-8 w-full lg:w-8 lg:h-[360px] rounded-lg border border-white/20" style={{ backgroundImage: colorScaleGradient.replace('to right', 'to top') }} aria-label={`Échelle ${activeVariable}`} />
+                <div className="flex lg:flex-col justify-between gap-2 text-[9px] font-mono text-gray-400 text-center">
+                  <span>Max {stats.maxV.toFixed(2)}</span><span>Moy {stats.avgV.toFixed(2)}</span><span>Min {stats.minV.toFixed(2)}</span>
                 </div>
+              </aside>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+              <label className="space-y-2 text-[9px] font-black uppercase tracking-widest text-gray-400">Variable physique
+                <select value={activeVariable} onChange={(e) => setActiveVariable(e.target.value)} className="w-full mt-1 bg-black border border-white/10 rounded-lg px-3 py-2 text-xs font-bold text-white uppercase focus:outline-none focus:border-blue-500">
+                  <option value="pressure">Pression (MPa)</option><option value="temperature">Température (K)</option><option value="velocity_magnitude">Vitesse (m/s)</option><option value="stress">Contrainte (MPa)</option>
+                </select>
+              </label>
+              <label className="space-y-2 text-[9px] font-black uppercase tracking-widest text-gray-400">Plan de coupe: {Math.round(cutPosition * 100)}%
+                <input type="range" min="0" max="1" step="0.05" value={cutPosition} onChange={(e) => setCutPosition(parseFloat(e.target.value))} className="w-full mt-3 accent-blue-500 cursor-pointer" />
+              </label>
+              <div className="space-y-2 text-[9px] font-black uppercase tracking-widest text-gray-400">Palette de couleurs
+                <div className="grid grid-cols-3 gap-1 mt-1">{(['viridis', 'thermal', 'jet'] as const).map(s => <button key={s} onClick={() => setColorScale(s)} className={`py-2 rounded-lg text-[9px] font-black uppercase ${colorScale === s ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>{s}</button>)}</div>
               </div>
             </div>
           </div>
