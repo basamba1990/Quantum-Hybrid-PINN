@@ -105,19 +105,33 @@ export default function Industrial3DVisualizerEnhancedV11({
     }
   }, [])
 
-  // Initialisation Three.js
+  // Initialisation Three.js : géométrie, repère scientifique et volume adaptés au scénario
   useEffect(() => {
     if (!isMounted || !containerRef.current || !data.length) return
 
     const width = containerRef.current.clientWidth || 800
     const height = containerRef.current.clientHeight || 550
+    const meta = geometryMeta
+    const sourceBox = new THREE.Box3().setFromPoints(data.map(p => new THREE.Vector3(p.x, p.y, p.z)))
+    const sourceSize = sourceBox.getSize(new THREE.Vector3())
+    const sourceCenter = sourceBox.getCenter(new THREE.Vector3())
+    const target = meta.shape === 'box'
+      ? { x: meta.length, y: meta.height, z: meta.width }
+      : meta.shape === 'cylinder_horizontal'
+        ? { x: meta.length, y: meta.radius * 2, z: meta.radius * 2 }
+        : { x: meta.radius * 2, y: meta.height, z: meta.radius * 2 }
+    const fitSize = Math.max(target.x, target.y, target.z, 4)
+    const normalizePoint = (p: DataPoint) => new THREE.Vector3(
+      ((p.x - sourceCenter.x) / (sourceSize.x || 1)) * target.x,
+      ((p.y - sourceCenter.y) / (sourceSize.y || 1)) * target.y,
+      ((p.z - sourceCenter.z) / (sourceSize.z || 1)) * target.z
+    )
 
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x020617)
     sceneRef.current = scene
-
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000)
-    camera.position.set(4, 3, 5)
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.01, fitSize * 20)
+    camera.position.set(fitSize * 1.25, fitSize * 0.9, fitSize * 1.35)
     cameraRef.current = camera
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true })
@@ -125,77 +139,59 @@ export default function Industrial3DVisualizerEnhancedV11({
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     containerRef.current.replaceChildren(renderer.domElement)
     rendererRef.current = renderer
-
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
+    controls.target.set(0, 0, 0)
+    controls.minDistance = fitSize * 0.45
+    controls.maxDistance = fitSize * 8
     controlsRef.current = controls
 
-    // Éclairage industriel
     scene.add(new THREE.AmbientLight(0xffffff, 0.7))
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2)
-    dirLight.position.set(10, 20, 15)
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.4)
+    dirLight.position.set(fitSize, fitSize * 2, fitSize)
     scene.add(dirLight)
 
-    // Grille de référence et axes
-    const grid = new THREE.GridHelper(10, 20, 0x3b82f6, 0x1e293b)
-    grid.position.y = -2
+    const grid = new THREE.GridHelper(fitSize * 1.4, 14, 0x2563eb, 0x1e293b)
+    grid.position.y = -(target.y / 2)
     scene.add(grid)
+    const axes = new THREE.AxesHelper(fitSize * 0.75)
+    scene.add(axes)
 
-    // Enveloppe géométrique de l'infrastructure
-    const outerGeo = new THREE.CylinderGeometry(1.5, 1.5, 6, 64, 1, true)
-    const outerMat = new THREE.MeshStandardMaterial({
-      color: 0x3b82f6,
-      roughness: 0.2,
-      metalness: 0.8,
-      transparent: true,
-      opacity: 0.25,
-      side: THREE.DoubleSide
-    })
+    const outerGeo = meta.shape === 'box'
+      ? new THREE.BoxGeometry(target.x, target.y, target.z)
+      : new THREE.CylinderGeometry(meta.radius, meta.radius, meta.shape === 'cylinder_horizontal' ? meta.length : meta.height, 64, 24, true)
+    if (meta.shape === 'cylinder_horizontal') outerGeo.rotateZ(Math.PI / 2)
+    const outerMat = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.3, metalness: 0.55, transparent: true, opacity: renderMode === 'volume' ? 0.2 : 0.08, side: THREE.DoubleSide, depthWrite: false })
     const vesselMesh = new THREE.Mesh(outerGeo, outerMat)
     scene.add(vesselMesh)
 
-    // Rendu des points volumétriques avec application du plan de coupe
     const positions: number[] = []
     const colors: number[] = []
-    const vRange = stats.maxV - stats.minV || 1
-
     data.forEach((p) => {
-      // Application du plan de coupe (clipping selon X ou Y)
-      if (p.x > (cutPosition - 0.5) * 6) return
-
-      positions.push(p.x, p.y, p.z)
+      const normalized = normalizePoint(p)
+      if (normalized.x > (cutPosition - 0.5) * target.x) return
+      positions.push(normalized.x, normalized.y, normalized.z)
       const val = (p as any)[activeVariable] ?? 0
       const color = getColorFromScale(val, stats.minV, stats.maxV, colorScale)
       colors.push(color.r, color.g, color.b)
     })
-
     const pointGeo = new THREE.BufferGeometry()
     pointGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
     pointGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+    const pointMat = new THREE.PointsMaterial({ size: Math.max(fitSize * 0.012, renderMode === 'particles' ? fitSize * 0.018 : fitSize * 0.01), vertexColors: true, transparent: true, opacity: renderMode === 'particles' ? 0.95 : 0.72, sizeAttenuation: true })
+    scene.add(new THREE.Points(pointGeo, pointMat))
 
-    const pointMat = new THREE.PointsMaterial({
-      size: renderMode === 'particles' ? 0.08 : 0.05,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.85
-    })
-    const pointsObj = new THREE.Points(pointGeo, pointMat)
-    scene.add(pointsObj)
+    // Volume plein : l’enveloppe est toujours visible en mode volume/isosurface, les points apportent le champ coloré.
+    if (renderMode !== 'particles') {
+      const volumeMaterial = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, transparent: true, opacity: renderMode === 'isosurface' ? 0.32 : 0.14, roughness: 0.5, metalness: 0.15, side: THREE.DoubleSide, depthWrite: false })
+      scene.add(new THREE.Mesh(outerGeo.clone(), volumeMaterial))
+    }
 
-    // Boucle d'animation
     let animationFrameId: number
-    const animate = () => {
-      animationFrameId = requestAnimationFrame(animate)
-      controls.update()
-      renderer.render(scene, camera)
-    }
+    const animate = () => { animationFrameId = requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera) }
     animate()
-
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-      renderer.dispose()
-    }
-  }, [isMounted, data, activeVariable, renderMode, colorScale, cutPosition, stats, getColorFromScale])
+    return () => { cancelAnimationFrame(animationFrameId); controls.dispose(); renderer.dispose(); pointGeo.dispose(); outerGeo.dispose() }
+  }, [isMounted, data, activeVariable, renderMode, colorScale, cutPosition, stats, geometryMeta, getColorFromScale])
 
   // Fonctions d'export
   const exportCSV = () => {
@@ -308,7 +304,13 @@ export default function Industrial3DVisualizerEnhancedV11({
         {activeTab === '3d' && (
           <div className="p-4 md:p-6 space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_112px] gap-4 items-stretch">
-              <div ref={containerRef} className="w-full h-[420px] md:h-[560px] rounded-2xl border border-white/10 bg-[#020617] overflow-hidden" />
+              <div className="relative w-full h-[420px] md:h-[560px] rounded-2xl border border-white/10 bg-[#020617] overflow-hidden">
+                <div ref={containerRef} className="absolute inset-0" />
+                <div className="pointer-events-none absolute left-3 bottom-3 rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-[9px] font-mono text-gray-300">
+                  <div className="grid grid-cols-3 gap-x-4 gap-y-1"><span className="text-red-300">X 0→{(geometryMeta.length || geometryMeta.radius * 2 || 1).toFixed(2)} m</span><span className="text-green-300">Y 0→{(geometryMeta.height || geometryMeta.width || geometryMeta.radius * 2 || 1).toFixed(2)} m</span><span className="text-blue-300">Z 0→{(geometryMeta.width || geometryMeta.radius * 2 || 1).toFixed(2)} m</span></div>
+                  <div className="mt-1 text-gray-500">Repère cartésien • grille métrique • unités SI</div>
+                </div>
+              </div>
               <aside className="rounded-2xl border border-white/10 bg-slate-900/80 p-3 flex lg:flex-col gap-3 items-center justify-center">
                 <div className="text-center text-[9px] font-black uppercase tracking-widest text-white break-words">{activeVariable}<span className="block text-cyan-400 mt-1">{stats.unit}</span></div>
                 <div className="h-8 w-full lg:w-8 lg:h-[360px] rounded-lg border border-white/20" style={{ backgroundImage: colorScaleGradient.replace('to right', 'to top') }} aria-label={`Échelle ${activeVariable}`} />
