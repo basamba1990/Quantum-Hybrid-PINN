@@ -1,0 +1,94 @@
+'use client'
+
+import React, { useMemo } from 'react'
+import { AlertTriangle, CheckCircle2, ExternalLink, FlaskConical, Info, LockKeyhole, Ruler, ShieldCheck } from 'lucide-react'
+import { LH2_SCENARIO_CONFIG, LH2_SOURCES, type ValidationStatus } from '@/data/lh2-scenario-data'
+
+type WorkspaceResults = {
+  credibilityScore?: number | null
+  residuals?: Record<string, number | null> | null
+  boundaryConditionError?: number | null
+  globalConservationError?: number | null
+  referenceError?: number | null
+}
+
+type Props = {
+  scenarioType: string
+  results?: WorkspaceResults | null
+  loading?: boolean
+}
+
+function formatValue(value: number | null | undefined, unit: string) {
+  if (value === null || value === undefined || Number.isNaN(value)) return 'N/D'
+  return `${value.toExponential(3)} ${unit}`
+}
+
+function statusFor(results: WorkspaceResults | null | undefined): ValidationStatus {
+  if (!results) return 'DRAFT'
+  const residuals = results.residuals || {}
+  const hasResiduals = Object.values(residuals).some(value => typeof value === 'number')
+  const hasScore = typeof results.credibilityScore === 'number'
+  if (!hasResiduals && !hasScore) return 'READY_FOR_RUN'
+  const maxResidual = Math.max(...Object.values(residuals).filter((value): value is number => typeof value === 'number'), 0)
+  return maxResidual <= 1e-4 ? 'VALIDATED' : 'VALIDATION_FAILED'
+}
+
+export default function ScientificValidationWorkspace({ scenarioType, results, loading = false }: Props) {
+  const isLH2 = scenarioType === LH2_SCENARIO_CONFIG.scenario_type
+  const status = useMemo(() => statusFor(results), [results])
+  const statusLabel = {
+    DRAFT: 'BROUILLON',
+    READY_FOR_RUN: 'PRÊT À CALCULER',
+    RUNNING: 'EN COURS',
+    VALIDATION_FAILED: 'VALIDATION ÉCHOUÉE',
+    VALIDATED: 'VALIDÉ PAR LES MÉTRIQUES DISPONIBLES',
+    PUBLISHED: 'PUBLIÉ',
+  }[status]
+  const statusClass = status === 'VALIDATED' ? 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10' : status === 'VALIDATION_FAILED' ? 'text-red-300 border-red-500/30 bg-red-500/10' : 'text-amber-300 border-amber-500/30 bg-amber-500/10'
+
+  if (!isLH2) return null
+
+  return (
+    <section className="rounded-[32px] border border-cyan-500/20 bg-[#07111f]/90 p-6 md:p-8 shadow-2xl shadow-cyan-950/20">
+      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-cyan-300"><FlaskConical className="h-5 w-5" /><span className="text-[10px] font-black uppercase tracking-[0.2em]">Scientific Validation Workspace</span></div>
+          <h2 className="text-2xl font-black uppercase italic tracking-tight text-white">LH2 Infrastructure Integrity</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Pré-analyse physique, traçabilité des paramètres, résidus et limites de validation. Les données absentes restent volontairement non déterminées.</p>
+        </div>
+        <div className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-black uppercase tracking-widest ${statusClass}`}>
+          {status === 'VALIDATED' ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+          {statusLabel}
+        </div>
+      </div>
+
+      <div className="mt-7 grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><div className="flex items-center gap-2 text-xs font-bold text-slate-300"><Ruler className="h-4 w-4 text-cyan-400" />Géométrie</div><p className="mt-3 text-sm text-amber-200">À documenter</p><p className="mt-1 text-xs text-slate-500">Domaine, paroi, raccord et défaut de fuite</p></div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><div className="flex items-center gap-2 text-xs font-bold text-slate-300"><ShieldCheck className="h-4 w-4 text-cyan-400" />Crédibilité</div><p className="mt-3 text-sm text-white">{typeof results?.credibilityScore === 'number' ? `${results.credibilityScore.toFixed(2)} / 100` : 'N/D'}</p><p className="mt-1 text-xs text-slate-500">Aucun score par défaut</p></div>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><div className="flex items-center gap-2 text-xs font-bold text-slate-300"><LockKeyhole className="h-4 w-4 text-cyan-400" />Blocages</div><p className="mt-3 text-sm text-amber-200">{LH2_SCENARIO_CONFIG.validation.blocking_issues.length} à lever</p><p className="mt-1 text-xs text-slate-500">Avant toute certification</p></div>
+      </div>
+
+      <div className="mt-7 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+          <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-white"><Info className="h-4 w-4 text-cyan-400" />Paramètres et provenance</div>
+          <div className="space-y-3">
+            {LH2_SCENARIO_CONFIG.parameters.map(parameter => (
+              <div key={parameter.name} className="grid gap-2 border-b border-white/5 pb-3 last:border-0 sm:grid-cols-[1.3fr_auto]">
+                <div><p className="text-sm font-semibold text-slate-200">{parameter.name}</p><p className="mt-1 text-xs leading-5 text-slate-500">{parameter.applicability}</p><a className="mt-1 inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300" href={parameter.source_url || '#'} target="_blank" rel="noreferrer">{parameter.source} {parameter.source_url && <ExternalLink className="h-3 w-3" />}</a></div>
+                <div className={`self-start rounded-lg px-2 py-1 text-right text-sm font-black ${parameter.value === null ? 'bg-amber-500/10 text-amber-200' : 'bg-emerald-500/10 text-emerald-200'}`}>{parameter.value === null ? 'N/D' : `${parameter.value} ${parameter.unit_si}`}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-white/10 bg-black/20 p-5"><div className="mb-4 text-xs font-black uppercase tracking-widest text-white">Résidus réellement reçus</div><div className="space-y-3">{['mass', 'momentum', 'energy'].map(key => <div key={key} className="flex items-center justify-between border-b border-white/5 pb-2 text-sm"><span className="text-slate-400">{key}</span><span className="font-mono text-cyan-200">{formatValue(results?.residuals?.[key], '')}</span></div>)}</div><p className="mt-4 text-xs leading-5 text-slate-500">Les valeurs non présentes dans le résultat restent `N/D`; aucune métrique n’est générée par l’interface.</p></div>
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5"><div className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-amber-200"><AlertTriangle className="h-4 w-4" />Points bloquants</div><ul className="space-y-2 text-xs leading-5 text-amber-100/80">{LH2_SCENARIO_CONFIG.validation.blocking_issues.map(item => <li key={item}>• {item}</li>)}</ul></div>
+        </div>
+      </div>
+
+      <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.02] p-5"><div className="mb-3 text-xs font-black uppercase tracking-widest text-white">Sources de référence</div><div className="flex flex-wrap gap-3">{LH2_SOURCES.map(source => <a key={source.url} href={source.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs text-slate-300 hover:border-cyan-400/50 hover:text-cyan-200">{source.label}<ExternalLink className="h-3 w-3" /></a>)}</div></div>
+      {loading && <p className="mt-4 text-xs font-bold uppercase tracking-widest text-cyan-400">Lecture des résultats…</p>}
+    </section>
+  )
+}

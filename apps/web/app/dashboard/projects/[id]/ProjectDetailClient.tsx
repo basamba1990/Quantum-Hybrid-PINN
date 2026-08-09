@@ -8,6 +8,7 @@ import {
   ArrowLeft, Activity, Zap, ShieldCheck, Gauge, Thermometer, Wind, Database, Cpu, LayoutDashboard, FlaskConical, Layers, LogOut, ChevronRight, Settings, Box, Trash2
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import ScientificValidationWorkspace from '@/components/scientific-validation-workspace'
 
 const Industrial3DVisualizerEnhancedV11 = nextDynamic(
   () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
@@ -70,6 +71,14 @@ export default function ProjectDetailClient({ id, project }: any) {
   const visualizationMetrics = useMemo(() => ({
     credibilityScore: results?.credibilityScore ?? results?.credibility_score ?? latestAnalysis?.credibility_score,
     residuals: results?.residuals || undefined
+  }), [results, latestAnalysis])
+
+  const validationWorkspaceResults = useMemo(() => ({
+    credibilityScore: results?.credibilityScore ?? results?.credibility_score ?? latestAnalysis?.credibility_score ?? null,
+    residuals: results?.residuals ?? null,
+    boundaryConditionError: results?.boundaryConditionError ?? results?.boundary_condition_error ?? null,
+    globalConservationError: results?.globalConservationError ?? results?.global_conservation_error ?? null,
+    referenceError: results?.referenceError ?? results?.reference_error ?? null,
   }), [results, latestAnalysis])
 
   const handleDeleteProject = async () => {
@@ -136,6 +145,7 @@ export default function ProjectDetailClient({ id, project }: any) {
           </div>
 
           <div className="space-y-6">
+            <ScientificValidationWorkspace scenarioType={scenarioType} results={validationWorkspaceResults} loading={loading} />
             <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white px-2">Scientific Advanced Physics</h2>
             <div className="bg-black border border-white/10 rounded-[40px] overflow-hidden shadow-2xl">
               <Tabs defaultValue="volumetric" className="w-full">
