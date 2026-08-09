@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Project } from '@/types'
+import { getScenarioDisplayName, inferScenarioTypeFromProject } from '@/types/simulation-scenarios'
 import { 
   Plus, 
   FlaskConical, 
@@ -27,8 +28,8 @@ const PINNED_PROJECT_NAME = 'LH2_INFRASTRUCTURE_INTEGRITY'
 
 const sortProjectsWithPinnedScenario = (items: Project[]) => {
   return [...items].sort((a, b) => {
-    const aIsPinned = (a.name || '').trim().toUpperCase() === PINNED_PROJECT_NAME
-    const bIsPinned = (b.name || '').trim().toUpperCase() === PINNED_PROJECT_NAME
+    const aIsPinned = inferScenarioTypeFromProject(a) === PINNED_PROJECT_NAME
+    const bIsPinned = inferScenarioTypeFromProject(b) === PINNED_PROJECT_NAME
 
     if (aIsPinned !== bIsPinned) return aIsPinned ? -1 : 1
 
@@ -63,8 +64,12 @@ export default function DashboardPage() {
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
         
-        if (projectsError) console.error('Fetch projects error:', projectsError)
-        setProjects(sortProjectsWithPinnedScenario(projectsData || []))
+        if (projectsError) {
+          console.error('Fetch projects error:', projectsError)
+          setProjects([])
+        } else {
+          setProjects(sortProjectsWithPinnedScenario(projectsData || []))
+        }
 
         // Fetch total analyses count
         const { count, error: analysesError } = await supabase
@@ -252,8 +257,11 @@ export default function DashboardPage() {
                       </div>
                       
                       <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors mb-2 line-clamp-1">
-                        {project.name}
+                        {getScenarioDisplayName(project.scenario_type || project.category || project.name)}
                       </h3>
+                      <p className="text-[10px] font-mono uppercase tracking-widest text-cyan-400/70 mb-2">
+                        Code : {inferScenarioTypeFromProject(project) || 'NON_CLASSÉ'}
+                      </p>
                       
                       <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed flex-1">
                         {project.description || "Aucune description scientifique fournie pour ce module de simulation."}

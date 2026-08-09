@@ -4,6 +4,7 @@ export interface Project {
   name: string
   description?: string
   category?: string
+  scenario_type?: string
   status?: string
   video_url?: string
   transcription?: string

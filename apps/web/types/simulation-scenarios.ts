@@ -226,3 +226,35 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
     ]
   }
 };
+
+export const SCENARIO_ALIASES: Record<string, ScenarioType> = {
+  PIPELINE: 'H2_PIPELINE',
+  H2_PIPELINE: 'H2_PIPELINE',
+  'H2 PIPELINE': 'H2_PIPELINE',
+  PIPELINE_SAFETY: 'PIPELINE_SAFETY',
+  CRYOGENIC_TRANSPORT: 'CRYOGENIC_TRANSPORT',
+  LH2_STORAGE: 'LH2_STORAGE',
+  LH2_INFRASTRUCTURE_INTEGRITY: 'LH2_INFRASTRUCTURE_INTEGRITY',
+  'INTÉGRITÉ INFRASTRUCTURES LH2 (KELLY SENECAL)': 'LH2_INFRASTRUCTURE_INTEGRITY',
+  'INTEGRITE INFRASTRUCTURES LH2 (KELLY SENECAL)': 'LH2_INFRASTRUCTURE_INTEGRITY',
+  MINING_INDUSTRIAL_SIM: 'MINING_INDUSTRIAL_SIM',
+  H2_COMPRESSION_STATION: 'H2_COMPRESSION_STATION',
+  FPGA_HEATSINK: 'FPGA_HEATSINK',
+  SMART_RADIATOR: 'SMART_RADIATOR',
+  PORT_ENERGY_OPTIMIZATION: 'PORT_ENERGY_OPTIMIZATION',
+};
+
+export function normalizeScenarioType(value?: string | null): ScenarioType | null {
+  if (!value) return null;
+  const key = value.trim().toUpperCase().replace(/[–—]/g, '-');
+  return SCENARIO_ALIASES[key] || null;
+}
+
+export function inferScenarioTypeFromProject(project: { name?: string | null; category?: string | null; scenario_type?: string | null }): ScenarioType | null {
+  return normalizeScenarioType(project.scenario_type) || normalizeScenarioType(project.category) || normalizeScenarioType(project.name);
+}
+
+export function getScenarioDisplayName(value?: string | null): string {
+  const normalized = normalizeScenarioType(value);
+  return normalized ? INDUSTRIAL_SCENARIOS[normalized].name : (value?.trim() || 'Projet scientifique');
+}
