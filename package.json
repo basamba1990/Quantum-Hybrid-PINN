@@ -7,6 +7,7 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "pnpm --filter web build",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "cd apps/api && uvicorn main:app --reload",
     "dev:queue": "cd apps/api && ts-node pinn_queue_system.ts",
