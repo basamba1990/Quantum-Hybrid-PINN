@@ -153,7 +153,7 @@ export default function SimulationsPage() {
             </TabsContent>
 
             <TabsContent value="hybrid" className="mt-6">
-              <HybridSimulationPanel />
+              <HybridSimulationPanel projectId={selectedProject?.id} />
             </TabsContent>
 
             <TabsContent value="audit" className="mt-6">

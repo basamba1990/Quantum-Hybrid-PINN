@@ -438,6 +438,7 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             "momentumResidual": clean_float(1e-6 * (1.0 - avg_res + 1e-9)),
             "energyResidual": clean_float(1e-6 * (1.0 - avg_res + 1e-9)),
             "scenario_type": request.scenario_type or "H2_PIPELINE",
+            "scenario_inputs": clean_json(request.scenario_inputs or {}),
             "updated_at": datetime.utcnow().isoformat()
         }
         

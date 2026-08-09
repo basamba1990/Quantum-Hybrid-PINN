@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
 
     const payload = {
       project_id: body.project_id,
+      analysis_id: body.analysis_id,
       user_id: session.user.id,
       job_name: body.job_name,
       case_path: body.case_path,
