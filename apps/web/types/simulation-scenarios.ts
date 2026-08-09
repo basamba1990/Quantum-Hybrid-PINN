@@ -231,6 +231,9 @@ export const SCENARIO_ALIASES: Record<string, ScenarioType> = {
   PIPELINE: 'H2_PIPELINE',
   H2_PIPELINE: 'H2_PIPELINE',
   'H2 PIPELINE': 'H2_PIPELINE',
+  H2_DISTRIBUTION_HIGH_PRESSURE: 'H2_PIPELINE',
+  'HIGH-PRESSURE H2': 'H2_PIPELINE',
+  'HIGH PRESSURE H2': 'H2_PIPELINE',
   PIPELINE_SAFETY: 'PIPELINE_SAFETY',
   CRYOGENIC_TRANSPORT: 'CRYOGENIC_TRANSPORT',
   LH2_STORAGE: 'LH2_STORAGE',
@@ -247,7 +250,12 @@ export const SCENARIO_ALIASES: Record<string, ScenarioType> = {
 export function normalizeScenarioType(value?: string | null): ScenarioType | null {
   if (!value) return null;
   const key = value.trim().toUpperCase().replace(/[–—]/g, '-');
-  return SCENARIO_ALIASES[key] || null;
+  const direct = SCENARIO_ALIASES[key];
+  if (direct) return direct;
+  if (key.includes('LH2') && (key.includes('INTEGR') || key.includes('INFRA'))) return 'LH2_INFRASTRUCTURE_INTEGRITY';
+  if (key.includes('HIGH-PRESSURE H2') || key.includes('HIGH PRESSURE H2')) return 'H2_PIPELINE';
+  if (key.includes('PIPELINE')) return 'H2_PIPELINE';
+  return null;
 }
 
 export function inferScenarioTypeFromProject(project: { name?: string | null; category?: string | null; scenario_type?: string | null }): ScenarioType | null {

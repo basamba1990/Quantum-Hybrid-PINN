@@ -24,7 +24,7 @@ import type { User } from '@supabase/supabase-js'
 const menuItems = [
   // Section Principale
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', section: 'PRINCIPAL' },
-  { icon: FlaskConical, label: 'Pipeline', href: '/dashboard/simulations', section: 'PRINCIPAL' },
+  { icon: FlaskConical, label: 'Simulation CFD', href: '/dashboard/simulations', section: 'PRINCIPAL' },
   { icon: Zap, label: 'Physics', href: '/dashboard/benchmarks', section: 'PRINCIPAL' },
   { icon: BarChart3, label: 'Analysis', href: '/dashboard/sweet-spot-analysis', section: 'PRINCIPAL' },
   { icon: Settings, label: 'Settings', href: '/dashboard/settings', section: 'PRINCIPAL' },
