@@ -1,0 +1,19 @@
+{
+  "coordinate_system": "Cartesian SI",
+  "comparison_split": "TEST_HOLDOUT",
+  "units": {
+    "x_m": "m",
+    "y_m": "m",
+    "z_m": "m",
+    "pressure_Pa": "Pa",
+    "temperature_K": "K",
+    "velocity_magnitude_m_s": "m/s",
+    "material_stress_Pa": "Pa"
+  },
+  "property_model": {
+    "name": "REFPROP | NASA_PARAHYDROGEN_V05 | NIST_WEBBOOK | EXPERIMENTAL_CORRELATION",
+    "version": "REQUIRED_INPUT",
+    "species": "REQUIRED_INPUT",
+    "phase": "REQUIRED_INPUT"
+  }
+}
