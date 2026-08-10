@@ -56,26 +56,26 @@ export default function ProjectDetailClient({ id, project }: any) {
   }, [latestAnalysis])
 
   const predictions3d = useMemo(() => {
-    const data = results?.predictions3d || latestAnalysis?.pinn_predictions || []
-    return Array.isArray(data) ? data.slice(0, 3000) : []
+    const data = results?.predictions3d || results?.pinn_predictions || latestAnalysis?.pinn_predictions || []
+    return Array.isArray(data) ? data : []
   }, [results, latestAnalysis])
 
   const scenarioType = useMemo(() => {
-    const identity = `${project?.name || ''} ${project?.description || ''}`.toUpperCase()
-    if (identity.includes('LH2') && (identity.includes('INTEGRITY') || identity.includes('INFRASTRUCTURE') || identity.includes('LEAK'))) {
+    const identity = `${project?.name || ''} ${project?.description || ''} ${results?.scenario_type || ''}`.toUpperCase()
+    if (identity.includes('LH2') || identity.includes('CRYOGENIC') || identity.includes('STORAGE') || identity.includes('INFRASTRUCTURE')) {
       return 'LH2_INFRASTRUCTURE_INTEGRITY' as const
     }
-    return 'H2_DISTRIBUTION_HIGH_PRESSURE' as const
-  }, [project])
+    return (project?.scenario_type || results?.scenario_type || 'LH2_INFRASTRUCTURE_INTEGRITY') as any
+  }, [project, results])
 
   const visualizationMetrics = useMemo(() => ({
     credibilityScore: results?.credibilityScore ?? results?.credibility_score ?? latestAnalysis?.credibility_score,
-    residuals: results?.residuals || undefined
+    residuals: results?.residuals || results?.physical_metrics?.residuals || undefined
   }), [results, latestAnalysis])
 
   const validationWorkspaceResults = useMemo(() => ({
     credibilityScore: results?.credibilityScore ?? results?.credibility_score ?? latestAnalysis?.credibility_score ?? null,
-    residuals: results?.residuals ?? null,
+    residuals: results?.residuals ?? results?.physical_metrics?.residuals ?? null,
     boundaryConditionError: results?.boundaryConditionError ?? results?.boundary_condition_error ?? null,
     globalConservationError: results?.globalConservationError ?? results?.global_conservation_error ?? null,
     referenceError: results?.referenceError ?? results?.reference_error ?? null,
@@ -118,7 +118,6 @@ export default function ProjectDetailClient({ id, project }: any) {
           <NavItem icon={<Settings className="w-4 h-4" />} label="Paramètres" />
         </nav>
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mt-auto">
-          <p className="text-xs font-black uppercase tracking-tighter italic">basamba1990</p>
           <button className="w-full mt-4 flex items-center justify-center gap-2 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white"><LogOut className="w-3 h-3" /> Déconnexion</button>
         </div>
       </aside>
@@ -127,7 +126,7 @@ export default function ProjectDetailClient({ id, project }: any) {
         <div className="flex justify-between items-center">
           <div className="space-y-2">
             <Link href="/dashboard" className="flex items-center gap-2 text-gray-500 hover:text-white text-[9px] font-black uppercase tracking-[0.2em]"><ArrowLeft className="w-3 h-3" /> Retour</Link>
-            <h1 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none">{project?.name || 'H2 Distribution'}</h1>
+            <h1 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none">{project?.name || 'LH2 Infrastructure Integrity'}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase italic tracking-tighter shadow-2xl shadow-blue-900/40 hover:scale-[1.02] active:scale-[0.98]">
@@ -159,7 +158,7 @@ export default function ProjectDetailClient({ id, project }: any) {
                   <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 min-h-[760px]">
                     <Industrial3DVisualizerEnhancedV11 
                       data={predictions3d} 
-                      title={project?.name || "H2-DISTRIBUTION-V12"}
+                      title={project?.name || "LH2_INFRASTRUCTURE_INTEGRITY"}
                       colorVariable="temperature"
                       scenarioType={scenarioType}
                       metrics={visualizationMetrics}
@@ -168,7 +167,7 @@ export default function ProjectDetailClient({ id, project }: any) {
                 </TabsContent>
                 <TabsContent value="thermal" className="m-0 p-8">
                   <div className="h-[600px] bg-slate-950/50 rounded-[32px] border border-white/5 flex items-center justify-center">
-                    <p className="text-gray-500 font-black uppercase italic tracking-widest">Profil Thermique - Analyse NIST</p>
+                    <p className="text-gray-500 font-black uppercase italic tracking-widest">Profil Thermique - Référence NIST / Kelly Senecal</p>
                   </div>
                 </TabsContent>
               </Tabs>
