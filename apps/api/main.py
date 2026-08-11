@@ -4,7 +4,7 @@ import numpy as np
 import gc
 import torch
 import asyncio
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Optional
@@ -99,6 +99,15 @@ def trim_jobs_store():
 app.include_router(analysis_router)
 app.include_router(pgd_pinn_router)
 app.include_router(export_router)
+
+# Lazy import du pipeline CAO industriel (volets 1–9) pour ne pas bloquer
+# le démarrage : les portes G0–G5 restent évaluées au runtime.
+def _load_cao_router() -> APIRouter:
+    """Charge le pipeline CAO industriel (volets 1–9) à l'import du module API."""
+    from cao_router import router as _cao_router
+    return _cao_router
+
+app.include_router(_load_cao_router())
 
 # Lazy imports for heavy modules - will be available after startup
 HydrogenPINNTFCV8 = None
