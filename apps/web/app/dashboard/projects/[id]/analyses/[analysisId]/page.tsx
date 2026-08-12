@@ -24,6 +24,7 @@ interface AnalysisDetail {
   created_at: string
   project_id: string
   scenario_type?: string
+  transcription?: string
 }
 
 export default function AnalysisDetailPage() {
@@ -128,6 +129,13 @@ export default function AnalysisDetailPage() {
     )
   }
 
+  const resolvedScenarioType = (
+    analysis.results?.scenario_type ||
+    analysis.results?.scenarioType ||
+    analysis.scenario_type ||
+    (/LH2_INFRASTRUCTURE_INTEGRITY/i.test(analysis.transcription || '') ? 'LH2_INFRASTRUCTURE_INTEGRITY' : 'H2_PIPELINE')
+  ) as any
+
   const auditData = {
     isPhysicallyCoherent: analysis.credibility_score > 50,
     credibilityScore: analysis.credibility_score,
@@ -176,7 +184,7 @@ export default function AnalysisDetailPage() {
         <div className="h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-900/50">
           <Industrial3DVisualizerEnhancedV11
             data={auditData.predictions3d}
-            scenarioType={(analysis.results?.scenario_type || analysis.results?.scenarioType || analysis.scenario_type || 'H2_PIPELINE') as any}
+            scenarioType={resolvedScenarioType}
             title={analysis.title}
           />
         </div>
@@ -189,7 +197,7 @@ export default function AnalysisDetailPage() {
           <ScientificAuditCard
             auditData={auditData}
             projectName={analysis.title}
-            scenarioType={analysis.results?.scenario_type || analysis.results?.scenarioType}
+            scenarioType={resolvedScenarioType}
           />
         </div>
 
