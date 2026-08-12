@@ -394,7 +394,7 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             
         # 2. Échantillonnage spatial haute densité (Truly-Industrial Volume Plein)
         # On utilise une grille structurée pour garantir la continuité volumétrique
-        res_grid = 12 # 12x12x12 = 1728 points, optimal pour Render Free et rendu plein
+        res_grid = 24 # Grille structurée haute densité pour le rendu volumétrique plein
         t_final = num_steps * 0.1
         
         # Génération d'une grille structurée dans le domaine physique

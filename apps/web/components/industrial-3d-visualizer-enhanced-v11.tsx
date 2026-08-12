@@ -103,15 +103,15 @@ const SCENARIO_GEOMETRIES: Record<
     defaultVelocity: 0.1,
   },
   LH2_INFRASTRUCTURE_INTEGRITY: {
-    shape: "cylinder_vertical",
-    radius: 3.0,
-    height: 8.0,
-    length: 6.0,
-    width: 6.0,
-    description: "LH2 Infrastructure Integrity & Leak Detection",
+    shape: "cylinder_horizontal",
+    radius: 0.025,
+    height: 0.05,
+    length: 2.0,
+    width: 0.05,
+    description: "LH2 DN50 — ligne de transfert cryogénique pleine",
     defaultTemp: 20.28,
     defaultPressure: 1.2,
-    defaultVelocity: 0.2,
+    defaultVelocity: 1.0,
   },
   H2_PIPELINE: {
     shape: "cylinder_horizontal",
@@ -535,38 +535,48 @@ export default function Industrial3DVisualizerEnhancedV11({
     const vesselMesh = new THREE.Mesh(outerGeo, outerMat);
     scene.add(vesselMesh);
 
-    // Rendu des points volumétriques continus (11 000+ points)
-    const positions: number[] = [];
-    const colors: number[] = [];
-
-    volumetricData.forEach((p) => {
-      // Plan de coupe interactif
-      if (meta.shape === "cylinder_vertical" && p.x > cutPosition * meta.radius)
-        return;
-
-      positions.push(p.x, p.y, p.z);
-      const val = (p as any)[activeVariable] ?? 100;
-      const color = getColorFromScale(val, stats.minV, stats.maxV, colorScale);
-      colors.push(color.r, color.g, color.b);
-    });
-
-    const pointGeo = new THREE.BufferGeometry();
-    pointGeo.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(positions, 3),
-    );
-    pointGeo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-
-    // Taille de point optimale pour un maillage dense et plein (sans lignes ni espaces vides)
-    const pointMat = new THREE.PointsMaterial({
-      size: 0.095,
+    // Rendu Volumétrique Plein Industriel (InstancedMesh pour illusion de solide continu)
+    // Au lieu de points épars, on utilise des voxels denses qui se chevauchent légèrement
+    const voxelSize =
+      meta.shape === "cylinder_horizontal"
+        ? Math.min(meta.radius * 0.42, meta.length / 70)
+        : meta.shape === "cylinder_vertical"
+          ? meta.radius / 12
+          : Math.min(meta.length, meta.height, meta.width) / 18;
+    const voxelGeo = new THREE.BoxGeometry(voxelSize, voxelSize, voxelSize);
+    const voxelMat = new THREE.MeshStandardMaterial({
       vertexColors: true,
+      roughness: 0.3,
+      metalness: 0.2,
       transparent: true,
-      opacity: 0.92,
-      sizeAttenuation: true,
+      opacity: 0.95,
     });
-    const pointsMesh = new THREE.Points(pointGeo, pointMat);
-    scene.add(pointsMesh);
+
+    // Filtrer les points selon le plan de coupe
+    const visiblePoints = volumetricData.filter((p) => {
+      if (meta.shape === "cylinder_vertical" && p.x > cutPosition * meta.radius) return false;
+      if (meta.shape === "cylinder_horizontal" && p.x > cutPosition * (meta.length / 2)) return false;
+      return true;
+    });
+
+    const instancedMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, visiblePoints.length);
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+
+    visiblePoints.forEach((p, i) => {
+      dummy.position.set(p.x, p.y, p.z);
+      dummy.updateMatrix();
+      instancedMesh.setMatrixAt(i, dummy.matrix);
+
+      const val = (p as any)[activeVariable] ?? 100;
+      const c = getColorFromScale(val, stats.minV, stats.maxV, colorScale);
+      color.setRGB(c.r, c.g, c.b);
+      instancedMesh.setColorAt(i, color);
+    });
+
+    instancedMesh.instanceMatrix.needsUpdate = true;
+    if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
+    scene.add(instancedMesh);
 
     let animationFrameId: number;
     const animate = () => {
@@ -580,7 +590,8 @@ export default function Industrial3DVisualizerEnhancedV11({
       cancelAnimationFrame(animationFrameId);
       controls.dispose();
       renderer.dispose();
-      pointGeo.dispose();
+      voxelGeo.dispose();
+      voxelMat.dispose();
       outerGeo.dispose();
     };
   }, [
@@ -689,8 +700,8 @@ export default function Industrial3DVisualizerEnhancedV11({
             {title}
           </h3>
           <p className="text-[11px] font-mono text-cyan-400 mt-1">
-            Quantum Hybrid PINN — Kelly Senecal Industrial Gold (
-            {stats.count.toLocaleString()} points volumétriques continus)
+            Rendu volumétrique paramétrique — données de champ à valider (
+            {stats.count.toLocaleString()} voxels instanciés)
           </p>
         </div>
 
@@ -745,6 +756,9 @@ export default function Industrial3DVisualizerEnhancedV11({
                 <div className="pointer-events-none absolute left-3 bottom-3 rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-[9px] font-mono text-gray-300">
                   <div className="text-cyan-400 font-bold mb-1">
                     {geometryMeta.description}
+                  </div>
+                  <div className="text-amber-300 text-[8px] uppercase tracking-wide mb-1">
+                    Géométrie d’affichage — non substitutive à un maillage CAO validé
                   </div>
                   <div className="grid grid-cols-3 gap-x-3 text-[8px] text-gray-400">
                     <span>X: ±{geometryMeta.radius}m</span>
