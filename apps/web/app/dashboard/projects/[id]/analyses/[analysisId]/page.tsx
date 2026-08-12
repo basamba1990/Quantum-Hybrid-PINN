@@ -129,11 +129,18 @@ export default function AnalysisDetailPage() {
     )
   }
 
+  const scenarioEvidence = [
+    analysis.transcription,
+    analysis.results?.scenario_inputs?.transcription,
+    analysis.results?.physicsParams?.transcription,
+    analysis.results?.extractedData?.transcription,
+  ].filter((value): value is string => typeof value === 'string').join('\n')
+
   const resolvedScenarioType = (
     analysis.results?.scenario_type ||
     analysis.results?.scenarioType ||
     analysis.scenario_type ||
-    (/LH2_INFRASTRUCTURE_INTEGRITY/i.test(analysis.transcription || '') ? 'LH2_INFRASTRUCTURE_INTEGRITY' : 'H2_PIPELINE')
+    (/LH2_INFRASTRUCTURE_INTEGRITY/i.test(scenarioEvidence) ? 'LH2_INFRASTRUCTURE_INTEGRITY' : 'H2_PIPELINE')
   ) as any
 
   const auditData = {
