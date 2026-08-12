@@ -767,10 +767,10 @@ export default function Industrial3DVisualizerEnhancedV11({
                   </div>
                 </div>
               </div>
-              {/* Colorbar verticale identique à l'image de référence */}
+              {/* Colorbar alignée sur la variable rendue par les voxels */}
               <aside className="rounded-2xl border border-white/10 bg-slate-900/95 p-3 flex flex-col items-center justify-between">
-                <div className="text-[10px] font-mono font-bold text-gray-300">
-                  T (K)
+                <div className="text-[10px] font-mono font-bold text-gray-300 text-center">
+                  {activeVariable === "temperature" ? "Température" : activeVariable === "pressure" ? "Pression" : activeVariable === "velocity_magnitude" ? "Vitesse" : "Contrainte"} ({stats.unit})
                 </div>
                 <div
                   className="h-[420px] w-6 rounded-lg border border-white/20 shadow-inner my-2"

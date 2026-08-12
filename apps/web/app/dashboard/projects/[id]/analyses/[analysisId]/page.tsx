@@ -4,7 +4,13 @@ import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { ArrowLeft, Activity } from 'lucide-react'
+
+const Industrial3DVisualizerEnhancedV11 = dynamic(
+  () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
+  { ssr: false, loading: () => <div className="h-[600px] rounded-3xl border border-white/10 bg-slate-950 flex items-center justify-center text-cyan-400 font-mono text-xs uppercase tracking-widest">Initialisation de la visualisation CFD...</div> }
+)
 import ScientificAuditCard from '@/components/scientific-audit-card'
 import ScientificSocialHub from '@/components/scientific-social-hub'
 import { format } from 'date-fns'
@@ -17,6 +23,7 @@ interface AnalysisDetail {
   results: any
   created_at: string
   project_id: string
+  scenario_type?: string
 }
 
 export default function AnalysisDetailPage() {
@@ -159,6 +166,21 @@ export default function AnalysisDetailPage() {
           <div className="text-sm text-gray-600">/100</div>
         </div>
       </div>
+
+      {/* Vue CFD identique à la page Simulation CFD */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-black uppercase tracking-tight text-gray-900">Visualisation CFD</h2>
+          <span className="text-xs font-mono text-cyan-700">Volume paramétrique plein — colorbar liée à la variable active</span>
+        </div>
+        <div className="h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-900/50">
+          <Industrial3DVisualizerEnhancedV11
+            data={auditData.predictions3d}
+            scenarioType={(analysis.results?.scenario_type || analysis.results?.scenarioType || analysis.scenario_type || 'H2_PIPELINE') as any}
+            title={analysis.title}
+          />
+        </div>
+      </section>
 
       {/* Main Content Layout - 3 Columns Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
