@@ -467,8 +467,19 @@ export default function Industrial3DVisualizerEnhancedV11({
     scene.background = new THREE.Color(0x020617);
     sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.01, 100);
-    camera.position.set(5.5, 4.0, 6.0);
+    const maxDimension = Math.max(meta.length, meta.height, meta.width, 0.1);
+    const cameraDistance = Math.max(maxDimension * 2.8, 0.6);
+    const camera = new THREE.PerspectiveCamera(
+      40,
+      width / height,
+      Math.max(maxDimension / 1000, 0.001),
+      Math.max(maxDimension * 20, 10),
+    );
+    if (meta.shape === "cylinder_horizontal") {
+      camera.position.set(0, cameraDistance * 0.7, cameraDistance);
+    } else {
+      camera.position.set(cameraDistance, cameraDistance * 0.7, cameraDistance);
+    }
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({
@@ -493,10 +504,11 @@ export default function Industrial3DVisualizerEnhancedV11({
 
     // Convention industrielle explicite : X longitudinal, Y vertical, Z transversal.
     // GridHelper est horizontal dans XZ et se place donc au bas de l’enveloppe sur Y.
-    const grid = new THREE.GridHelper(8, 16, 0x3b82f6, 0x1e293b);
+    const gridSize = Math.max(maxDimension * 2.2, 0.5);
+    const grid = new THREE.GridHelper(gridSize, 16, 0x3b82f6, 0x1e293b);
     grid.position.y = -(meta.height / 2);
     scene.add(grid);
-    const axes = new THREE.AxesHelper(4);
+    const axes = new THREE.AxesHelper(Math.max(maxDimension * 0.8, 0.2));
     scene.add(axes);
 
     // Enveloppe filaire extérieure du cylindre / réservoir
