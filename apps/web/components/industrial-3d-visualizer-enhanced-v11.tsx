@@ -293,12 +293,25 @@ export function generatePureVolumetricGrid(
   } else if (meta.shape === "cylinder_horizontal") {
     const R = meta.radius;
     const L = meta.length;
-    const radialLayers = 12;
-    const angularSlices = 30;
-    const axialSteps = 30;
+    const axialSteps = 120;
+    const radialLayers = 16;
+    const angularSlices = 36;
 
     for (let i = 0; i < axialSteps; i++) {
       const x = (i / (axialSteps - 1)) * L - L / 2;
+      const normX = i / (axialSteps - 1);
+
+      // Nœud central explicite le long de l'axe longitudinal pour éviter l'effet tube vide
+      points.push({
+        x: Number(x.toFixed(3)),
+        y: 0,
+        z: 0,
+        temperature: Number((meta.defaultTemp + 5.0 * (1.0 - normX)).toFixed(2)),
+        pressure: Number((meta.defaultPressure * (1.0 - normX * 0.05)).toFixed(3)),
+        velocity_magnitude: Number((meta.defaultVelocity * 1.2).toFixed(3)),
+        stress: Number((25.0 + normX * 10.0).toFixed(2)),
+      });
+
       for (let r = 1; r <= radialLayers; r++) {
         const rho = (r / radialLayers) * R;
         for (let a = 0; a < angularSlices; a++) {
@@ -307,9 +320,9 @@ export function generatePureVolumetricGrid(
           const z = rho * Math.sin(theta);
 
           const normRho = rho / R;
-          const temp = meta.defaultTemp + (1.0 - normRho) * 15.0;
+          const temp = meta.defaultTemp + (1.0 - normRho) * 15.0 + 5.0 * (1.0 - normX);
           const pressure =
-            meta.defaultPressure * (1.0 - (i / axialSteps) * 0.05);
+            meta.defaultPressure * (1.0 - normX * 0.05);
           const velocity = meta.defaultVelocity * (1.0 - normRho * normRho);
           const stress = 25.0 + normRho * 20.0;
 
