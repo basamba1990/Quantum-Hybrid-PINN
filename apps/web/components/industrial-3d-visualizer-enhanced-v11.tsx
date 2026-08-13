@@ -574,14 +574,57 @@ export default function Industrial3DVisualizerEnhancedV11({
     } else {
       outerGeo = new THREE.BoxGeometry(spanX, spanY, spanZ);
     }
-    const outerMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.2, metalness: 0.5, transparent: true, opacity: 0.12, side: THREE.DoubleSide, wireframe: true });
+    const outerMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.2, metalness: 0.5, transparent: true, opacity: 0.08, side: THREE.DoubleSide, wireframe: true });
     const vesselMesh = new THREE.Mesh(outerGeo, outerMat);
     vesselMesh.position.set(center.x, center.y, center.z);
     scene.add(vesselMesh);
 
-    const voxelSize = Math.max(dataBounds.span / 120, Math.min(spanX, spanY, spanZ) / 18, Number.EPSILON);
+    // Les points persistés peuvent être uniquement axiaux (cas de la capture).
+    // On construit alors une enveloppe cylindrique pleine, mais chaque sommet
+    // reçoit uniquement une valeur issue du champ persisté le long de x : ce
+    // rendu est explicitement une interpolation axiale, jamais une mesure inventée.
+    let solidFieldMesh: THREE.Mesh | null = null;
+    if (meta.shape === "cylinder_horizontal" && stats.fieldCount > 0) {
+      const solidRadius = Math.max(displayGeometry.radius, Math.min(spanY, spanZ) / 2, Number.EPSILON);
+      const solidLength = Math.max(spanX, displayGeometry.length, Number.EPSILON);
+      const axialSamples = [...volumetricData]
+        .filter((point) => typeof point[activeVariable] === "number" && Number.isFinite(point[activeVariable]))
+        .sort((a, b) => a.x - b.x);
+      const valueAtX = (x: number) => {
+        if (!axialSamples.length) return null;
+        let nearest = axialSamples[0];
+        let distance = Math.abs(axialSamples[0].x - x);
+        for (const sample of axialSamples) {
+          const nextDistance = Math.abs(sample.x - x);
+          if (nextDistance < distance) { nearest = sample; distance = nextDistance; }
+        }
+        const value = nearest[activeVariable];
+        return typeof value === "number" && Number.isFinite(value) ? value : null;
+      };
+      const solidGeo = new THREE.CylinderGeometry(solidRadius, solidRadius, solidLength, 48, Math.min(96, Math.max(8, axialSamples.length)), false);
+      solidGeo.rotateZ(Math.PI / 2);
+      const positionAttribute = solidGeo.getAttribute("position");
+      const colors = new Float32Array(positionAttribute.count * 3);
+      const color = new THREE.Color();
+      for (let vertexIndex = 0; vertexIndex < positionAttribute.count; vertexIndex += 1) {
+        const localX = positionAttribute.getX(vertexIndex);
+        const physicalX = center.x + localX;
+        const value = valueAtX(physicalX);
+        color.copy(value === null ? new THREE.Color("#64748b") : getColorFromScale(value, stats.minV, stats.maxV, colorScale));
+        colors[vertexIndex * 3] = color.r;
+        colors[vertexIndex * 3 + 1] = color.g;
+        colors[vertexIndex * 3 + 2] = color.b;
+      }
+      solidGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+      const solidMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.12, transparent: true, opacity: 0.82, side: THREE.DoubleSide, depthWrite: false });
+      solidFieldMesh = new THREE.Mesh(solidGeo, solidMat);
+      solidFieldMesh.position.set(center.x, center.y, center.z);
+      scene.add(solidFieldMesh);
+    }
+
+    const voxelSize = Math.max(dataBounds.span / 120, Math.min(spanX, spanY, spanZ) / 36, Number.EPSILON);
     const voxelGeo = new THREE.BoxGeometry(voxelSize, voxelSize, voxelSize);
-    const voxelMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.2, transparent: true, opacity: 0.92 });
+    const voxelMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.2, transparent: true, opacity: 0.38 });
     const cutLimit = dataBounds.min.x + cutPosition * (dataBounds.max.x - dataBounds.min.x);
     const visiblePoints = volumetricData.filter((point) => point.x <= cutLimit);
     const instancedMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, visiblePoints.length);
@@ -668,6 +711,8 @@ export default function Industrial3DVisualizerEnhancedV11({
       voxelMat.dispose();
       outerGeo.dispose();
       outerMat.dispose();
+      solidFieldMesh?.geometry.dispose();
+      (solidFieldMesh?.material as THREE.Material | undefined)?.dispose();
       measuredPoints?.geometry.dispose();
       (measuredPoints?.material as THREE.Material | undefined)?.dispose();
       meshLines?.geometry.dispose();
@@ -761,6 +806,14 @@ export default function Industrial3DVisualizerEnhancedV11({
   const formatScalar = (value: number | null) => value === null ? "REQUIRED_INPUT" : value.toPrecision(5);
   const meshReady = Boolean(metadata?.mesh?.points?.length && metadata?.mesh?.cells?.length);
   const refinementReady = Boolean(metadata?.mesh?.refinement_applied && metadata?.mesh?.refinement_zones?.length);
+  const crossSectionSamples = new Set(volumetricData.map((point) => `${point.y.toFixed(6)}|${point.z.toFixed(6)}`)).size;
+  const fieldRenderingLabel = !volumetricData.length
+    ? "Champ absent"
+    : meshReady
+      ? "Volume plein + maillage CAO"
+      : crossSectionSamples <= 4
+        ? "Volume plein — interpolation axiale du champ persisté"
+        : "Volume plein — champ persisté";
 
   return (
     <div className="flex flex-col h-full w-full bg-[#020617] rounded-[32px] border border-white/10 p-6 md:p-8 shadow-2xl relative overflow-hidden">
@@ -839,6 +892,7 @@ export default function Industrial3DVisualizerEnhancedV11({
                 )}
                 <div className="pointer-events-none absolute left-3 bottom-3 rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-[9px] font-mono text-gray-300">
                   <div className="text-cyan-400 font-bold mb-1">{typeof metadata?.geometry?.component_type === "string" ? metadata.geometry.component_type : geometryMeta.description}</div>
+                  <div className="text-emerald-300 text-[8px] uppercase tracking-wide mb-1">{fieldRenderingLabel}</div>
                   <div className="text-amber-300 text-[8px] uppercase tracking-wide mb-1">{meshReady ? `Maillage CAO fourni${refinementReady ? " — raffinement fuite fourni" : " — raffinement non fourni"}` : "Maillage CAO: REQUIRED_INPUT"}</div>
                   <div className="grid grid-cols-3 gap-x-3 text-[8px] text-gray-400">
                     <span>X: {dataBounds ? `${dataBounds.min.x.toPrecision(4)}…${dataBounds.max.x.toPrecision(4)} m` : "—"}</span>
