@@ -595,7 +595,7 @@ export default function Industrial3DVisualizerEnhancedV11({
       const mapped = typeof value === "number" && Number.isFinite(value)
         ? getColorFromScale(value, stats.minV, stats.maxV, colorScale)
         : new THREE.Color("#64748b");
-      instancedMesh.setColorAt(index, mapped);
+      if (mapped) instancedMesh.setColorAt(index, mapped);
     });
     instancedMesh.instanceMatrix.needsUpdate = true;
     if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
@@ -626,6 +626,7 @@ export default function Industrial3DVisualizerEnhancedV11({
         positions.push(...points[low], ...points[high]);
       };
       meshMetadata.cells.slice(0, 12000).forEach((cell) => {
+        if (!Array.isArray(cell)) return;
         for (let i = 0; i < cell.length; i += 1) {
           for (let j = i + 1; j < cell.length; j += 1) addEdge(cell[i], cell[j]);
         }
@@ -728,9 +729,9 @@ export default function Industrial3DVisualizerEnhancedV11({
 
   const plotlyData = useMemo(() => {
     if (!volumetricData.length) return [];
-    const sample = volumetricData.filter(
+    const sample = volumetricData.length > 0 ? volumetricData.filter(
       (_, i) => i % Math.max(1, Math.floor(volumetricData.length / 500)) === 0,
-    );
+    ) : [];
     const scalarValues = sample.map((point) => point[activeVariable]);
     const validIndices = scalarValues
       .map((value, index) => (typeof value === "number" && Number.isFinite(value) ? index : -1))
