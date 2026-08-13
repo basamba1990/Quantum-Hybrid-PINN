@@ -95,7 +95,8 @@ export default function AnalysisDetailPage() {
           
           setAnalysis({
             ...data,
-            credibility_score: score,
+            title: data.name || data.title || 'Analyse sans titre',
+            credibility_score: Number(score) || 0,
             results: results || {}
           })
         } catch (err: any) {
@@ -186,7 +187,7 @@ export default function AnalysisDetailPage() {
           </p>
         </div>
         <div className="text-right">
-          <div className="text-5xl font-black text-blue-600">{analysis.credibility_score.toFixed(1)}</div>
+          <div className="text-5xl font-black text-blue-600">{(Number(analysis.credibility_score) || 0).toFixed(1)}</div>
           <div className="text-sm text-gray-600">/100</div>
         </div>
       </div>
