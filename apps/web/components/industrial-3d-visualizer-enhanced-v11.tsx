@@ -26,6 +26,13 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import {
+  normalizeVisualizationPoints,
+  type VisualizationMetadata,
+  type VisualizationPoint,
+} from "@/lib/visualization-data";
+
+type DataPoint = VisualizationPoint;
 
 const Plot = dynamic(() => import("react-plotly.js"), {
   ssr: false,
@@ -35,16 +42,6 @@ const Plot = dynamic(() => import("react-plotly.js"), {
     </div>
   ),
 });
-
-interface DataPoint {
-  x: number;
-  y: number;
-  z: number;
-  temperature?: number;
-  pressure?: number;
-  velocity_magnitude?: number;
-  stress?: number;
-}
 
 type ScenarioType =
   | "H2_PIPELINE"
@@ -62,7 +59,9 @@ type ScenarioType =
   | "LH2_INFRASTRUCTURE_INTEGRITY";
 
 interface Props {
-  data?: DataPoint[];
+  data?: unknown;
+  experimentalData?: unknown;
+  metadata?: VisualizationMetadata;
   title?: string;
   colorVariable?: string;
   quality?: "low" | "medium" | "high" | "ultra";
@@ -378,7 +377,9 @@ export function generatePureVolumetricGrid(
 
 export default function Industrial3DVisualizerEnhancedV11({
   data = [],
-  title = "LH2 CRYOGENIC STORAGE V2.1.7 — Quantum Hybrid PINN",
+  experimentalData = [],
+  metadata,
+  title = "Visualisation CFD — données persistées requises",
   colorVariable = "temperature",
   scenarioType = "LH2_STORAGE",
   metrics,
@@ -396,7 +397,7 @@ export default function Industrial3DVisualizerEnhancedV11({
   const [renderMode, setRenderMode] = useState<
     "particles" | "volume" | "isosurface"
   >("volume");
-  const [colorScale, setColorScale] = useState<"thermal" | "viridis" | "jet">(
+  const [colorScale, setColorScale] = useState<"thermal" | "viridis" | "coolwarm">(
     "thermal",
   );
   const [cutPosition, setCutPosition] = useState<number>(1.0);
@@ -412,196 +413,243 @@ export default function Industrial3DVisualizerEnhancedV11({
     [scenarioType],
   );
 
-  // Génération garantie de la grille volumétrique pleine et continue (11k+ points)
+  // Le rendu 3D est strictement piloté par les champs persistés. Aucune grille
+  // paramétrique ne remplace une prédiction PINN ou une mesure expérimentale absente.
+  const fieldData = useMemo(() => normalizeVisualizationPoints(data), [data]);
+  const measuredData = useMemo(() => normalizeVisualizationPoints(experimentalData), [experimentalData]);
   const volumetricData = useMemo(() => {
-    return generatePureVolumetricGrid(geometryMeta);
-  }, [geometryMeta]);
+    const merged = [...fieldData, ...measuredData];
+    const seen = new Set<string>();
+    return merged.filter((point) => {
+      const key = `${point.x}|${point.y}|${point.z}|${point.time ?? ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [fieldData, measuredData]);
 
   const stats = useMemo(() => {
-    if (!volumetricData.length)
-      return { minV: 50, maxV: 250, avgV: 150, count: 0, unit: "K" };
-    const vals = volumetricData.map((p) => (p as any)[activeVariable] ?? 20);
-    const unit =
-      activeVariable === "temperature"
-        ? "K"
-        : activeVariable === "pressure"
-          ? "MPa"
-          : activeVariable.includes("velocity")
-            ? "m/s"
-            : "MPa";
+    const vals = volumetricData
+      .map((point) => point[activeVariable])
+      .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+    const unit = metadata?.fields?.[activeVariable]?.unit
+      ?? (activeVariable === "temperature" ? "K" : activeVariable.includes("velocity") ? "m/s" : "unit_required");
     return {
-      minV: Math.min(...vals),
-      maxV: Math.max(...vals),
-      avgV: vals.reduce((a, b) => a + b, 0) / vals.length,
+      minV: vals.length ? Math.min(...vals) : null,
+      maxV: vals.length ? Math.max(...vals) : null,
+      avgV: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
       count: volumetricData.length,
+      fieldCount: vals.length,
       unit,
     };
-  }, [volumetricData, activeVariable]);
+  }, [volumetricData, activeVariable, metadata?.fields]);
 
-  // Dégradé de la colorbar verticale identique à l'image de référence
+  const dataBounds = useMemo(() => {
+    if (!volumetricData.length) return null;
+    const xs = volumetricData.map((point) => point.x);
+    const ys = volumetricData.map((point) => point.y);
+    const zs = volumetricData.map((point) => point.z);
+    const min = { x: Math.min(...xs), y: Math.min(...ys), z: Math.min(...zs) };
+    const max = { x: Math.max(...xs), y: Math.max(...ys), z: Math.max(...zs) };
+    return {
+      min,
+      max,
+      center: { x: (min.x + max.x) / 2, y: (min.y + max.y) / 2, z: (min.z + max.z) / 2 },
+      span: Math.max(max.x - min.x, max.y - min.y, max.z - min.z, Number.EPSILON),
+    };
+  }, [volumetricData]);
+
+  const displayGeometry = useMemo(() => {
+    const geometry = metadata?.geometry ?? {};
+    const dimensions = geometry.dimensions_m && typeof geometry.dimensions_m === "object"
+      ? (geometry.dimensions_m as Record<string, unknown>)
+      : geometry;
+    const finiteDimension = (key: string) => {
+      const value = Number(dimensions[key]);
+      return Number.isFinite(value) && value > 0 ? value : undefined;
+    };
+    return {
+      ...geometryMeta,
+      radius: finiteDimension("inner_radius") ?? finiteDimension("radius") ?? geometryMeta.radius,
+      length: finiteDimension("length") ?? geometryMeta.length,
+      width: finiteDimension("width") ?? geometryMeta.width,
+      height: finiteDimension("height") ?? geometryMeta.height,
+    };
+  }, [geometryMeta, metadata?.geometry]);
+
+  // Palettes séquentielles perceptuellement uniformes : viridis est le défaut
+  // scientifique pour un champ scalaire continu ; inferno convient aux champs
+  // thermiques ; coolwarm est réservé aux champs signés (contraintes/résidus).
   const colorScaleGradient =
     colorScale === "thermal"
-      ? "linear-gradient(to top, #000088, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000)"
-      : colorScale === "jet"
-        ? "linear-gradient(to top, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000)"
-        : "linear-gradient(to top, #440154, #31688e, #35b779, #fde725)";
+      ? "linear-gradient(to top, #000004, #420a68, #932667, #dd513a, #fca50a, #fcffa4)"
+      : colorScale === "viridis"
+        ? "linear-gradient(to top, #440154, #31688e, #35b779, #fde725)"
+        : "linear-gradient(to top, #3b4cc0, #8db0fe, #f7f7f7, #f4987a, #b40426)";
 
   const getColorFromScale = useCallback(
-    (val: number, min: number, max: number, scale: string) => {
+    (val: number, min: number | null, max: number | null, scale: string) => {
+      if (min === null || max === null) return new THREE.Color("#64748b");
       const norm = Math.max(0, Math.min(1, (val - min) / (max - min || 1)));
-      if (scale === "thermal") {
-        // Thermal blue -> cyan -> green -> yellow -> red
-        if (norm < 0.25) return new THREE.Color(0, norm * 4, 1);
-        if (norm < 0.5) return new THREE.Color(0, 1, 1 - (norm - 0.25) * 4);
-        if (norm < 0.75) return new THREE.Color((norm - 0.5) * 4, 1, 0);
-        return new THREE.Color(1, 1 - (norm - 0.75) * 4, 0);
-      } else if (scale === "jet") {
-        const r = norm < 0.7 ? (norm < 0.3 ? 0 : (norm - 0.3) / 0.4) : 1;
-        const g =
-          norm < 0.3 ? norm / 0.3 : norm < 0.7 ? 1 : 1 - (norm - 0.7) / 0.3;
-        const b = norm < 0.3 ? 1 : norm < 0.7 ? 1 - (norm - 0.3) / 0.4 : 0;
-        return new THREE.Color(r, g, b);
-      } else {
-        return new THREE.Color(norm, 0.5 * (1 - norm), 1 - norm);
-      }
+      const stops = scale === "thermal"
+        ? ["#000004", "#420a68", "#932667", "#dd513a", "#fca50a", "#fcffa4"]
+        : scale === "viridis"
+          ? ["#440154", "#31688e", "#35b779", "#fde725"]
+          : ["#3b4cc0", "#8db0fe", "#f7f7f7", "#f4987a", "#b40426"];
+      const scaled = norm * (stops.length - 1);
+      const index = Math.min(stops.length - 2, Math.floor(scaled));
+      const color = new THREE.Color(stops[index]);
+      return color.lerp(new THREE.Color(stops[index + 1]), scaled - index);
     },
     [],
   );
 
   // Rendu Three.js avec cylindre plein de points dense
   useEffect(() => {
-    if (!isMounted || !containerRef.current || !volumetricData.length) return;
+    if (!isMounted || !containerRef.current) return;
+    const container = containerRef.current;
+    container.replaceChildren();
+    if (!volumetricData.length || !dataBounds) return;
 
-    const width = containerRef.current.clientWidth || 800;
-    const height = containerRef.current.clientHeight || 550;
-    const meta = geometryMeta;
+    const width = container.clientWidth || 800;
+    const height = container.clientHeight || 550;
+    const meta = displayGeometry;
+    const center = dataBounds.center;
+    const spanX = Math.max(dataBounds.max.x - dataBounds.min.x, meta.length, 0.001);
+    const spanY = Math.max(dataBounds.max.y - dataBounds.min.y, meta.height, 0.001);
+    const spanZ = Math.max(dataBounds.max.z - dataBounds.min.z, meta.width, 0.001);
+    const maxDimension = Math.max(spanX, spanY, spanZ, dataBounds.span);
+    const cameraDistance = Math.max(maxDimension * 2.4, 0.25);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020617);
     sceneRef.current = scene;
 
-    const maxDimension = Math.max(meta.length, meta.height, meta.width, 0.1);
-    const cameraDistance = Math.max(maxDimension * 2.8, 0.6);
     const camera = new THREE.PerspectiveCamera(
       40,
       width / height,
-      Math.max(maxDimension / 1000, 0.001),
+      Math.max(maxDimension / 1000, 0.0001),
       Math.max(maxDimension * 20, 10),
     );
-    if (meta.shape === "cylinder_horizontal") {
-      camera.position.set(0, cameraDistance * 0.7, cameraDistance);
-    } else {
-      camera.position.set(cameraDistance, cameraDistance * 0.7, cameraDistance);
-    }
+    camera.position.set(center.x + cameraDistance, center.y + cameraDistance * 0.65, center.z + cameraDistance);
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      preserveDrawingBuffer: true,
-    });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    } catch {
+      // Le mode sans WebGL conserve l’état textuel et la colorbar ; aucune donnée n’est inventée.
+      return;
+    }
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    containerRef.current.replaceChildren(renderer.domElement);
+    container.replaceChildren(renderer.domElement);
     rendererRef.current = renderer;
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.target.set(0, 0, 0);
+    controls.target.set(center.x, center.y, center.z);
     controlsRef.current = controls;
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.9));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    dirLight.position.set(5, 12, 8);
+    dirLight.position.set(center.x + maxDimension, center.y + maxDimension * 2, center.z + maxDimension);
     scene.add(dirLight);
 
-    // Convention industrielle explicite : X longitudinal, Y vertical, Z transversal.
-    // GridHelper est horizontal dans XZ et se place donc au bas de l’enveloppe sur Y.
-    const gridSize = Math.max(maxDimension * 2.2, 0.5);
+    const gridSize = Math.max(maxDimension * 1.35, 0.1);
     const grid = new THREE.GridHelper(gridSize, 16, 0x3b82f6, 0x1e293b);
-    grid.position.y = -(meta.height / 2);
+    grid.position.set(center.x, dataBounds.min.y, center.z);
     scene.add(grid);
-    const axes = new THREE.AxesHelper(Math.max(maxDimension * 0.8, 0.2));
+    const axes = new THREE.AxesHelper(Math.max(maxDimension * 0.35, 0.05));
+    axes.position.set(center.x, center.y, center.z);
     scene.add(axes);
 
-    // Enveloppe filaire extérieure du cylindre / réservoir
+    // Enveloppe uniquement comme repère : elle n’est jamais présentée comme le maillage validé.
     let outerGeo: THREE.BufferGeometry;
     if (meta.shape === "cylinder_vertical") {
-      outerGeo = new THREE.CylinderGeometry(
-        meta.radius,
-        meta.radius,
-        meta.height,
-        36,
-        1,
-        true,
-      );
+      outerGeo = new THREE.CylinderGeometry(Math.max(spanX, spanZ) / 2, Math.max(spanX, spanZ) / 2, spanY, 36, 1, true);
     } else if (meta.shape === "cylinder_horizontal") {
-      outerGeo = new THREE.CylinderGeometry(
-        meta.radius,
-        meta.radius,
-        meta.length,
-        36,
-        1,
-        true,
-      );
+      outerGeo = new THREE.CylinderGeometry(Math.max(spanY, spanZ) / 2, Math.max(spanY, spanZ) / 2, spanX, 36, 1, true);
       outerGeo.rotateZ(Math.PI / 2);
     } else {
-      outerGeo = new THREE.BoxGeometry(meta.length, meta.height, meta.width);
+      outerGeo = new THREE.BoxGeometry(spanX, spanY, spanZ);
     }
-
-    const outerMat = new THREE.MeshStandardMaterial({
-      color: 0x3b82f6,
-      roughness: 0.2,
-      metalness: 0.5,
-      transparent: true,
-      opacity: 0.15,
-      side: THREE.DoubleSide,
-    });
+    const outerMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.2, metalness: 0.5, transparent: true, opacity: 0.12, side: THREE.DoubleSide, wireframe: true });
     const vesselMesh = new THREE.Mesh(outerGeo, outerMat);
+    vesselMesh.position.set(center.x, center.y, center.z);
     scene.add(vesselMesh);
 
-    // Rendu Volumétrique Plein Industriel (InstancedMesh pour illusion de solide continu)
-    // Au lieu de points épars, on utilise des voxels denses qui se chevauchent légèrement
-    const voxelSize =
-      meta.shape === "cylinder_horizontal"
-        ? Math.min(meta.radius * 0.42, meta.length / 70)
-        : meta.shape === "cylinder_vertical"
-          ? meta.radius / 12
-          : Math.min(meta.length, meta.height, meta.width) / 18;
+    const voxelSize = Math.max(dataBounds.span / 120, Math.min(spanX, spanY, spanZ) / 18, Number.EPSILON);
     const voxelGeo = new THREE.BoxGeometry(voxelSize, voxelSize, voxelSize);
-    const voxelMat = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.3,
-      metalness: 0.2,
-      transparent: true,
-      opacity: 0.95,
-    });
-
-    // Filtrer les points selon le plan de coupe
-    const visiblePoints = volumetricData.filter((p) => {
-      if (meta.shape === "cylinder_vertical" && p.x > cutPosition * meta.radius) return false;
-      if (meta.shape === "cylinder_horizontal" && p.x > cutPosition * (meta.length / 2)) return false;
-      return true;
-    });
-
+    const voxelMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.2, transparent: true, opacity: 0.92 });
+    const cutLimit = dataBounds.min.x + cutPosition * (dataBounds.max.x - dataBounds.min.x);
+    const visiblePoints = volumetricData.filter((point) => point.x <= cutLimit);
     const instancedMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, visiblePoints.length);
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
-
-    visiblePoints.forEach((p, i) => {
-      dummy.position.set(p.x, p.y, p.z);
+    visiblePoints.forEach((point, index) => {
+      dummy.position.set(point.x, point.y, point.z);
       dummy.updateMatrix();
-      instancedMesh.setMatrixAt(i, dummy.matrix);
-
-      const val = (p as any)[activeVariable] ?? 100;
-      const c = getColorFromScale(val, stats.minV, stats.maxV, colorScale);
-      color.setRGB(c.r, c.g, c.b);
-      instancedMesh.setColorAt(i, color);
+      instancedMesh.setMatrixAt(index, dummy.matrix);
+      const value = point[activeVariable];
+      const mapped = typeof value === "number" && Number.isFinite(value)
+        ? getColorFromScale(value, stats.minV, stats.maxV, colorScale)
+        : new THREE.Color("#64748b");
+      instancedMesh.setColorAt(index, mapped);
     });
-
     instancedMesh.instanceMatrix.needsUpdate = true;
     if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
     scene.add(instancedMesh);
+
+    // Les mesures expérimentales sont superposées avec un marqueur distinct.
+    let measuredPoints: THREE.Points | null = null;
+    if (measuredData.length) {
+      const measuredGeometry = new THREE.BufferGeometry();
+      measuredGeometry.setAttribute("position", new THREE.Float32BufferAttribute(measuredData.flatMap((point) => [point.x, point.y, point.z]), 3));
+      measuredPoints = new THREE.Points(measuredGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: voxelSize * 1.8, sizeAttenuation: true }));
+      scene.add(measuredPoints);
+    }
+
+    // Le maillage tétraédrique n’est dessiné que s’il est réellement fourni par le pipeline CAO.
+    const meshMetadata = metadata?.mesh;
+    let meshLines: THREE.LineSegments | null = null;
+    if (meshMetadata?.points?.length && meshMetadata.cells?.length) {
+      const edgeKeys = new Set<string>();
+      const positions: number[] = [];
+      const points = meshMetadata.points;
+      const addEdge = (a: number, b: number) => {
+        const low = Math.min(a, b);
+        const high = Math.max(a, b);
+        const key = `${low}:${high}`;
+        if (edgeKeys.has(key) || !points[low] || !points[high]) return;
+        edgeKeys.add(key);
+        positions.push(...points[low], ...points[high]);
+      };
+      meshMetadata.cells.slice(0, 12000).forEach((cell) => {
+        for (let i = 0; i < cell.length; i += 1) {
+          for (let j = i + 1; j < cell.length; j += 1) addEdge(cell[i], cell[j]);
+        }
+      });
+      const meshGeometry = new THREE.BufferGeometry();
+      meshGeometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      meshLines = new THREE.LineSegments(meshGeometry, new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.35 }));
+      scene.add(meshLines);
+    }
+
+    // Marqueur de fuite : position et diamètre sont affichés uniquement quand ils sont fournis.
+    const discontinuity = metadata?.discontinuity ?? {};
+    const position = (discontinuity.position_m ?? discontinuity.position) as Record<string, unknown> | undefined;
+    const leakX = Number(position?.x);
+    const leakY = Number(position?.y);
+    const leakZ = Number(position?.z);
+    const leakDiameter = Number(discontinuity.diameter_m ?? discontinuity.diameter);
+    let leakMesh: THREE.Mesh | null = null;
+    if ([leakX, leakY, leakZ, leakDiameter].every(Number.isFinite) && leakDiameter > 0) {
+      const leakGeometry = new THREE.SphereGeometry(leakDiameter / 2, 20, 12);
+      leakMesh = new THREE.Mesh(leakGeometry, new THREE.MeshBasicMaterial({ color: 0xef4444, wireframe: true }));
+      leakMesh.position.set(leakX, leakY, leakZ);
+      scene.add(leakMesh);
+    }
 
     let animationFrameId: number;
     const animate = () => {
@@ -618,16 +666,26 @@ export default function Industrial3DVisualizerEnhancedV11({
       voxelGeo.dispose();
       voxelMat.dispose();
       outerGeo.dispose();
+      outerMat.dispose();
+      measuredPoints?.geometry.dispose();
+      (measuredPoints?.material as THREE.Material | undefined)?.dispose();
+      meshLines?.geometry.dispose();
+      (meshLines?.material as THREE.Material | undefined)?.dispose();
+      leakMesh?.geometry.dispose();
+      (leakMesh?.material as THREE.Material | undefined)?.dispose();
     };
   }, [
     isMounted,
     volumetricData,
+    measuredData,
+    dataBounds,
     activeVariable,
     renderMode,
     colorScale,
     cutPosition,
     stats,
-    geometryMeta,
+    displayGeometry,
+    metadata,
     getColorFromScale,
   ]);
 
@@ -673,46 +731,35 @@ export default function Industrial3DVisualizerEnhancedV11({
     const sample = volumetricData.filter(
       (_, i) => i % Math.max(1, Math.floor(volumetricData.length / 500)) === 0,
     );
-    return [
-      {
-        x: sample.map((p) => p.x),
-        y: sample.map((p) => (p as any)[activeVariable] ?? 0),
-        type: "scatter",
-        mode: "lines+markers",
-        marker: {
-          color: sample.map((p) => (p as any)[activeVariable] ?? 0),
-          colorscale:
-            colorScale === "thermal"
-              ? [
-                  [0, "#0000ff"],
-                  [0.33, "#00ffff"],
-                  [0.66, "#ffff00"],
-                  [1, "#ff0000"],
-                ]
-              : colorScale === "jet"
-                ? [
-                    [0, "#0000ff"],
-                    [0.25, "#00ffff"],
-                    [0.5, "#00ff00"],
-                    [0.75, "#ffff00"],
-                    [1, "#ff0000"],
-                  ]
-                : [
-                    [0, "#440154"],
-                    [0.33, "#31688e"],
-                    [0.66, "#35b779"],
-                    [1, "#fde725"],
-                  ],
-          cmin: stats.minV,
-          cmax: stats.maxV,
-          size: 5,
-          showscale: true,
-          colorbar: { title: stats.unit },
-        },
-        line: { color: "#3b82f6", width: 1.5 },
+    const scalarValues = sample.map((point) => point[activeVariable]);
+    const validIndices = scalarValues
+      .map((value, index) => (typeof value === "number" && Number.isFinite(value) ? index : -1))
+      .filter((index) => index >= 0);
+    return [{
+      x: validIndices.map((index) => sample[index].x),
+      y: validIndices.map((index) => scalarValues[index] as number),
+      type: "scatter",
+      mode: "lines+markers",
+      marker: {
+        color: validIndices.map((index) => scalarValues[index] as number),
+        colorscale: colorScale === "thermal"
+          ? [[0, "#000004"], [0.2, "#420a68"], [0.4, "#932667"], [0.6, "#dd513a"], [0.8, "#fca50a"], [1, "#fcffa4"]]
+          : colorScale === "viridis"
+            ? [[0, "#440154"], [0.33, "#31688e"], [0.66, "#35b779"], [1, "#fde725"]]
+            : [[0, "#3b4cc0"], [0.25, "#8db0fe"], [0.5, "#f7f7f7"], [0.75, "#f4987a"], [1, "#b40426"]],
+        cmin: stats.minV ?? undefined,
+        cmax: stats.maxV ?? undefined,
+        size: 5,
+        showscale: true,
+        colorbar: { title: `${activeVariable} (${stats.unit})` },
       },
-    ];
+      line: { color: "#94a3b8", width: 1.5 },
+    }];
   }, [volumetricData, activeVariable, colorScale, stats]);
+
+  const formatScalar = (value: number | null) => value === null ? "REQUIRED_INPUT" : value.toPrecision(5);
+  const meshReady = Boolean(metadata?.mesh?.points?.length && metadata?.mesh?.cells?.length);
+  const refinementReady = Boolean(metadata?.mesh?.refinement_applied && metadata?.mesh?.refinement_zones?.length);
 
   return (
     <div className="flex flex-col h-full w-full bg-[#020617] rounded-[32px] border border-white/10 p-6 md:p-8 shadow-2xl relative overflow-hidden">
@@ -725,8 +772,8 @@ export default function Industrial3DVisualizerEnhancedV11({
             {title}
           </h3>
           <p className="text-[11px] font-mono text-cyan-400 mt-1">
-            Rendu volumétrique paramétrique — données de champ à valider (
-            {stats.count.toLocaleString()} voxels instanciés)
+            {metadata?.source_label ?? "Données de champ persistées"} — {stats.count.toLocaleString()} points
+            {stats.fieldCount ? ` / ${stats.fieldCount.toLocaleString()} valeurs ${activeVariable}` : " / champ actif absent"}
           </p>
         </div>
 
@@ -778,24 +825,33 @@ export default function Industrial3DVisualizerEnhancedV11({
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_120px] gap-4 items-stretch">
               <div className="relative w-full h-[520px] md:h-[640px] rounded-2xl border border-white/10 bg-[#020617] overflow-hidden shadow-2xl">
                 <div ref={containerRef} className="absolute inset-0" />
+                {!volumetricData.length && (
+                  <div className="absolute inset-0 flex items-center justify-center p-8 text-center">
+                    <div className="max-w-sm rounded-2xl border border-amber-400/30 bg-slate-950/90 p-5 font-mono text-xs text-amber-200">
+                      <div className="font-black tracking-widest">REQUIRED_INPUT</div>
+                      <p className="mt-2 text-[10px] text-slate-400">Aucun champ de prédiction ou de mesure expérimental n’est persisté pour cette analyse. Le rendu paramétrique est désactivé.</p>
+                    </div>
+                  </div>
+                )}
+                {volumetricData.length > 0 && !stats.fieldCount && (
+                  <div className="absolute left-3 top-3 rounded-lg border border-amber-400/30 bg-slate-950/90 px-3 py-2 text-[9px] font-mono text-amber-200">Champ {activeVariable}: REQUIRED_INPUT</div>
+                )}
                 <div className="pointer-events-none absolute left-3 bottom-3 rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-[9px] font-mono text-gray-300">
-                  <div className="text-cyan-400 font-bold mb-1">
-                    {geometryMeta.description}
-                  </div>
-                  <div className="text-amber-300 text-[8px] uppercase tracking-wide mb-1">
-                    Géométrie d’affichage — non substitutive à un maillage CAO validé
-                  </div>
+                  <div className="text-cyan-400 font-bold mb-1">{typeof metadata?.geometry?.component_type === "string" ? metadata.geometry.component_type : geometryMeta.description}</div>
+                  <div className="text-amber-300 text-[8px] uppercase tracking-wide mb-1">{meshReady ? `Maillage CAO fourni${refinementReady ? " — raffinement fuite fourni" : " — raffinement non fourni"}` : "Maillage CAO: REQUIRED_INPUT"}</div>
                   <div className="grid grid-cols-3 gap-x-3 text-[8px] text-gray-400">
-                    <span>X: ±{geometryMeta.radius}m</span>
-                    <span>Y: ±{geometryMeta.height / 2}m</span>
-                    <span>Z: ±{geometryMeta.radius}m</span>
+                    <span>X: {dataBounds ? `${dataBounds.min.x.toPrecision(4)}…${dataBounds.max.x.toPrecision(4)} m` : "—"}</span>
+                    <span>Y: {dataBounds ? `${dataBounds.min.y.toPrecision(4)}…${dataBounds.max.y.toPrecision(4)} m` : "—"}</span>
+                    <span>Z: {dataBounds ? `${dataBounds.min.z.toPrecision(4)}…${dataBounds.max.z.toPrecision(4)} m` : "—"}</span>
                   </div>
+                  {measuredData.length > 0 && <div className="mt-1 text-white">Mesures expérimentales: {measuredData.length}</div>}
                 </div>
               </div>
               {/* Colorbar alignée sur la variable rendue par les voxels */}
               <aside className="rounded-2xl border border-white/10 bg-slate-900/95 p-3 flex flex-col items-center justify-between">
                 <div className="text-[10px] font-mono font-bold text-gray-300 text-center">
                   {activeVariable === "temperature" ? "Température" : activeVariable === "pressure" ? "Pression" : activeVariable === "velocity_magnitude" ? "Vitesse" : "Contrainte"} ({stats.unit})
+                  <span className="block text-[8px] text-slate-500">{metadata?.source_label ?? "source non fournie"}</span>
                 </div>
                 <div
                   className="h-[420px] w-6 rounded-lg border border-white/20 shadow-inner my-2"
@@ -803,9 +859,9 @@ export default function Industrial3DVisualizerEnhancedV11({
                   aria-label="Échelle thermique"
                 />
                 <div className="flex flex-col justify-between h-20 text-[9px] font-mono text-gray-400 text-right w-full pr-1">
-                  <span>{stats.maxV.toFixed(0)}</span>
-                  <span>{((stats.maxV + stats.minV) / 2).toFixed(0)}</span>
-                  <span>{stats.minV.toFixed(0)}</span>
+                  <span>{formatScalar(stats.maxV)}</span>
+                  <span>{stats.minV !== null && stats.maxV !== null ? formatScalar((stats.maxV + stats.minV) / 2) : "REQUIRED_INPUT"}</span>
+                  <span>{formatScalar(stats.minV)}</span>
                 </div>
               </aside>
             </div>
@@ -839,7 +895,7 @@ export default function Industrial3DVisualizerEnhancedV11({
               <div className="space-y-2 text-[9px] font-black uppercase tracking-widest text-gray-400">
                 Palette Thermique
                 <div className="grid grid-cols-3 gap-1 mt-1">
-                  {(["thermal", "viridis", "jet"] as const).map((s) => (
+                  {(["thermal", "viridis", "coolwarm"] as const).map((s) => (
                     <button
                       key={s}
                       onClick={() => setColorScale(s)}

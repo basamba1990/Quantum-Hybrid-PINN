@@ -14,6 +14,7 @@ const Industrial3DVisualizerEnhancedV11 = dynamic(
 import ScientificAuditCard from '@/components/scientific-audit-card'
 import ScientificSocialHub from '@/components/scientific-social-hub'
 import { format } from 'date-fns'
+import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
 
 interface AnalysisDetail {
   id: string
@@ -69,8 +70,12 @@ export default function AnalysisDetailPage() {
           }
 
           // Merge high-fidelity predictions if available
-          if (resData && resData.pinn_predictions) {
-            results.predictions3d = resData.pinn_predictions;
+          if (resData) {
+            if (resData.pinn_predictions) results.predictions3d = resData.pinn_predictions;
+            if (resData.experimental_data) results.experimental_data = resData.experimental_data;
+            if (resData.mesh) results.mesh = resData.mesh;
+            if (resData.geometry) results.geometry = resData.geometry;
+            if (resData.discontinuity) results.discontinuity = resData.discontinuity;
             results.extractedData = {
               ...(results.extractedData || {}),
               ...(resData.extracted_parameters || {})
@@ -136,14 +141,16 @@ export default function AnalysisDetailPage() {
     analysis.results?.extractedData?.transcription,
   ].filter((value): value is string => typeof value === 'string').join('\n')
 
-  const resolvedScenarioType = (
-    /LH2_INFRASTRUCTURE_INTEGRITY/i.test(scenarioEvidence)
-      ? 'LH2_INFRASTRUCTURE_INTEGRITY'
-      : (analysis.results?.scenario_type ||
-        analysis.results?.scenarioType ||
-        analysis.scenario_type ||
-        'H2_PIPELINE')
-  ) as any
+  const resolvedScenarioType = resolveVisualizationScenario([
+    analysis.title,
+    analysis.scenario_type,
+    scenarioEvidence,
+    analysis.results?.scenario_type,
+    analysis.results?.scenarioType,
+    analysis.results?.extractedData,
+    analysis.results?.extracted_parameters,
+  ])
+  const visualizationPayload = extractVisualizationPayload(analysis)
 
   const auditData = {
     isPhysicallyCoherent: analysis.credibility_score > 50,
@@ -192,7 +199,9 @@ export default function AnalysisDetailPage() {
         </div>
         <div className="h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-900/50">
           <Industrial3DVisualizerEnhancedV11
-            data={auditData.predictions3d}
+            data={visualizationPayload.points}
+            experimentalData={visualizationPayload.experimentalPoints}
+            metadata={visualizationPayload.metadata}
             scenarioType={resolvedScenarioType}
             title={analysis.title}
           />

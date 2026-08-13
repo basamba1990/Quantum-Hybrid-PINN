@@ -13,6 +13,7 @@ import dynamic from 'next/dynamic'
 import { HybridSimulationPanel } from "@/components/HybridSimulationPanel"
 import { createClient } from '@/lib/supabase/client'
 import { fr } from 'date-fns/locale'
+import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
 
 const Industrial3DVisualizerEnhancedV11 = dynamic(
   () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
@@ -55,13 +56,15 @@ export default function SimulationsPage() {
           setAnalyses(data || [])
           if (data && data.length > 0) {
             const latest = data[0]
-            setSelectedAnalysis(latest)
-            let results = latest.results || {}
-            if (typeof results === 'string') results = JSON.parse(results)
+            const { data: analysisResult } = await supabase.from('analysis_results').select('*').eq('analysis_id', latest.id).maybeSingle()
+            const enriched = { ...latest, analysisResult }
+            setSelectedAnalysis(enriched)
+            const payload = extractVisualizationPayload(enriched, analysisResult)
+            const results = payload.results
             setDynamicMetrics({
-              credibility: latest.credibility_score || results.credibility || 0,
-              computeTime: results.computeTime || 0,
-              validatedPoints: (results.predictions3d || results.pinn_predictions || []).length
+              credibility: latest.credibility_score || results.credibility || analysisResult?.credibility_score || 0,
+              computeTime: results.computeTime || results.compute_time || 0,
+              validatedPoints: payload.points.length + payload.experimentalPoints.length
             })
           } else {
             setSelectedAnalysis(null)
@@ -73,30 +76,21 @@ export default function SimulationsPage() {
     }
   }, [selectedProject, supabase])
 
-  const predictions3d = useMemo(() => {
-    let results = selectedAnalysis?.results || {}
-    if (typeof results === 'string') try { results = JSON.parse(results) } catch { results = {} }
-    const data = results.predictions3d || results.pinn_predictions || selectedAnalysis?.pinn_predictions || []
-    if (!Array.isArray(data)) return []
-    // ✅ Normalisation industrielle pour le moteur V11
-    return data.slice(0, 10000).map((p: any) => ({
-      x: Number(p.x) || 0,
-      y: Number(p.y) || 0,
-      z: Number(p.z) || 0,
-      temperature: Number(p.temperature ?? p.temp ?? 0),
-      pressure: Number(p.pressure ?? p.p ?? 0),
-      velocity_magnitude: Number(p.velocity_magnitude ?? p.velocity ?? 0),
-      velocity_u: Number(p.velocity_u ?? p.u ?? 0),
-      velocity_v: Number(p.velocity_v ?? p.v ?? 0),
-      velocity_w: Number(p.velocity_w ?? p.w ?? 0),
-      density: Number(p.density ?? p.rho ?? 0),
-      damage: Number(p.damage ?? 0),
-      sigma_1: Number(p.sigma_1 ?? 0),
-      von_mises: Number(p.von_mises ?? 0)
-    }))
+  const visualizationPayload = useMemo(() => {
+    if (!selectedAnalysis) return { points: [], experimentalPoints: [], metadata: {}, results: {}, result: {} }
+    return extractVisualizationPayload(selectedAnalysis, selectedAnalysis.analysisResult)
   }, [selectedAnalysis])
 
-  const scenarioType = useMemo(() => (selectedAnalysis?.scenario_type || 'H2_PIPELINE') as any, [selectedAnalysis])
+  const predictions3d = visualizationPayload.points
+  const experimentalData = visualizationPayload.experimentalPoints
+  const scenarioType = useMemo(() => resolveVisualizationScenario([
+    selectedProject?.name,
+    selectedProject?.description,
+    selectedAnalysis?.scenario_type,
+    selectedAnalysis?.name,
+    selectedAnalysis?.results,
+    selectedAnalysis?.analysisResult,
+  ]), [selectedProject, selectedAnalysis])
 
   if (loading) return <div className="p-20 text-center animate-pulse text-blue-500 font-mono">CHARGEMENT DES SYSTÈMES...</div>
 
@@ -134,7 +128,13 @@ export default function SimulationsPage() {
 
             <TabsContent value="visualizer" className="mt-6 space-y-6">
               <div className="h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-900/50">
-                <Industrial3DVisualizerEnhancedV11 data={predictions3d} scenarioType={scenarioType} title={selectedProject?.name} />
+                <Industrial3DVisualizerEnhancedV11
+                  data={predictions3d}
+                  experimentalData={experimentalData}
+                  metadata={visualizationPayload.metadata}
+                  scenarioType={scenarioType}
+                  title={selectedProject?.name}
+                />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="bg-white/5 border-white/10 rounded-3xl p-6">

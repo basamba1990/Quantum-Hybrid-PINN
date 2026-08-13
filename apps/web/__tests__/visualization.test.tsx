@@ -98,33 +98,33 @@ describe('3D Visualizer Rendering Tests', () => {
     expect(screen.getByText('Custom 3D Visualization')).toBeInTheDocument()
   })
 
-  test('should render axis labels correctly', () => {
+  test('should render the persisted field state', () => {
     render(
       <Industrial3DVisualizerEnhancedV11
         data={mockDataPoints}
         title="Axes 3D"
       />
     )
-    // Labels are rendered in Three.js canvas, so we check the component structure
     expect(screen.getByText('Axes 3D')).toBeInTheDocument()
+    expect(screen.getByText(/Données de champ persistées/)).toBeInTheDocument()
   })
 
-  test('should render variable selector buttons', () => {
+  test('should render the scientific variable selector', () => {
     render(
       <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
     )
-    expect(screen.getByText('Temp')).toBeInTheDocument()
-    expect(screen.getByText('Pression')).toBeInTheDocument()
-    expect(screen.getByText('Densité')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Température (K)')).toBeInTheDocument()
+    expect(screen.getByText('Palette Thermique')).toBeInTheDocument()
   })
 
-  test('should display statistics panel', () => {
+  test('should display field statistics and synchronized colorbar', () => {
     render(
       <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
     )
-    expect(screen.getByText('Points')).toBeInTheDocument()
-    expect(screen.getByText('FPS')).toBeInTheDocument()
-    expect(screen.getByText('LOD')).toBeInTheDocument()
+    expect(screen.getByText(/5 points/)).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Température (K)')).toBeInTheDocument()
+    expect(screen.getAllByText(/Température \(K\)/).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('Vue 3D')).toBeInTheDocument()
   })
 })
 
@@ -174,55 +174,42 @@ describe('2D Chart Visualizer Rendering Tests', () => {
 // ==================== UNIT TESTS: INTERACTION ====================
 
 describe('3D Visualizer Interaction Tests', () => {
-  test('should toggle variable selection', async () => {
+  test('should switch the active scalar field', async () => {
     render(
       <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
     )
 
-    const pressureButton = screen.getByText('Pression')
-    fireEvent.click(pressureButton)
+    const selector = screen.getByDisplayValue('Température (K)')
+    fireEvent.change(selector, { target: { value: 'pressure' } })
 
     await waitFor(() => {
-      expect(pressureButton).toHaveClass('bg-blue-600')
+      expect(screen.getByDisplayValue('Pression (MPa)')).toBeInTheDocument()
     })
   })
 
-  test('should toggle clipping plane', async () => {
+  test('should adjust the physical clipping plane', async () => {
     render(
       <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
     )
 
-    const clippingCheckbox = screen.getByLabelText(/Coupe Z/)
-    fireEvent.click(clippingCheckbox)
+    const clippingSlider = screen.getByDisplayValue('1')
+    fireEvent.change(clippingSlider, { target: { value: '0.5' } })
 
     await waitFor(() => {
-      expect(clippingCheckbox).toBeChecked()
+      expect(clippingSlider).toHaveValue('0.5')
     })
   })
 
-  test('should adjust LOD level', async () => {
+  test('should switch to a perceptual palette', async () => {
     render(
       <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
     )
 
-    const lodSlider = screen.getByDisplayValue('1')
-    fireEvent.change(lodSlider, { target: { value: '3' } })
+    const viridis = screen.getByText('viridis')
+    fireEvent.click(viridis)
 
     await waitFor(() => {
-      expect(lodSlider).toHaveValue('3')
-    })
-  })
-
-  test('should toggle wireframe mode', async () => {
-    render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-    )
-
-    const wireframeCheckbox = screen.getByLabelText(/Wireframe/)
-    fireEvent.click(wireframeCheckbox)
-
-    await waitFor(() => {
-      expect(wireframeCheckbox).toBeChecked()
+      expect(viridis).toHaveClass('bg-blue-600')
     })
   })
 })
@@ -351,15 +338,11 @@ describe('Integration Tests', () => {
       <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} colorVariable="temperature" />
     )
 
-    const tempButton = screen.getByText('Temp')
-    fireEvent.click(tempButton)
-
+    expect(screen.getByDisplayValue('Température (K)')).toBeInTheDocument()
     rerender(
       <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} colorVariable="pressure" />
     )
-
-    const pressureButton = screen.getByText('Pression')
-    expect(pressureButton).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Température (K)')).toBeInTheDocument()
   })
 
   test('should handle rapid data updates', async () => {
@@ -377,7 +360,7 @@ describe('Integration Tests', () => {
       )
     }
 
-    expect(screen.getByText('Temp')).toBeInTheDocument()
+    expect(screen.getByText(/5 points/)).toBeInTheDocument()
   })
 
   test('should properly clean up resources on unmount', () => {
@@ -489,12 +472,11 @@ describe('Accessibility Tests', () => {
       <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
     )
 
-    const tempButton = screen.getByText('Temp')
-    tempButton.focus()
-    fireEvent.keyDown(tempButton, { key: 'Enter' })
+    const selector = screen.getByDisplayValue('Température (K)')
+    selector.focus()
 
     await waitFor(() => {
-      expect(tempButton).toHaveFocus()
+      expect(selector).toHaveFocus()
     })
   })
 })
