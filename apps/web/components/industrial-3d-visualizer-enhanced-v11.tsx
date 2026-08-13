@@ -477,6 +477,8 @@ export default function Industrial3DVisualizerEnhancedV11({
     };
   }, [geometryMeta, metadata?.geometry]);
 
+  const radialVisualMultiplier = scenarioType === "LH2_INFRASTRUCTURE_INTEGRITY" ? 6 : 1;
+
   // Palettes séquentielles perceptuellement uniformes : viridis est le défaut
   // scientifique pour un champ scalaire continu ; inferno convient aux champs
   // thermiques ; coolwarm est réservé aux champs signés (contraintes/résidus).
@@ -565,11 +567,17 @@ export default function Industrial3DVisualizerEnhancedV11({
     scene.add(axes);
 
     // Enveloppe uniquement comme repère : elle n’est jamais présentée comme le maillage validé.
+    // DN50 mesure physiquement 50 mm pour 2 m de longueur : à l’échelle 1:1,
+    // son diamètre devient presque invisible sur mobile. La scène applique donc
+    // une exagération radiale d’affichage documentée, sans modifier les points,
+    // les unités, les bornes de la colorbar ni les exports CSV.
+    const physicalRadius = Math.max(spanY, spanZ) / 2;
+    const displayRadius = physicalRadius * radialVisualMultiplier;
     let outerGeo: THREE.BufferGeometry;
     if (meta.shape === "cylinder_vertical") {
       outerGeo = new THREE.CylinderGeometry(Math.max(spanX, spanZ) / 2, Math.max(spanX, spanZ) / 2, spanY, 36, 1, true);
     } else if (meta.shape === "cylinder_horizontal") {
-      outerGeo = new THREE.CylinderGeometry(Math.max(spanY, spanZ) / 2, Math.max(spanY, spanZ) / 2, spanX, 36, 1, true);
+      outerGeo = new THREE.CylinderGeometry(displayRadius, displayRadius, spanX, 48, 1, true);
       outerGeo.rotateZ(Math.PI / 2);
     } else {
       outerGeo = new THREE.BoxGeometry(spanX, spanY, spanZ);
@@ -585,7 +593,7 @@ export default function Industrial3DVisualizerEnhancedV11({
     // rendu est explicitement une interpolation axiale, jamais une mesure inventée.
     let solidFieldMesh: THREE.Mesh | null = null;
     if (meta.shape === "cylinder_horizontal" && stats.fieldCount > 0) {
-      const solidRadius = Math.max(displayGeometry.radius, Math.min(spanY, spanZ) / 2, Number.EPSILON);
+      const solidRadius = Math.max(displayGeometry.radius * radialVisualMultiplier, displayRadius, Number.EPSILON);
       const solidLength = Math.max(spanX, displayGeometry.length, Number.EPSILON);
       const axialSamples = [...volumetricData]
         .filter((point) => typeof point[activeVariable] === "number" && Number.isFinite(point[activeVariable]))
@@ -892,7 +900,7 @@ export default function Industrial3DVisualizerEnhancedV11({
                 )}
                 <div className="pointer-events-none absolute left-3 bottom-3 rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-[9px] font-mono text-gray-300">
                   <div className="text-cyan-400 font-bold mb-1">{typeof metadata?.geometry?.component_type === "string" ? metadata.geometry.component_type : geometryMeta.description}</div>
-                  <div className="text-emerald-300 text-[8px] uppercase tracking-wide mb-1">{fieldRenderingLabel}</div>
+                  <div className="text-emerald-300 text-[8px] uppercase tracking-wide mb-1">{fieldRenderingLabel}{scenarioType === "LH2_INFRASTRUCTURE_INTEGRITY" ? ` — échelle radiale visuelle ×${radialVisualMultiplier}` : ""}</div>
                   <div className="text-amber-300 text-[8px] uppercase tracking-wide mb-1">{meshReady ? `Maillage CAO fourni${refinementReady ? " — raffinement fuite fourni" : " — raffinement non fourni"}` : "Maillage CAO: REQUIRED_INPUT"}</div>
                   <div className="grid grid-cols-3 gap-x-3 text-[8px] text-gray-400">
                     <span>X: {dataBounds ? `${dataBounds.min.x.toPrecision(4)}…${dataBounds.max.x.toPrecision(4)} m` : "—"}</span>
