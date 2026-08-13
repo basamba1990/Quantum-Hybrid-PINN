@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ScientificValidationWorkspace from '@/components/scientific-validation-workspace'
+import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
 
 const Industrial3DVisualizerEnhancedV11 = nextDynamic(
   () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
@@ -30,17 +31,67 @@ export default function ProjectDetailClient({ id, project }: any) {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const { data: resultData } = await supabase
-          .from('analysis_results')
+        // Source de vérité : analyses appartient au projet. Le résultat haute-fidélité
+        // est ensuite joint par analysis_id. Ne pas supposer project_id dans analysis_results.
+        const { data: analysisRows, error: analysisError } = await supabase
+          .from('analyses')
           .select('*')
           .eq('project_id', id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single()
 
-        if (resultData) setLatestAnalysis(resultData)
+        if (analysisError) throw analysisError
+        const analysisRow = analysisRows?.[0]
+        if (!analysisRow) {
+          setLatestAnalysis(null)
+          return
+        }
+
+        const { data: resultRow, error: resultError } = await supabase
+          .from('analysis_results')
+          .select('*')
+          .eq('analysis_id', analysisRow.id)
+          .maybeSingle()
+
+        if (resultError) console.warn('analysis_results join unavailable:', resultError.message)
+
+        let mergedResults: Record<string, any> = {}
+        if (analysisRow.results) {
+          try {
+            mergedResults = typeof analysisRow.results === 'string'
+              ? JSON.parse(analysisRow.results)
+              : analysisRow.results
+          } catch {
+            mergedResults = {}
+          }
+        }
+        if (resultRow) {
+          if (resultRow.pinn_predictions) mergedResults.predictions3d = resultRow.pinn_predictions
+          if (resultRow.experimental_data) mergedResults.experimental_data = resultRow.experimental_data
+          if (resultRow.measurements) mergedResults.measurements = resultRow.measurements
+          if (resultRow.mesh) mergedResults.mesh = resultRow.mesh
+          if (resultRow.geometry) mergedResults.geometry = resultRow.geometry
+          if (resultRow.discontinuity) mergedResults.discontinuity = resultRow.discontinuity
+          if (resultRow.extracted_parameters) {
+            mergedResults.extracted_parameters = resultRow.extracted_parameters
+            mergedResults.extractedData = {
+              ...(mergedResults.extractedData || {}),
+              ...resultRow.extracted_parameters,
+            }
+          }
+          if (resultRow.credibility_score !== null && resultRow.credibility_score !== undefined) {
+            mergedResults.credibility_score = resultRow.credibility_score
+          }
+        }
+
+        setLatestAnalysis({
+          ...analysisRow,
+          results: mergedResults,
+          analysisResult: resultRow || null,
+        })
       } catch (err) {
         console.error(err)
+        setLatestAnalysis(null)
       } finally {
         setLoading(false)
       }
@@ -48,25 +99,24 @@ export default function ProjectDetailClient({ id, project }: any) {
     if (id) fetchData()
   }, [id, supabase])
 
-  const results = useMemo(() => {
-    if (!latestAnalysis?.results) return null
-    try {
-      return typeof latestAnalysis.results === 'string' ? JSON.parse(latestAnalysis.results) : latestAnalysis.results
-    } catch (e) { return null }
+  const visualizationPayload = useMemo(() => {
+    if (!latestAnalysis) return { points: [], experimentalPoints: [], metadata: {}, results: {}, result: {} }
+    return extractVisualizationPayload(latestAnalysis, latestAnalysis.analysisResult)
   }, [latestAnalysis])
 
-  const predictions3d = useMemo(() => {
-    const data = results?.predictions3d || results?.pinn_predictions || latestAnalysis?.pinn_predictions || []
-    return Array.isArray(data) ? data : []
-  }, [results, latestAnalysis])
+  const results = visualizationPayload.results
+  const predictions3d = visualizationPayload.points
+  const experimentalData = visualizationPayload.experimentalPoints
 
-  const scenarioType = useMemo(() => {
-    const identity = `${project?.name || ''} ${project?.description || ''} ${results?.scenario_type || ''}`.toUpperCase()
-    if (identity.includes('LH2') || identity.includes('CRYOGENIC') || identity.includes('STORAGE') || identity.includes('INFRASTRUCTURE')) {
-      return 'LH2_INFRASTRUCTURE_INTEGRITY' as const
-    }
-    return (project?.scenario_type || results?.scenario_type || 'LH2_INFRASTRUCTURE_INTEGRITY') as any
-  }, [project, results])
+  const scenarioType = useMemo(() => resolveVisualizationScenario([
+    project?.name,
+    project?.description,
+    project?.scenario_type,
+    latestAnalysis?.scenario_type,
+    results?.scenario_type,
+    results?.scenarioType,
+    results?.extracted_parameters,
+  ]), [project, latestAnalysis, results])
 
   const visualizationMetrics = useMemo(() => ({
     credibilityScore: results?.credibilityScore ?? results?.credibility_score ?? latestAnalysis?.credibility_score,
@@ -157,8 +207,10 @@ export default function ProjectDetailClient({ id, project }: any) {
                 <TabsContent value="volumetric" className="m-0 p-8">
                   <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 min-h-[760px]">
                     <Industrial3DVisualizerEnhancedV11 
-                      data={predictions3d} 
-                      title={project?.name || "LH2_INFRASTRUCTURE_INTEGRITY"}
+                      data={predictions3d}
+                      experimentalData={experimentalData}
+                      metadata={visualizationPayload.metadata}
+                      title={project?.name || latestAnalysis?.name || "LH2_INFRASTRUCTURE_INTEGRITY"}
                       colorVariable="temperature"
                       scenarioType={scenarioType}
                       metrics={visualizationMetrics}
