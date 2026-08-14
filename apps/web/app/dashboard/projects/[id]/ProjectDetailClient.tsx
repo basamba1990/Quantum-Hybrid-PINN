@@ -47,11 +47,13 @@ export default function ProjectDetailClient({ id, project }: any) {
           return
         }
 
-        const { data: resultRow, error: resultError } = await supabase
+        const { data: resultRows, error: resultError } = await supabase
           .from('analysis_results')
           .select('*')
           .eq('analysis_id', analysisRow.id)
-          .maybeSingle()
+          .order('created_at', { ascending: false })
+          .limit(1)
+        const resultRow = resultRows?.[0] ?? null
 
         if (resultError) console.warn('analysis_results join unavailable:', resultError.message)
 
