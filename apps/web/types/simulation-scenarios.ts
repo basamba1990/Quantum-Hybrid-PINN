@@ -8,7 +8,9 @@ export type ScenarioType =
   | 'H2_COMPRESSION_STATION'
   | 'FPGA_HEATSINK'
   | 'SMART_RADIATOR'
-  | 'LH2_INFRASTRUCTURE_INTEGRITY';
+  | 'LH2_INFRASTRUCTURE_INTEGRITY'
+  | 'LH2_LARGE_SCALE_STORAGE_1250M3'
+  | 'HEAVY_DUTY_HYDROGEN_REFUELING';
 
 export interface ScenarioConfig {
   id: ScenarioType;
@@ -206,6 +208,20 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
       { name: 'aiCorrectionFactor', label: 'Facteur Correction IA', unit: '' }
     ]
   },
+  LH2_LARGE_SCALE_STORAGE_1250M3: {
+    id: 'LH2_LARGE_SCALE_STORAGE_1250M3',
+    name: 'Stockage LH2 grande capacité (1 250 m³)',
+    description: 'Scénario de stockage cryogénique grande capacité. Les paramètres, le maillage, les champs et la validation restent pilotés par les artefacts persistés du cas.',
+    inputs: [],
+    outputs: []
+  },
+  HEAVY_DUTY_HYDROGEN_REFUELING: {
+    id: 'HEAVY_DUTY_HYDROGEN_REFUELING',
+    name: 'Ravitaillement hydrogène poids lourds',
+    description: 'Scénario de ravitaillement rapide pour véhicules lourds conforme au contrat de cas SAE J2601-2 / PRHYDE lorsque les artefacts correspondants sont persistés.',
+    inputs: [],
+    outputs: []
+  },
   LH2_INFRASTRUCTURE_INTEGRITY: {
     id: 'LH2_INFRASTRUCTURE_INTEGRITY',
     name: 'Intégrité Infrastructures LH2 (Kelly Senecal)',
@@ -238,6 +254,10 @@ export const SCENARIO_ALIASES: Record<string, ScenarioType> = {
   CRYOGENIC_TRANSPORT: 'CRYOGENIC_TRANSPORT',
   LH2_STORAGE: 'LH2_STORAGE',
   LH2_INFRASTRUCTURE_INTEGRITY: 'LH2_INFRASTRUCTURE_INTEGRITY',
+  LH2_LARGE_SCALE_STORAGE_1250M3: 'LH2_LARGE_SCALE_STORAGE_1250M3',
+  'LH2 LARGE SCALE STORAGE 1250M3': 'LH2_LARGE_SCALE_STORAGE_1250M3',
+  HEAVY_DUTY_HYDROGEN_REFUELING: 'HEAVY_DUTY_HYDROGEN_REFUELING',
+  'HEAVY DUTY HYDROGEN REFUELING': 'HEAVY_DUTY_HYDROGEN_REFUELING',
   'INTÉGRITÉ INFRASTRUCTURES LH2 (KELLY SENECAL)': 'LH2_INFRASTRUCTURE_INTEGRITY',
   'INTEGRITE INFRASTRUCTURES LH2 (KELLY SENECAL)': 'LH2_INFRASTRUCTURE_INTEGRITY',
   MINING_INDUSTRIAL_SIM: 'MINING_INDUSTRIAL_SIM',

@@ -27,12 +27,27 @@ type ValidationChecks = {
 
 type WorkspaceResults = {
   credibilityScore?: number | null;
+  credibility_score?: number | null;
   residuals?: Record<string, number | null> | null;
+  mass_conservation_error?: number | null;
+  momentum_conservation_error?: number | null;
+  energy_conservation_error?: number | null;
   boundaryConditionError?: number | null;
+  boundary_condition_error?: number | null;
   globalConservationError?: number | null;
+  global_conservation_error?: number | null;
   referenceError?: number | null;
+  reference_error?: number | null;
   validationStatus?: ValidationStatus;
+  validation_status?: string | null;
   validationChecks?: ValidationChecks | null;
+  validation_checks?: ValidationChecks | null;
+  mass_conserved?: boolean;
+  momentum_conserved?: boolean;
+  energy_conserved?: boolean;
+  boundary_conditions_passed?: boolean;
+  reference_comparison_passed?: boolean;
+  uncertainty_reported?: boolean;
 };
 
 type Props = {
@@ -54,15 +69,29 @@ function statusFor(
   if (results.validationStatus) return results.validationStatus;
 
   const residuals = results.residuals || {};
+  const hasResidual = [
+    residuals.mass,
+    residuals.momentum,
+    residuals.energy,
+    results.mass_conservation_error,
+    results.momentum_conservation_error,
+    results.energy_conservation_error,
+  ].some((value) => typeof value === "number");
   const hasAnyResult =
-    Object.values(residuals).some((value) => typeof value === "number") ||
+    hasResidual ||
     typeof results.credibilityScore === "number" ||
-    typeof results.referenceError === "number";
+    typeof results.credibility_score === "number" ||
+    typeof results.referenceError === "number" ||
+    typeof results.reference_error === "number" ||
+    typeof results.validation_status === "string";
   if (!hasAnyResult) return "READY_FOR_RUN";
 
-  // Un PINN ne devient pas VALIDATED par la seule baisse de sa loss.
-  // La validation exige des contrôles explicites transmis par le backend.
-  const checks = results.validationChecks;
+  // Le backend émet actuellement validation_status et des contrôles séparés.
+  // Un statut backend « passed » ne suffit pas à certifier G0–G5 : les contrôles
+  // de frontière, référence et incertitude doivent également être explicitement vrais.
+  const backendStatus = results.validation_status?.toLowerCase();
+  if (backendStatus === "failed") return "VALIDATION_FAILED";
+  const checks = results.validationChecks || results.validation_checks;
   if (!checks) return "READY_FOR_RUN";
 
   const requiredChecks = [
@@ -84,6 +113,7 @@ export default function ScientificValidationWorkspace({
   loading = false,
 }: Props) {
   const isLH2 = scenarioType === LH2_SCENARIO_CONFIG.scenario_type;
+  const scenarioLabel = scenarioType.replace(/_/g, " ");
   const status = useMemo(() => statusFor(results), [results]);
   const statusLabel = {
     DRAFT: "BROUILLON",
@@ -100,7 +130,20 @@ export default function ScientificValidationWorkspace({
         ? "text-red-300 border-red-500/30 bg-red-500/10"
         : "text-amber-300 border-amber-500/30 bg-amber-500/10";
 
-  if (!isLH2) return null;
+  const effectiveResiduals = {
+    mass: results?.residuals?.mass ?? results?.residuals?.continuity ?? results?.mass_conservation_error,
+    momentum: results?.residuals?.momentum ?? results?.momentum_conservation_error,
+    energy: results?.residuals?.energy ?? results?.energy_conservation_error,
+  };
+  const effectiveCredibility = results?.credibilityScore ?? results?.credibility_score;
+  const blockingIssues = isLH2
+    ? LH2_SCENARIO_CONFIG.validation.blocking_issues
+    : [
+        "Le contrat de cas spécifique doit être présent et immuable.",
+        "La géométrie CAO, le maillage volumique et leurs métriques qualité doivent être persistés.",
+        "Les champs PINN ou expérimentaux et leurs unités/provenances doivent être persistés.",
+        "Les contrôles G0–G5 complets ne sont pas déduits d’un score ou d’une couleur.",
+      ];
 
   return (
     <section className="rounded-[32px] border border-cyan-500/20 bg-[#07111f]/90 p-6 md:p-8 shadow-2xl shadow-cyan-950/20">
@@ -113,7 +156,7 @@ export default function ScientificValidationWorkspace({
             </span>
           </div>
           <h2 className="text-2xl font-black uppercase italic tracking-tight text-white">
-            LH2 Infrastructure Integrity
+            {isLH2 ? "LH2 Infrastructure Integrity" : scenarioLabel}
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
             Pré-analyse physique, traçabilité des paramètres, résidus et limites
@@ -150,8 +193,8 @@ export default function ScientificValidationWorkspace({
             Crédibilité
           </div>
           <p className="mt-3 text-sm text-white">
-            {typeof results?.credibilityScore === "number"
-              ? `${results.credibilityScore.toFixed(2)} / 100`
+            {typeof effectiveCredibility === "number"
+              ? `${effectiveCredibility.toFixed(2)} / 100`
               : "N/D"}
           </p>
           <p className="mt-1 text-xs text-slate-500">Aucun score par défaut</p>
@@ -162,7 +205,7 @@ export default function ScientificValidationWorkspace({
             Blocages
           </div>
           <p className="mt-3 text-sm text-amber-200">
-            {LH2_SCENARIO_CONFIG.validation.blocking_issues.length} à lever
+            {blockingIssues.length} à lever
           </p>
           <p className="mt-1 text-xs text-slate-500">
             Avant toute certification
@@ -177,7 +220,7 @@ export default function ScientificValidationWorkspace({
             Paramètres et provenance
           </div>
           <div className="space-y-3">
-            {LH2_SCENARIO_CONFIG.parameters.map((parameter) => (
+            {isLH2 ? LH2_SCENARIO_CONFIG.parameters.map((parameter) => (
               <div
                 key={parameter.name}
                 className="grid gap-2 border-b border-white/5 pb-3 last:border-0 sm:grid-cols-[1.3fr_auto]"
@@ -209,7 +252,11 @@ export default function ScientificValidationWorkspace({
                     : `${parameter.value} ${parameter.unit_si}`}
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm leading-6 text-slate-400">
+                Les paramètres spécifiques de ce scénario doivent être lus depuis le contrat de cas et les résultats persistés. Aucune valeur par défaut n’est injectée par l’interface.
+              </p>
+            )}
           </div>
         </div>
 
@@ -226,7 +273,7 @@ export default function ScientificValidationWorkspace({
                 >
                   <span className="text-slate-400">{key}</span>
                   <span className="font-mono text-cyan-200">
-                    {formatValue(results?.residuals?.[key], "")}
+                    {formatValue(effectiveResiduals[key as keyof typeof effectiveResiduals], "")}
                   </span>
                 </div>
               ))}
@@ -242,7 +289,7 @@ export default function ScientificValidationWorkspace({
               Points bloquants
             </div>
             <ul className="space-y-2 text-xs leading-5 text-amber-100/80">
-              {LH2_SCENARIO_CONFIG.validation.blocking_issues.map((item) => (
+              {blockingIssues.map((item) => (
                 <li key={item}>• {item}</li>
               ))}
             </ul>
@@ -255,7 +302,7 @@ export default function ScientificValidationWorkspace({
           Sources de référence
         </div>
         <div className="flex flex-wrap gap-3">
-          {LH2_SOURCES.map((source) => (
+          {(isLH2 ? LH2_SOURCES : []).map((source) => (
             <a
               key={source.url}
               href={source.url}

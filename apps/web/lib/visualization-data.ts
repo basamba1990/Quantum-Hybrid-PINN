@@ -11,7 +11,9 @@ export type VisualizationScenario =
   | "MINING_INDUSTRIAL_SIM"
   | "H2_COMPRESSION_STATION"
   | "H2_DISTRIBUTION_HIGH_PRESSURE"
-  | "LH2_INFRASTRUCTURE_INTEGRITY";
+  | "LH2_INFRASTRUCTURE_INTEGRITY"
+  | "LH2_LARGE_SCALE_STORAGE_1250M3"
+  | "HEAVY_DUTY_HYDROGEN_REFUELING";
 
 export interface VisualizationPoint {
   x: number;
@@ -126,6 +128,8 @@ export const resolveVisualizationScenario = (evidence: unknown[]): Visualization
   if (/(lh2[_ -]?infrastructure|dn50|cryogenic.*(leak|fuite)|discontinuit|trou de fuite|through[_ -]?hole)/i.test(text)) {
     return "LH2_INFRASTRUCTURE_INTEGRITY";
   }
+  if (/(heavy[_ -]?duty.*hydrogen.*refuel|heavy.*duty.*refuel|j2601-2|prhyde)/i.test(text)) return "HEAVY_DUTY_HYDROGEN_REFUELING";
+  if (/(lh2[_ -]?large[_ -]?scale.*storage|large[_ -]?scale.*storage|1250\s*m3|1250\s*m³)/i.test(text)) return "LH2_LARGE_SCALE_STORAGE_1250M3";
   if (/(fpga|heatsink|dissipateur|thermal management)/i.test(text)) return "FPGA_HEATSINK";
   if (/(deep mining|bloc minier|mine profonde|lithostatic)/i.test(text)) return "DEEP_MINING_BLOCK";
   if (/(70\s*mpa|high.?pressure.*distribution|distribution.*high.?pressure)/i.test(text)) return "H2_DISTRIBUTION_HIGH_PRESSURE";

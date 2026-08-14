@@ -21,6 +21,12 @@ describe("visualization data contract", () => {
     );
     expect(resolveVisualizationScenario(["FPGA Heatsink"])).toBe("FPGA_HEATSINK");
     expect(resolveVisualizationScenario(["Deep mining lithostatic block"])).toBe("DEEP_MINING_BLOCK");
+    expect(resolveVisualizationScenario(["HEAVY_DUTY_HYDROGEN_REFUELING", "SAE J2601-2 / PRHYDE"])).toBe(
+      "HEAVY_DUTY_HYDROGEN_REFUELING",
+    );
+    expect(resolveVisualizationScenario(["LH2_LARGE_SCALE_STORAGE_1250M3", "Stockage cryogénique massif"])).toBe(
+      "LH2_LARGE_SCALE_STORAGE_1250M3",
+    );
   });
 
   test("does not invent pressure units and preserves mesh refinement evidence", () => {

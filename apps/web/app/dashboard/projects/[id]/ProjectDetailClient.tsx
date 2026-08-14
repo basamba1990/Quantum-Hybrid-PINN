@@ -10,6 +10,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ScientificValidationWorkspace from '@/components/scientific-validation-workspace'
 import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
+import { getScenarioDisplayName } from '@/types/simulation-scenarios'
 
 const Industrial3DVisualizerEnhancedV11 = nextDynamic(
   () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
@@ -84,6 +85,26 @@ export default function ProjectDetailClient({ id, project }: any) {
           if (resultRow.credibility_score !== null && resultRow.credibility_score !== undefined) {
             mergedResults.credibility_score = resultRow.credibility_score
           }
+          for (const key of [
+            'validation_status',
+            'validationStatus',
+            'validation_checks',
+            'validationChecks',
+            'mass_conservation_error',
+            'momentum_conservation_error',
+            'energy_conservation_error',
+            'boundary_condition_error',
+            'global_conservation_error',
+            'reference_error',
+            'mass_conserved',
+            'momentum_conserved',
+            'energy_conserved',
+            'boundary_conditions_passed',
+            'reference_comparison_passed',
+            'uncertainty_reported',
+          ]) {
+            if (resultRow[key] !== null && resultRow[key] !== undefined) mergedResults[key] = resultRow[key]
+          }
         }
 
         setLatestAnalysis({
@@ -127,11 +148,29 @@ export default function ProjectDetailClient({ id, project }: any) {
 
   const validationWorkspaceResults = useMemo(() => ({
     credibilityScore: results?.credibilityScore ?? results?.credibility_score ?? latestAnalysis?.credibility_score ?? null,
+    credibility_score: results?.credibility_score ?? latestAnalysis?.credibility_score ?? null,
     residuals: results?.residuals ?? results?.physical_metrics?.residuals ?? null,
+    mass_conservation_error: results?.mass_conservation_error ?? null,
+    momentum_conservation_error: results?.momentum_conservation_error ?? null,
+    energy_conservation_error: results?.energy_conservation_error ?? null,
     boundaryConditionError: results?.boundaryConditionError ?? results?.boundary_condition_error ?? null,
+    boundary_condition_error: results?.boundary_condition_error ?? null,
     globalConservationError: results?.globalConservationError ?? results?.global_conservation_error ?? null,
+    global_conservation_error: results?.global_conservation_error ?? null,
     referenceError: results?.referenceError ?? results?.reference_error ?? null,
+    reference_error: results?.reference_error ?? null,
+    validationStatus: results?.validationStatus ?? null,
+    validation_status: results?.validation_status ?? null,
+    validationChecks: results?.validationChecks ?? null,
+    validation_checks: results?.validation_checks ?? null,
+    mass_conserved: results?.mass_conserved,
+    momentum_conserved: results?.momentum_conserved,
+    energy_conserved: results?.energy_conserved,
   }), [results, latestAnalysis])
+
+  const projectDisplayName = getScenarioDisplayName(
+    project?.scenario_type || project?.category || project?.name,
+  )
 
   const handleDeleteProject = async () => {
     if (!window.confirm(`Supprimer définitivement le projet « ${project?.name || 'sans nom'} » et ses résultats associés ?`)) return
@@ -178,7 +217,7 @@ export default function ProjectDetailClient({ id, project }: any) {
         <div className="flex justify-between items-center">
           <div className="space-y-2">
             <Link href="/dashboard" className="flex items-center gap-2 text-gray-500 hover:text-white text-[9px] font-black uppercase tracking-[0.2em]"><ArrowLeft className="w-3 h-3" /> Retour</Link>
-            <h1 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none">{project?.name || 'LH2 Infrastructure Integrity'}</h1>
+            <h1 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none">{projectDisplayName}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase italic tracking-tighter shadow-2xl shadow-blue-900/40 hover:scale-[1.02] active:scale-[0.98]">
@@ -212,7 +251,7 @@ export default function ProjectDetailClient({ id, project }: any) {
                       data={predictions3d}
                       experimentalData={experimentalData}
                       metadata={visualizationPayload.metadata}
-                      title={project?.name || latestAnalysis?.name || "LH2_INFRASTRUCTURE_INTEGRITY"}
+                      title={projectDisplayName || latestAnalysis?.name || "LH2_INFRASTRUCTURE_INTEGRITY"}
                       colorVariable="temperature"
                       scenarioType={scenarioType}
                       metrics={visualizationMetrics}

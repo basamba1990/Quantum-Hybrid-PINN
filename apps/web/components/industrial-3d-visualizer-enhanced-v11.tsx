@@ -56,7 +56,9 @@ type ScenarioType =
   | "MINING_INDUSTRIAL_SIM"
   | "H2_COMPRESSION_STATION"
   | "H2_DISTRIBUTION_HIGH_PRESSURE"
-  | "LH2_INFRASTRUCTURE_INTEGRITY";
+  | "LH2_INFRASTRUCTURE_INTEGRITY"
+  | "LH2_LARGE_SCALE_STORAGE_1250M3"
+  | "HEAVY_DUTY_HYDROGEN_REFUELING";
 
 interface Props {
   data?: unknown;
@@ -100,6 +102,28 @@ const SCENARIO_GEOMETRIES: Record<
     defaultTemp: 20.28,
     defaultPressure: 1.2,
     defaultVelocity: 0.1,
+  },
+  LH2_LARGE_SCALE_STORAGE_1250M3: {
+    shape: "box",
+    radius: 0,
+    height: 0,
+    length: 0,
+    width: 0,
+    description: "Stockage LH2 grande capacité — géométrie CAO persistée requise",
+    defaultTemp: 0,
+    defaultPressure: 0,
+    defaultVelocity: 0,
+  },
+  HEAVY_DUTY_HYDROGEN_REFUELING: {
+    shape: "box",
+    radius: 0,
+    height: 0,
+    length: 0,
+    width: 0,
+    description: "Ravitaillement poids lourds — géométrie CAO persistée requise",
+    defaultTemp: 0,
+    defaultPressure: 0,
+    defaultVelocity: 0,
   },
   LH2_INFRASTRUCTURE_INTEGRITY: {
     shape: "cylinder_horizontal",
