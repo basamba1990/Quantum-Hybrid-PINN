@@ -47,26 +47,30 @@ export default function AnalysisDetailPage() {
             .select('*')
             .eq('id', analysisId)
             .eq('project_id', projectId)
-            .single()
+            .maybeSingle()
 
           if (fetchError) throw fetchError
           if (!data) throw new Error('Analyse non trouvée')
 
           // 2. KELLY SENECAL V2.1.7: Fetch high-fidelity data from analysis_results
-          const { data: resData, error: resError } = await supabase
+          const { data: resRows, error: resError } = await supabase
             .from('analysis_results')
             .select('*')
             .eq('analysis_id', analysisId)
-            .maybeSingle()
+            .order('created_at', { ascending: false })
+            .limit(1)
+          const resData = resRows?.[0] ?? null
 
-          // Parse results if it's a string
-          let results = data.results
+          // Parse results if it's a string, and always provide an object before merging persisted fields
+          let results = data?.results
           if (typeof results === 'string') {
             try {
               results = JSON.parse(results)
             } catch {
               results = {}
             }
+          } else if (!results || typeof results !== 'object') {
+            results = {}
           }
 
           // Merge high-fidelity predictions if available
