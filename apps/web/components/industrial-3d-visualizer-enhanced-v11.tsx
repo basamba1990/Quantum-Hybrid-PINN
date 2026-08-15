@@ -685,8 +685,26 @@ export default function Industrial3DVisualizerEnhancedV11({
             return typeof value === "number" && Number.isFinite(value);
           }).slice(0, 4096);
           const fieldBox = fieldSamples.length ? new THREE.Box3().setFromPoints(fieldSamples.map((point) => new THREE.Vector3(point.x, point.y, point.z))) : null;
-          const overlap = fieldBox && fieldBox.intersectsBox(new THREE.Box3().setFromObject(cadRoot));
-          cadFieldAligned = Boolean(overlap && fieldSamples.length && stats.minV !== null && stats.maxV !== null);
+          const cadBox = new THREE.Box3().setFromObject(cadRoot);
+          const cadExtent = cadBox.getSize(new THREE.Vector3());
+          const fieldExtent = fieldBox?.getSize(new THREE.Vector3());
+          const coverageRatio = fieldExtent && cadExtent ? [
+            fieldExtent.x / Math.max(cadExtent.x, Number.EPSILON),
+            fieldExtent.y / Math.max(cadExtent.y, Number.EPSILON),
+            fieldExtent.z / Math.max(cadExtent.z, Number.EPSILON),
+          ] : [0, 0, 0];
+          const overlap = fieldBox && fieldBox.intersectsBox(cadBox);
+          // Une ligne de mesures ou une tranche ne suffit pas à colorer toute
+          // une sphère : chaque axe doit être couvert à au moins 60 % par le
+          // champ persisté. Ce seuil ne fabrique aucune donnée ; il bloque
+          // seulement une interpolation visuelle non démontrée.
+          cadFieldAligned = Boolean(
+            overlap &&
+            coverageRatio.every((ratio) => ratio >= 0.6) &&
+            fieldSamples.length &&
+            stats.minV !== null &&
+            stats.maxV !== null,
+          );
           cadRoot.traverse((object) => {
             if (!(object instanceof THREE.Mesh)) return;
             const mesh = object as THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>;
