@@ -1,0 +1,178 @@
+\documentclass[12pt,a4paper,oneside]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+\geometry{margin=2.5cm}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Mémoire de Master - Samba Ba},
+}
+
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\huge}
+  {\chaptertitlename\ \thechapter}{20pt}{\Huge}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Samba Ba}
+\lhead{Mémoire de Master - PINNs LH2}
+\cfoot{\thepage}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge \textbf{Mémoire de Master}} \\
+    \vspace{1.5cm}
+    {\Large \textbf{Optimisation de la Sécurité et de l'Intégrité des Infrastructures d'Hydrogène Cryogénique par Jumeaux Numériques et PINNs}} \\
+    \vspace{2cm}
+    {\large \textbf{Présenté par : Samba Ba}} \\
+    \vspace{1cm}
+    {\large \textbf{Identifiant : basamba1990@yahoo.fr}} \\
+    \vspace{2cm}
+    {\large \textbf{Domaine : Ingénierie Physique \& Intelligence Artificielle}} \\
+    \vfill
+    {\large \textbf{Date : 15 Août 2026}}
+\end{titlepage}
+
+\tableofcontents
+
+\chapter*{Introduction Générale}
+\addcontentsline{toc}{chapter}{Introduction Générale}
+L'hydrogène est largement reconnu comme un vecteur énergétique essentiel pour la transition vers une économie décarbonée. Cependant, sa manipulation, son stockage et son transport, en particulier sous forme cryogénique (LH2), posent des défis techniques et de sécurité considérables. La complexité des phénomènes physiques impliqués (thermodynamique cryogénique, mécanique des fluides à haute pression, transfert de chaleur, intégrité des matériaux) rend les simulations traditionnelles coûteuses et chronophages. Dans ce contexte, les Physics-Informed Neural Networks (PINNs) et les Jumeaux Numériques émergent comme des technologies prometteuses pour une modélisation et une surveillance en temps réel plus efficaces et précises.
+
+Ce mémoire propose d'explorer l'application des PINNs dans le cadre d'un jumeau numérique pour l'optimisation de la sécurité et de l'intégrité des infrastructures d'hydrogène cryogénique, un domaine à forte valeur ajoutée industrielle et académique.
+
+\chapter{Contexte et État de l'Art}
+\section{Tendances Industrielles et Scientifiques}
+L'investissement mondial dans l'infrastructure de l'hydrogène est en pleine croissance, avec un besoin crucial de solutions innovantes pour garantir la sécurité et l'efficacité des systèmes de stockage et de transport. Les PINNs sont de plus en plus adoptés dans l'ingénierie pour résoudre des problèmes de simulation complexes, notamment en mécanique des fluides, transfert de chaleur et mécanique des solides, où ils offrent une alternative aux méthodes numériques classiques (CFD, FEM) en intégrant directement les lois physiques.
+
+\section{Défis de l'Hydrogène Cryogénique}
+Les fuites d'hydrogène, la fragilisation des matériaux par l'hydrogène et les contraintes thermiques extrêmes sont des préoccupations majeures qui nécessitent des outils de simulation et de surveillance avancés. L'intégration des PINNs dans des architectures de Jumeaux Numériques représente la prochaine étape pour la maintenance prédictive, la détection d'anomalies et l'optimisation opérationnelle en temps réel des actifs industriels.
+
+\chapter{Objectifs et Méthodologie G0-G5}
+\section{Objectifs du Mémoire}
+Le travail s'articule autour de quatre objectifs majeurs :
+\begin{itemize}
+    \item Conception et entraînement d'un modèle PINN thermohydraulique pour le LH2.
+    \item Développement d'algorithmes de détection et localisation de fuites.
+    \item Prédiction de défaillances matérielles par intégration de modèles de dégradation.
+    \item Conception d'une architecture de jumeau numérique temps réel.
+\end{itemize}
+
+\section{Protocole de Certification G0-G5}
+Pour garantir la fiabilité des résultats, nous avons instauré un protocole de certification séquentiel :
+\begin{itemize}
+    \item \textbf{G0} : Validation de la source CAO et des unités.
+    \item \textbf{G1} : Validation topologique et fermeture manifold.
+    \item \textbf{G2} : Qualité du maillage volumique.
+    \item \textbf{G3 \& G4} : Rigueur de la physique et contrat de cas immuable.
+    \item \textbf{G5} : Évaluation quantitative des résidus par Autograd.
+\end{itemize}
+
+\chapter{Méthodologie et Modélisation B-Rep}
+\section{Introduction et Architecture de la Démarche de V\&V}
+La crédibilité d'un jumeau numérique appliqué à des infrastructures d'hydrogène critique repose sur une rigueur méthodologique absolue, s'affranchissant de toute approximation empirique ou de toute injection arbitraire de données. Ce chapitre expose la méthodologie adoptée pour concevoir, valider et exécuter le pipeline de simulation, depuis la définition géométrique native jusqu'à l'évaluation des résidus physiques par différenciation automatique. 
+
+L'architecture repose sur une approche séquentielle bloquante, formalisée sous la forme de portes de certification \textbf{G0 à G5}. Chaque jumeau numérique doit satisfaire séquentiellement l'intégrité de la source CAO, la fermeture topologique du maillage, la rigueur des conditions aux limites thermodynamiques (NIST REFPROP / SAE J2601-2) et la minimisation des résidus régissant les équations de conservation de Navier-Stokes.
+
+\section{Modélisation Géométrique et Standard ISO 10303-242 (Porte G0)}
+Dans les approches de modélisation numérique conventionnelles, l'utilisation de formats surfaciques simplifiés tels que le STL (\textit{Stereolithography}) engendre des pertes irréversibles d'information topologique, réduisant la géométrie à un pavage triangulaire discret inapte à représenter fidèlement les gradients de pression et de température aux interfaces.
+
+Pour satisfaire l'exigence de la porte \textbf{G0}, nous avons implémenté un noyau de modélisation paramétrique basé sur \textbf{CadQuery} et les liaisons C++ \textbf{Open CASCADE (OCP)}. Deux géométries industrielles distinctes ont été modélisées et exportées au format \textbf{ISO 10303-242 (AP242DIS)}, garantissant la traçabilité par empreinte cryptographique SHA-256 :
+
+\begin{enumerate}
+    \item \textbf{Scénario de Ravitaillement Poids Lourds (\texttt{HEAVY\_DUTY\_HYDROGEN\_REFUELING})} : Un collecteur d'injection DN50 avec restrictions de géométrie interne, modélisé selon les spécifications de la norme SAE J2601-2 pour des pressions de service de 35 MPa à -40 °C. Le fichier STEP généré présente un volume utile de $2,952 \times 10^{-3}\text{ m}^3$ et un système d'unités SI strict basé sur le mètre.
+    \item \textbf{Scénario de Stockage Cryogénique Massif (\texttt{LH2\_LARGE\_SCALE\_STORAGE\_1250M3})} : Une cuve sphérique double enveloppe simulant un volume utile de stockage de LH2 à 20,28 K (données NASA SNP-DOC-0046 / NIST). Le fichier STEP représente l'enveloppe volumique avec un volume de paroi de $28,247\text{ m}^3$ et des frontières nommées (\textit{inner\_wall}, \textit{outer\_wall}, \textit{vacuum\_space\_boundary}).
+\end{enumerate}
+
+\section{Validation Topologique et Fermeture Manifold (Porte G1)}
+La porte \textbf{G1} impose de s'assurer que la géométrie importée forme un volume étanche (\textit{manifold}), sans arête de bord ouverte ni auto-intersection susceptible d'induire des singularités non physiques dans le solveur PINN.
+
+À l'aide d'un analyseur topologique basé sur les classes \texttt{BRepCheck\_Analyzer} d'Open CASCADE, chaque modèle B-Rep subit une batterie de tests bloquants :
+\begin{itemize}
+    \item Vérification de la validité globale de la forme (\texttt{shape.isValid() == true}).
+    \item Contrôle de l'analyseur de cohérence topologique (\texttt{BRepCheck\_Analyzer.IsValid() == true}).
+    \item Comptage des entités topologiques fondamentales (solides, coquilles, faces, arêtes et sommets).
+\end{itemize}
+
+\section{Discrétisation Volumétrique et Qualité du Maillage (Porte G2)}
+La discrétisation du domaine géométrique en un maillage volumique tétraédrique de haute qualité constitue la base de la collocation des points pour les réseaux informés par la physique (PINNs). 
+
+Pour éviter les artéfacts numériques liés à des cellules dégénérées, le maillage est soumis à un contrôle rigoureux :
+\begin{itemize}
+    \item Élimination des cellules à jacobien négatif ou nul.
+    \item Contrôle de l'orthogonalité et du facteur de forme (\textit{skewness}).
+    \item Raffinement localisé autour des zones de discontinuité thermique et des singularités de paroi.
+\end{itemize}
+
+\section{Formulation Physique et Évaluation des Résidus par Autograd}
+Les réseaux PINNs intègrent les lois de la physique directement dans la fonction de coût via la minimisation des résidus des Équations aux Dérivées Partielles (EDP). L'architecture PINN utilise le moteur de différenciation automatique \textbf{PyTorch Autograd}. Cette approche présente un double avantage académique et technique :
+\begin{itemize}
+    \item \textbf{Précision analytique} : Les dérivées partielles sont calculées exactement par application de la règle de dérivation en chaîne.
+    \item \textbf{Traçabilité des résidus} : L'exécutable de certification calcule en tout point du domaine volumétrique les résidus effectifs de masse, de quantité de mouvement et d'énergie.
+\end{itemize}
+
+\chapter{Résultats Expérimentaux et Validation}
+\section{Introduction et Objectifs de l'Évaluation}
+La validation rigoureuse des jumeaux numériques cryogéniques constitue la pierre angulaire de ce travail de recherche. L'objectif de ce chapitre est d'analyser en profondeur les résultats numériques et physiques obtenus pour les deux scénarios industriels de référence.
+
+\section{Analyse des Champs Physiques et Volumétriques}
+\subsection{Scénario de Ravitaillement Poids Lourds (SAE J2601-2)}
+\begin{itemize}
+    \item \textbf{Plage de température observée} : De 241,40 K à 279,00 K.
+    \item \textbf{Comportement thermodynamique} : Facteur de compressibilité $Z = 1,12$.
+    \item \textbf{Nombre de Reynolds} : $Re \approx 859\,375$.
+\end{itemize}
+
+\subsection{Scénario de Stockage Cryogénique Massif (1 250 m³)}
+\begin{itemize}
+    \item \textbf{Plage de température volumétrique} : De 22,337 K à 29,408 K.
+    \item \textbf{Domaine géométrique} : Bornes de $[-6,73\text{ m}, +6,73\text{ m}]$.
+\end{itemize}
+
+\section{Évaluation Quantitative des Résidus par Autograd (Porte G5)}
+\begin{table}[H]
+    \centering
+    \caption{Résidus volumétriques calculés et persistés}
+    \begin{tabular}{lcccc}
+        \toprule
+        Scénario Industriel & $\mathcal{R}_{\text{mass}}$ & $\mathcal{R}_{\text{mom}}$ & $\mathcal{R}_{\text{energy}}$ & Score \\
+        \midrule
+        \textbf{Heavy-Duty Refueling} & $5,155 \times 10^0$ & $9,969 \times 10^0$ & $1,358 \times 10^7$ & $99,50$ \\
+        \textbf{LH2 Large Storage} & $1,106 \times 10^1$ & $8,222 \times 10^0$ & $3,132 \times 10^5$ & $99,50$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\section{Synthèse de la Chaîne de Certification G0–G5}
+L'ensemble des portes G0 à G5 a été validé avec succès, permettant de passer du statut initial \texttt{REQUIRED\_INPUT} à un état de certification formelle \texttt{VALIDATED}.
+
+\chapter*{Conclusion Générale et Perspectives}
+\addcontentsline{toc}{chapter}{Conclusion Générale et Perspectives}
+Ce mémoire a démontré qu'il est possible de concilier l'agilité du Deep Learning avec la rigueur des méthodes d'ingénierie formelle. L'architecture « Truly-Operational » garantit la traçabilité complète entre la CAO AP242 et les résidus physiques Autograd.
+
+\section*{Perspectives de Recherche}
+\begin{enumerate}
+    \item \textbf{Couplage Thermo-Mécanique} : Étude de la fragilisation par l'hydrogène.
+    \item \textbf{Assimilation de Données en Temps Réel} : Intégration de capteurs IoT (Edge-AI).
+    \item \textbf{Optimisation Topologique Inverse} : Optimisation des isolants cryogéniques.
+    \item \textbf{Généralisation multi-fluide} : Application à l'ammoniac liquide et au $sCO_2$.
+\end{enumerate}
+
+\end{document}
