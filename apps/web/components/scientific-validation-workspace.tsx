@@ -166,6 +166,7 @@ export default function ScientificValidationWorkspace({
     energy: results?.residuals?.energy ?? results?.energy_conservation_error,
   };
   const effectiveCredibility = results?.credibilityScore ?? results?.credibility_score;
+  const effectiveEvidence = results?.certificationEvidence ?? results?.certification_evidence;
   const blockingIssues = isLH2
     ? LH2_SCENARIO_CONFIG.validation.blocking_issues
     : [
@@ -214,12 +215,12 @@ export default function ScientificValidationWorkspace({
           </div>
           <p
             className={`mt-3 text-sm font-bold ${
-              results?.certification_evidence?.geometry_validated
+              effectiveEvidence?.geometry_validated
                 ? "text-emerald-400"
                 : "text-amber-200"
             }`}
           >
-            {results?.certification_evidence?.geometry_validated
+            {effectiveEvidence?.geometry_validated
               ? "Certifiée (STEP AP242)"
               : "À documenter"}
           </p>
@@ -255,9 +256,7 @@ export default function ScientificValidationWorkspace({
               ? "G0-G5 Complète"
               : `${
                   blockingIssues.length -
-                  Object.values(results?.certification_evidence || {}).filter(
-                    Boolean,
-                  ).length
+                  Object.values(effectiveEvidence || {}).filter(Boolean).length
                 } à lever`}
           </p>
           <p className="mt-1 text-xs text-slate-500">
@@ -343,11 +342,17 @@ export default function ScientificValidationWorkspace({
               <AlertTriangle className="h-4 w-4" />
               Points bloquants
             </div>
-            <ul className="space-y-2 text-xs leading-5 text-amber-100/80">
-              {blockingIssues.map((item) => (
-                <li key={item}>• {item}</li>
-              ))}
-            </ul>
+            {status === "VALIDATED" ? (
+              <p className="text-xs leading-5 text-emerald-200">
+                Aucune preuve bloquante restante : les artefacts requis et les contrôles G0–G5 sont présents dans les résultats persistés.
+              </p>
+            ) : (
+              <ul className="space-y-2 text-xs leading-5 text-amber-100/80">
+                {blockingIssues.map((item) => (
+                  <li key={item}>• {item}</li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>

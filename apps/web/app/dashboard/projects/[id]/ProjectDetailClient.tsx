@@ -79,6 +79,7 @@ export default function ProjectDetailClient({ id, project }: any) {
           if (resultRow.physical_metrics) mergedResults.physical_metrics = resultRow.physical_metrics
           if (resultRow.certification_evidence) mergedResults.certification_evidence = resultRow.certification_evidence
           if (resultRow.certificationEvidence) mergedResults.certificationEvidence = resultRow.certificationEvidence
+          if (resultRow.artifact_hashes) mergedResults.artifact_hashes = resultRow.artifact_hashes
           if (resultRow.extracted_parameters) {
             mergedResults.extracted_parameters = resultRow.extracted_parameters
             mergedResults.extractedData = {
@@ -177,6 +178,7 @@ export default function ProjectDetailClient({ id, project }: any) {
     energy_conserved: results?.energy_conserved,
     certificationEvidence: results?.certificationEvidence ?? results?.certification_evidence ?? null,
     certification_evidence: results?.certification_evidence ?? null,
+    artifact_hashes: results?.artifact_hashes ?? null,
   }), [results, latestAnalysis])
 
   const projectDisplayName = getScenarioDisplayName(
