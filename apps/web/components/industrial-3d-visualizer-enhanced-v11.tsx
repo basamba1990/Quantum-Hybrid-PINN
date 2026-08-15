@@ -58,7 +58,8 @@ type ScenarioType =
   | "H2_DISTRIBUTION_HIGH_PRESSURE"
   | "LH2_INFRASTRUCTURE_INTEGRITY"
   | "LH2_LARGE_SCALE_STORAGE_1250M3"
-  | "HEAVY_DUTY_HYDROGEN_REFUELING";
+  | "HEAVY_DUTY_HYDROGEN_REFUELING"
+  | "SMART_RADIATOR";
 
 interface Props {
   data?: unknown;
@@ -223,6 +224,17 @@ const SCENARIO_GEOMETRIES: Record<
     defaultTemp: 345.0,
     defaultPressure: 0.1,
     defaultVelocity: 4.2,
+  },
+  SMART_RADIATOR: {
+    shape: "box",
+    radius: 0,
+    height: 0,
+    length: 0,
+    width: 0,
+    description: "SMART_RADIATOR — géométrie CAO persistée requise",
+    defaultTemp: 0,
+    defaultPressure: 0,
+    defaultVelocity: 0,
   },
   PORT_ENERGY_OPTIMIZATION: {
     shape: "box",
@@ -508,7 +520,7 @@ export default function Industrial3DVisualizerEnhancedV11({
   // thermiques ; coolwarm est réservé aux champs signés (contraintes/résidus).
   const colorScaleGradient =
     colorScale === "thermal"
-      ? "linear-gradient(to top, #000004, #420a68, #932667, #dd513a, #fca50a, #fcffa4)"
+      ? "linear-gradient(to top, #180f3d, #721f81, #bb3754, #ed6925, #fbb61a, #f0f921)"
       : colorScale === "viridis"
         ? "linear-gradient(to top, #440154, #31688e, #35b779, #fde725)"
         : "linear-gradient(to top, #3b4cc0, #8db0fe, #f7f7f7, #f4987a, #b40426)";
@@ -518,7 +530,7 @@ export default function Industrial3DVisualizerEnhancedV11({
       if (min === null || max === null) return new THREE.Color("#64748b");
       const norm = Math.max(0, Math.min(1, (val - min) / (max - min || 1)));
       const stops = scale === "thermal"
-        ? ["#000004", "#420a68", "#932667", "#dd513a", "#fca50a", "#fcffa4"]
+        ? ["#180f3d", "#721f81", "#bb3754", "#ed6925", "#fbb61a", "#f0f921"]
         : scale === "viridis"
           ? ["#440154", "#31688e", "#35b779", "#fde725"]
           : ["#3b4cc0", "#8db0fe", "#f7f7f7", "#f4987a", "#b40426"];
@@ -648,15 +660,15 @@ export default function Industrial3DVisualizerEnhancedV11({
         colors[vertexIndex * 3 + 2] = color.b;
       }
       solidGeo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-      const solidMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.12, transparent: true, opacity: 0.82, side: THREE.DoubleSide, depthWrite: false });
+      const solidMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: false, opacity: 0.94, side: THREE.DoubleSide, depthWrite: true });
       solidFieldMesh = new THREE.Mesh(solidGeo, solidMat);
       solidFieldMesh.position.set(center.x, center.y, center.z);
       scene.add(solidFieldMesh);
     }
 
-    const voxelSize = Math.max(dataBounds.span / 120, Math.min(spanX, spanY, spanZ) / 36, Number.EPSILON);
+    const voxelSize = Math.max(dataBounds.span / 120, Math.min(spanX, spanY, spanZ) / 32, Number.EPSILON);
     const voxelGeo = new THREE.BoxGeometry(voxelSize, voxelSize, voxelSize);
-    const voxelMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.2, transparent: true, opacity: 0.38 });
+    const voxelMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: false, opacity: 0.92 });
     const cutLimit = dataBounds.min.x + cutPosition * (dataBounds.max.x - dataBounds.min.x);
     const visiblePoints = volumetricData.filter((point) => point.x <= cutLimit);
     const instancedMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, visiblePoints.length);
@@ -821,7 +833,7 @@ export default function Industrial3DVisualizerEnhancedV11({
       marker: {
         color: validIndices.map((index) => scalarValues[index] as number),
         colorscale: colorScale === "thermal"
-          ? [[0, "#000004"], [0.2, "#420a68"], [0.4, "#932667"], [0.6, "#dd513a"], [0.8, "#fca50a"], [1, "#fcffa4"]]
+          ? [[0, "#180f3d"], [0.2, "#721f81"], [0.4, "#bb3754"], [0.6, "#ed6925"], [0.8, "#fbb61a"], [1, "#f0f921"]]
           : colorScale === "viridis"
             ? [[0, "#440154"], [0.33, "#31688e"], [0.66, "#35b779"], [1, "#fde725"]]
             : [[0, "#3b4cc0"], [0.25, "#8db0fe"], [0.5, "#f7f7f7"], [0.75, "#f4987a"], [1, "#b40426"]],

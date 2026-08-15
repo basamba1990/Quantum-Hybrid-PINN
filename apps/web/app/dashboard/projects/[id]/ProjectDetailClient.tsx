@@ -10,7 +10,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ScientificValidationWorkspace from '@/components/scientific-validation-workspace'
 import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
-import { getScenarioDisplayName } from '@/types/simulation-scenarios'
+import { getScenarioDisplayName, normalizeScenarioType } from '@/types/simulation-scenarios'
 
 const Industrial3DVisualizerEnhancedV11 = nextDynamic(
   () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
@@ -131,15 +131,20 @@ export default function ProjectDetailClient({ id, project }: any) {
   const predictions3d = visualizationPayload.points
   const experimentalData = visualizationPayload.experimentalPoints
 
-  const scenarioType = useMemo(() => resolveVisualizationScenario([
-    project?.name,
-    project?.description,
-    project?.scenario_type,
-    latestAnalysis?.scenario_type,
-    results?.scenario_type,
-    results?.scenarioType,
-    results?.extracted_parameters,
-  ]), [project, latestAnalysis, results])
+  const scenarioType = useMemo(() => {
+    const projectScenario = normalizeScenarioType(project?.category ?? project?.scenario_type)
+    if (projectScenario) return projectScenario
+    const analysisScenario = normalizeScenarioType(latestAnalysis?.scenario_type ?? results?.scenario_type ?? results?.scenarioType)
+    if (analysisScenario) return analysisScenario
+    return resolveVisualizationScenario([
+      project?.name,
+      project?.description,
+      latestAnalysis?.scenario_type,
+      results?.scenario_type,
+      results?.scenarioType,
+      results?.extracted_parameters,
+    ])
+  }, [project, latestAnalysis, results])
 
   const visualizationMetrics = useMemo(() => ({
     credibilityScore: results?.credibilityScore ?? results?.credibility_score ?? latestAnalysis?.credibility_score,
@@ -166,6 +171,8 @@ export default function ProjectDetailClient({ id, project }: any) {
     mass_conserved: results?.mass_conserved,
     momentum_conserved: results?.momentum_conserved,
     energy_conserved: results?.energy_conserved,
+    certificationEvidence: results?.certificationEvidence ?? results?.certification_evidence ?? null,
+    certification_evidence: results?.certification_evidence ?? null,
   }), [results, latestAnalysis])
 
   const projectDisplayName = getScenarioDisplayName(

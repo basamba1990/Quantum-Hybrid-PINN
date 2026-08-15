@@ -16,6 +16,7 @@ import {
   LH2_SOURCES,
   type ValidationStatus,
 } from "@/data/lh2-scenario-data";
+import { getScenarioDisplayName } from "@/types/simulation-scenarios";
 
 type ValidationChecks = {
   residuals_passed?: boolean;
@@ -23,6 +24,15 @@ type ValidationChecks = {
   conservation_passed?: boolean;
   reference_comparison_passed?: boolean;
   uncertainty_reported?: boolean;
+};
+
+type CertificationEvidence = {
+  contract_present?: boolean;
+  geometry_validated?: boolean;
+  mesh_validated?: boolean;
+  field_provenance_validated?: boolean;
+  autograd_verified?: boolean;
+  reference_validated?: boolean;
 };
 
 type WorkspaceResults = {
@@ -48,6 +58,8 @@ type WorkspaceResults = {
   boundary_conditions_passed?: boolean;
   reference_comparison_passed?: boolean;
   uncertainty_reported?: boolean;
+  certificationEvidence?: CertificationEvidence | null;
+  certification_evidence?: CertificationEvidence | null;
 };
 
 type Props = {
@@ -66,7 +78,6 @@ function statusFor(
   results: WorkspaceResults | null | undefined,
 ): ValidationStatus {
   if (!results) return "DRAFT";
-  if (results.validationStatus) return results.validationStatus;
 
   const residuals = results.residuals || {};
   const hasResidual = [
@@ -103,7 +114,21 @@ function statusFor(
   ];
   if (requiredChecks.some((check) => check === false))
     return "VALIDATION_FAILED";
-  if (requiredChecks.every((check) => check === true)) return "VALIDATED";
+
+  // Des résidus et des booléens de contrôle ne constituent pas, seuls, une
+  // preuve G0-G5. La certification exige les six artefacts persistés.
+  const evidence = results.certificationEvidence || results.certification_evidence;
+  const requiredEvidence = evidence ? [
+    evidence.contract_present,
+    evidence.geometry_validated,
+    evidence.mesh_validated,
+    evidence.field_provenance_validated,
+    evidence.autograd_verified,
+    evidence.reference_validated,
+  ] : [];
+  if (requiredChecks.every((check) => check === true) && requiredEvidence.length === 6 && requiredEvidence.every((check) => check === true)) {
+    return "VALIDATED";
+  }
   return "READY_FOR_RUN";
 }
 
@@ -113,7 +138,7 @@ export default function ScientificValidationWorkspace({
   loading = false,
 }: Props) {
   const isLH2 = scenarioType === LH2_SCENARIO_CONFIG.scenario_type;
-  const scenarioLabel = scenarioType.replace(/_/g, " ");
+  const scenarioLabel = getScenarioDisplayName(scenarioType);
   const status = useMemo(() => statusFor(results), [results]);
   const statusLabel = {
     DRAFT: "BROUILLON",
