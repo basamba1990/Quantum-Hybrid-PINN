@@ -1,0 +1,34 @@
+{
+  "scenario_type": "LH2_LARGE_SCALE_STORAGE_1250M3",
+  "unit_system": "SI",
+  "geometry": {
+    "step_sha256": "89ade7dbde9a74dea09614ceafb64e0db5a19a5379b3a631e0399978a6592751",
+    "step_schema": "AP242DIS",
+    "kernel": "Open CASCADE via CadQuery",
+    "topology_status": "VALIDATED",
+    "shape_valid_before_export": true,
+    "roundtrip_valid": true,
+    "volume_m3": 28.247462793144905,
+    "bounds_m": {
+      "xmin": -6.73,
+      "xmax": 6.73,
+      "ymin": -6.73,
+      "ymax": 6.73,
+      "zmin": -6.73,
+      "zmax": 6.73
+    },
+    "exported_at": "2026-08-15T04:28:28.933415+00:00"
+  },
+  "named_boundaries": [
+    "inner_wall",
+    "outer_wall",
+    "vacuum_space_boundary"
+  ],
+  "source": {
+    "authority": "NIST REFPROP property basis; NASA cryogenic storage documentation basis",
+    "citation": "Spherical LH2 vessel reference geometry; dimensions are explicit engineering assumptions and require project-owner confirmation before certification.",
+    "retrieved_at": "2026-08-15"
+  },
+  "topology_status": "VALIDATED",
+  "immutable_revision": "89ade7dbde9a74dea09614ceafb64e0db5a19a5379b3a631e0399978a6592751"
+}

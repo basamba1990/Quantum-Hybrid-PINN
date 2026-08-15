@@ -1,0 +1,35 @@
+{
+  "scenario_type": "HEAVY_DUTY_HYDROGEN_REFUELING",
+  "unit_system": "SI",
+  "geometry": {
+    "step_sha256": "bea4ba469909742cd16a02d138255abe307987d90dfbb27bd216e3e01ca87895",
+    "step_schema": "AP242DIS",
+    "kernel": "Open CASCADE via CadQuery",
+    "topology_status": "VALIDATED",
+    "shape_valid_before_export": true,
+    "roundtrip_valid": true,
+    "volume_m3": 0.002952711796545298,
+    "bounds_m": {
+      "xmin": -0.2750001,
+      "xmax": 0.2750001,
+      "ymin": -0.055,
+      "ymax": 0.055,
+      "zmin": -0.0250001,
+      "zmax": 2.5250000999999997
+    },
+    "exported_at": "2026-08-15T04:28:28.913996+00:00"
+  },
+  "named_boundaries": [
+    "inlet",
+    "outlet",
+    "wall",
+    "branch_port"
+  ],
+  "source": {
+    "authority": "SAE J2601-2",
+    "citation": "Heavy-duty hydrogen refueling protocol; geometry is a documented reference manifold, not a customer CAD drawing.",
+    "retrieved_at": "2026-08-15"
+  },
+  "topology_status": "VALIDATED",
+  "immutable_revision": "bea4ba469909742cd16a02d138255abe307987d90dfbb27bd216e3e01ca87895"
+}
