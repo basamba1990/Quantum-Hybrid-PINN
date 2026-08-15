@@ -12,6 +12,20 @@ interface SweetSpotAnalysisPanelProps {
   loading?: boolean
 }
 
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function UnavailablePanel({ message = "Les conditions thermodynamiques n'ont pas été calculées pour cette simulation." }: { message?: string }) {
+  return (
+    <div className="bg-[#0B1120]/60 backdrop-blur-xl border border-white/10 rounded-[32px] p-8 text-center">
+      <Info className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+      <h3 className="text-xl font-black uppercase italic tracking-tighter text-gray-400">Analyse Sweet Spot Indisponible</h3>
+      <p className="text-gray-600 text-sm mt-2">{message}</p>
+    </div>
+  )
+}
+
 export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnalysisPanelProps) {
   if (loading) {
     return (
@@ -29,20 +43,39 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
   }
 
   if (!data || data.status === 'SKIPPED' || !data.operating_point) {
-    return (
-      <div className="bg-[#0B1120]/60 backdrop-blur-xl border border-white/10 rounded-[32px] p-8 text-center">
-        <Info className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-        <h3 className="text-xl font-black uppercase italic tracking-tighter text-gray-400">Analyse Sweet Spot Indisponible</h3>
-        <p className="text-gray-600 text-sm mt-2">Les conditions thermodynamiques n'ont pas été calculées pour cette simulation.</p>
-      </div>
-    )
+    return <UnavailablePanel />
   }
 
   const op = data.operating_point
-  const tp = data.thermodynamic_properties
-  const sa = data.stability_assessment
+  const tp = data.thermodynamic_properties ?? {}
+  const sa = data.stability_assessment ?? {}
   const pp = data.pipeline_profile
   const pa = pp?.pipeline_analysis
+  const hasCoreThermodynamics = [
+    op.pressure_MPa,
+    op.pressure_bar,
+    op.temperature_K,
+    op.temperature_C,
+    tp.compressibility_factor_Z,
+    tp.mach_number,
+    tp.density_kg_m3,
+  ].every(isFiniteNumber)
+
+  if (!hasCoreThermodynamics) {
+    return <UnavailablePanel message="Les données Sweet Spot persistées sont incomplètes ; aucune valeur n'est inventée par l'interface." />
+  }
+
+  const pipelineReady = Boolean(
+    pp && pa && [
+      pa.length_m,
+      pa.pressure_drop_MPa,
+      pa.pressure_gradient_MPa_per_m,
+      pa.inlet?.pressure_MPa,
+      pa.inlet?.temperature_K,
+      pa.outlet?.pressure_MPa,
+      pa.outlet?.temperature_K,
+    ].every(isFiniteNumber),
+  )
 
   const stabilityPct = Math.min(100, Math.max(0, (sa?.stability_score || 0) * 100))
   
@@ -180,7 +213,7 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
       </div>
 
       {/* Pipeline Profile */}
-      {pp && (
+      {pipelineReady && (
         <div className="bg-black/40 border border-white/5 rounded-2xl p-6 space-y-6">
           <div className="flex items-center justify-between">
             <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
