@@ -207,9 +207,21 @@ export default function ScientificValidationWorkspace({
             <Ruler className="h-4 w-4 text-cyan-400" />
             Géométrie
           </div>
-          <p className="mt-3 text-sm text-amber-200">À documenter</p>
+          <p
+            className={`mt-3 text-sm font-bold ${
+              results?.certification_evidence?.geometry_validated
+                ? "text-emerald-400"
+                : "text-amber-200"
+            }`}
+          >
+            {results?.certification_evidence?.geometry_validated
+              ? "Certifiée (STEP AP242)"
+              : "À documenter"}
+          </p>
           <p className="mt-1 text-xs text-slate-500">
-            Domaine, paroi, raccord et défaut de fuite
+            {results?.artifact_hashes?.step
+              ? `Hash: ${results.artifact_hashes.step.substring(0, 8)}...`
+              : "Domaine, paroi, raccord et défaut de fuite"}
           </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -227,13 +239,26 @@ export default function ScientificValidationWorkspace({
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
             <LockKeyhole className="h-4 w-4 text-cyan-400" />
-            Blocages
+            Certification
           </div>
-          <p className="mt-3 text-sm text-amber-200">
-            {blockingIssues.length} à lever
+          <p
+            className={`mt-3 text-sm font-bold ${
+              status === "VALIDATED" ? "text-emerald-400" : "text-amber-200"
+            }`}
+          >
+            {status === "VALIDATED"
+              ? "G0-G5 Complète"
+              : `${
+                  blockingIssues.length -
+                  Object.values(results?.certification_evidence || {}).filter(
+                    Boolean,
+                  ).length
+                } à lever`}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Avant toute certification
+            {status === "VALIDATED"
+              ? "Nexus Scientifique Validé"
+              : "Verrouillage Séquentiel"}
           </p>
         </div>
       </div>
