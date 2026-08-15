@@ -60,6 +60,11 @@ type WorkspaceResults = {
   uncertainty_reported?: boolean;
   certificationEvidence?: CertificationEvidence | null;
   certification_evidence?: CertificationEvidence | null;
+  artifact_hashes?: {
+    step?: string | null;
+    mesh?: string | null;
+    contract?: string | null;
+  } | null;
 };
 
 type Props = {

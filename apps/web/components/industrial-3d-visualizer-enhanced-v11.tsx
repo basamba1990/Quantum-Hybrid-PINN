@@ -528,7 +528,13 @@ export default function Industrial3DVisualizerEnhancedV11({
   const getColorFromScale = useCallback(
     (val: number, min: number | null, max: number | null, scale: string) => {
       if (min === null || max === null) return new THREE.Color("#64748b");
-      const norm = Math.max(0, Math.min(1, (val - min) / (max - min || 1)));
+      // Un champ constant doit être rendu au milieu de la palette, et non au
+      // premier arrêt sombre. La colorbar et la géométrie représentent ainsi
+      // la même valeur, sans créer l'illusion d'un volume noir.
+      const span = max - min;
+      const norm = Math.abs(span) <= Number.EPSILON
+        ? 0.5
+        : Math.max(0, Math.min(1, (val - min) / span));
       const stops = scale === "thermal"
         ? ["#180f3d", "#721f81", "#bb3754", "#ed6925", "#fbb61a", "#f0f921"]
         : scale === "viridis"
@@ -848,6 +854,8 @@ export default function Industrial3DVisualizerEnhancedV11({
   }, [volumetricData, activeVariable, colorScale, stats]);
 
   const formatScalar = (value: number | null) => value === null ? "REQUIRED_INPUT" : value.toPrecision(5);
+  const formatMetric = (value: number | undefined | null) =>
+    typeof value === "number" && Number.isFinite(value) ? value.toExponential(3) : "N/D";
   const meshReady = Boolean(metadata?.mesh?.points?.length && metadata?.mesh?.cells?.length);
   const refinementReady = Boolean(metadata?.mesh?.refinement_applied && metadata?.mesh?.refinement_zones?.length);
   const crossSectionSamples = new Set(volumetricData.map((point) => `${point.y.toFixed(6)}|${point.z.toFixed(6)}`)).size;
@@ -1047,10 +1055,12 @@ export default function Industrial3DVisualizerEnhancedV11({
                   Score de Crédibilité
                 </p>
                 <p className="text-3xl font-black text-emerald-400 mt-1">
-                  98.2%
+                  {typeof metrics?.credibilityScore === "number" && Number.isFinite(metrics.credibilityScore)
+                    ? `${metrics.credibilityScore.toFixed(2)}%`
+                    : "N/D"}
                 </p>
                 <p className="text-[9px] text-gray-500 mt-1">
-                  Standard Kelly Senecal Validé
+                  Score issu des résultats persistés
                 </p>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
@@ -1071,15 +1081,15 @@ export default function Industrial3DVisualizerEnhancedV11({
               </p>
               <div className="flex justify-between items-center text-xs font-bold border-b border-white/5 pb-2">
                 <span className="text-gray-400">Continuité (Masse)</span>
-                <span className="text-emerald-400 font-mono">3.8e-7</span>
+                <span className="text-emerald-400 font-mono">{formatMetric(metrics?.residuals?.continuity)}</span>
               </div>
               <div className="flex justify-between items-center text-xs font-bold border-b border-white/5 pb-2">
                 <span className="text-gray-400">Navier-Stokes (Momentum)</span>
-                <span className="text-emerald-400 font-mono">7.2e-7</span>
+                <span className="text-emerald-400 font-mono">{formatMetric(metrics?.residuals?.momentum)}</span>
               </div>
               <div className="flex justify-between items-center text-xs font-bold">
                 <span className="text-gray-400">Conservation de l'Énergie</span>
-                <span className="text-emerald-400 font-mono">1.9e-7</span>
+                <span className="text-emerald-400 font-mono">{formatMetric(metrics?.residuals?.energy)}</span>
               </div>
             </div>
           </div>

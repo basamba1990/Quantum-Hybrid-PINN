@@ -75,6 +75,10 @@ export default function ProjectDetailClient({ id, project }: any) {
           if (resultRow.mesh) mergedResults.mesh = resultRow.mesh
           if (resultRow.geometry) mergedResults.geometry = resultRow.geometry
           if (resultRow.discontinuity) mergedResults.discontinuity = resultRow.discontinuity
+          if (resultRow.residuals) mergedResults.residuals = resultRow.residuals
+          if (resultRow.physical_metrics) mergedResults.physical_metrics = resultRow.physical_metrics
+          if (resultRow.certification_evidence) mergedResults.certification_evidence = resultRow.certification_evidence
+          if (resultRow.certificationEvidence) mergedResults.certificationEvidence = resultRow.certificationEvidence
           if (resultRow.extracted_parameters) {
             mergedResults.extracted_parameters = resultRow.extracted_parameters
             mergedResults.extractedData = {
