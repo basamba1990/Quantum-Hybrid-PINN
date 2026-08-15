@@ -1,0 +1,44 @@
+{
+  "bucket": "pinn-models",
+  "generated_at": "2026-08-15T04:11:02.545160+00:00",
+  "packages": [
+    {
+      "scenario": "HEAVY_DUTY_HYDROGEN_REFUELING",
+      "files": [
+        {
+          "filename": "geometry.step",
+          "storage_path": "cad/g0-g5/HEAVY_DUTY_HYDROGEN_REFUELING/geometry.step",
+          "sha256": "e4a355506ddb5b31f18476bfc9e5529089f1cdf7b67403b85fabb5a13d0cbbe1",
+          "public_url": null,
+          "signed_url": "https://ivhxnaxhgfbiqlhgfkik.supabase.co/storage/v1/object/sign/pinn-models/cad/g0-g5/HEAVY_DUTY_HYDROGEN_REFUELING/geometry.step?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80YmI4MzFiMi1lMzE0LTRhNjYtYjBhOS0yNGExODBjMTI2NTkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwaW5uLW1vZGVscy9jYWQvZzAtZzUvSEVBVllfRFVUWV9IWURST0dFTl9SRUZVRUxJTkcvZ2VvbWV0cnkuc3RlcCIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODY3NjcwNjMsImV4cCI6MTc4NzM3MTg2M30.EanfCsW-bF5YF8QagSmr08tzFSfROhlk1uEnHid0PGU"
+        },
+        {
+          "filename": "case_manifest.json",
+          "storage_path": "cad/g0-g5/HEAVY_DUTY_HYDROGEN_REFUELING/case_manifest.json",
+          "sha256": "9fbbc528529ca7d37e7e043eb5f0681d4a1ffc7a55fd24181079db1e3880a97f",
+          "public_url": null,
+          "signed_url": "https://ivhxnaxhgfbiqlhgfkik.supabase.co/storage/v1/object/sign/pinn-models/cad/g0-g5/HEAVY_DUTY_HYDROGEN_REFUELING/case_manifest.json?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80YmI4MzFiMi1lMzE0LTRhNjYtYjBhOS0yNGExODBjMTI2NTkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwaW5uLW1vZGVscy9jYWQvZzAtZzUvSEVBVllfRFVUWV9IWURST0dFTl9SRUZVRUxJTkcvY2FzZV9tYW5pZmVzdC5qc29uIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4Njc2NzA2NCwiZXhwIjoxNzg3MzcxODY0fQ.CJYLoVvcj3rd-GzhE0kyzSoPQ4DP_IChDLGrvz8HPhg"
+        }
+      ]
+    },
+    {
+      "scenario": "LH2_LARGE_SCALE_STORAGE_1250M3",
+      "files": [
+        {
+          "filename": "geometry.step",
+          "storage_path": "cad/g0-g5/LH2_LARGE_SCALE_STORAGE_1250M3/geometry.step",
+          "sha256": "b028fb071704ac2381810c2bfa51e0195be84220e9103dd9fb010afeb270f31e",
+          "public_url": null,
+          "signed_url": "https://ivhxnaxhgfbiqlhgfkik.supabase.co/storage/v1/object/sign/pinn-models/cad/g0-g5/LH2_LARGE_SCALE_STORAGE_1250M3/geometry.step?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80YmI4MzFiMi1lMzE0LTRhNjYtYjBhOS0yNGExODBjMTI2NTkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwaW5uLW1vZGVscy9jYWQvZzAtZzUvTEgyX0xBUkdFX1NDQUxFX1NUT1JBR0VfMTI1ME0zL2dlb21ldHJ5LnN0ZXAiLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzg2NzY3MDY0LCJleHAiOjE3ODczNzE4NjR9.f3o53Hs_w4B0iCFRFUTT0J46VkIQyV4QoJe--Kfxo2o"
+        },
+        {
+          "filename": "case_manifest.json",
+          "storage_path": "cad/g0-g5/LH2_LARGE_SCALE_STORAGE_1250M3/case_manifest.json",
+          "sha256": "962679a20c76de450d589970c32ac55bd5de4c1bdce1da5d1200b3e59f8b173c",
+          "public_url": null,
+          "signed_url": "https://ivhxnaxhgfbiqlhgfkik.supabase.co/storage/v1/object/sign/pinn-models/cad/g0-g5/LH2_LARGE_SCALE_STORAGE_1250M3/case_manifest.json?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV80YmI4MzFiMi1lMzE0LTRhNjYtYjBhOS0yNGExODBjMTI2NTkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwaW5uLW1vZGVscy9jYWQvZzAtZzUvTEgyX0xBUkdFX1NDQUxFX1NUT1JBR0VfMTI1ME0zL2Nhc2VfbWFuaWZlc3QuanNvbiIsInNjb3BlIjoiZG93bmxvYWQiLCJpYXQiOjE3ODY3NjcwNjUsImV4cCI6MTc4NzM3MTg2NX0.kotPUDh3i1qItLjiib7tiYvhymMm_x_iYQuUqWDXAy0"
+        }
+      ]
+    }
+  ]
+}
