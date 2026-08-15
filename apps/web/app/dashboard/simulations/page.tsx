@@ -92,7 +92,14 @@ export default function SimulationsPage() {
     selectedAnalysis?.results,
     selectedAnalysis?.analysisResult,
   ]), [selectedProject, selectedAnalysis])
-  const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType as any)
+  const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType, [
+    selectedProject?.name,
+    selectedProject?.description,
+    selectedProject?.category,
+    selectedProject?.scenario_type,
+    selectedAnalysis?.name,
+    selectedAnalysis?.scenario_type,
+  ])
 
   if (loading) return <div className="p-20 text-center animate-pulse text-blue-500 font-mono">CHARGEMENT DES SYSTÈMES...</div>
 

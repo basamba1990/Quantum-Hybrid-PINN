@@ -186,7 +186,14 @@ export default function ProjectDetailClient({ id, project }: any) {
     project?.scenario_type || project?.category || project?.name,
   )
 
-  const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType)
+  const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType, [
+    project?.name,
+    project?.description,
+    project?.category,
+    project?.scenario_type,
+    latestAnalysis?.name,
+    latestAnalysis?.scenario_type,
+  ])
 
   const handleDeleteProject = async () => {
     if (!window.confirm(`Supprimer définitivement le projet « ${project?.name || 'sans nom'} » et ses résultats associés ?`)) return

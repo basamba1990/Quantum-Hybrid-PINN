@@ -5,7 +5,19 @@ import type { ScenarioType } from '@/types/simulation-scenarios'
  * Les chemins sont des assets versionnés du frontend ; aucun volume paramétrique
  * de remplacement n'est utilisé lorsqu'un scénario industriel est sélectionné.
  */
-export function getScenarioCadAssetUrl(scenarioType?: string | null): string | undefined {
+export function getScenarioCadAssetUrl(scenarioType?: string | null, evidence: unknown[] = []): string | undefined {
+  const evidenceText = [scenarioType, ...evidence]
+    .flatMap((value) => typeof value === 'string' ? [value] : [])
+    .join(' ')
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\\u0300-\\u036f]/g, '')
+  if (evidenceText.includes('HEAVY_DUTY_HYDROGEN_REFUELING') || evidenceText.includes('RAVITAILLEMENT HYDROGENE POIDS LOURDS') || evidenceText.includes('HEAVY DUTY REFUEL')) {
+    return '/cad/HEAVY_DUTY_HYDROGEN_REFUELING/geometry.glb'
+  }
+  if (evidenceText.includes('LH2_LARGE_SCALE_STORAGE_1250M3') || (evidenceText.includes('STOCKAGE LH2') && evidenceText.includes('1250'))) {
+    return '/cad/LH2_LARGE_SCALE_STORAGE_1250M3/geometry.glb'
+  }
   switch (scenarioType) {
     case 'HEAVY_DUTY_HYDROGEN_REFUELING':
       return '/cad/HEAVY_DUTY_HYDROGEN_REFUELING/geometry.glb'

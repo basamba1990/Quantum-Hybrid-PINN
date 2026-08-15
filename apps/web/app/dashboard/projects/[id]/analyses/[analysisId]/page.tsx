@@ -157,7 +157,13 @@ export default function AnalysisDetailPage() {
     analysis.results?.extracted_parameters,
   ])
   const visualizationPayload = extractVisualizationPayload(analysis)
-  const geometryAssetUrl = getScenarioCadAssetUrl(resolvedScenarioType as any)
+  const geometryAssetUrl = getScenarioCadAssetUrl(resolvedScenarioType, [
+    analysis.title,
+    analysis.scenario_type,
+    analysis.results?.scenario_type,
+    analysis.results?.scenarioType,
+    analysis.results?.extractedData?.scenario_type,
+  ])
 
   const auditData = {
     isPhysicallyCoherent: analysis.credibility_score > 50,
