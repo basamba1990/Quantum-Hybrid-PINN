@@ -1,0 +1,62 @@
+{
+  "status": "VALIDATED",
+  "packages": [
+    {
+      "scenario_type": "HEAVY_DUTY_HYDROGEN_REFUELING",
+      "path": "fixtures/step/industrial/heavy_duty_refueling/geometry.step",
+      "step_sha256": "bea4ba469909742cd16a02d138255abe307987d90dfbb27bd216e3e01ca87895",
+      "schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF {1 0 10303 442 1 1 4 }",
+      "si_length_unit": "m",
+      "shape_valid": true,
+      "brepcheck_valid": true,
+      "solids": 1,
+      "shells": 2,
+      "faces": 20,
+      "edges": 72,
+      "vertices": 144,
+      "volume_m3": 0.002952701219304667,
+      "bounds_m": {
+        "xmin": -0.27500000010000003,
+        "xmax": 0.27500000010000003,
+        "ymin": -0.055,
+        "ymax": 0.055,
+        "zmin": -0.025000000100000003,
+        "zmax": 2.5250000001
+      },
+      "named_boundaries": [
+        "inlet",
+        "outlet",
+        "wall",
+        "branch_port"
+      ]
+    },
+    {
+      "scenario_type": "LH2_LARGE_SCALE_STORAGE_1250M3",
+      "path": "fixtures/step/industrial/lh2_storage_1250m3/geometry.step",
+      "step_sha256": "89ade7dbde9a74dea09614ceafb64e0db5a19a5379b3a631e0399978a6592751",
+      "schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF {1 0 10303 442 1 1 4 }",
+      "si_length_unit": "m",
+      "shape_valid": true,
+      "brepcheck_valid": true,
+      "solids": 1,
+      "shells": 2,
+      "faces": 2,
+      "edges": 8,
+      "vertices": 16,
+      "volume_m3": 28.24746279314429,
+      "bounds_m": {
+        "xmin": -6.73,
+        "xmax": 6.73,
+        "ymin": -6.73,
+        "ymax": 6.73,
+        "zmin": -6.73,
+        "zmax": 6.73
+      },
+      "named_boundaries": [
+        "inner_wall",
+        "outer_wall",
+        "vacuum_space_boundary"
+      ]
+    }
+  ]
+}

@@ -15,6 +15,7 @@ import ScientificAuditCard from '@/components/scientific-audit-card'
 import ScientificSocialHub from '@/components/scientific-social-hub'
 import { format } from 'date-fns'
 import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
+import { getScenarioCadAssetUrl } from '@/lib/cad-assets'
 
 interface AnalysisDetail {
   id: string
@@ -156,6 +157,7 @@ export default function AnalysisDetailPage() {
     analysis.results?.extracted_parameters,
   ])
   const visualizationPayload = extractVisualizationPayload(analysis)
+  const geometryAssetUrl = getScenarioCadAssetUrl(resolvedScenarioType as any)
 
   const auditData = {
     isPhysicallyCoherent: analysis.credibility_score > 50,
@@ -200,7 +202,7 @@ export default function AnalysisDetailPage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-black uppercase tracking-tight text-gray-900">Visualisation CFD</h2>
-          <span className="text-xs font-mono text-cyan-700">Volume paramétrique plein — colorbar liée à la variable active</span>
+          <span className="text-xs font-mono text-cyan-700">Surface B-Rep GLB issue d'Open CASCADE — colorbar liée au champ si le recouvrement spatial est validé</span>
         </div>
         <div className="h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-900/50">
           <Industrial3DVisualizerEnhancedV11
@@ -208,6 +210,7 @@ export default function AnalysisDetailPage() {
             experimentalData={visualizationPayload.experimentalPoints}
             metadata={visualizationPayload.metadata}
             scenarioType={resolvedScenarioType}
+            geometryAssetUrl={geometryAssetUrl}
             title={analysis.title}
           />
         </div>

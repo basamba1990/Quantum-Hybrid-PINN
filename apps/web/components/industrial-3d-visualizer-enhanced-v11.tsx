@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { STLExporter } from "three/addons/exporters/STLExporter.js";
 import { GLTFExporter } from "three/addons/exporters/GLTFExporter.js";
 import {
@@ -69,6 +70,8 @@ interface Props {
   colorVariable?: string;
   quality?: "low" | "medium" | "high" | "ultra";
   scenarioType?: ScenarioType;
+  /** Surface CAO tessellée depuis le STEP AP242, versionnée et traçable. */
+  geometryAssetUrl?: string;
   metrics?: {
     credibilityScore?: number;
     residuals?: {
@@ -106,22 +109,22 @@ const SCENARIO_GEOMETRIES: Record<
   },
   LH2_LARGE_SCALE_STORAGE_1250M3: {
     shape: "box",
-    radius: 0,
-    height: 0,
-    length: 0,
-    width: 0,
-    description: "Stockage LH2 grande capacité — géométrie CAO persistée requise",
+    radius: 6.73,
+    height: 13.46,
+    length: 13.46,
+    width: 13.46,
+    description: "Sphère B-Rep LH2 1 250 m³ — surface GLB issue d'Open CASCADE",
     defaultTemp: 0,
     defaultPressure: 0,
     defaultVelocity: 0,
   },
   HEAVY_DUTY_HYDROGEN_REFUELING: {
     shape: "box",
-    radius: 0,
-    height: 0,
-    length: 0,
-    width: 0,
-    description: "Ravitaillement poids lourds — géométrie CAO persistée requise",
+    radius: 0.055,
+    height: 0.11,
+    length: 2.55,
+    width: 0.11,
+    description: "Manifold DN50 B-Rep — surface GLB issue d'Open CASCADE",
     defaultTemp: 0,
     defaultPressure: 0,
     defaultVelocity: 0,
@@ -418,6 +421,7 @@ export default function Industrial3DVisualizerEnhancedV11({
   title = "Visualisation CFD — données persistées requises",
   colorVariable = "temperature",
   scenarioType = "LH2_STORAGE",
+  geometryAssetUrl,
   metrics,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -438,6 +442,7 @@ export default function Industrial3DVisualizerEnhancedV11({
   );
   const [cutPosition, setCutPosition] = useState<number>(1.0);
   const [activeTab, setActiveTab] = useState<"3d" | "plotly" | "metrics">("3d");
+  const [cadSurfaceStatus, setCadSurfaceStatus] = useState<"absent" | "loading" | "aligned" | "unaligned" | "error">("absent");
 
   useEffect(() => {
     setIsMounted(true);
@@ -470,10 +475,15 @@ export default function Industrial3DVisualizerEnhancedV11({
       .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
     const unit = metadata?.fields?.[activeVariable]?.unit
       ?? (activeVariable === "temperature" ? "K" : activeVariable.includes("velocity") ? "m/s" : "unit_required");
+    const minV = vals.length ? Math.min(...vals) : null;
+    const maxV = vals.length ? Math.max(...vals) : null;
+    const spanV = minV !== null && maxV !== null ? Math.abs(maxV - minV) : null;
     return {
-      minV: vals.length ? Math.min(...vals) : null,
-      maxV: vals.length ? Math.max(...vals) : null,
+      minV,
+      maxV,
       avgV: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
+      spanV,
+      isConstant: spanV !== null && spanV <= Number.EPSILON,
       count: volumetricData.length,
       fieldCount: vals.length,
       unit,
@@ -553,16 +563,25 @@ export default function Industrial3DVisualizerEnhancedV11({
     if (!isMounted || !containerRef.current) return;
     const container = containerRef.current;
     container.replaceChildren();
-    if (!volumetricData.length || !dataBounds) return;
+    if (!geometryAssetUrl && (!volumetricData.length || !dataBounds)) return;
 
     const width = container.clientWidth || 800;
     const height = container.clientHeight || 550;
     const meta = displayGeometry;
-    const center = dataBounds.center;
-    const spanX = Math.max(dataBounds.max.x - dataBounds.min.x, meta.length, 0.001);
-    const spanY = Math.max(dataBounds.max.y - dataBounds.min.y, meta.height, 0.001);
-    const spanZ = Math.max(dataBounds.max.z - dataBounds.min.z, meta.width, 0.001);
-    const maxDimension = Math.max(spanX, spanY, spanZ, dataBounds.span);
+    const fallbackSpanX = Math.max(meta.length, 1);
+    const fallbackSpanY = Math.max(meta.height, 1);
+    const fallbackSpanZ = Math.max(meta.width, 1);
+    const renderBounds = dataBounds ?? {
+      min: { x: -fallbackSpanX / 2, y: -fallbackSpanY / 2, z: -fallbackSpanZ / 2 },
+      max: { x: fallbackSpanX / 2, y: fallbackSpanY / 2, z: fallbackSpanZ / 2 },
+      center: { x: 0, y: 0, z: 0 },
+      span: Math.max(fallbackSpanX, fallbackSpanY, fallbackSpanZ),
+    };
+    const center = renderBounds.center;
+    const spanX = Math.max(renderBounds.max.x - renderBounds.min.x, meta.length, 0.001);
+    const spanY = Math.max(renderBounds.max.y - renderBounds.min.y, meta.height, 0.001);
+    const spanZ = Math.max(renderBounds.max.z - renderBounds.min.z, meta.width, 0.001);
+    const maxDimension = Math.max(spanX, spanY, spanZ, renderBounds.span);
     const cameraDistance = Math.max(maxDimension * 2.4, 0.25);
 
     const scene = new THREE.Scene();
@@ -602,39 +621,121 @@ export default function Industrial3DVisualizerEnhancedV11({
 
     const gridSize = Math.max(maxDimension * 1.35, 0.1);
     const grid = new THREE.GridHelper(gridSize, 16, 0x3b82f6, 0x1e293b);
-    grid.position.set(center.x, dataBounds.min.y, center.z);
+    grid.position.set(center.x, renderBounds.min.y, center.z);
     scene.add(grid);
     const axes = new THREE.AxesHelper(Math.max(maxDimension * 0.35, 0.05));
     axes.position.set(center.x, center.y, center.z);
     scene.add(axes);
 
-    // Enveloppe uniquement comme repère : elle n’est jamais présentée comme le maillage validé.
-    // DN50 mesure physiquement 50 mm pour 2 m de longueur : à l’échelle 1:1,
-    // son diamètre devient presque invisible sur mobile. La scène applique donc
-    // une exagération radiale d’affichage documentée, sans modifier les points,
-    // les unités, les bornes de la colorbar ni les exports CSV.
+    // Fallback uniquement : il ne doit jamais être présenté comme une CAO validée.
     const physicalRadius = Math.max(spanY, spanZ) / 2;
     const displayRadius = physicalRadius * radialVisualMultiplier;
-    let outerGeo: THREE.BufferGeometry;
-    if (meta.shape === "cylinder_vertical") {
-      outerGeo = new THREE.CylinderGeometry(Math.max(spanX, spanZ) / 2, Math.max(spanX, spanZ) / 2, spanY, 36, 1, true);
-    } else if (meta.shape === "cylinder_horizontal") {
-      outerGeo = new THREE.CylinderGeometry(displayRadius, displayRadius, spanX, 48, 1, true);
-      outerGeo.rotateZ(Math.PI / 2);
-    } else {
-      outerGeo = new THREE.BoxGeometry(spanX, spanY, spanZ);
+    let outerGeo: THREE.BufferGeometry | null = null;
+    let outerMat: THREE.Material | null = null;
+    if (!geometryAssetUrl) {
+      if (meta.shape === "cylinder_vertical") {
+        outerGeo = new THREE.CylinderGeometry(Math.max(spanX, spanZ) / 2, Math.max(spanX, spanZ) / 2, spanY, 36, 1, true);
+      } else if (meta.shape === "cylinder_horizontal") {
+        outerGeo = new THREE.CylinderGeometry(displayRadius, displayRadius, spanX, 48, 1, true);
+        outerGeo.rotateZ(Math.PI / 2);
+      } else {
+        outerGeo = new THREE.BoxGeometry(spanX, spanY, spanZ);
+      }
+      outerMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.2, metalness: 0.5, transparent: true, opacity: 0.08, side: THREE.DoubleSide, wireframe: true });
+      const vesselMesh = new THREE.Mesh(outerGeo, outerMat);
+      vesselMesh.position.set(center.x, center.y, center.z);
+      scene.add(vesselMesh);
     }
-    const outerMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.2, metalness: 0.5, transparent: true, opacity: 0.08, side: THREE.DoubleSide, wireframe: true });
-    const vesselMesh = new THREE.Mesh(outerGeo, outerMat);
-    vesselMesh.position.set(center.x, center.y, center.z);
-    scene.add(vesselMesh);
+
+    // Surface B-Rep tessellée par Open CASCADE et publiée au format GLB.
+    // La colorisation est appliquée uniquement si les points du champ recouvrent
+    // spatialement la surface ; sinon la surface reste neutre et la colorbar est
+    // explicitement signalée comme non alignée.
+    let cadRoot: THREE.Object3D | null = null;
+    let cadFieldAligned = false;
+    let disposed = false;
+    if (geometryAssetUrl) {
+      setCadSurfaceStatus("loading");
+      const loader = new GLTFLoader();
+      loader.load(
+        geometryAssetUrl,
+        (gltf) => {
+          if (disposed) return;
+          cadRoot = gltf.scene;
+          // Le STEP du manifold est exporté avec son axe principal sur Z ;
+          // le contrat de champ du cas Heavy-Duty utilise X comme axe de débit.
+          // La rotation est géométrique uniquement et ne modifie aucune valeur physique.
+          if (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") {
+            cadRoot.rotation.y = Math.PI / 2;
+          }
+          const box = new THREE.Box3().setFromObject(cadRoot);
+          const cadCenter = box.getCenter(new THREE.Vector3());
+          const cadSize = box.getSize(new THREE.Vector3());
+          const targetSize = new THREE.Vector3(spanX, spanY, spanZ);
+          const scale = Math.min(
+            targetSize.x / Math.max(cadSize.x, Number.EPSILON),
+            targetSize.y / Math.max(cadSize.y, Number.EPSILON),
+            targetSize.z / Math.max(cadSize.z, Number.EPSILON),
+          );
+          cadRoot.position.sub(cadCenter).multiplyScalar(scale);
+          cadRoot.position.add(new THREE.Vector3(center.x, center.y, center.z));
+          cadRoot.scale.setScalar(scale);
+          const fieldSamples = volumetricData.filter((point) => {
+            const value = point[activeVariable];
+            return typeof value === "number" && Number.isFinite(value);
+          }).slice(0, 4096);
+          const fieldBox = fieldSamples.length ? new THREE.Box3().setFromPoints(fieldSamples.map((point) => new THREE.Vector3(point.x, point.y, point.z))) : null;
+          const overlap = fieldBox && fieldBox.intersectsBox(new THREE.Box3().setFromObject(cadRoot));
+          cadFieldAligned = Boolean(overlap && fieldSamples.length && stats.minV !== null && stats.maxV !== null);
+          cadRoot.traverse((object) => {
+            if (!(object instanceof THREE.Mesh)) return;
+            const mesh = object as THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>;
+            if (cadFieldAligned) {
+              const position = mesh.geometry.getAttribute("position");
+              const colors = new Float32Array(position.count * 3);
+              const local = new THREE.Vector3();
+              const world = new THREE.Vector3();
+              for (let i = 0; i < position.count; i += 1) {
+                local.fromBufferAttribute(position, i);
+                world.copy(local);
+                mesh.localToWorld(world);
+                let nearest = fieldSamples[0];
+                let nearestDistance = Infinity;
+                for (const sample of fieldSamples) {
+                  const distance = (sample.x - world.x) ** 2 + (sample.y - world.y) ** 2 + (sample.z - world.z) ** 2;
+                  if (distance < nearestDistance) { nearestDistance = distance; nearest = sample; }
+                }
+                const value = nearest[activeVariable];
+                const mapped = typeof value === "number" && Number.isFinite(value)
+                  ? getColorFromScale(value, stats.minV, stats.maxV, colorScale)
+                  : new THREE.Color("#64748b");
+                colors[i * 3] = mapped.r;
+                colors[i * 3 + 1] = mapped.g;
+                colors[i * 3 + 2] = mapped.b;
+              }
+              mesh.geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+              mesh.geometry.attributes.color.needsUpdate = true;
+              mesh.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.18, side: THREE.DoubleSide });
+            } else {
+              mesh.material = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.52, metalness: 0.22, side: THREE.DoubleSide, transparent: true, opacity: 0.92 });
+            }
+          });
+          scene.add(cadRoot);
+          setCadSurfaceStatus(cadFieldAligned ? "aligned" : "unaligned");
+        },
+        undefined,
+        () => setCadSurfaceStatus("error"),
+      );
+    } else {
+      setCadSurfaceStatus("absent");
+    }
 
     // Les points persistés peuvent être uniquement axiaux (cas de la capture).
     // On construit alors une enveloppe cylindrique pleine, mais chaque sommet
     // reçoit uniquement une valeur issue du champ persisté le long de x : ce
     // rendu est explicitement une interpolation axiale, jamais une mesure inventée.
     let solidFieldMesh: THREE.Mesh | null = null;
-    if (meta.shape === "cylinder_horizontal" && stats.fieldCount > 0) {
+    if (!geometryAssetUrl && meta.shape === "cylinder_horizontal" && stats.fieldCount > 0) {
       const solidRadius = Math.max(displayGeometry.radius * radialVisualMultiplier, displayRadius, Number.EPSILON);
       const solidLength = Math.max(spanX, displayGeometry.length, Number.EPSILON);
       const axialSamples = [...volumetricData]
@@ -672,11 +773,12 @@ export default function Industrial3DVisualizerEnhancedV11({
       scene.add(solidFieldMesh);
     }
 
-    const voxelSize = Math.max(dataBounds.span / 120, Math.min(spanX, spanY, spanZ) / 32, Number.EPSILON);
+    const pointBounds = dataBounds ?? renderBounds;
+    const voxelSize = Math.max(pointBounds.span / 120, Math.min(spanX, spanY, spanZ) / 32, Number.EPSILON);
     const voxelGeo = new THREE.BoxGeometry(voxelSize, voxelSize, voxelSize);
     const voxelMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: false, opacity: 0.92 });
-    const cutLimit = dataBounds.min.x + cutPosition * (dataBounds.max.x - dataBounds.min.x);
-    const visiblePoints = volumetricData.filter((point) => point.x <= cutLimit);
+    const cutLimit = pointBounds.min.x + cutPosition * (pointBounds.max.x - pointBounds.min.x);
+    const visiblePoints = geometryAssetUrl ? [] : volumetricData.filter((point) => point.x <= cutLimit);
     const instancedMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, visiblePoints.length);
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
@@ -692,7 +794,7 @@ export default function Industrial3DVisualizerEnhancedV11({
     });
     instancedMesh.instanceMatrix.needsUpdate = true;
     if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
-    scene.add(instancedMesh);
+    if (visiblePoints.length) scene.add(instancedMesh);
 
     // Les mesures expérimentales sont superposées avec un marqueur distinct.
     let measuredPoints: THREE.Points | null = null;
@@ -754,13 +856,14 @@ export default function Industrial3DVisualizerEnhancedV11({
     animate();
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(animationFrameId);
       controls.dispose();
       renderer.dispose();
       voxelGeo.dispose();
       voxelMat.dispose();
-      outerGeo.dispose();
-      outerMat.dispose();
+      outerGeo?.dispose();
+      outerMat?.dispose();
       solidFieldMesh?.geometry.dispose();
       (solidFieldMesh?.material as THREE.Material | undefined)?.dispose();
       measuredPoints?.geometry.dispose();
@@ -769,6 +872,13 @@ export default function Industrial3DVisualizerEnhancedV11({
       (meshLines?.material as THREE.Material | undefined)?.dispose();
       leakMesh?.geometry.dispose();
       (leakMesh?.material as THREE.Material | undefined)?.dispose();
+      cadRoot?.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        object.geometry.dispose();
+        const material = object.material;
+        if (Array.isArray(material)) material.forEach((item) => item.dispose());
+        else material.dispose();
+      });
     };
   }, [
     isMounted,
@@ -782,6 +892,7 @@ export default function Industrial3DVisualizerEnhancedV11({
     stats,
     displayGeometry,
     metadata,
+    geometryAssetUrl,
     getColorFromScale,
   ]);
 
@@ -944,7 +1055,7 @@ export default function Industrial3DVisualizerEnhancedV11({
                 )}
                 <div className="pointer-events-none absolute left-3 bottom-3 rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-[9px] font-mono text-gray-300">
                   <div className="text-cyan-400 font-bold mb-1">{typeof metadata?.geometry?.component_type === "string" ? metadata.geometry.component_type : geometryMeta.description}</div>
-                  <div className="text-emerald-300 text-[8px] uppercase tracking-wide mb-1">{fieldRenderingLabel}{scenarioType === "LH2_INFRASTRUCTURE_INTEGRITY" ? ` — échelle radiale visuelle ×${radialVisualMultiplier}` : ""}</div>
+                  <div className="text-emerald-300 text-[8px] uppercase tracking-wide mb-1">{geometryAssetUrl ? `Surface B-Rep CAO GLB — ${cadSurfaceStatus === "aligned" ? "champ aligné" : cadSurfaceStatus === "unaligned" ? "surface neutre : champ non recouvrant" : cadSurfaceStatus === "error" ? "erreur de chargement" : "chargement"}` : fieldRenderingLabel}{scenarioType === "LH2_INFRASTRUCTURE_INTEGRITY" ? ` — échelle radiale visuelle ×${radialVisualMultiplier}` : ""}</div>
                   <div className="text-amber-300 text-[8px] uppercase tracking-wide mb-1">{meshReady ? `Maillage CAO fourni${refinementReady ? " — raffinement fuite fourni" : " — raffinement non fourni"}` : "Maillage CAO: REQUIRED_INPUT"}</div>
                   <div className="grid grid-cols-3 gap-x-3 text-[8px] text-gray-400">
                     <span>X: {dataBounds ? `${dataBounds.min.x.toPrecision(4)}…${dataBounds.max.x.toPrecision(4)} m` : "—"}</span>
@@ -965,6 +1076,16 @@ export default function Industrial3DVisualizerEnhancedV11({
                   style={{ backgroundImage: colorScaleGradient }}
                   aria-label="Échelle thermique"
                 />
+                {stats.isConstant && stats.minV !== null && (
+                  <div className="w-full rounded-lg border border-amber-400/30 bg-amber-950/30 px-2 py-1 text-center text-[8px] font-mono text-amber-200">
+                    Champ constant : valeur rendue au milieu de la palette
+                  </div>
+                )}
+                {geometryAssetUrl && cadSurfaceStatus === "unaligned" && (
+                  <div className="w-full rounded-lg border border-amber-400/30 bg-amber-950/30 px-2 py-1 text-center text-[8px] font-mono text-amber-200">
+                    Colorbar du champ persisté ; coloration B-Rep bloquée faute de recouvrement spatial
+                  </div>
+                )}
                 <div className="flex flex-col justify-between h-20 text-[9px] font-mono text-gray-400 text-right w-full pr-1">
                   <span>{formatScalar(stats.maxV)}</span>
                   <span>{stats.minV !== null && stats.maxV !== null ? formatScalar((stats.maxV + stats.minV) / 2) : "REQUIRED_INPUT"}</span>

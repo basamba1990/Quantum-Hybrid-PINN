@@ -14,6 +14,7 @@ import { HybridSimulationPanel } from "@/components/HybridSimulationPanel"
 import { createClient } from '@/lib/supabase/client'
 import { fr } from 'date-fns/locale'
 import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
+import { getScenarioCadAssetUrl } from '@/lib/cad-assets'
 
 const Industrial3DVisualizerEnhancedV11 = dynamic(
   () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
@@ -91,6 +92,7 @@ export default function SimulationsPage() {
     selectedAnalysis?.results,
     selectedAnalysis?.analysisResult,
   ]), [selectedProject, selectedAnalysis])
+  const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType as any)
 
   if (loading) return <div className="p-20 text-center animate-pulse text-blue-500 font-mono">CHARGEMENT DES SYSTÈMES...</div>
 
@@ -132,7 +134,8 @@ export default function SimulationsPage() {
                   data={predictions3d}
                   experimentalData={experimentalData}
                   metadata={visualizationPayload.metadata}
-                  scenarioType={scenarioType}
+                  scenarioType={scenarioType as any}
+                  geometryAssetUrl={geometryAssetUrl}
                   title={selectedProject?.name}
                 />
               </div>

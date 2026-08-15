@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ScientificValidationWorkspace from '@/components/scientific-validation-workspace'
 import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
 import { getScenarioDisplayName, normalizeScenarioType } from '@/types/simulation-scenarios'
+import { getScenarioCadAssetUrl } from '@/lib/cad-assets'
 
 const Industrial3DVisualizerEnhancedV11 = nextDynamic(
   () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
@@ -185,6 +186,8 @@ export default function ProjectDetailClient({ id, project }: any) {
     project?.scenario_type || project?.category || project?.name,
   )
 
+  const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType)
+
   const handleDeleteProject = async () => {
     if (!window.confirm(`Supprimer définitivement le projet « ${project?.name || 'sans nom'} » et ses résultats associés ?`)) return
     setDeleting(true)
@@ -267,6 +270,7 @@ export default function ProjectDetailClient({ id, project }: any) {
                       title={projectDisplayName || latestAnalysis?.name || "LH2_INFRASTRUCTURE_INTEGRITY"}
                       colorVariable="temperature"
                       scenarioType={scenarioType}
+                      geometryAssetUrl={geometryAssetUrl}
                       metrics={visualizationMetrics}
                     />
                   </div>
