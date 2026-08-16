@@ -42,23 +42,26 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
     )
   }
 
-  if (!data || data.status === 'SKIPPED' || !data.operating_point) {
+  // Support direct data or nested under sweet_spot_analysis
+  const actualData = data?.sweet_spot_analysis || data;
+
+  if (!actualData || actualData.status === 'SKIPPED' || (!actualData.operating_point && !actualData.operatingPoint)) {
     return <UnavailablePanel />
   }
 
-  const op = data.operating_point
-  const tp = data.thermodynamic_properties ?? {}
-  const sa = data.stability_assessment ?? {}
+  const op = actualData.operating_point || actualData.operatingPoint || {}
+  const tp = actualData.thermodynamic_properties || actualData.thermodynamicProperties || {}
+  const sa = actualData.stability_assessment || actualData.stabilityAssessment || {}
   const pp = data.pipeline_profile
   const pa = pp?.pipeline_analysis
   const hasCoreThermodynamics = [
-    op.pressure_MPa,
-    op.pressure_bar,
-    op.temperature_K,
-    op.temperature_C,
-    tp.compressibility_factor_Z,
-    tp.mach_number,
-    tp.density_kg_m3,
+    op.pressure_MPa ?? op.pressureMPa,
+    op.pressure_bar ?? op.pressureBar,
+    op.temperature_K ?? op.temperatureK,
+    op.temperature_C ?? op.temperatureC,
+    tp.compressibility_factor_Z ?? tp.compressibilityFactorZ ?? tp.Z,
+    tp.mach_number ?? tp.machNumber ?? tp.mach,
+    tp.density_kg_m3 ?? tp.densityKgM3 ?? tp.density,
   ].every(isFiniteNumber)
 
   if (!hasCoreThermodynamics) {
@@ -123,33 +126,33 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
         <MetricCard 
           icon={<Gauge className="w-4 h-4 text-blue-400" />}
           label="Pression"
-          value={op.pressure_MPa.toFixed(2)}
+          value={(op.pressure_MPa ?? op.pressureMPa).toFixed(2)}
           unit="MPa"
-          sub={`${op.pressure_bar.toFixed(0)} bar`}
+          sub={`${(op.pressure_bar ?? op.pressureBar).toFixed(0)} bar`}
           color="blue"
         />
         <MetricCard 
           icon={<Thermometer className="w-4 h-4 text-red-400" />}
           label="Température"
-          value={op.temperature_K.toFixed(1)}
+          value={(op.temperature_K ?? op.temperatureK).toFixed(1)}
           unit="K"
-          sub={`${op.temperature_C.toFixed(1)} °C`}
+          sub={`${(op.temperature_C ?? op.temperatureC).toFixed(1)} °C`}
           color="red"
         />
         <MetricCard 
           icon={<Droplets className="w-4 h-4 text-purple-400" />}
           label="Facteur Z"
-          value={tp.compressibility_factor_Z.toFixed(4)}
+          value={(tp.compressibility_factor_Z ?? tp.compressibilityFactorZ ?? tp.Z).toFixed(4)}
           unit=""
-          sub={`${data.fluid_name || 'H2'} - ${data.fluid_type || 'Gas'}`}
+          sub={`${actualData.fluid_name || actualData.fluidName || 'H2'} - ${actualData.fluid_type || actualData.fluidType || 'Gas'}`}
           color="purple"
         />
         <MetricCard 
           icon={<Wind className="w-4 h-4 text-cyan-400" />}
           label="Mach"
-          value={tp.mach_number.toFixed(4)}
+          value={(tp.mach_number ?? tp.machNumber ?? tp.mach).toFixed(4)}
           unit=""
-          sub={tp.flow_regime || 'Laminar'}
+          sub={tp.flow_regime || tp.flowRegime || 'Laminar'}
           color="cyan"
         />
       </div>
@@ -184,11 +187,11 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
             <Shield className="w-4 h-4 text-blue-400" /> Classification d'État
           </h4>
           <div className="space-y-3">
-            <StateItem label="État" value={sa.state_classification?.state || 'Supercritical'} />
-            <StateItem label="P/Pc (ratio)" value={`${sa.state_classification?.P_Pc_ratio?.toFixed(2) || '0.00'}x`} color="text-blue-400" />
-            <StateItem label="T/Tc (ratio)" value={`${sa.state_classification?.T_Tc_ratio?.toFixed(2) || '0.00'}x`} color="text-red-400" />
-            <StateItem label="Densité" value={`${tp.density_kg_m3.toFixed(2)} kg/m³`} color="text-purple-400" />
-            <StateItem label="Déviation Gaz Idéal" value={`${(tp.deviation_from_ideal?.deviation * 100).toFixed(2)}%`} color="text-amber-400" />
+            <StateItem label="État" value={sa.state_classification?.state || sa.stateClassification?.state || 'Supercritical'} />
+            <StateItem label="P/Pc (ratio)" value={`${(sa.state_classification?.P_Pc_ratio ?? sa.stateClassification?.p_pc_ratio ?? 0).toFixed(2)}x`} color="text-blue-400" />
+            <StateItem label="T/Tc (ratio)" value={`${(sa.state_classification?.T_Tc_ratio ?? sa.stateClassification?.t_tc_ratio ?? 0).toFixed(2)}x`} color="text-red-400" />
+            <StateItem label="Densité" value={`${(tp.density_kg_m3 ?? tp.densityKgM3 ?? tp.density ?? 0).toFixed(2)} kg/m³`} color="text-purple-400" />
+            <StateItem label="Déviation Gaz Idéal" value={`${((tp.deviation_from_ideal?.deviation ?? tp.deviationFromIdeal?.deviation ?? 0) * 100).toFixed(2)}%`} color="text-amber-400" />
           </div>
         </div>
         <div className="bg-black/40 border border-white/5 rounded-2xl p-6 space-y-4">
