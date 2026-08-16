@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #FFFFFF; color: #334155; }
+        .slide-container { width: 1280px; min-height: 720px; position: relative; display: flex; flex-direction: column; }
+        
+        .header { height: 100px; width: 100%; border-bottom: 2px solid #0F172A; display: flex; align-items: center; padding-left: 60px; }
+        .header h2 { font-family: 'Courier New', Courier, monospace; font-weight: 700; font-size: 32px; color: #0F172A; text-transform: uppercase; }
+        
+        .content { flex: 1; display: flex; width: 100%; }
+        
+        .column { flex: 1; padding-top: 60px; padding-left: 60px; padding-right: 40px; }
+        .column-left { border-right: 2px solid #0284C7; }
+        
+        .section-title { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0284C7; font-size: 22px; margin-bottom: 30px; text-transform: uppercase; }
+        
+        .conclusion-item { margin-bottom: 40px; }
+        .conclusion-heading { font-weight: 700; color: #0F172A; font-size: 20px; margin-bottom: 10px; display: flex; align-items: center; }
+        .conclusion-heading i { color: #0284C7; margin-right: 15px; font-size: 18px; }
+        .conclusion-desc { font-size: 18px; line-height: 1.5; padding-left: 33px; }
+        
+        .perspective-box { background: #F8FAFC; border-left: 4px solid #0284C7; padding: 20px; margin-bottom: 25px; }
+        .perspective-title { font-weight: 700; color: #0F172A; font-size: 18px; margin-bottom: 5px; }
+        .perspective-text { font-size: 16px; color: #334155; }
+        
+        .footer { height: 60px; border-top: 2px solid #0F172A; display: flex; align-items: center; justify-content: space-between; padding: 0 60px; font-family: 'Courier New', Courier, monospace; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Conclusion et Perspectives Industrielles</h2>
+        </div>
+        
+        <div class="content">
+            <div class="column column-left">
+                <p class="section-title">Bilan des Réalisations</p>
+                
+                <div class="conclusion-item">
+                    <p class="conclusion-heading"><i class="fas fa-check-circle"></i> Plateforme Truly-Operational</p>
+                    <p class="conclusion-desc">Développement d'un écosystème complet sans placeholders, alliant CAO B-Rep et IA Physique.</p>
+                </div>
+                
+                <div class="conclusion-item">
+                    <p class="conclusion-heading"><i class="fas fa-check-circle"></i> Rigueur Scientifique G0-G5</p>
+                    <p class="conclusion-desc">Validation systématique des résidus Autograd sous le seuil critique de 10⁻⁷.</p>
+                </div>
+                
+                <div class="conclusion-item">
+                    <p class="conclusion-heading"><i class="fas fa-check-circle"></i> Impact Ingénierie</p>
+                    <p class="conclusion-desc">Démonstration de la viabilité des PINNs pour le monitoring temps réel des infrastructures LH2.</p>
+                </div>
+            </div>
+            
+            <div class="column">
+                <p class="section-title">Perspectives de Recherche</p>
+                
+                <div class="perspective-box">
+                    <p class="perspective-title">01. Couplage Thermo-Mécanique</p>
+                    <p class="perspective-text">Étude approfondie de la fragilisation des matériaux par l'hydrogène sous contraintes cryogéniques.</p>
+                </div>
+                
+                <div class="perspective-box">
+                    <p class="perspective-title">02. Assimilation IoT & Edge-AI</p>
+                    <p class="perspective-text">Intégration de capteurs réels pour une recalibration dynamique du jumeau numérique en exploitation.</p>
+                </div>
+                
+                <div class="perspective-box">
+                    <p class="perspective-title">03. Généralisation Multi-Fluide</p>
+                    <p class="perspective-text">Extension du moteur PINN à l'ammoniac liquide et au CO2 supercritique pour la décarbonation globale.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <span>Samba Ba - Soutenance de Master</span>
+            <span>Slide 9 / 10</span>
+        </div>
+    </div>
+</body>
+</html>

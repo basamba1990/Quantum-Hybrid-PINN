@@ -1,0 +1,19 @@
+# Audit intermédiaire du Dashboard — 2026-08-15
+
+Le Dashboard en ligne affiche 28 projets et rend visibles les deux scénarios canoniques : `HEAVY_DUTY_HYDROGEN_REFUELING` et `LH2_LARGE_SCALE_STORAGE_1250M3`.
+
+La page Heavy-Duty accessible par `/dashboard/projects/59e46c9c-23af-49b3-9f87-d847d3b80c10` charge encore l'ancien libellé du visualiseur (`géométrie CAO persistée requise`) et n'affiche pas le nouveau libellé `Surface B-Rep CAO GLB`. Cela indique que le déploiement correspondant au commit `9fecee2` n'est pas encore actif au moment de l'audit, ou que Vercel sert encore la version précédente.
+
+Les données persistées de cette ligne affichent 4 096 points de température et un panneau de validation avec des métriques qui ne sont pas cohérentes avec l'évidence locale nouvellement validée ; elles ne doivent donc pas être utilisées pour conclure à une certification effective sans contrôle du contrat et des artefacts persistés.
+
+La suite de l'audit doit attendre le nouveau déploiement, puis vérifier le label GLB, l'état de chargement de la surface, la cohérence de la colorbar, et la page LH2 large-scale séparément.
+
+Après rechargement dur, les deux fichiers GLB et le manifeste sont servis par le domaine Vercel avec HTTP 200 et `model/gltf-binary`/JSON. Le canvas Three.js est présent, mais le texte accessible reste celui de l'ancien composant (`Ravitaillement poids lourds — géométrie CAO persistée requise`, `Volume plein + maillage CAO`). Le bundle de la page n'intègre donc pas encore le mapping `Surface B-Rep CAO GLB`, malgré la présence des assets statiques. Il faut vérifier l'état du déploiement Vercel ou la provenance du projet Vercel avant de conclure à l'audit final.
+
+Après le second déploiement, la page Heavy-Duty affiche bien `Manifold DN50 B-Rep — surface GLB issue d'Open CASCADE` et `Surface B-Rep CAO GLB — champ aligné`. Le canvas Three.js est présent, sans erreur console observée. La colorbar montre les bornes persistées 279.002–260.20–241.40 K et le champ est explicitement déclaré aligné. La validation affichée par le panneau reste toutefois distincte de la preuve locale : l'interface indique G0–G5 complète mais expose des résidus très élevés (`5.155e+0`, `9.969e+0`, `1.358e+7`), ce qui impose de ne pas confondre le rendu CAO réussi avec une nouvelle exécution PINN valide.
+
+La page `LH2_LARGE_SCALE_STORAGE_1250M3` ne déclenche plus d'Application Error. Elle rend la sphère B-Rep GLB et les 288 points de température. Au moment de cet audit, le bundle actif affichait encore `champ aligné`; cette valeur est incorrecte pour le champ constaté (`X=0…0`, `Y=-0.25…0.25`, `Z=0.01087…0.25`) face à une sphère de 13.46 m. Le correctif `5985b9e` ajoute un verrou de couverture par axe (minimum 60 %) et doit faire passer la surface en mode neutre avec avertissement colorbar après son déploiement.
+
+Après propagation de `5985b9e`, la page LH2 affiche désormais `Surface B-Rep CAO GLB — surface neutre : champ non recouvrant` et `Colorbar du champ persisté ; coloration B-Rep bloquée faute de recouvrement spatial`. La page ne déclenche pas d'Application Error. Le statut scientifique reste correctement `PRÊT À CALCULER`, avec quatre verrous G0–G5 et des résidus `N/D`; le score 95/100 n'est pas interprété comme une certification. C'est le comportement conforme à l'exigence zéro placeholder : la sphère réelle est visible, mais aucune couleur de champ n'est appliquée sans couverture spatiale démontrée.
+
+La capture finale du canvas confirme visuellement une sphère pleine, continue et neutre issue du GLB Open CASCADE, sans nuage voxel. La colorbar conserve les trois valeurs réellement persistées (0.18439, 0.13186, 0.079322) et affiche l'avertissement de non-recouvrement spatial. Le maillage volumique reste `REQUIRED_INPUT`, ce qui est cohérent avec le panneau G0–G5 `PRÊT À CALCULER`.

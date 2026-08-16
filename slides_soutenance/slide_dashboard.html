@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #FFFFFF; color: #334155; }
+        .slide-container { width: 1280px; min-height: 720px; position: relative; display: flex; flex-direction: column; }
+        
+        .header { height: 100px; width: 100%; border-bottom: 2px solid #0F172A; display: flex; align-items: center; padding-left: 60px; }
+        .header h2 { font-family: 'Courier New', Courier, monospace; font-weight: 700; font-size: 32px; color: #0F172A; text-transform: uppercase; }
+        
+        .content { flex: 1; display: flex; width: 100%; }
+        
+        .column { flex: 1; padding-top: 60px; padding-left: 60px; padding-right: 40px; }
+        .column-left { border-right: 2px solid #0284C7; }
+        
+        .section-title { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0284C7; font-size: 22px; margin-bottom: 30px; text-transform: uppercase; }
+        
+        .feature-item { margin-bottom: 45px; display: flex; align-items: flex-start; }
+        .icon-box { width: 50px; height: 50px; border: 2px solid #0284C7; display: flex; align-items: center; justify-content: center; color: #0284C7; font-size: 20px; margin-right: 20px; flex-shrink: 0; }
+        .feature-text { flex: 1; }
+        .feature-heading { font-weight: 700; color: #0F172A; font-size: 20px; margin-bottom: 8px; }
+        .feature-desc { font-size: 18px; line-height: 1.5; }
+        
+        .highlight-box { background: #F8FAFC; border-top: 2px solid #0F172A; padding-top: 20px; margin-top: 20px; }
+        .accent-text { color: #0284C7; font-weight: 700; }
+        
+        .footer { height: 60px; border-top: 2px solid #0F172A; display: flex; align-items: center; justify-content: space-between; padding: 0 60px; font-family: 'Courier New', Courier, monospace; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Plateforme Truly-Operational et Dashboard Vercel</h2>
+        </div>
+        
+        <div class="content">
+            <div class="column column-left">
+                <p class="section-title">Interface de Visualisation Avancée</p>
+                
+                <div class="feature-item">
+                    <div class="icon-box"><i class="fas fa-desktop"></i></div>
+                    <div class="feature-text">
+                        <p class="feature-heading">Dashboard Scientifique Interactif</p>
+                        <p class="feature-desc">Déploiement sur <span class="accent-text">Vercel</span> offrant une interface temps réel pour le suivi des simulations et de la certification G0-G5.</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="icon-box"><i class="fas fa-cube"></i></div>
+                    <div class="feature-text">
+                        <p class="feature-heading">Moteur de Rendu B-Rep V11</p>
+                        <p class="feature-desc">Visualisation 3D native des surfaces CAO via <span class="accent-text">Three.js</span>, synchronisée avec les champs physiques PINN.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="column">
+                <p class="section-title">Certification et Exportation</p>
+                
+                <div class="feature-item">
+                    <div class="icon-box"><i class="fas fa-file-export"></i></div>
+                    <div class="feature-text">
+                        <p class="feature-heading">Outils d'Exportation Certifiés</p>
+                        <p class="feature-desc">Génération de graphiques académiques en <span class="accent-text">300 DPI</span> (PNG/PDF) et exports de données brutes (CSV/STL).</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <div class="icon-box"><i class="fas fa-shield-check"></i></div>
+                    <div class="feature-text">
+                        <p class="feature-heading">Traçabilité G0-G5 en Direct</p>
+                        <p class="feature-desc">Panneau de contrôle affichant les <span class="accent-text">résidus Autograd</span> et les scores de crédibilité physique sans aucun placeholder.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <span>Samba Ba - Soutenance de Master</span>
+            <span>Slide 8 / 10</span>
+        </div>
+    </div>
+</body>
+</html>

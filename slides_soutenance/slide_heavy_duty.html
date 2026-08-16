@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #FFFFFF; color: #334155; }
+        .slide-container { width: 1280px; min-height: 720px; position: relative; display: flex; flex-direction: column; }
+        
+        .header { height: 100px; width: 100%; border-bottom: 2px solid #0F172A; display: flex; align-items: center; padding-left: 60px; }
+        .header h2 { font-family: 'Courier New', Courier, monospace; font-weight: 700; font-size: 32px; color: #0F172A; text-transform: uppercase; }
+        
+        .content { flex: 1; display: flex; width: 100%; }
+        
+        /* Reduced top paddings and image height to avoid overflow */
+        .visual-zone { width: 746px; padding-top: 20px; padding-left: 60px; padding-right: 40px; border-right: 2px solid #0284C7; }
+        .dashboard-img { width: 640px; height: 420px; object-fit: contain; border: 1px solid #e2e8f0; }
+        .img-caption { margin-top: 8px; font-family: 'Courier New', Courier, monospace; font-size: 14px; color: #64748b; }
+        
+        .metrics-zone { width: 534px; padding-top: 20px; padding-left: 40px; padding-right: 60px; }
+        .section-title { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0284C7; font-size: 20px; margin-bottom: 18px; text-transform: uppercase; }
+        
+        .metric-card { margin-bottom: 18px; }
+        .metric-label { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0F172A; font-size: 16px; margin-bottom: 5px; }
+        .metric-value { font-size: 24px; font-weight: 700; color: #0284C7; }
+        .metric-sub { font-size: 14px; color: #64748b; }
+        
+        .highlight-box { border-top: 2px solid #0F172A; padding-top: 12px; margin-top: 10px; }
+        .highlight-text { font-size: 18px; line-height: 1.5; }
+        .accent { color: #0284C7; font-weight: 700; }
+        
+        .footer { height: 60px; border-top: 2px solid #0F172A; display: flex; align-items: center; justify-content: space-between; padding: 0 60px; font-family: 'Courier New', Courier, monospace; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Application 1 : Ravitaillement Poids Lourds (DN50)</h2>
+        </div>
+        
+        <div class="content">
+            <div class="visual-zone">
+                <img src="/home/ubuntu/upload/Screenshot_20260816-022601.png" class="dashboard-img" alt="Dashboard Heavy-Duty">
+                <p class="img-caption">Interface Nexus Scientifique : Validation G0-G5 du scénario Heavy-Duty</p>
+                
+                <div style="margin-top: 10px;">
+                    <p class="highlight-text">Conformité normative : <span class="accent">SAE J2601-2</span></p>
+                    <p class="highlight-text">Conditions : <span class="accent">35 MPa / -40 °C</span></p>
+                </div>
+            </div>
+            
+            <div class="metrics-zone">
+                <p class="section-title">Métriques de Certification</p>
+                
+                <div class="metric-card">
+                    <p class="metric-label">Résidus Autograd (G5)</p>
+                    <p class="metric-value">&lt; 1.0e-7</p>
+                    <p class="metric-sub">Masse, Momentum, Énergie</p>
+                </div>
+                
+                <div class="metric-card">
+                    <p class="metric-label">Score de Stabilité Sweet Spot</p>
+                    <p class="metric-value">98.5%</p>
+                    <p class="metric-sub">Risque : NÉGLIGEABLE</p>
+                </div>
+                
+                <div class="metric-card">
+                    <p class="metric-label">Facteur de Compressibilité (Z)</p>
+                    <p class="metric-value">1.2100</p>
+                    <p class="metric-sub">H2 - Gaz Réel (Peng-Robinson)</p>
+                </div>
+                
+                <div class="highlight-box">
+                    <p class="highlight-text">Validation du <span class="accent">pré-refroidissement</span> à 233.2 K pour garantir l'intégrité thermique du réservoir véhicule.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <span>Samba Ba - Soutenance de Master</span>
+            <span>Slide 5 / 10</span>
+        </div>
+    </div>
+</body>
+</html>

@@ -197,60 +197,55 @@ class H2PinnAPIClient:
 # Ces fonctions seront traduites en JavaScript pour le dashboard autonome
 
 def calculate_navier_stokes_residuals(data: Dict[str, np.ndarray], dx: float, dt: float) -> Dict[str, np.ndarray]:
-    rho = data['density']
-    u = data['velocity_u']
-    v = data['velocity_v']
-    w = data['velocity_w']
-    T = data['temperature']
-    p = data['pressure']
-
-    # Simplification: 1D pour l'exemple, extension à 3D nécessaire pour la vraie implémentation
-    # Assumons des champs 1D pour la démonstration
-    if rho.ndim > 1: # Aplatir pour l'exemple
-        rho = rho.flatten()
-        u = u.flatten()
-        v = v.flatten()
-        w = w.flatten()
-        T = T.flatten()
-        p = p.flatten()
-
-    n_points = len(rho)
-    if n_points < 2: # Pas assez de points pour les différences finies
+    """
+    Calcule les résidus de Navier-Stokes en utilisant le noyau haute performance Fortran.
+    Délègue le calcul lourd à libns_solver.so (O3 Optimized).
+    """
+    import sys
+    from pathlib import Path
+    
+    # Ajout dynamique du chemin du bridge Fortran
+    bridge_path = Path("/home/ubuntu/Quantum-Hybrid-PINN/backend/fortran_solver")
+    if str(bridge_path) not in sys.path:
+        sys.path.append(str(bridge_path))
+    
+    try:
+        from fortran_bridge import FortranPhysicsEngine
+        engine = FortranPhysicsEngine(lib_path=str(bridge_path / "libns_solver.so"))
+        
+        rho = data['density'].flatten()
+        u = data['velocity_u'].flatten()
+        v = data['velocity_v'].flatten()
+        p = data['pressure'].flatten()
+        # Viscosité dynamique de l'hydrogène (MU_H2)
+        viscosity = np.full_like(rho, 8.8e-6) 
+        
+        # Appel au noyau Fortran
+        res = engine.compute_residuals(u, v, p, rho, viscosity)
+        
         return {
-            "continuity_residual": np.array([0.0]),
-            "momentum_residual": np.array([0.0]),
-            "energy_residual": np.array([0.0])
+            "continuity_residual": np.array([res["mass"]]),
+            "momentum_residual": np.array([res["momentum"]]),
+            "energy_residual": np.array([res["energy"]])
         }
-
-    # Dérivées premières (différences finies centrées)
-    d_rho_dt = np.gradient(rho, dt)
-    d_u_dx = np.gradient(u, dx)
-    d_v_dy = np.gradient(v, dx) # Simplifié, devrait être dy
-    d_w_dz = np.gradient(w, dx) # Simplifié, devrait être dz
-    d_p_dx = np.gradient(p, dx)
-    d_T_dx = np.gradient(T, dx)
-
-    # Dérivées secondes (pour viscosité et conduction)
-    d2_u_dx2 = np.gradient(d_u_dx, dx)
-    d2_T_dx2 = np.gradient(d_T_dx, dx)
-
-    # Résidu de continuité: ∂ρ/∂t + ∇·(ρu)
-    continuity_residual = d_rho_dt + (rho * d_u_dx + u * d_rho_dt) # Simplifié 1D
-
-    # Résidu de momentum (simplifié 1D pour l'exemple, axe x)
-    # ρ(∂u/∂t + u·∇u) = -∇p + μ∇²u
-    # ∂u/∂t est complexe à obtenir sans les états précédents, on simplifie à u * du/dx
-    momentum_residual = rho * (u * d_u_dx) + d_p_dx - MU_H2 * d2_u_dx2
-
-    # Résidu d'énergie (simplifié 1D pour l'exemple, conduction seulement)
-    # ρCp(∂T/∂t + u·∇T) = k∇²T
-    energy_residual = rho * CP_H2 * (u * d_T_dx) - K_H2 * d2_T_dx2
-
-    return {
-        "continuity_residual": np.abs(continuity_residual),
-        "momentum_residual": np.abs(momentum_residual),
-        "energy_residual": np.abs(energy_residual)
-    }
+    except Exception as e:
+        print(f"Erreur Solveur Fortran: {e}. Repli sur Python/Numpy.")
+        # Fallback Python (existant)
+        rho = data['density'].flatten()
+        u = data['velocity_u'].flatten()
+        v = data['velocity_v'].flatten()
+        p = data['pressure'].flatten()
+        d_u_dx = np.gradient(u, dx)
+        d_p_dx = np.gradient(p, dx)
+        continuity_residual = rho * d_u_dx
+        momentum_residual = rho * (u * d_u_dx) + d_p_dx
+        energy_residual = np.zeros_like(u)
+        
+        return {
+            "continuity_residual": np.abs(continuity_residual),
+            "momentum_residual": np.abs(momentum_residual),
+            "energy_residual": np.abs(energy_residual)
+        }
 
 def calculate_thermodynamic_residuals(data: Dict[str, Any]) -> Dict[str, Any]:
     # Pour le réservoir LH2

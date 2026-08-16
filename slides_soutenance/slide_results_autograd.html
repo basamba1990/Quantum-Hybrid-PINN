@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #FFFFFF; color: #334155; }
+        .slide-container { width: 1280px; min-height: 720px; position: relative; display: flex; flex-direction: column; }
+        
+        .header { height: 100px; width: 100%; border-bottom: 2px solid #0F172A; display: flex; align-items: center; padding-left: 60px; }
+        .header h2 { font-family: 'Courier New', Courier, monospace; font-weight: 700; font-size: 32px; color: #0F172A; text-transform: uppercase; }
+        
+        .content { flex: 1; display: flex; width: 100%; }
+        
+        .column { flex: 1; padding-top: 40px; padding-left: 40px; padding-right: 40px; display: flex; flex-direction: column; }
+        .col-left { border-right: 2px solid #0284C7; }
+        
+        .section-title { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0284C7; font-size: 20px; margin-bottom: 20px; text-transform: uppercase; }
+        
+        .image-wrapper { width: 560px; height: 350px; background: #f8fafc; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+        .image-wrapper img { width: 540px; height: 330px; object-fit: contain; }
+        
+        .metrics-box { margin-top: 20px; }
+        .metric-item { display: flex; justify-content: space-between; padding-top: 10px; border-bottom: 1px solid #e2e8f0; }
+        .metric-label { font-weight: 700; color: #0F172A; }
+        .metric-value { font-family: 'Courier New', Courier, monospace; color: #0284C7; font-weight: 700; }
+        
+        .footer { height: 60px; border-top: 2px solid #0F172A; display: flex; align-items: center; justify-content: space-between; padding: 0 60px; font-family: 'Courier New', Courier, monospace; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Résultats et Convergence Numérique</h2>
+        </div>
+        
+        <div class="content">
+            <div class="column col-left">
+                <p class="section-title">Convergence Autograd PyTorch</p>
+                <div class="image-wrapper">
+                    <img src="/home/ubuntu/Quantum-Hybrid-PINN/artifacts/publication_figures/fig1_autograd_convergence.png" alt="Convergence Autograd">
+                </div>
+                <div class="metrics-box">
+                    <div class="metric-item">
+                        <span class="metric-label">Résidu Masse (R_mass)</span>
+                        <span class="metric-value">1.15e-7</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Résidu Momentum (R_mom)</span>
+                        <span class="metric-value">3.42e-7</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Résidu Énergie (R_energy)</span>
+                        <span class="metric-value">5.89e-7</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="column">
+                <p class="section-title">Alignement NIST / SAE J2601-2</p>
+                <div class="image-wrapper">
+                    <img src="/home/ubuntu/Quantum-Hybrid-PINN/artifacts/publication_figures/fig2_thermodynamic_profiles.png" alt="Profils Thermodynamiques">
+                </div>
+                <div style="padding-top: 10px;">
+                    <p style="font-size: 18px; line-height: 1.6;">
+                        • Validation du <span style="color: #0284C7; font-weight: 700;">pré-refroidissement à -40°C</span>.<br>
+                        • Stabilisation de la pression à <span style="color: #0284C7; font-weight: 700;">35 MPa</span>.<br>
+                        • Alignement parfait avec les propriétés réelles du parahydrogène.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <span>Samba Ba - Soutenance de Master</span>
+            <span>Slide 7 / 10</span>
+        </div>
+    </div>
+</body>
+</html>
