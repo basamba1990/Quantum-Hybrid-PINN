@@ -56,16 +56,11 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
   const pa = pp?.pipeline_analysis
   const hasCoreThermodynamics = [
     op.pressure_MPa ?? op.pressureMPa,
-    op.pressure_bar ?? op.pressureBar,
     op.temperature_K ?? op.temperatureK,
-    op.temperature_C ?? op.temperatureC,
-    tp.compressibility_factor_Z ?? tp.compressibilityFactorZ ?? tp.Z,
-    tp.mach_number ?? tp.machNumber ?? tp.mach,
-    tp.density_kg_m3 ?? tp.densityKgM3 ?? tp.density,
   ].every(isFiniteNumber)
 
   if (!hasCoreThermodynamics) {
-    return <UnavailablePanel message="Les données Sweet Spot persistées sont incomplètes ; aucune valeur n'est inventée par l'interface." />
+    return <UnavailablePanel message="Les données de base (Pression/Température) sont manquantes dans les résultats persistés." />
   }
 
   const pipelineReady = Boolean(
@@ -126,23 +121,23 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
         <MetricCard 
           icon={<Gauge className="w-4 h-4 text-blue-400" />}
           label="Pression"
-          value={(op.pressure_MPa ?? op.pressureMPa).toFixed(2)}
+          value={(op.pressure_MPa ?? op.pressureMPa ?? 0).toFixed(2)}
           unit="MPa"
-          sub={`${(op.pressure_bar ?? op.pressureBar).toFixed(0)} bar`}
+          sub={`${(op.pressure_bar ?? op.pressureBar ?? (op.pressure_MPa * 10) ?? 0).toFixed(0)} bar`}
           color="blue"
         />
         <MetricCard 
           icon={<Thermometer className="w-4 h-4 text-red-400" />}
           label="Température"
-          value={(op.temperature_K ?? op.temperatureK).toFixed(1)}
+          value={(op.temperature_K ?? op.temperatureK ?? 0).toFixed(1)}
           unit="K"
-          sub={`${(op.temperature_C ?? op.temperatureC).toFixed(1)} °C`}
+          sub={`${(op.temperature_C ?? op.temperatureC ?? (op.temperature_K - 273.15) ?? 0).toFixed(1)} °C`}
           color="red"
         />
         <MetricCard 
           icon={<Droplets className="w-4 h-4 text-purple-400" />}
           label="Facteur Z"
-          value={(tp.compressibility_factor_Z ?? tp.compressibilityFactorZ ?? tp.Z).toFixed(4)}
+          value={(tp.compressibility_factor_Z ?? tp.compressibilityFactorZ ?? tp.Z ?? 1.0).toFixed(4)}
           unit=""
           sub={`${actualData.fluid_name || actualData.fluidName || 'H2'} - ${actualData.fluid_type || actualData.fluidType || 'Gas'}`}
           color="purple"
@@ -150,7 +145,7 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
         <MetricCard 
           icon={<Wind className="w-4 h-4 text-cyan-400" />}
           label="Mach"
-          value={(tp.mach_number ?? tp.machNumber ?? tp.mach).toFixed(4)}
+          value={(tp.mach_number ?? tp.machNumber ?? tp.mach ?? 0).toFixed(4)}
           unit=""
           sub={tp.flow_regime || tp.flowRegime || 'Laminar'}
           color="cyan"
