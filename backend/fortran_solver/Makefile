@@ -1,5 +1,5 @@
 FC = gfortran
-FFLAGS = -O3 -fPIC -shared
+FFLAGS = -O3 -fPIC -shared -fopenmp
 
 TARGET = libns_solver.so
 SRC = navier_stokes_kernel.f90

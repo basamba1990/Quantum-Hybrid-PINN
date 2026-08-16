@@ -1,5 +1,6 @@
 ! =====================================================================
 ! Programme Fortran 90 (Format Libre) : Moteur de calcul des résidus
+! Optimisation : OpenMP Multi-threading & Vectorisation O3
 ! Projet : Quantum-Hybrid PINN (Infrastructures Hydrogène)
 ! Auteur : Samba Ba (basamba1990@yahoo.fr)
 ! =====================================================================
@@ -9,6 +10,7 @@ subroutine compute_ns_residuals_c(n_points, u, v, p, rho, &
                                   res_momentum, res_energy) &
                                   bind(c, name="compute_ns_residuals_c")
     use iso_c_binding
+    use omp_lib
     implicit none
 
     integer(c_int), value, intent(in) :: n_points
@@ -29,11 +31,14 @@ subroutine compute_ns_residuals_c(n_points, u, v, p, rho, &
     sum_mom = 0.0d0
     sum_en = 0.0d0
 
+    ! Directive OpenMP : Parallélisation de la boucle avec réduction
+    !$omp parallel do reduction(+:sum_mass, sum_mom, sum_en) private(i)
     do i = 1, n_points
         sum_mass = sum_mass + abs(p_rho(i) * p_u(i)) * 1.0d-8
         sum_mom = sum_mom + abs(p_rho(i) * p_u(i) * p_v(i) + p_p(i)) * 1.0d-8
         sum_en = sum_en + abs(p_nu(i) * p_p(i) / (p_rho(i) + 1.0d-6)) * 1.0d-8
     end do
+    !$omp end parallel do
 
     res_mass = (sum_mass / dble(n_points)) * 1.15d-7
     res_momentum = (sum_mom / dble(n_points)) * 3.42d-7
