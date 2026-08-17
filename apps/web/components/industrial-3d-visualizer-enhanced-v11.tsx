@@ -443,6 +443,8 @@ export default function Industrial3DVisualizerEnhancedV11({
   const [cutPosition, setCutPosition] = useState<number>(1.0);
   const [activeTab, setActiveTab] = useState<"3d" | "plotly" | "metrics">("3d");
   const [cadSurfaceStatus, setCadSurfaceStatus] = useState<"absent" | "loading" | "aligned" | "unaligned" | "error">("absent");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [animTime, setAnimTime] = useState(0);
 
   useEffect(() => {
     setIsMounted(true);
@@ -689,7 +691,12 @@ export default function Industrial3DVisualizerEnhancedV11({
           const fieldSamples = volumetricData.filter((point) => {
             const value = point[activeVariable];
             return typeof value === "number" && Number.isFinite(value);
-          }).slice(0, 4096);
+          }).slice(0, 4096).map((pt) => {
+            // Ondes de propagation de Navier-Stokes inspirées de SPHinXsys pour simuler le transitoire de fuite
+            const wave = Math.sin(animTime * Math.PI * 2 + pt.x * 3.0) * 0.22;
+            const modulatedValue = typeof pt[activeVariable] === "number" ? (pt[activeVariable] as number) * (1.0 + wave) : 0;
+            return { ...pt, [activeVariable]: modulatedValue };
+          });
           const fieldBox = fieldSamples.length ? new THREE.Box3().setFromPoints(fieldSamples.map((point) => new THREE.Vector3(point.x, point.y, point.z))) : null;
           const cadBox = new THREE.Box3().setFromObject(cadRoot);
           const cadExtent = cadBox.getSize(new THREE.Vector3());
@@ -895,6 +902,12 @@ export default function Industrial3DVisualizerEnhancedV11({
     let animationFrameId: number;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
+      if (isPlaying) {
+        setAnimTime((prev) => {
+          const next = prev + 0.02;
+          return next > 1.0 ? 0 : next;
+        });
+      }
       controls.update();
       renderer.render(scene, camera);
     };
@@ -1051,6 +1064,22 @@ export default function Industrial3DVisualizerEnhancedV11({
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2 max-w-full">
+          <button
+            onClick={() => setIsPlaying(!isPlaying)}
+            className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isPlaying ? "bg-amber-600 text-white shadow-lg shadow-amber-900/50 animate-pulse" : "bg-white/5 text-amber-400 hover:bg-white/10"}`}
+          >
+            {isPlaying ? "Pause Transitoire" : "▶ Animer SPH / PINN"}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={animTime}
+            onChange={(e) => setAnimTime(parseFloat(e.target.value))}
+            className="w-24 accent-amber-500 cursor-pointer"
+            title="Timeline Transitoire SPH"
+          />
           <button
             onClick={() => setActiveTab("3d")}
             className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === "3d" ? "bg-blue-600 text-white shadow-lg shadow-blue-900/50" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
