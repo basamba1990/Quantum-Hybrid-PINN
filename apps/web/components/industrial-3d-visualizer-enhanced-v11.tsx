@@ -662,21 +662,27 @@ export default function Industrial3DVisualizerEnhancedV11({
         (gltf) => {
           if (disposed) return;
           cadRoot = gltf.scene;
+          const heavyDutyCase = scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING";
           // Le STEP du manifold est exporté avec son axe principal sur Z ;
           // le contrat de champ du cas Heavy-Duty utilise X comme axe de débit.
           // La rotation est géométrique uniquement et ne modifie aucune valeur physique.
-          if (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") {
+          if (heavyDutyCase) {
             cadRoot.rotation.y = Math.PI / 2;
           }
           const box = new THREE.Box3().setFromObject(cadRoot);
           const cadCenter = box.getCenter(new THREE.Vector3());
           const cadSize = box.getSize(new THREE.Vector3());
           const targetSize = new THREE.Vector3(spanX, spanY, spanZ);
-          const scale = Math.min(
-            targetSize.x / Math.max(cadSize.x, Number.EPSILON),
-            targetSize.y / Math.max(cadSize.y, Number.EPSILON),
-            targetSize.z / Math.max(cadSize.z, Number.EPSILON),
-          );
+          // L'export GLB DN50 contient des coordonnées en millimètres (~2525 mm),
+          // tandis que le contrat PINN et les bornes STEP sont exprimés en mètres.
+          // Cette conversion conserve la géométrie cylindrique réelle sans la déformer.
+          const scale = heavyDutyCase
+            ? 0.001
+            : Math.min(
+              targetSize.x / Math.max(cadSize.x, Number.EPSILON),
+              targetSize.y / Math.max(cadSize.y, Number.EPSILON),
+              targetSize.z / Math.max(cadSize.z, Number.EPSILON),
+            );
           cadRoot.position.sub(cadCenter).multiplyScalar(scale);
           cadRoot.position.add(new THREE.Vector3(center.x, center.y, center.z));
           cadRoot.scale.setScalar(scale);
@@ -700,8 +706,7 @@ export default function Industrial3DVisualizerEnhancedV11({
           // seulement une interpolation visuelle non démontrée.
           // Relaxation du seuil d'alignement pour les démonstrations de soutenance
           // Si le champ est une tranche (2D) ou très localisé, on autorise quand même la coloration
-          const isHeavyDuty = scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING";
-          const threshold = isHeavyDuty ? 0.01 : 0.6; 
+          const threshold = heavyDutyCase ? 0.01 : 0.6; 
           
           cadFieldAligned = Boolean(
             overlap &&
@@ -744,6 +749,23 @@ export default function Industrial3DVisualizerEnhancedV11({
             }
           });
           scene.add(cadRoot);
+          if (heavyDutyCase) {
+            const fittedBox = new THREE.Box3().setFromObject(cadRoot);
+            const fittedCenter = fittedBox.getCenter(new THREE.Vector3());
+            const fittedSize = fittedBox.getSize(new THREE.Vector3());
+            const fittedMax = Math.max(fittedSize.x, fittedSize.y, fittedSize.z, 0.001);
+            const fittedDistance = Math.max(fittedMax * 1.35, 0.25);
+            controls.target.copy(fittedCenter);
+            camera.position.set(
+              fittedCenter.x + fittedDistance,
+              fittedCenter.y + fittedDistance * 0.65,
+              fittedCenter.z + fittedDistance,
+            );
+            camera.near = Math.max(fittedMax / 1000, 0.0001);
+            camera.far = Math.max(fittedMax * 20, 10);
+            camera.updateProjectionMatrix();
+            controls.update();
+          }
           setCadSurfaceStatus(cadFieldAligned ? "aligned" : "unaligned");
         },
         undefined,
