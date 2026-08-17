@@ -1,3 +1,5 @@
+'use client'
+
 import React, { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -19,6 +21,11 @@ const Industrial3DVisualizerEnhancedV11 = nextDynamic(
 const SweetSpotAnalysisPanel = nextDynamic(
   () => import('@/components/sweet-spot-analysis-panel'),
   { ssr: false, loading: () => <div className="h-48 bg-slate-950 rounded-[32px] border border-white/10 animate-pulse" /> }
+)
+
+const PlotlyChart = nextDynamic(
+  () => import('@/components/plotly-chart'),
+  { ssr: false, loading: () => <div className="h-64 bg-slate-950/50 rounded-2xl animate-pulse" /> }
 )
 
 export default function ProjectDetailClient({ id, project }: any) {
@@ -275,48 +282,8 @@ export default function ProjectDetailClient({ id, project }: any) {
                         <Download className="w-3.5 h-3.5" /> Exporter Profils (PNG)
                       </button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-[#0B1120] border border-white/10 rounded-2xl p-6 space-y-4">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-blue-400 flex items-center gap-2">
-                          <Thermometer className="w-4 h-4" /> Gradient de Température
-                        </h4>
-                        <div className="h-64 flex flex-col justify-end bg-black/40 rounded-xl p-4 border border-white/5 relative overflow-hidden">
-                          <div className="absolute inset-0 flex items-center justify-center opacity-30">
-                            <BarChart2 className="w-32 h-32 text-blue-500" />
-                          </div>
-                          <div className="relative z-10 space-y-2">
-                            <div className="flex justify-between text-xs font-mono text-gray-300">
-                              <span>Consigne Cryogénique / -40°C</span>
-                              <span className="text-emerald-400 font-bold">Validé NIST</span>
-                            </div>
-                            <div className="w-full bg-white/10 h-3 rounded-full overflow-hidden">
-                              <div className="bg-gradient-to-r from-blue-500 to-emerald-400 h-full w-[85%]" />
-                            </div>
-                            <p className="text-[11px] text-gray-400 font-medium"> Respect strict des limites thermiques opérationnelles sur l'ensemble du domaine B-Rep.</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-[#0B1120] border border-white/10 rounded-2xl p-6 space-y-4">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-purple-400 flex items-center gap-2">
-                          <Gauge className="w-4 h-4" /> Stabilisation de Pression
-                        </h4>
-                        <div className="h-64 flex flex-col justify-end bg-black/40 rounded-xl p-4 border border-white/5 relative overflow-hidden">
-                          <div className="absolute inset-0 flex items-center justify-center opacity-30">
-                            <BarChart2 className="w-32 h-32 text-purple-500" />
-                          </div>
-                          <div className="relative z-10 space-y-2">
-                            <div className="flex justify-between text-xs font-mono text-gray-300">
-                              <span>Pression Cible / 35.0 MPa</span>
-                              <span className="text-emerald-400 font-bold">ΔP &lt; 0.1%</span>
-                            </div>
-                            <div className="w-full bg-white/10 h-3 rounded-full overflow-hidden">
-                              <div className="bg-gradient-to-r from-purple-500 to-blue-400 h-full w-[95%]" />
-                            </div>
-                            <p className="text-[11px] text-gray-400 font-medium"> Absence de gradient de pression parasite le long de l'axe d'écoulement.</p>
-                          </div>
-                        </div>
-                      </div>
+                    <div className="w-full">
+                      <PlotlyChart type="thermo" data={results} scenarioType={scenarioType} />
                     </div>
                   </div>
                 </TabsContent>
@@ -332,34 +299,8 @@ export default function ProjectDetailClient({ id, project }: any) {
                         <Download className="w-3.5 h-3.5" /> Exporter Convergence (PNG)
                       </button>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-[#0B1120] border border-white/10 rounded-2xl p-6 space-y-3">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Résidu Masse (ℛ_mass)</span>
-                        <div className="text-3xl font-black text-blue-400 font-mono">{Number(residuals.mass || 1.15e-7).toExponential(2)}</div>
-                        <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                          <div className="bg-blue-500 h-full w-[90%]" />
-                        </div>
-                        <p className="text-[11px] text-gray-400">Seuil critique G5 (&lt; 1e-6) atteint.</p>
-                      </div>
-
-                      <div className="bg-[#0B1120] border border-white/10 rounded-2xl p-6 space-y-3">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Résidu Momentum (ℛ_mom)</span>
-                        <div className="text-3xl font-black text-purple-400 font-mono">{Number(residuals.momentum || 3.42e-7).toExponential(2)}</div>
-                        <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                          <div className="bg-purple-500 h-full w-[88%]" />
-                        </div>
-                        <p className="text-[11px] text-gray-400">Convergence stable sur grille volumétrique.</p>
-                      </div>
-
-                      <div className="bg-[#0B1120] border border-white/10 rounded-2xl p-6 space-y-3">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Résidu Énergie (ℛ_energy)</span>
-                        <div className="text-3xl font-black text-emerald-400 font-mono">{Number(residuals.energy || 5.89e-7).toExponential(2)}</div>
-                        <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
-                          <div className="bg-emerald-500 h-full w-[95%]" />
-                        </div>
-                        <p className="text-[11px] text-gray-400">Conservation thermique rigoureuse.</p>
-                      </div>
+                    <div className="w-full">
+                      <PlotlyChart type="convergence" data={residuals} />
                     </div>
                   </div>
                 </TabsContent>
