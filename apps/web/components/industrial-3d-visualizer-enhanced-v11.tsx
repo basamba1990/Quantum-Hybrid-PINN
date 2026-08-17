@@ -523,7 +523,7 @@ export default function Industrial3DVisualizerEnhancedV11({
     };
   }, [geometryMeta, metadata?.geometry]);
 
-  const radialVisualMultiplier = (scenarioType === "LH2_INFRASTRUCTURE_INTEGRITY" || scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") ? 6 : 1;
+  const radialVisualMultiplier = (scenarioType === "LH2_INFRASTRUCTURE_INTEGRITY" || scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") ? 8 : 1;
 
   // Palettes séquentielles perceptuellement uniformes : viridis est le défaut
   // scientifique pour un champ scalaire continu ; inferno convient aux champs
@@ -754,7 +754,7 @@ export default function Industrial3DVisualizerEnhancedV11({
             const fittedCenter = fittedBox.getCenter(new THREE.Vector3());
             const fittedSize = fittedBox.getSize(new THREE.Vector3());
             const fittedMax = Math.max(fittedSize.x, fittedSize.y, fittedSize.z, 0.001);
-            const fittedDistance = Math.max(fittedMax * 1.35, 0.25);
+            const fittedDistance = Math.max(fittedMax * 1.15, 0.25);
             controls.target.copy(fittedCenter);
             camera.position.set(
               fittedCenter.x + fittedDistance,
