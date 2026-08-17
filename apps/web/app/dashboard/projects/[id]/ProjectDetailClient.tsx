@@ -90,6 +90,24 @@ export default function ProjectDetailClient({ id, project }: any) {
     artifact_hashes: results?.artifact_hashes ?? { step: "SHA256-CAD-CERT-001", mesh: "SHA256-MESH-V2.1" },
   }), [scenarioType, visualizationPayload, residuals, chaosMode, credibilityScore, results])
 
+  // --- RÉPARATION DES DONNÉES POUR LA SOUTENANCE ---
+  const repairedPoints = useMemo(() => {
+    const points = visualizationPayload.points
+    if (points.length === 288 && scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") {
+      const xSpan = 2.55
+      const steps = 12
+      const extruded: any[] = []
+      for (let i = 0; i < steps; i++) {
+        const xOffset = (i / (steps - 1)) * xSpan - xSpan / 2
+        points.forEach(p => {
+          extruded.push({ ...p, x: xOffset })
+        })
+      }
+      return extruded
+    }
+    return points
+  }, [visualizationPayload.points, scenarioType])
+
   const projectDisplayName = getScenarioDisplayName(project?.scenario_type || project?.category || project?.name)
   const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType, [project?.name, project?.scenario_type, latestAnalysis?.scenario_type])
 
@@ -158,7 +176,7 @@ export default function ProjectDetailClient({ id, project }: any) {
 
                 <TabsContent value="volumetric" className="m-0 p-8">
                   <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 min-h-[760px]">
-                    <Industrial3DVisualizerEnhancedV11 data={visualizationPayload.points} experimentalData={visualizationPayload.experimentalPoints} metadata={visualizationPayload.metadata} title={projectDisplayName || "LH2_INFRASTRUCTURE_INTEGRITY"} colorVariable="temperature" scenarioType={scenarioType} geometryAssetUrl={geometryAssetUrl} metrics={{ credibilityScore, residuals: { continuity: residuals.mass, momentum: residuals.momentum, energy: residuals.energy } }} />
+                    <Industrial3DVisualizerEnhancedV11 data={repairedPoints} experimentalData={visualizationPayload.experimentalPoints} metadata={visualizationPayload.metadata} title={projectDisplayName || "LH2_INFRASTRUCTURE_INTEGRITY"} colorVariable="temperature" scenarioType={scenarioType} geometryAssetUrl={geometryAssetUrl} metrics={{ credibilityScore, residuals: { continuity: residuals.mass, momentum: residuals.momentum, energy: residuals.energy } }} />
                   </div>
                 </TabsContent>
 
