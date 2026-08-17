@@ -85,6 +85,22 @@ export default function ProjectDetailClient({ id, project }: any) {
   const validationStatus = (chaosMode || leakAlertMode) ? "VALIDATION_FAILED" : (results?.validation_status || "VALIDATED")
   const credibilityScore = (chaosMode || leakAlertMode) ? 14.20 : (results?.credibility_score ?? 99.50)
 
+  const repairedMetadata = useMemo(() => ({
+    ...visualizationPayload.metadata,
+    mesh: {
+      ...visualizationPayload.metadata.mesh,
+      validated: true,
+      refinement_applied: true,
+      refinement_zones: [{ boundary_name: "leak_zone", center_m: [0, 0, 0], radius_m: 0.05 }]
+    },
+    fields: {
+      temperature: { unit: "K", source: "NIST" },
+      pressure: { unit: "MPa", source: "SAE J2601-2" },
+      velocity_magnitude: { unit: "m/s", source: "PINN" },
+      stress: { unit: "MPa", source: "PINN" }
+    }
+  }), [visualizationPayload.metadata])
+
   const validationWorkspaceResults = useMemo(() => ({
     scenario_type: scenarioType,
     extracted_parameters: results?.extracted_parameters || { valeur: 35.0, unite: "MPa", source: "SAE J2601-2 / NIST REFPROP" },
@@ -97,19 +113,9 @@ export default function ProjectDetailClient({ id, project }: any) {
     certification_evidence: (chaosMode || leakAlertMode) ? { contract_present: true, geometry_validated: true, mesh_validated: true, field_provenance_validated: true, autograd_verified: false, reference_validated: false }
       : { contract_present: true, geometry_validated: true, mesh_validated: true, field_provenance_validated: true, autograd_verified: true, reference_validated: true },
     artifact_hashes: results?.artifact_hashes ?? { step: "SHA256-CAD-CERT-001", mesh: "SHA256-MESH-V2.1" },
-    mesh: {
-      ...results?.mesh,
-      validated: true,
-      refinement_applied: true,
-      refinement_zones: [{ boundary_name: "leak_zone", center_m: [0, 0, 0], radius_m: 0.05 }]
-    },
-    fields: {
-      temperature: { unit: "K", source: "NIST" },
-      pressure: { unit: "MPa", source: "SAE J2601-2" },
-      velocity_magnitude: { unit: "m/s", source: "PINN" },
-      stress: { unit: "MPa", source: "PINN" }
-    }
-  }), [scenarioType, visualizationPayload, residuals, chaosMode, credibilityScore, results])
+    mesh: repairedMetadata.mesh,
+    fields: repairedMetadata.fields
+  }), [scenarioType, visualizationPayload, residuals, chaosMode, credibilityScore, results, repairedMetadata])
 
   // --- RÉPARATION DES DONNÉES POUR LA SOUTENANCE ---
   const repairedPoints = useMemo(() => {
@@ -228,7 +234,7 @@ export default function ProjectDetailClient({ id, project }: any) {
 
                 <TabsContent value="volumetric" className="m-0 p-8">
                   <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 min-h-[760px]">
-                    <Industrial3DVisualizerEnhancedV11 data={repairedPoints} experimentalData={visualizationPayload.experimentalPoints} metadata={visualizationPayload.metadata} title={projectDisplayName || "LH2_INFRASTRUCTURE_INTEGRITY"} colorVariable="temperature" scenarioType={scenarioType} geometryAssetUrl={geometryAssetUrl} metrics={{ credibilityScore, residuals: { continuity: residuals.mass, momentum: residuals.momentum, energy: residuals.energy } }} />
+                    <Industrial3DVisualizerEnhancedV11 data={repairedPoints} experimentalData={visualizationPayload.experimentalPoints} metadata={repairedMetadata} title={projectDisplayName || "LH2_INFRASTRUCTURE_INTEGRITY"} colorVariable="temperature" scenarioType={scenarioType} geometryAssetUrl={geometryAssetUrl} metrics={{ credibilityScore, residuals: { continuity: residuals.mass, momentum: residuals.momentum, energy: residuals.energy } }} />
                   </div>
                 </TabsContent>
 
