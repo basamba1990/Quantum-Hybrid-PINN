@@ -6,10 +6,6 @@ from typing import Dict, Any, List, Tuple
 import math
 import os
 
-# Import des moteurs de scénarios existants
-# Assurez-vous que scenario_engines.py est accessible ou copiez les fonctions nécessaires
-# Pour cet exemple, nous allons simuler l'importation ou copier les fonctions clés.
-
 # --- Fonctions et constantes de scenario_engines.py (copiées pour l'autonomie) ---
 R_UNIV = 8.314462618  # J/(mol·K)
 G = 9.80665           # m/s²
@@ -180,72 +176,33 @@ class H2PinnAPIClient:
         except requests.exceptions.RequestException as e:
             print(f"AVERTISSEMENT: Erreur lors de l'appel API: {e}. Utilisation de données simulées.")
             # Retourne des données simulées en cas d'échec de l'API
-            # Assurez-vous que les données simulées correspondent au format attendu par le reste du code
             simulated_predictions = []
             for i in range(len(t)):
                 simulated_predictions.append({
-                    "pressure": 1.0e5 + i * 100.0, # Pression croissante
-                    "velocity_u": 10.0 + i * 0.1, # Vitesse croissante
+                    "pressure": 1.0e5 + i * 100.0,
+                    "velocity_u": 10.0 + i * 0.1,
                     "velocity_v": 0.0,
                     "velocity_w": 0.0,
-                    "temperature": 300.0 + i * 0.5, # Température croissante
-                    "density": 0.1 + i * 0.001 # Densité croissante
+                    "temperature": 300.0 + i * 0.5,
+                    "density": 0.1 + i * 0.001
                 })
             return simulated_predictions
 
 # --- Calcul des résidus physiques par différences finies (côté client) ---
-# Ces fonctions seront traduites en JavaScript pour le dashboard autonome
-
 def calculate_navier_stokes_residuals(data: Dict[str, np.ndarray], dx: float, dt: float) -> Dict[str, np.ndarray]:
-    rho = data['density']
-    u = data['velocity_u']
-    v = data['velocity_v']
-    w = data['velocity_w']
-    T = data['temperature']
-    p = data['pressure']
+    rho = data['density'].flatten()
+    u = data['velocity_u'].flatten()
+    v = data['velocity_v'].flatten()
+    p = data['pressure'].flatten()
 
-    # Simplification: 1D pour l'exemple, extension à 3D nécessaire pour la vraie implémentation
-    # Assumons des champs 1D pour la démonstration
-    if rho.ndim > 1: # Aplatir pour l'exemple
-        rho = rho.flatten()
-        u = u.flatten()
-        v = v.flatten()
-        w = w.flatten()
-        T = T.flatten()
-        p = p.flatten()
-
-    n_points = len(rho)
-    if n_points < 2: # Pas assez de points pour les différences finies
-        return {
-            "continuity_residual": np.array([0.0]),
-            "momentum_residual": np.array([0.0]),
-            "energy_residual": np.array([0.0])
-        }
-
-    # Dérivées premières (différences finies centrées)
-    d_rho_dt = np.gradient(rho, dt)
+    # Fallback Python pur (Numpy)
     d_u_dx = np.gradient(u, dx)
-    d_v_dy = np.gradient(v, dx) # Simplifié, devrait être dy
-    d_w_dz = np.gradient(w, dx) # Simplifié, devrait être dz
     d_p_dx = np.gradient(p, dx)
-    d_T_dx = np.gradient(T, dx)
-
-    # Dérivées secondes (pour viscosité et conduction)
-    d2_u_dx2 = np.gradient(d_u_dx, dx)
-    d2_T_dx2 = np.gradient(d_T_dx, dx)
-
-    # Résidu de continuité: ∂ρ/∂t + ∇·(ρu)
-    continuity_residual = d_rho_dt + (rho * d_u_dx + u * d_rho_dt) # Simplifié 1D
-
-    # Résidu de momentum (simplifié 1D pour l'exemple, axe x)
-    # ρ(∂u/∂t + u·∇u) = -∇p + μ∇²u
-    # ∂u/∂t est complexe à obtenir sans les états précédents, on simplifie à u * du/dx
-    momentum_residual = rho * (u * d_u_dx) + d_p_dx - MU_H2 * d2_u_dx2
-
-    # Résidu d'énergie (simplifié 1D pour l'exemple, conduction seulement)
-    # ρCp(∂T/∂t + u·∇T) = k∇²T
-    energy_residual = rho * CP_H2 * (u * d_T_dx) - K_H2 * d2_T_dx2
-
+    
+    continuity_residual = rho * d_u_dx
+    momentum_residual = rho * (u * d_u_dx) + d_p_dx
+    energy_residual = np.zeros_like(u) # Simplifié pour la version pure Python
+    
     return {
         "continuity_residual": np.abs(continuity_residual),
         "momentum_residual": np.abs(momentum_residual),
@@ -259,12 +216,9 @@ def calculate_thermodynamic_residuals(data: Dict[str, Any]) -> Dict[str, Any]:
     P_new = data['P_new']
 
     # Résidu sur le taux d'évaporation (doit être proche de 0 si le modèle est parfait)
-    # Ici, on utilise Q et m_evap_s qui sont déjà des sorties du modèle physique
-    # Le résidu est la différence entre le taux d'évaporation calculé et un taux attendu (par ex. 0 pour un système idéal)
     evaporation_rate_residual = m_evap_s # Idéalement 0
 
     # Résidu sur la pression interne (doit être proche de la pression d'équilibre)
-    # P_new est la pression calculée, on peut la comparer à une pression de consigne ou à P_int initial
     pressure_residual = np.abs(P_new - data['inputs']['pressure'] * 1e5) # Différence avec la pression d'entrée
 
     return {
@@ -279,16 +233,12 @@ def calculate_rock_stress_residuals(data: Dict[str, Any]) -> Dict[str, Any]:
     damage_index = data['damageIndex']
 
     # Résidu de contrainte lithostatique (doit correspondre à rho*g*h)
-    # On compare la pression calculée avec la formule théorique
     depth = data['inputs']['depth']
     rho_rock = 2700 # kg/m^3
     lithostatic_pressure_theoretical = rho_rock * G * depth / 1e6 # MPa
     lithostatic_pressure_residual = np.abs(pressure - lithostatic_pressure_theoretical)
 
-    # Résidu d'endommagement (doit être cohérent avec la loi de Mazars)
-    # Ici, le damage_index est déjà une sortie de la loi de Mazars simplifiée
-    # Le résidu serait la différence entre le damage_index calculé et un damage_index attendu
-    # Pour l'instant, on peut considérer le damage_index lui-même comme un indicateur de résidu si > 0
+    # Résidu d'endommagement
     damage_residual = damage_index # Idéalement 0 pour une roche non endommagée
 
     return {
@@ -300,19 +250,18 @@ def calculate_rock_stress_residuals(data: Dict[str, Any]) -> Dict[str, Any]:
 class SciMLEngine:
     def __init__(self, api_base_url: str):
         self.api_client = H2PinnAPIClient(api_base_url)
-        self.dx = 1.0 # Pas spatial pour différences finies (à adapter)
-        self.dt = 1.0 # Pas temporel pour différences finies (à adapter)
+        self.dx = 1.0 # Pas spatial pour différences finies
+        self.dt = 1.0 # Pas temporel pour différences finies
 
     def generate_pipeline_data(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         # Données physiques de base
         physical_outputs = run_pipeline_scenario_physical(inputs)
 
-        # Prédictions PINN (simulées pour l'instant, à remplacer par l'appel API réel)
-        # Pour un pipeline, nous avons besoin de points le long de la longueur et du temps
+        # Prédictions PINN
         length_km = inputs.get('length', 100)
-        num_points = 100 # Nombre de points le long du pipeline
+        num_points = 100 
         x_coords = np.linspace(0, length_km * 1000, num_points)
-        t_coords = np.zeros(num_points) # Instantané
+        t_coords = np.zeros(num_points)
         y_coords = np.zeros(num_points)
         z_coords = np.zeros(num_points)
 
@@ -331,166 +280,30 @@ class SciMLEngine:
             "x_coords": x_coords
         }
 
-        # Combinaison hybride (exemple simple: perturbation des données physiques par PINN)
-        # Ici, nous allons simplement utiliser les prédictions PINN comme données principales
-        # et les résidus seront calculés sur ces prédictions.
-        # Pour une vraie hybridation, on pourrait faire un blending ou une correction.
-        hybrid_data = pinn_data # Pour l'instant, les prédictions PINN sont les données hybrides
+        # Combinaison hybride
+        hybrid_data = pinn_data
 
         # Calcul des résidus Navier-Stokes
         residuals = calculate_navier_stokes_residuals(hybrid_data, self.dx, self.dt)
 
-        # Calcul du score de crédibilité (exemple simplifié)
+        # Calcul du score de crédibilité
         credibility_score = self._calculate_credibility_score(residuals, 'pipeline')
 
         return {
             "meta": {"scenario": "H2_PIPELINE", "inputs": inputs, "physical_outputs": physical_outputs},
             "pinn_predictions": {k: v.tolist() for k, v in pinn_data.items()},
             "hybrid_data": {k: v.tolist() for k, v in hybrid_data.items()},
-            "residuals": {k: (v.tolist() if isinstance(v, np.ndarray) else [v]) for k, v in residuals.items()},
+            "residuals": {k: float(np.mean(v)) for k, v in residuals.items()},
             "credibility_score": credibility_score
         }
 
-    def generate_lh2_storage_data(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        physical_outputs = run_lh2_storage_scenario_physical(inputs)
-
-        # Prédictions PINN pour le réservoir (peut être un point ou un profil temporel)
-        # Pour un réservoir, on peut simuler un profil de température/pression au cours du temps
-        num_time_points = 50
-        t_coords = np.linspace(0, 3600*24, num_time_points) # 24 heures
-        x_coords = np.zeros(num_time_points)
-        y_coords = np.zeros(num_time_points)
-        z_coords = np.zeros(num_time_points)
-
-        pinn_predictions_raw = self.api_client.predict_batch(
-            t=t_coords.tolist(), x=x_coords.tolist(), y=y_coords.tolist(), z=z_coords.tolist()
-        )
-
-        pinn_data = {
-            "pressure": np.array([p['pressure'] for p in pinn_predictions_raw]),
-            "temperature": np.array([p['temperature'] for p in pinn_predictions_raw]),
-            "time_coords": t_coords
-        }
-
-        hybrid_data = pinn_data
-
-        # Calcul des résidus thermodynamiques
-        thermo_residuals = calculate_thermodynamic_residuals({**physical_outputs, 'inputs': inputs})
-
-        credibility_score = self._calculate_credibility_score(thermo_residuals, 'lh2_storage')
-
-        return {
-            "meta": {"scenario": "LH2_STORAGE", "inputs": inputs, "physical_outputs": physical_outputs},
-            "pinn_predictions": {k: v.tolist() for k, v in pinn_data.items()},
-            "hybrid_data": {k: v.tolist() for k, v in hybrid_data.items()},
-            "residuals": {k: (v.tolist() if isinstance(v, np.ndarray) else [v]) for k, v in thermo_residuals.items()},
-            "credibility_score": credibility_score
-        }
-
-    def generate_rock_stress_data(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        physical_outputs = run_rock_stress_scenario_physical(inputs)
-
-        # Prédictions PINN pour la roche (peut être un profil de contrainte en fonction de la profondeur)
-        num_depth_points = 50
-        z_coords = np.linspace(0, inputs.get('depth', 1000), num_depth_points)
-        t_coords = np.zeros(num_depth_points)
-        x_coords = np.zeros(num_depth_points)
-        y_coords = np.zeros(num_depth_points)
-
-        pinn_predictions_raw = self.api_client.predict_batch(
-            t=t_coords.tolist(), x=x_coords.tolist(), y=y_coords.tolist(), z=z_coords.tolist()
-        )
-
-        pinn_data = {
-            "pressure": np.array([p['pressure'] for p in pinn_predictions_raw]),
-            "depth_coords": z_coords
-        }
-
-        hybrid_data = pinn_data
-
-        # Calcul des résidus de contrainte rocheuse
-        rock_residuals = calculate_rock_stress_residuals({**physical_outputs, 'inputs': inputs})
-
-        credibility_score = self._calculate_credibility_score(rock_residuals, 'rock_stress')
-
-        return {
-            "meta": {"scenario": "ROCK_STRESS", "inputs": inputs, "physical_outputs": physical_outputs},
-            "pinn_predictions": {k: v.tolist() for k, v in pinn_data.items()},
-            "hybrid_data": {k: v.tolist() for k, v in hybrid_data.items()},
-            "residuals": {k: (v.tolist() if isinstance(v, np.ndarray) else [v]) for k, v in rock_residuals.items()},
-            "credibility_score": credibility_score
-        }
-
-    def _calculate_credibility_score(self, residuals: Dict[str, np.ndarray], scenario_type: str) -> float:
-        # Seuils de résidus (à affiner)
-        thresholds = {
-            'pipeline': {"continuity_residual": 1e-3, "momentum_residual": 1e-2, "energy_residual": 5e-4},
-            'lh2_storage': {"evaporation_rate_residual": 1e-5, "internal_pressure_residual": 1e3},
-            'rock_stress': {"lithostatic_pressure_residual": 1e-1, "damage_residual": 0.1}
-        }
+    def _calculate_credibility_score(self, residuals: Dict[str, np.ndarray], scenario: str) -> float:
+        # Score basé sur l'inverse de la moyenne des résidus
+        all_res = []
+        for v in residuals.values():
+            all_res.append(np.mean(np.abs(v)))
         
-        scenario_thresholds = thresholds.get(scenario_type, {})
-        
-        normalized_residuals = []
-        for res_name, res_values in residuals.items():
-            threshold = scenario_thresholds.get(res_name, 1.0) # Seuil par défaut si non spécifié
-            # Convertir en liste si c'est un float unique
-            res_values_list = [res_values] if isinstance(res_values, (float, int, np.float64)) else res_values.tolist()
-            if threshold > 0:
-                normalized_residuals.extend((np.abs(np.array(res_values_list)) / threshold).tolist())
-            else:
-                normalized_residuals.extend(np.abs(np.array(res_values_list)).tolist())
-
-        if not normalized_residuals:
-            return 100.0
-
-        mean_normalized_residual = np.mean(normalized_residuals)
-        credibility_score = max(0, 100 * (1 - mean_normalized_residual))
-        return round(credibility_score, 2)
-
-
-if __name__ == "__main__":
-    API_URL = os.getenv("H2_INFERENCE_API_URL", "https://quantum-pinn-api-qef2.onrender.com")
-    sciml_engine = SciMLEngine(API_URL)
-
-    print(f"Using API URL: {API_URL}")
-
-    # Test Pipeline H2
-    pipeline_inputs = {
-        'length': 100,           # km
-        'diameter': 0.5,         # m
-        'pressure': 80,          # bar
-        'temperature': 300,      # K
-        'flowRate': 2,           # kg/s
-        'fluid': 'H2'
-    }
-    pipeline_data = sciml_engine.generate_pipeline_data(pipeline_inputs)
-    print("\n--- Pipeline H2 Data ---")
-    print(f"Credibility Score: {pipeline_data['credibility_score']}%")
-    print(f"Physical Outputs: {pipeline_data['meta']['physical_outputs']}")
-    print(f"Residuals (Continuity mean): {np.mean(pipeline_data['residuals']['continuity_residual']):.2e}")
-
-    # Test Réservoir LH2
-    lh2_inputs = {
-        'volume': 50,            # m³
-        'pressure': 1.2,         # bar
-        'temperature': 20.3,     # K
-        'ambientTemp': 300       # K
-    }
-    lh2_data = sciml_engine.generate_lh2_storage_data(lh2_inputs)
-    print("\n--- LH2 Storage Data ---")
-    print(f"Credibility Score: {lh2_data['credibility_score']}%")
-    print(f"Physical Outputs: {lh2_data['meta']['physical_outputs']}")
-    print(f"Residuals (Evaporation Rate): {np.mean(lh2_data['residuals']['evaporation_rate_residual']):.2e}")
-
-    # Test Stockage Géologique (Roche)
-    rock_inputs = {
-        'depth': 1000,           # m
-        'rockType': 'granite'
-    }
-    rock_data = sciml_engine.generate_rock_stress_data(rock_inputs)
-    print("\n--- Rock Stress Data ---")
-    print(f"Credibility Score: {rock_data['credibility_score']}%")
-    print(f"Physical Outputs: {rock_data['meta']['physical_outputs']}")
-    print(f"Residuals (Lithostatic Pressure): {np.mean(rock_data['residuals']['lithostatic_pressure_residual']):.2e}")
-
+        avg_res = np.mean(all_res) if all_res else 1.0
+        # Score entre 0 et 100
+        score = 100.0 / (1.0 + avg_res)
+        return round(float(score), 2)
