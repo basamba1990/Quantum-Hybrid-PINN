@@ -445,6 +445,8 @@ export default function Industrial3DVisualizerEnhancedV11({
   const [cadSurfaceStatus, setCadSurfaceStatus] = useState<"absent" | "loading" | "aligned" | "unaligned" | "error">("absent");
   const [isPlaying, setIsPlaying] = useState(false);
   const [animTime, setAnimTime] = useState(0);
+  const [animSpeed, setAnimSpeed] = useState(0.02);
+  const [animAmplitude, setAnimAmplitude] = useState(0.18);
 
   useEffect(() => {
     setIsMounted(true);
@@ -693,7 +695,7 @@ export default function Industrial3DVisualizerEnhancedV11({
             return typeof value === "number" && Number.isFinite(value);
           }).slice(0, 4096).map((pt) => {
             // Ondes de propagation de Navier-Stokes inspirées de SPHinXsys pour simuler le transitoire de fuite
-            const wave = Math.sin(animTime * Math.PI * 2 + pt.x * 3.0) * 0.22;
+            const wave = Math.sin(animTime * Math.PI * 2 + pt.x * 3.0) * animAmplitude;
             const modulatedValue = typeof pt[activeVariable] === "number" ? (pt[activeVariable] as number) * (1.0 + wave) : 0;
             return { ...pt, [activeVariable]: modulatedValue };
           });
@@ -904,7 +906,7 @@ export default function Industrial3DVisualizerEnhancedV11({
       animationFrameId = requestAnimationFrame(animate);
       if (isPlaying) {
         setAnimTime((prev) => {
-          const next = prev + 0.02;
+          const next = prev + animSpeed;
           return next > 1.0 ? 0 : next;
         });
       }
@@ -1070,16 +1072,44 @@ export default function Industrial3DVisualizerEnhancedV11({
           >
             {isPlaying ? "Pause Transitoire" : "▶ Animer SPH / PINN"}
           </button>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={animTime}
-            onChange={(e) => setAnimTime(parseFloat(e.target.value))}
-            className="w-24 accent-amber-500 cursor-pointer"
-            title="Timeline Transitoire SPH"
-          />
+          <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/10">
+            <div className="flex flex-col gap-1">
+              <span className="text-[7px] text-amber-400 font-bold uppercase">Phase</span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={animTime}
+                onChange={(e) => setAnimTime(parseFloat(e.target.value))}
+                className="w-16 accent-amber-500 cursor-pointer h-1"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[7px] text-amber-400 font-bold uppercase">Vitesse</span>
+              <input
+                type="range"
+                min="0.001"
+                max="0.1"
+                step="0.001"
+                value={animSpeed}
+                onChange={(e) => setAnimSpeed(parseFloat(e.target.value))}
+                className="w-16 accent-amber-500 cursor-pointer h-1"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[7px] text-amber-400 font-bold uppercase">Amplitude</span>
+              <input
+                type="range"
+                min="0"
+                max="0.5"
+                step="0.01"
+                value={animAmplitude}
+                onChange={(e) => setAnimAmplitude(parseFloat(e.target.value))}
+                className="w-16 accent-amber-500 cursor-pointer h-1"
+              />
+            </div>
+          </div>
           <button
             onClick={() => setActiveTab("3d")}
             className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === "3d" ? "bg-blue-600 text-white shadow-lg shadow-blue-900/50" : "bg-white/5 text-gray-400 hover:bg-white/10"}`}
