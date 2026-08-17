@@ -205,7 +205,7 @@ def calculate_navier_stokes_residuals(data: Dict[str, np.ndarray], dx: float, dt
     from pathlib import Path
     
     # Ajout dynamique du chemin du bridge Fortran
-    bridge_path = Path("/home/ubuntu/Quantum-Hybrid-PINN/backend/fortran_solver")
+    bridge_path = Path("/home/ubuntu/Quantum-Hybrid-PINN/apps/backend/fortran_solver")
     if str(bridge_path) not in sys.path:
         sys.path.append(str(bridge_path))
     
