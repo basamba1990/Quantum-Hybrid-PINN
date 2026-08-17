@@ -117,48 +117,8 @@ export default function ProjectDetailClient({ id, project }: any) {
     fields: repairedMetadata.fields
   }), [scenarioType, visualizationPayload, residuals, chaosMode, credibilityScore, results, repairedMetadata])
 
-  // --- RÉPARATION DES DONNÉES POUR LA SOUTENANCE ---
-  const repairedPoints = useMemo(() => {
-    const points = visualizationPayload.points
-    if (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") {
-      const xSpan = 2.55
-      const steps = 25
-      const radialSteps = 6
-      const angularSteps = 12
-      const R = 0.025 // Rayon DN50 réel
-      const extruded: any[] = []
-      
-      for (let i = 0; i < steps; i++) {
-        const x = (i / (steps - 1)) * xSpan - xSpan / 2
-        const normX = i / (steps - 1)
-        
-        for (let r = 0; r < radialSteps; r++) {
-          const rho = (r / (radialSteps - 1)) * R
-          for (let a = 0; a < angularSteps; a++) {
-            const theta = (a / angularSteps) * Math.PI * 2
-            const y = rho * Math.cos(theta)
-            const z = rho * Math.sin(theta)
-            
-            // Gradients physiques industriels
-            const temp = 233.15 + normX * 45.85 // 233K à 279K
-            const press = 35.0 - normX * 2.5 // Chute de pression de 2.5 MPa
-            const vel = 10.0 * (1 - (rho/R)**2) // Profil de vitesse parabolique
-            const str = 32.0 + (rho/R) * 8.0 // Contrainte de paroi
-            
-            extruded.push({
-              x, y, z,
-              temperature: temp,
-              pressure: press,
-              velocity_magnitude: vel,
-              stress: str
-            })
-          }
-        }
-      }
-      return extruded
-    }
-    return points
-  }, [visualizationPayload.points, scenarioType])
+  // Les points sont désormais issus directement du moteur SciML (10k+ points)
+  const repairedPoints = visualizationPayload.points
 
   const projectDisplayName = getScenarioDisplayName(project?.scenario_type || project?.category || project?.name)
   const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType, [project?.name, project?.scenario_type, latestAnalysis?.scenario_type])

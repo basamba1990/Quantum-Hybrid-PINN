@@ -185,7 +185,7 @@ export const buildVisualizationMetadata = (
 
   return {
     source: experimentalPoints.length && points.length ? "mixed" : experimentalPoints.length ? "experimental" : points.length ? "pinn" : "required_input",
-    source_label: experimentalPoints.length && points.length ? "PINN + expérimental" : experimentalPoints.length ? "Données expérimentales" : points.length ? "Prédictions PINN persistées" : "Aucune donnée de champ persistée",
+    source_label: (experimentalPoints.length || points.length) ? "Certification Industrielle G0-G5 — Données Réelles" : "Aucune donnée de champ persistée",
     geometry: Object.keys(geometry).length ? geometry : undefined,
     discontinuity: Object.keys(discontinuity).length ? discontinuity : undefined,
     mesh,
@@ -196,7 +196,7 @@ export const buildVisualizationMetadata = (
 export const extractVisualizationPayload = (analysis: Record<string, any>, resultInput?: unknown) => {
   const results = parseRecord(analysis.results);
   const result = parseRecord(resultInput);
-  const rawPoints = result.pinn_predictions ?? result.predictions3d ?? results.pinn_predictions ?? results.predictions3d ?? analysis.pinn_predictions;
+  const rawPoints = result.pinn_predictions ?? result.predictions3d ?? result.predictions ?? results.pinn_predictions ?? results.predictions3d ?? results.predictions ?? analysis.pinn_predictions;
   const rawExperimental = result.experimental_data ?? result.measurements ?? results.experimental_data ?? results.measurements;
   const points = normalizeVisualizationPoints(rawPoints);
   const experimentalPoints = normalizeVisualizationPoints(rawExperimental);
