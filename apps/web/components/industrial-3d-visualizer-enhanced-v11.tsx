@@ -474,7 +474,7 @@ export default function Industrial3DVisualizerEnhancedV11({
       .map((point) => point[activeVariable])
       .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
     const unit = metadata?.fields?.[activeVariable]?.unit
-      ?? (activeVariable === "temperature" ? "K" : activeVariable.includes("velocity") ? "m/s" : "unit_required");
+      ?? (activeVariable === "temperature" ? "K" : activeVariable.includes("velocity") ? "m/s" : activeVariable === "pressure" ? "MPa" : activeVariable === "stress" ? "MPa" : "unit_required");
     const minV = vals.length ? Math.min(...vals) : null;
     const maxV = vals.length ? Math.max(...vals) : null;
     const spanV = minV !== null && maxV !== null ? Math.abs(maxV - minV) : null;
@@ -523,7 +523,7 @@ export default function Industrial3DVisualizerEnhancedV11({
     };
   }, [geometryMeta, metadata?.geometry]);
 
-  const radialVisualMultiplier = scenarioType === "LH2_INFRASTRUCTURE_INTEGRITY" ? 6 : 1;
+  const radialVisualMultiplier = (scenarioType === "LH2_INFRASTRUCTURE_INTEGRITY" || scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") ? 6 : 1;
 
   // Palettes séquentielles perceptuellement uniformes : viridis est le défaut
   // scientifique pour un champ scalaire continu ; inferno convient aux champs
@@ -994,12 +994,14 @@ export default function Industrial3DVisualizerEnhancedV11({
     (metadata?.mesh?.points?.length && metadata?.mesh?.cells?.length) || 
     metadata?.mesh?.validated || 
     (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") ||
-    (scenarioType === "LH2_LARGE_SCALE_STORAGE_1250M3")
+    (scenarioType === "LH2_LARGE_SCALE_STORAGE_1250M3") ||
+    (metadata?.mesh?.validated)
   );
   const refinementReady = Boolean(
     (metadata?.mesh?.refinement_applied && metadata?.mesh?.refinement_zones?.length) ||
     (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") ||
-    (scenarioType === "LH2_LARGE_SCALE_STORAGE_1250M3")
+    (scenarioType === "LH2_LARGE_SCALE_STORAGE_1250M3") ||
+    (metadata?.mesh?.refinement_applied)
   );
   const crossSectionSamples = new Set(volumetricData.map((point) => `${point.y.toFixed(6)}|${point.z.toFixed(6)}`)).size;
   const fieldRenderingLabel = !volumetricData.length
