@@ -35,12 +35,17 @@ export default function ProjectDetailClient({ id, project }: any) {
   const [downloadTrigger, setDownloadTrigger] = useState(0)
   const supabase = useMemo(() => createClient(), [])
 
-  // --- DÉMONSTRATION DU MODE CHAOS ---
+  // --- MODES DE DÉMONSTRATION (POUR LA SOUTENANCE) ---
   const [chaosMode, setChaosMode] = useState(false)
+  const [leakAlertMode, setLeakAlertMode] = useState(false)
+  
   useEffect(() => {
-    const checkChaos = () => setChaosMode(localStorage.getItem('DEMO_CHAOS') === 'true')
-    checkChaos()
-    const interval = setInterval(checkChaos, 1000)
+    const checkDemoModes = () => {
+      setChaosMode(localStorage.getItem('DEMO_CHAOS') === 'true')
+      setLeakAlertMode(localStorage.getItem('DEMO_LEAK') === 'true')
+    }
+    checkDemoModes()
+    const interval = setInterval(checkDemoModes, 1000)
     return () => clearInterval(interval)
   }, [])
 
@@ -73,8 +78,12 @@ export default function ProjectDetailClient({ id, project }: any) {
   
   const isLH2 = scenarioType?.includes('LH2') || scenarioType?.includes('STORAGE')
   const defaultResiduals = isLH2 ? { mass: 2.10e-7, momentum: 4.22e-7, energy: 6.32e-7 } : { mass: 1.15e-7, momentum: 3.42e-7, energy: 5.89e-7 }
-  const residuals = chaosMode ? { mass: 0.854, momentum: 1.22e-1, energy: 4.56 } : (results?.residuals || defaultResiduals)
-  const credibilityScore = chaosMode ? 14.20 : (results?.credibility_score ?? 99.50)
+  const residuals = chaosMode || leakAlertMode
+    ? { mass: 0.854, momentum: 1.22e-1, energy: 4.56 } 
+    : (results?.residuals || defaultResiduals)
+
+  const validationStatus = (chaosMode || leakAlertMode) ? "VALIDATION_FAILED" : (results?.validation_status || "VALIDATED")
+  const credibilityScore = (chaosMode || leakAlertMode) ? 14.20 : (results?.credibility_score ?? 99.50)
 
   const validationWorkspaceResults = useMemo(() => ({
     scenario_type: scenarioType,
@@ -82,10 +91,10 @@ export default function ProjectDetailClient({ id, project }: any) {
     pinn_predictions: visualizationPayload.points,
     credibility_score: credibilityScore,
     residuals: residuals,
-    validation_status: chaosMode ? "VALIDATION_FAILED" : "VALIDATED",
-    validationChecks: chaosMode ? { residuals_passed: false, boundary_conditions_passed: true, conservation_passed: false, reference_comparison_passed: false, uncertainty_reported: true } 
+    validation_status: validationStatus,
+    validationChecks: (chaosMode || leakAlertMode) ? { residuals_passed: false, boundary_conditions_passed: true, conservation_passed: false, reference_comparison_passed: false, uncertainty_reported: true } 
       : { residuals_passed: true, boundary_conditions_passed: true, conservation_passed: true, reference_comparison_passed: true, uncertainty_reported: true },
-    certification_evidence: chaosMode ? { contract_present: true, geometry_validated: true, mesh_validated: true, field_provenance_validated: true, autograd_verified: false, reference_validated: false }
+    certification_evidence: (chaosMode || leakAlertMode) ? { contract_present: true, geometry_validated: true, mesh_validated: true, field_provenance_validated: true, autograd_verified: false, reference_validated: false }
       : { contract_present: true, geometry_validated: true, mesh_validated: true, field_provenance_validated: true, autograd_verified: true, reference_validated: true },
     artifact_hashes: results?.artifact_hashes ?? { step: "SHA256-CAD-CERT-001", mesh: "SHA256-MESH-V2.1" },
     mesh: {
@@ -181,18 +190,24 @@ export default function ProjectDetailClient({ id, project }: any) {
         </div>
 
         <div className="space-y-10">
-          {chaosMode && (
+          {(chaosMode || leakAlertMode) && (
             <div className="bg-red-500/20 border border-red-500/50 rounded-3xl p-6 flex items-center gap-4 animate-pulse">
               <AlertTriangle className="w-10 h-10 text-red-500" />
               <div>
-                <h3 className="text-xl font-black uppercase italic text-red-400">Violation Critique de la Physique</h3>
-                <p className="text-sm text-red-200/70">Les résidus de Navier-Stokes ont divergé. Certification G5 révoquée automatiquement.</p>
+                <h3 className="text-xl font-black uppercase italic text-red-400">
+                  {leakAlertMode ? "ALERTE DE FUITE CRITIQUE DÉTECTÉE" : "Violation Critique de la Physique"}
+                </h3>
+                <p className="text-sm text-red-200/70">
+                  {leakAlertMode 
+                    ? "Anomalie de pression locale détectée sur la ligne DN50. Perte d'intégrité structurelle imminente." 
+                    : "Les résidus de Navier-Stokes ont divergé. Certification G5 révoquée automatiquement."}
+                </p>
               </div>
             </div>
           )}
           
           <div className="bg-[#0B1120]/60 backdrop-blur-xl border border-white/10 rounded-[40px] p-8 md:p-12 shadow-2xl relative overflow-hidden group">
-            <SweetSpotAnalysisPanel data={chaosMode ? { ...results.sweet_spot_analysis, stability_assessment: { risk_level: "CRITICAL", stability_score: 0.12, sweet_spot: false } } : results.sweet_spot_analysis} loading={loading} />
+            <SweetSpotAnalysisPanel data={(chaosMode || leakAlertMode) ? { ...results.sweet_spot_analysis, stability_assessment: { risk_level: "CRITICAL", stability_score: 0.12, sweet_spot: false } } : results.sweet_spot_analysis} loading={loading} />
           </div>
 
           <div className="space-y-6">
@@ -206,8 +221,8 @@ export default function ProjectDetailClient({ id, project }: any) {
                     <TabsTrigger value="thermal" className="rounded-xl px-6 font-black uppercase italic text-[10px] tracking-widest">Profils Thermodynamiques</TabsTrigger>
                     <TabsTrigger value="convergence" className="rounded-xl px-6 font-black uppercase italic text-[10px] tracking-widest">Convergence Autograd</TabsTrigger>
                   </TabsList>
-                  <span className={`text-xs font-mono px-4 py-2 rounded-xl border ${chaosMode ? 'text-red-400 bg-red-500/10 border-red-500/20 animate-pulse' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'}`}>
-                    {chaosMode ? 'ALERTE G5 : Violation de la Physique détectée' : 'Certifié G0-G5 • Résidus < 10⁻⁷'}
+                  <span className={`text-xs font-mono px-4 py-2 rounded-xl border ${(chaosMode || leakAlertMode) ? 'text-red-400 bg-red-500/10 border-red-500/20 animate-pulse' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'}`}>
+                    {(chaosMode || leakAlertMode) ? 'ALERTE G5 : Violation de la Physique détectée' : 'Certifié G0-G5 • Résidus < 10⁻⁷'}
                   </span>
                 </div>
 
