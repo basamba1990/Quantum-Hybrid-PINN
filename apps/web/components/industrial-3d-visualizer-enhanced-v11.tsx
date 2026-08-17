@@ -582,7 +582,7 @@ export default function Industrial3DVisualizerEnhancedV11({
     const spanY = Math.max(renderBounds.max.y - renderBounds.min.y, meta.height, 0.001);
     const spanZ = Math.max(renderBounds.max.z - renderBounds.min.z, meta.width, 0.001);
     const maxDimension = Math.max(spanX, spanY, spanZ, renderBounds.span);
-    const cameraDistance = Math.max(maxDimension * 2.4, 0.25);
+    const cameraDistance = Math.max(maxDimension * 2.0, 0.25);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020617);
@@ -671,14 +671,22 @@ export default function Industrial3DVisualizerEnhancedV11({
           const box = new THREE.Box3().setFromObject(cadRoot);
           const cadCenter = box.getCenter(new THREE.Vector3());
           const cadSize = box.getSize(new THREE.Vector3());
+          // Le GLB DN50 est déjà exporté en mètres par Open CASCADE. Une mise à
+          // l'échelle uniforme sur les trois axes l'écrasait contre le petit
+          // rayon du champ PINN (0,05 m) et le rendait presque invisible.
+          // Pour ce cas, on conserve donc les dimensions B-Rep certifiées et on
+          // ne recale que le centre. Les autres scénarios gardent le recalage
+          // proportionnel existant lorsque leurs dimensions le nécessitent.
+          const preserveCadDimensions = scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING";
           const targetSize = new THREE.Vector3(spanX, spanY, spanZ);
-          const scale = Math.min(
-            targetSize.x / Math.max(cadSize.x, Number.EPSILON),
-            targetSize.y / Math.max(cadSize.y, Number.EPSILON),
-            targetSize.z / Math.max(cadSize.z, Number.EPSILON),
-          );
-          cadRoot.position.sub(cadCenter).multiplyScalar(scale);
-          cadRoot.position.add(new THREE.Vector3(center.x, center.y, center.z));
+          const scale = preserveCadDimensions
+            ? 1
+            : Math.min(
+              targetSize.x / Math.max(cadSize.x, Number.EPSILON),
+              targetSize.y / Math.max(cadSize.y, Number.EPSILON),
+              targetSize.z / Math.max(cadSize.z, Number.EPSILON),
+            );
+          cadRoot.position.copy(new THREE.Vector3(center.x, center.y, center.z)).sub(cadCenter.clone().multiplyScalar(scale));
           cadRoot.scale.setScalar(scale);
           const fieldSamples = volumetricData.filter((point) => {
             const value = point[activeVariable];
