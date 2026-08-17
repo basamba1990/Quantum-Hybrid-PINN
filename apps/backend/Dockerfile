@@ -2,9 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Installer les dépendances système pour OpenFOAM et le traitement de données
+# Installer les dépendances système pour OpenFOAM, gfortran (OpenMP) et le traitement de données
 RUN apt-get update && apt-get install -y \
     build-essential \
+    gfortran \
+    libgomp1 \
     curl \
     libgl1 \
     libglib2.0-0 \
@@ -17,6 +19,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copier le code source du backend
 COPY . .
 
+# Compilation du noyau haute performance Fortran (Volet Hybride)
+RUN cd fortran_solver && make clean && make
+
 # Note sur la structure Render :
 # Si rootDir est apps/backend, on ne peut pas COPY ../api.
 # On compte sur le fait que Render monte le repo complet dans /opt/render/project/src.
@@ -26,6 +31,8 @@ RUN mkdir -p /home/ubuntu/cases
 
 # Définir la variable d'environnement pour le chemin des cas
 ENV CASES_BASE_PATH=/home/ubuntu/cases
+# Assurer que le .so est trouvable par le bridge Python
+ENV FORTRAN_LIB_PATH=/app/fortran_solver/libns_solver.so
 
 # Exposer le port de l'API
 EXPOSE 8080

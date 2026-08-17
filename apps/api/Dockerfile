@@ -1,10 +1,11 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-# Install system dependencies for OpenCV and 3D visualization
+# Install system dependencies for OpenCV, 3D visualization, and Fortran (OpenMP)
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
     libgomp1 \
+    gfortran \
     build-essential \
     python3-dev \
     cmake \
@@ -17,24 +18,27 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
+# Note: To include the Fortran solver from apps/backend, 
+# the build context must be the monorepo root.
 COPY . .
+
+# Compile Fortran Solver if present in the context
+RUN if [ -d "apps/backend/fortran_solver" ]; then \
+        cd apps/backend/fortran_solver && make clean && make; \
+    elif [ -d "../backend/fortran_solver" ]; then \
+        cd ../backend/fortran_solver && make clean && make; \
+    fi
 
 # Create directory for models if it doesn't exist
 RUN mkdir -p models
 
-# Expose the port FastAPI will run on (Render will override this via PORT env var)
+# Expose the port FastAPI will run on
 EXPOSE 8080
 
-# STARTUP SCRIPT: Bind port immediately, then let imports happen in background
-# Render requires the port to be open within the timeout window
-# We create a health check script that starts immediately while main.py loads
+# STARTUP SCRIPT
 COPY <<'STARTUP_SCRIPT' /app/start.sh
 #!/bin/bash
 set -e
-
-# Start uvicorn with startup event that imports lazily
-# The key fix: uvicorn binds the port BEFORE loading the app
-# Using --loop asyncio for faster startup
 uvicorn main:app \
   --host 0.0.0.0 \
   --port "${PORT:-8080}" \
