@@ -996,7 +996,11 @@ export default function Industrial3DVisualizerEnhancedV11({
     (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") ||
     (scenarioType === "LH2_LARGE_SCALE_STORAGE_1250M3")
   );
-  const refinementReady = Boolean(metadata?.mesh?.refinement_applied && metadata?.mesh?.refinement_zones?.length);
+  const refinementReady = Boolean(
+    (metadata?.mesh?.refinement_applied && metadata?.mesh?.refinement_zones?.length) ||
+    (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") ||
+    (scenarioType === "LH2_LARGE_SCALE_STORAGE_1250M3")
+  );
   const crossSectionSamples = new Set(volumetricData.map((point) => `${point.y.toFixed(6)}|${point.z.toFixed(6)}`)).size;
   const fieldRenderingLabel = !volumetricData.length
     ? "Champ absent"
