@@ -17,11 +17,16 @@ interface PlotlyChartProps {
 }
 
 export default function PlotlyChart({ type, data, scenarioType, divId, downloadTrigger }: PlotlyChartProps) {
+  const containerId = divId || `plotly-container-${type}`
+
   useEffect(() => {
     if (downloadTrigger && downloadTrigger > 0) {
       const downloadPlot = async () => {
         const Plotly = (window as any).Plotly
-        const gd = document.getElementById(divId || `plotly-${type}`)
+        // On cherche l'élément div interne créé par react-plotly.js
+        const container = document.getElementById(containerId)
+        const gd = container?.querySelector('.js-plotly-plot')
+        
         if (Plotly && gd) {
           await Plotly.downloadImage(gd, {
             format: 'png',
@@ -32,13 +37,13 @@ export default function PlotlyChart({ type, data, scenarioType, divId, downloadT
           })
         } else {
           // Fallback : Clic sur le bouton natif si l'API globale n'est pas encore prête
-          const btn = document.querySelector(`#${divId || `plotly-${type}`} .modebar-btn[data-title="Download plot as a png"]`) as any
+          const btn = container?.querySelector('.modebar-btn[data-title="Download plot as a png"]') as any
           if (btn) btn.click()
         }
       }
       downloadPlot()
     }
-  }, [downloadTrigger, divId, type])
+  }, [downloadTrigger, containerId, type])
 
   if (type === 'convergence') {
     const residuals = data || { mass: 1.15e-7, momentum: 3.42e-7, energy: 5.89e-7 }
@@ -46,9 +51,8 @@ export default function PlotlyChart({ type, data, scenarioType, divId, downloadT
     const generateCurve = (finalVal: number) => epochs.map(e => finalVal * (1 + 10 * Math.exp(-e / 10)))
 
     return (
-      <div className="w-full relative">
+      <div className="w-full relative" id={containerId}>
         <Plot
-          divId={divId || 'plotly-convergence'}
           data={[
             { x: epochs, y: generateCurve(residuals.mass), type: 'scatter', mode: 'lines', name: 'ℛ_mass', line: { color: '#3b82f6', width: 3 } },
             { x: epochs, y: generateCurve(residuals.momentum), type: 'scatter', mode: 'lines', name: 'ℛ_mom', line: { color: '#a855f7', width: 3 } },
@@ -65,7 +69,7 @@ export default function PlotlyChart({ type, data, scenarioType, divId, downloadT
           className="w-full"
         />
         <style jsx global>{`
-          .modebar { display: none !important; } /* Cache la barre mais garde les boutons actifs pour le script */
+          .modebar { display: none !important; }
         `}</style>
       </div>
     )
@@ -75,9 +79,8 @@ export default function PlotlyChart({ type, data, scenarioType, divId, downloadT
   const xRange = Array.from({ length: 100 }, (_, i) => i / 10)
   
   return (
-    <div className="w-full relative">
+    <div className="w-full relative" id={containerId}>
       <Plot
-        divId={divId || 'plotly-thermo'}
         data={[
           { x: xRange, y: xRange.map(x => isLH2 ? 20.28 + 0.5 * Math.sin(x) : 233.15 + 2 * Math.cos(x)), type: 'scatter', mode: 'lines', name: 'Température (K)', line: { color: '#3b82f6' } },
           { x: xRange, y: xRange.map(x => isLH2 ? 1.2 + 0.01 * x : 35.0 - 0.02 * x), type: 'scatter', mode: 'lines', name: isLH2 ? 'Pression (bar)' : 'Pression (MPa)', yaxis: 'y2', line: { color: '#a855f7' } }
