@@ -91,7 +91,7 @@ export default function ProjectDetailClient({ id, project }: any) {
       ...visualizationPayload.metadata.mesh,
       validated: true,
       refinement_applied: true,
-      refinement_zones: [{ boundary_name: "leak_zone", center_m: [0, 0, 0], radius_m: 0.05 }]
+      refinement_zones: [{ boundary_name: "leak_zone", center_m: [0, 0, 0] as [number, number, number], radius_m: 0.05 }]
     },
     fields: {
       temperature: { unit: "K", source: "NIST" },
