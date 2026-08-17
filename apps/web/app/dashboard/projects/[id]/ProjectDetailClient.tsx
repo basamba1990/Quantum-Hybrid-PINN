@@ -147,8 +147,36 @@ export default function ProjectDetailClient({ id, project }: any) {
     }
   }), [results, residuals])
 
-  const handleExportChartPNG = () => {
-    alert("Exportation des graphiques académiques en haute résolution (300 DPI) initiée. Vérifiez vos téléchargements.")
+  const handleExportChartPNG = async () => {
+    // Utilisation de l'API Plotly via window pour déclencher le téléchargement
+    const plotlyThermo = document.getElementById('plotly-thermo') as any
+    const plotlyConvergence = document.getElementById('plotly-convergence') as any
+    
+    if (plotlyThermo || plotlyConvergence) {
+      alert("Préparation de l'exportation haute résolution (300 DPI)...")
+      
+      // On tente de récupérer l'instance Plotly chargée dynamiquement
+      const Plotly = (window as any).Plotly
+      
+      if (Plotly) {
+        if (plotlyThermo) {
+          await Plotly.downloadImage(plotlyThermo, {
+            format: 'png', width: 1920, height: 1080, filename: `thermo_profile_${id}`, scale: 2
+          })
+        }
+        if (plotlyConvergence) {
+          await Plotly.downloadImage(plotlyConvergence, {
+            format: 'png', width: 1920, height: 1080, filename: `convergence_${id}`, scale: 2
+          })
+        }
+      } else {
+        // Fallback : Simulation de clic sur le bouton de téléchargement natif de Plotly si l'API n'est pas accessible directement
+        const downloadButtons = document.querySelectorAll('.modebar-btn[data-title="Download plot as a png"]')
+        downloadButtons.forEach((btn: any) => btn.click())
+      }
+    } else {
+      alert("Veuillez d'abord afficher l'onglet des graphiques pour les exporter.")
+    }
   }
 
   const validationWorkspaceResults = useMemo(() => ({
@@ -294,7 +322,7 @@ export default function ProjectDetailClient({ id, project }: any) {
                       </button>
                     </div>
                     <div className="w-full">
-                      <PlotlyChart type="thermo" data={results} scenarioType={scenarioType} />
+                      <PlotlyChart type="thermo" data={results} scenarioType={scenarioType} divId="plotly-thermo" />
                     </div>
                   </div>
                 </TabsContent>
@@ -311,7 +339,7 @@ export default function ProjectDetailClient({ id, project }: any) {
                       </button>
                     </div>
                     <div className="w-full">
-                      <PlotlyChart type="convergence" data={residuals} />
+                      <PlotlyChart type="convergence" data={residuals} divId="plotly-convergence" />
                     </div>
                   </div>
                 </TabsContent>

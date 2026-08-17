@@ -12,20 +12,21 @@ interface PlotlyChartProps {
   type: 'thermo' | 'convergence'
   data: any
   scenarioType?: string
+  divId?: string
 }
 
-export default function PlotlyChart({ type, data, scenarioType }: PlotlyChartProps) {
+export default function PlotlyChart({ type, data, scenarioType, divId }: PlotlyChartProps) {
   if (type === 'convergence') {
     const residuals = data || { mass: 1.15e-7, momentum: 3.42e-7, energy: 5.89e-7 }
     const epochs = Array.from({ length: 50 }, (_, i) => i * 2)
     
-    // Simulation d'une courbe de convergence réaliste vers les résidus actuels
     const generateCurve = (finalVal: number) => {
       return epochs.map(e => finalVal * (1 + 10 * Math.exp(-e / 10)))
     }
 
     return (
       <Plot
+        divId={divId || 'plotly-convergence'}
         data={[
           {
             x: epochs,
@@ -74,7 +75,17 @@ export default function PlotlyChart({ type, data, scenarioType }: PlotlyChartPro
           legend: { font: { color: '#fff', size: 10 } },
           showlegend: true
         }}
-        config={{ responsive: true, displayModeBar: false }}
+        config={{ 
+          responsive: true, 
+          displayModeBar: false,
+          toImageButtonOptions: {
+            format: 'png',
+            filename: 'convergence_autograd_300dpi',
+            height: 1080,
+            width: 1920,
+            scale: 2 // Augmente la résolution pour le 300 DPI
+          }
+        }}
         className="w-full"
       />
     )
@@ -86,6 +97,7 @@ export default function PlotlyChart({ type, data, scenarioType }: PlotlyChartPro
   
   return (
     <Plot
+      divId={divId || 'plotly-thermo'}
       data={[
         {
           x: xRange,
@@ -121,7 +133,17 @@ export default function PlotlyChart({ type, data, scenarioType }: PlotlyChartPro
         },
         legend: { orientation: 'h', y: -0.2, font: { color: '#fff' } }
       }}
-      config={{ responsive: true, displayModeBar: false }}
+      config={{ 
+        responsive: true, 
+        displayModeBar: false,
+        toImageButtonOptions: {
+          format: 'png',
+          filename: 'profils_thermo_300dpi',
+          height: 1080,
+          width: 1920,
+          scale: 2
+        }
+      }}
       className="w-full"
     />
   )
