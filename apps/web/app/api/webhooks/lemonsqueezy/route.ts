@@ -2,11 +2,19 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const webhookSecret = process.env.LEMON_WEBHOOK_SECRET!;
+export const runtime = 'nodejs';
 
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function getRuntimeConfig() {
+  const supabaseUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const webhookSecret = process.env.LEMON_WEBHOOK_SECRET;
+
+  if (!supabaseUrl || !supabaseServiceKey || !webhookSecret) {
+    return null;
+  }
+
+  return { supabaseUrl, supabaseServiceKey, webhookSecret };
+}
 
 interface LemonSqueezyWebhookPayload {
   event_name: string;
@@ -23,21 +31,33 @@ interface LemonSqueezyWebhookPayload {
   };
 }
 
-function verifyWebhookSignature(payload: string, signature: string): boolean {
-  const hash = crypto
-    .createHmac('sha256', webhookSecret)
+function verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
+  const expected = crypto
+    .createHmac('sha256', secret)
     .update(payload)
     .digest('hex');
-  return hash === signature;
+
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  const receivedBuffer = Buffer.from(signature, 'utf8');
+  return expectedBuffer.length === receivedBuffer.length &&
+    crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
 }
 
 export async function POST(req: Request) {
   try {
-    const payload = await req.text();
-    const signature = req.headers.get('x-signature') as string;
+    const config = getRuntimeConfig();
+    if (!config) {
+      return NextResponse.json(
+        { error: 'Lemon Squeezy webhook is not configured' },
+        { status: 503 }
+      );
+    }
 
-    // Verify webhook signature
-    if (!verifyWebhookSignature(payload, signature)) {
+    const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey);
+    const payload = await req.text();
+    const signature = req.headers.get('x-signature');
+
+    if (!signature || !verifyWebhookSignature(payload, signature, config.webhookSecret)) {
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 401 }
