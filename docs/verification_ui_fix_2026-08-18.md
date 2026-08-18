@@ -20,3 +20,13 @@ Après le déploiement `1d2f906`, le navigateur public liste bien `Capture PNG`,
 ## Test Capture PNG
 
 Le bouton `Capture PNG` a été activé sur le Dashboard public. Le fichier `/home/ubuntu/Downloads/HEAVY_DUTY_HYDROGEN_REFUELING_visualization_1787018059931.png` a été créé ; il s’agit d’un PNG RGBA non vide de 505 × 558 pixels. L’export WebGL est donc opérationnel.
+
+## Test palette et animation transitoire
+
+Pendant la lecture, le curseur de phase a progressé jusqu’à environ `0,50`. Le passage de `thermal` à `viridis` a modifié la colorbar verticale et la coloration du champ de façon cohérente, sans modifier les bornes numériques `245,899 K / 239,573 K / 233,150 K`. Cette vérification confirme que la palette affichée et la palette appliquée au champ utilisent la même table de couleurs.
+
+La dynamique visible est une interpolation SPH-inspirée du champ persisté, avec une onde localisée qui se déplace selon la phase. Elle ne doit pas être présentée comme un nouveau calcul CFD transitoire : un véritable transitoire physique exigerait une série temporelle calculée et persistée par le solveur.
+
+## Test JSON champ persistant
+
+Le bouton `JSON` a produit `/home/ubuntu/Downloads/HEAVY_DUTY_HYDROGEN_REFUELING_visualization.json`. Le fichier contient `scenario_type=HEAVY_DUTY_HYDROGEN_REFUELING`, `active_variable=temperature`, `field_unit=K`, `persisted_points=11000`, un tableau de `11000` points et `metadata.source=pinn`. L’export est donc cohérent avec le compteur affiché et ne tronque pas le champ.
