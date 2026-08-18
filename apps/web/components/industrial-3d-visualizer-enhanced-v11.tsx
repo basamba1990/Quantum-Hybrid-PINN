@@ -141,7 +141,8 @@ export default function Industrial3DVisualizerEnhancedV11({
   }, [volumetricData]);
 
   const displayTransform = useMemo(() => {
-    const radialBoost = scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING" || scenarioType === "LH2_INFRASTRUCTURE_INTEGRITY" ? 8 : 1;
+    // No artificial radial enlargement: the persisted field and CAD must share the physical frame.
+    const radialBoost = 1;
     const displaySpanX = domain.spanX;
     const displaySpanY = domain.spanY * radialBoost;
     const displaySpanZ = domain.spanZ * radialBoost;
@@ -404,8 +405,8 @@ export default function Industrial3DVisualizerEnhancedV11({
     scene.add(new THREE.AxesHelper(1));
 
     const particleSize = Math.max(
-      Math.min(displayTransform.displaySpanX, displayTransform.displaySpanY, displayTransform.displaySpanZ) / 120,
-      0.006,
+      Math.min(displayTransform.displaySpanX, displayTransform.displaySpanY, displayTransform.displaySpanZ) / 80,
+      0.008,
     );
     const voxelGeometry = new THREE.BoxGeometry(particleSize, particleSize, particleSize);
     const voxelMaterial = new THREE.MeshBasicMaterial({ vertexColors: true });
@@ -413,6 +414,7 @@ export default function Industrial3DVisualizerEnhancedV11({
     instancedMesh.frustumCulled = false;
     scene.add(instancedMesh);
     const dummy = new THREE.Object3D();
+    const cadColorApplierRef = { current: (_phase: number) => undefined };
 
     const applyPhase = (phase: number) => {
       for (let index = 0; index < volumetricData.length; index += 1) {
@@ -433,6 +435,7 @@ export default function Industrial3DVisualizerEnhancedV11({
       }
       instancedMesh.instanceMatrix.needsUpdate = true;
       if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
+      cadColorApplierRef.current(phase);
       forceApplyRef.current = false;
     };
     applyPhaseRef.current = applyPhase;
@@ -444,24 +447,85 @@ export default function Industrial3DVisualizerEnhancedV11({
         (gltf) => {
           cadModel = gltf.scene;
           const box = new THREE.Box3().setFromObject(cadModel);
-          const size = box.getSize(new THREE.Vector3());
           const center = box.getCenter(new THREE.Vector3());
           const scaleX = displayTransform.scale;
           const scaleY = displayTransform.scale * displayTransform.radialBoost;
           const scaleZ = displayTransform.scale * displayTransform.radialBoost;
           cadModel.scale.set(scaleX, scaleY, scaleZ);
           cadModel.position.set(-center.x * scaleX, -center.y * scaleY, -center.z * scaleZ);
+          const cadMeshes: THREE.Mesh[] = [];
           cadModel.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-              child.material = new THREE.MeshStandardMaterial({
-                color: 0x3b82f6,
-                transparent: true,
-                opacity: 0.3,
-                wireframe: true,
-              });
-            }
+            if (!(child instanceof THREE.Mesh)) return;
+            const sourceGeometry = child.geometry;
+            const position = sourceGeometry.getAttribute("position");
+            if (!position) return;
+            const colorAttribute = new THREE.Float32BufferAttribute(new Float32Array(position.count * 3), 3);
+            sourceGeometry.setAttribute("color", colorAttribute);
+            child.material = new THREE.MeshStandardMaterial({
+              vertexColors: true,
+              color: 0xffffff,
+              transparent: true,
+              opacity: 0.88,
+              roughness: 0.42,
+              metalness: 0.08,
+              side: THREE.DoubleSide,
+              wireframe: false,
+            });
+            cadMeshes.push(child);
           });
+
+          const matchTolerance = Math.max(domain.spanX, domain.spanY, domain.spanZ, 1e-6) * displayTransform.scale * 0.035;
+          const sortedPointIndices = volumetricData.map((point, index) => ({ x: point.x, index })).sort((a, b) => a.x - b.x);
+          const fieldColor = new THREE.Color();
+          const vertex = new THREE.Vector3();
+          const samplePoint = new THREE.Vector3();
+          const nearestSample = (target: THREE.Vector3, phase: number): { index: number; distance: number } => {
+            if (!sortedPointIndices.length) return { index: -1, distance: Infinity };
+            let low = 0;
+            let high = sortedPointIndices.length - 1;
+            while (low < high) {
+              const middle = Math.floor((low + high) / 2);
+              if (sortedPointIndices[middle].x < (target.x / displayTransform.scale) + domain.midX) low = middle + 1;
+              else high = middle;
+            }
+            const centerIndex = low;
+            let bestIndex = -1;
+            let bestDistance = Infinity;
+            const windowStart = Math.max(0, centerIndex - 8);
+            const windowEnd = Math.min(sortedPointIndices.length, centerIndex + 9);
+            for (let cursor = windowStart; cursor < windowEnd; cursor += 1) {
+              const candidateIndex = sortedPointIndices[cursor].index;
+              samplePoint.copy(transformPoint(volumetricData[candidateIndex], phase));
+              const distance = target.distanceTo(samplePoint);
+              if (distance < bestDistance) {
+                bestDistance = distance;
+                bestIndex = candidateIndex;
+              }
+            }
+            return { index: bestIndex, distance: bestDistance };
+          };
+          cadColorApplierRef.current = (phase: number) => {
+            for (const mesh of cadMeshes) {
+              const position = mesh.geometry.getAttribute("position");
+              const colors = mesh.geometry.getAttribute("color") as THREE.BufferAttribute;
+              for (let index = 0; index < position.count; index += 1) {
+                vertex.fromBufferAttribute(position, index);
+                mesh.localToWorld(vertex);
+                const sample = nearestSample(vertex, phase);
+                if (sample.index >= 0 && sample.distance <= matchTolerance) {
+                  const value = finiteValue(volumetricData[sample.index][activeVariable]) ?? stats.minV;
+                  fieldColor.copy(getColorFromScale(value, stats.minV, stats.maxV, colorScale));
+                } else {
+                  fieldColor.setRGB(0.16, 0.20, 0.28);
+                }
+                colors.setXYZ(index, fieldColor.r, fieldColor.g, fieldColor.b);
+              }
+              colors.needsUpdate = true;
+            }
+          };
           scene.add(cadModel);
+          cadModel.updateMatrixWorld(true);
+          cadColorApplierRef.current(animationPhaseRef.current);
         },
         undefined,
         () => undefined,
