@@ -446,13 +446,21 @@ export default function Industrial3DVisualizerEnhancedV11({
         geometryAssetUrl,
         (gltf) => {
           cadModel = gltf.scene;
-          const box = new THREE.Box3().setFromObject(cadModel);
-          const center = box.getCenter(new THREE.Vector3());
-          const scaleX = displayTransform.scale;
-          const scaleY = displayTransform.scale * displayTransform.radialBoost;
-          const scaleZ = displayTransform.scale * displayTransform.radialBoost;
-          cadModel.scale.set(scaleX, scaleY, scaleZ);
-          cadModel.position.set(-center.x * scaleX, -center.y * scaleY, -center.z * scaleZ);
+          const rawBox = new THREE.Box3().setFromObject(cadModel);
+          const rawSize = rawBox.getSize(new THREE.Vector3());
+          const fieldSpans = [displayTransform.displaySpanX, displayTransform.displaySpanY, displayTransform.displaySpanZ];
+          const targetAxis = fieldSpans.indexOf(Math.max(...fieldSpans));
+          const rawSpans = [rawSize.x, rawSize.y, rawSize.z];
+          const sourceAxis = rawSpans.indexOf(Math.max(...rawSpans));
+          // The Open CASCADE exports are millimetres; the persisted field is SI metres.
+          const cadUnitScale = 1e-3;
+          if (targetAxis === 0 && sourceAxis === 2) cadModel.rotation.y = Math.PI / 2;
+          else if (targetAxis === 0 && sourceAxis === 1) cadModel.rotation.z = -Math.PI / 2;
+          const rotatedBox = new THREE.Box3().setFromObject(cadModel);
+          const rotatedCenter = rotatedBox.getCenter(new THREE.Vector3());
+          const cadDisplayScale = displayTransform.scale * cadUnitScale;
+          cadModel.scale.setScalar(cadDisplayScale);
+          cadModel.position.set(-rotatedCenter.x * cadDisplayScale, -rotatedCenter.y * cadDisplayScale, -rotatedCenter.z * cadDisplayScale);
           const cadMeshes: THREE.Mesh[] = [];
           cadModel.traverse((child) => {
             if (!(child instanceof THREE.Mesh)) return;
