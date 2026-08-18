@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { STLExporter } from "three/addons/exporters/STLExporter.js";
-import { Download, Pause, Play, Video } from "lucide-react";
+import { Download, FileJson, Image as ImageIcon, Pause, Play, Video } from "lucide-react";
 import { strToU8, zipSync } from "fflate";
 import {
   normalizeVisualizationPoints,
@@ -35,6 +35,15 @@ const SCENARIO_GEOMETRIES: Record<string, { shape: string; radius: number; lengt
 
 const TRANSITION_FRAMES = 60;
 const TRANSITION_FPS = 30;
+
+const COLOR_STOPS = {
+  thermal: ["#180f3d", "#721f81", "#bb3754", "#ed6925", "#fbb61a", "#f0f921"],
+  viridis: ["#440154", "#31688e", "#35b779", "#fde725"],
+  coolwarm: ["#3b4cc0", "#77aadd", "#dddddd", "#ee8866", "#b40426"],
+} as const;
+
+const colorGradient = (scale: keyof typeof COLOR_STOPS): string =>
+  `linear-gradient(to top, ${COLOR_STOPS[scale].join(", ")})`;
 
 const finiteValue = (value: unknown): number | undefined => {
   const numeric = typeof value === "number" ? value : Number(value);
@@ -92,9 +101,67 @@ export default function Industrial3DVisualizerEnhancedV11({
   const [animSpeed, setAnimSpeed] = useState(0.02);
   const [animAmplitude, setAnimAmplitude] = useState(0.15);
   const [exportStatus, setExportStatus] = useState<string>("");
+  const [rendererReady, setRendererReady] = useState(false);
 
   const volumetricData = useMemo(() => normalizeVisualizationPoints(data), [data]);
   const measuredData = useMemo(() => normalizeVisualizationPoints(experimentalData), [experimentalData]);
+
+  const domain = useMemo(() => {
+    if (!volumetricData.length) {
+      return { minX: -1, maxX: 1, minY: -1, maxY: 1, minZ: -1, maxZ: 1, midX: 0, midY: 0, midZ: 0, spanX: 2, spanY: 2, spanZ: 2 };
+    }
+    const initial = {
+      minX: Infinity,
+      maxX: -Infinity,
+      minY: Infinity,
+      maxY: -Infinity,
+      minZ: Infinity,
+      maxZ: -Infinity,
+    };
+    for (const point of volumetricData) {
+      initial.minX = Math.min(initial.minX, point.x);
+      initial.maxX = Math.max(initial.maxX, point.x);
+      initial.minY = Math.min(initial.minY, point.y);
+      initial.maxY = Math.max(initial.maxY, point.y);
+      initial.minZ = Math.min(initial.minZ, point.z);
+      initial.maxZ = Math.max(initial.maxZ, point.z);
+    }
+    const spanX = Math.max(initial.maxX - initial.minX, 1e-6);
+    const spanY = Math.max(initial.maxY - initial.minY, 1e-6);
+    const spanZ = Math.max(initial.maxZ - initial.minZ, 1e-6);
+    return {
+      ...initial,
+      midX: (initial.minX + initial.maxX) / 2,
+      midY: (initial.minY + initial.maxY) / 2,
+      midZ: (initial.minZ + initial.maxZ) / 2,
+      spanX,
+      spanY,
+      spanZ,
+    };
+  }, [volumetricData]);
+
+  const displayTransform = useMemo(() => {
+    const radialBoost = scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING" || scenarioType === "LH2_INFRASTRUCTURE_INTEGRITY" ? 8 : 1;
+    const displaySpanX = domain.spanX;
+    const displaySpanY = domain.spanY * radialBoost;
+    const displaySpanZ = domain.spanZ * radialBoost;
+    const scale = 3 / Math.max(displaySpanX, displaySpanY, displaySpanZ, 1e-6);
+    return { radialBoost, scale, displaySpanX, displaySpanY, displaySpanZ };
+  }, [domain.spanX, domain.spanY, domain.spanZ, scenarioType]);
+
+  const transformPoint = useCallback((point: VisualizationPoint, phase = 0): THREE.Vector3 => {
+    const pulseCenter = domain.minX + phase * domain.spanX;
+    const pulseWidth = Math.max(domain.spanX * 0.12, 1e-6);
+    const pulse = Math.exp(-0.5 * Math.pow((point.x - pulseCenter) / pulseWidth, 2));
+    const carrier = Math.sin(phase * Math.PI * 8 + ((point.x - domain.minX) / domain.spanX) * Math.PI * 4);
+    const radialDisplacement = amplitudeRef.current * 0.16 * pulse * carrier;
+    const axialDisplacement = amplitudeRef.current * domain.spanX * 0.025 * pulse * Math.cos(phase * Math.PI * 4);
+    return new THREE.Vector3(
+      (point.x - domain.midX + axialDisplacement) * displayTransform.scale,
+      (point.y - domain.midY) * displayTransform.radialBoost * (1 + radialDisplacement) * displayTransform.scale,
+      (point.z - domain.midZ) * displayTransform.radialBoost * (1 + radialDisplacement) * displayTransform.scale,
+    );
+  }, [displayTransform.radialBoost, displayTransform.scale, domain.minX, domain.midX, domain.midY, domain.midZ, domain.spanX]);
 
   const stats = useMemo(() => {
     const values = volumetricData
@@ -129,12 +196,7 @@ export default function Industrial3DVisualizerEnhancedV11({
     (value: number, min: number, max: number, scale: string): THREE.Color => {
       const range = Math.max(max - min, 1e-12);
       const normalized = Math.max(0, Math.min(1, (value - min) / range));
-      const stops =
-        scale === "thermal"
-          ? ["#180f3d", "#721f81", "#bb3754", "#ed6925", "#fbb61a", "#f0f921"]
-          : scale === "coolwarm"
-            ? ["#3b4cc0", "#77aadd", "#dddddd", "#ee8866", "#b40426"]
-            : ["#440154", "#31688e", "#35b779", "#fde725"];
+      const stops = COLOR_STOPS[scale as keyof typeof COLOR_STOPS] ?? COLOR_STOPS.thermal;
       const scaled = normalized * (stops.length - 1);
       const index = Math.min(stops.length - 2, Math.floor(scaled));
       return new THREE.Color(stops[index]).lerp(new THREE.Color(stops[index + 1]), scaled - index);
@@ -162,6 +224,36 @@ export default function Industrial3DVisualizerEnhancedV11({
     const result = new STLExporter().parse(sceneRef.current, { binary: true });
     downloadBlob(new Blob([result], { type: "application/octet-stream" }), `${scenarioType}_geometry.stl`);
   }, [scenarioType]);
+
+  const exportPNG = useCallback(() => {
+    const renderer = rendererRef.current;
+    if (!renderer || !sceneRef.current || !cameraRef.current) return;
+    renderer.render(sceneRef.current, cameraRef.current);
+    const png = renderer.domElement.toDataURL("image/png");
+    if (png === "data:,") return;
+    const anchor = document.createElement("a");
+    anchor.href = png;
+    anchor.download = `${scenarioType}_visualization_${Date.now()}.png`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }, [scenarioType]);
+
+  const exportJSON = useCallback(() => {
+    const payload = {
+      scenario_type: scenarioType,
+      title,
+      active_variable: activeVariable,
+      field_unit: stats.unit,
+      persisted_points: volumetricData.length,
+      metadata,
+      points: volumetricData,
+    };
+    downloadBlob(
+      new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" }),
+      `${scenarioType}_visualization.json`,
+    );
+  }, [activeVariable, metadata, scenarioType, stats.unit, title, volumetricData]);
 
   const buildTransitionCsv = useCallback((): string => {
     if (!volumetricData.length) return "";
@@ -293,8 +385,10 @@ export default function Industrial3DVisualizerEnhancedV11({
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.replaceChildren(renderer.domElement);
     rendererRef.current = renderer;
+    setRendererReady(true);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -309,24 +403,33 @@ export default function Industrial3DVisualizerEnhancedV11({
     scene.add(new THREE.GridHelper(10, 20, 0x1e293b, 0x0f172a));
     scene.add(new THREE.AxesHelper(1));
 
-    const voxelGeometry = new THREE.BoxGeometry(0.018, 0.018, 0.018);
+    const particleSize = Math.max(
+      Math.min(displayTransform.displaySpanX, displayTransform.displaySpanY, displayTransform.displaySpanZ) / 120,
+      0.006,
+    );
+    const voxelGeometry = new THREE.BoxGeometry(particleSize, particleSize, particleSize);
     const voxelMaterial = new THREE.MeshBasicMaterial({ vertexColors: true });
     const instancedMesh = new THREE.InstancedMesh(voxelGeometry, voxelMaterial, volumetricData.length);
+    instancedMesh.frustumCulled = false;
+    scene.add(instancedMesh);
     const dummy = new THREE.Object3D();
-    const basePositions = volumetricData.map((point) => new THREE.Vector3(point.x, point.y, point.z));
 
     const applyPhase = (phase: number) => {
-      const amplitude = amplitudeRef.current;
       for (let index = 0; index < volumetricData.length; index += 1) {
         const point = volumetricData[index];
-        const base = basePositions[index];
-        const wave = Math.sin(phase * Math.PI * 2 + point.x * 10) * amplitude;
-        const radialScale = 1 + wave;
-        dummy.position.set(base.x, base.y * radialScale, base.z * radialScale);
+        const renderedPoint = transformPoint(point, phase);
+        dummy.position.copy(renderedPoint);
+        dummy.scale.setScalar(0.55 + amplitudeRef.current * 0.18);
         dummy.updateMatrix();
         instancedMesh.setMatrixAt(index, dummy.matrix);
+
+        const pulseCenter = domain.minX + phase * domain.spanX;
+        const pulseWidth = Math.max(domain.spanX * 0.12, 1e-6);
+        const pulse = Math.exp(-0.5 * Math.pow((point.x - pulseCenter) / pulseWidth, 2));
         const baseValue = finiteValue(point[activeVariable]) ?? stats.minV;
-        instancedMesh.setColorAt(index, getColorFromScale(baseValue * (1 + wave * 0.2), stats.minV, stats.maxV, colorScale));
+        const waveValue = baseValue + (stats.maxV - stats.minV) * amplitudeRef.current * 0.18 * pulse;
+        const normalizedValue = Math.max(stats.minV, Math.min(stats.maxV, waveValue));
+        instancedMesh.setColorAt(index, getColorFromScale(normalizedValue, stats.minV, stats.maxV, colorScale));
       }
       instancedMesh.instanceMatrix.needsUpdate = true;
       if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
@@ -343,10 +446,11 @@ export default function Industrial3DVisualizerEnhancedV11({
           const box = new THREE.Box3().setFromObject(cadModel);
           const size = box.getSize(new THREE.Vector3());
           const center = box.getCenter(new THREE.Vector3());
-          const maxDimension = Math.max(size.x, size.y, size.z, 1e-9);
-          const scale = 3 / maxDimension;
-          cadModel.scale.setScalar(scale);
-          cadModel.position.sub(center.multiplyScalar(scale));
+          const scaleX = displayTransform.scale;
+          const scaleY = displayTransform.scale * displayTransform.radialBoost;
+          const scaleZ = displayTransform.scale * displayTransform.radialBoost;
+          cadModel.scale.set(scaleX, scaleY, scaleZ);
+          cadModel.position.set(-center.x * scaleX, -center.y * scaleY, -center.z * scaleZ);
           cadModel.traverse((child) => {
             if (child instanceof THREE.Mesh) {
               child.material = new THREE.MeshStandardMaterial({
@@ -372,6 +476,7 @@ export default function Industrial3DVisualizerEnhancedV11({
 
     let animationFrameId = 0;
     let previousTimestamp = performance.now();
+    let lastUiUpdate = 0;
     const animate = (timestamp: number) => {
       animationFrameId = window.requestAnimationFrame(animate);
       const deltaSeconds = Math.min((timestamp - previousTimestamp) / 1000, 0.1);
@@ -379,6 +484,10 @@ export default function Industrial3DVisualizerEnhancedV11({
       if (isPlayingRef.current) {
         animationPhaseRef.current = (animationPhaseRef.current + deltaSeconds * speedRef.current) % 1;
         forceApplyRef.current = true;
+        if (timestamp - lastUiUpdate > 100) {
+          setAnimationPhase(animationPhaseRef.current);
+          lastUiUpdate = timestamp;
+        }
       }
       if (forceApplyRef.current || isPlayingRef.current) {
         applyPhaseRef.current(animationPhaseRef.current);
@@ -417,12 +526,13 @@ export default function Industrial3DVisualizerEnhancedV11({
       container.replaceChildren();
       applyPhaseRef.current = () => undefined;
       renderOnceRef.current = () => undefined;
+      setRendererReady(false);
       rendererRef.current = null;
       sceneRef.current = null;
       cameraRef.current = null;
       controlsRef.current = null;
     };
-  }, [activeVariable, colorScale, geometryAssetUrl, getColorFromScale, isMounted, stats.maxV, stats.minV, volumetricData]);
+  }, [activeVariable, colorScale, displayTransform.radialBoost, displayTransform.scale, geometryAssetUrl, getColorFromScale, isMounted, stats.maxV, stats.minV, transformPoint, volumetricData]);
 
   const updatePhase = (phase: number) => {
     animationPhaseRef.current = phase;
@@ -431,20 +541,20 @@ export default function Industrial3DVisualizerEnhancedV11({
   };
 
   return (
-    <div className="relative flex h-full min-h-[720px] w-full flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[#020617] p-6 shadow-2xl md:p-8">
-      <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-        <div>
-          <h3 className="text-xl font-black uppercase tracking-tight text-white">{title}</h3>
-          <p className="font-mono text-[10px] text-cyan-400">
+    <div className="relative flex h-full min-h-[720px] w-full min-w-0 flex-col overflow-hidden rounded-[32px] border border-white/10 bg-[#020617] p-4 shadow-2xl sm:p-6 md:p-8">
+      <div className="mb-5 grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="min-w-0">
+          <h3 className="break-words text-xl font-black uppercase tracking-tight text-white">{title}</h3>
+          <p className="break-words font-mono text-[10px] text-cyan-400">
             {metadata?.source_label || "Données persistées"} — {stats.count.toLocaleString()} points
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-col xl:flex-row">
           <button
             type="button"
             onClick={() => setIsPlaying((value) => !value)}
             disabled={!volumetricData.length}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all disabled:cursor-not-allowed disabled:opacity-40 ${isPlaying ? "bg-amber-600 text-white" : "bg-white/5 text-amber-400"}`}
+            className={`flex min-h-10 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${isPlaying ? "bg-amber-600 text-white" : "bg-white/5 text-amber-400"}`}
           >
             {isPlaying ? <Pause size={14} /> : <Play size={14} />}
             {isPlaying ? "Pause" : "Animer SPH / PINN"}
@@ -453,64 +563,71 @@ export default function Industrial3DVisualizerEnhancedV11({
             type="button"
             onClick={exportTransition}
             disabled={!volumetricData.length || Boolean(exportStatus)}
-            className="flex items-center gap-2 rounded-xl border border-fuchsia-400/40 bg-fuchsia-900/30 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-fuchsia-300 transition-colors hover:bg-fuchsia-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex min-h-10 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-fuchsia-400/40 bg-fuchsia-900/30 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-fuchsia-300 transition-colors active:scale-[0.98] hover:bg-fuchsia-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Video size={14} /> Export transition ZIP
           </button>
         </div>
       </div>
 
-      <div className="mb-4 grid grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-[10px] font-black uppercase tracking-widest text-slate-300 md:grid-cols-3">
-        <label className="flex items-center gap-3">
-          <span className="w-16 text-amber-400">Phase</span>
-          <input className="flex-1 accent-amber-500" type="range" min="0" max="1" step="0.001" value={animationPhase} onChange={(event) => updatePhase(Number(event.target.value))} />
-          <span className="w-12 text-right font-mono text-white">{animationPhase.toFixed(2)}</span>
+      <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-[10px] font-black uppercase tracking-widest text-slate-300 md:grid-cols-3">
+        <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_3.5rem] items-center gap-3">
+          <span className="text-amber-400">Phase</span>
+          <input className="min-w-0 accent-amber-500" type="range" min="0" max="1" step="0.001" value={animationPhase} onChange={(event) => updatePhase(Number(event.target.value))} />
+          <span className="text-right font-mono text-white">{animationPhase.toFixed(2)}</span>
         </label>
-        <label className="flex items-center gap-3">
-          <span className="w-16 text-amber-400">Vitesse</span>
-          <input className="flex-1 accent-amber-500" type="range" min="0.001" max="0.1" step="0.001" value={animSpeed} onChange={(event) => setAnimSpeed(Number(event.target.value))} />
-          <span className="w-12 text-right font-mono text-white">{animSpeed.toFixed(3)}</span>
+        <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_3.5rem] items-center gap-3">
+          <span className="text-amber-400">Vitesse</span>
+          <input className="min-w-0 accent-amber-500" type="range" min="0.001" max="0.1" step="0.001" value={animSpeed} onChange={(event) => setAnimSpeed(Number(event.target.value))} />
+          <span className="text-right font-mono text-white">{animSpeed.toFixed(3)}</span>
         </label>
-        <label className="flex items-center gap-3">
-          <span className="w-16 text-amber-400">Amplitude</span>
-          <input className="flex-1 accent-amber-500" type="range" min="0" max="0.5" step="0.01" value={animAmplitude} onChange={(event) => setAnimAmplitude(Number(event.target.value))} />
-          <span className="w-12 text-right font-mono text-white">{animAmplitude.toFixed(2)}</span>
+        <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_3.5rem] items-center gap-3">
+          <span className="text-amber-400">Amplitude</span>
+          <input className="min-w-0 accent-amber-500" type="range" min="0" max="0.5" step="0.01" value={animAmplitude} onChange={(event) => setAnimAmplitude(Number(event.target.value))} />
+          <span className="text-right font-mono text-white">{animAmplitude.toFixed(2)}</span>
         </label>
       </div>
 
-      {exportStatus && <p className="mb-3 text-center text-[10px] font-black uppercase tracking-widest text-fuchsia-300">{exportStatus}</p>}
+      <p className="mb-3 min-h-4 break-words text-center text-[10px] font-black uppercase tracking-widest text-fuchsia-300">{exportStatus}</p>
 
-      <div className="relative min-h-[500px] flex-1 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-        <div ref={containerRef} className="absolute inset-0" />
-        <div className="absolute bottom-4 right-4 top-4 flex w-14 flex-col items-center justify-between rounded-xl border border-white/10 bg-slate-900/80 p-2">
-          <div className="text-center text-[8px] font-bold uppercase text-white">{activeVariable}</div>
-          <div className="my-2 w-3 flex-1 rounded-full" style={{ backgroundImage: "linear-gradient(to top, #180f3d, #721f81, #bb3754, #ed6925, #fbb61a, #f0f921)" }} />
-          <div className="flex h-24 flex-col justify-between text-[8px] font-mono text-gray-400">
+      <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-2xl border border-white/10 bg-black/40 sm:min-h-[520px] lg:min-h-[560px]">
+        <div ref={containerRef} className="absolute inset-0 min-h-0 min-w-0" />
+        <div className="absolute bottom-3 right-3 top-3 flex w-16 flex-col items-center justify-between rounded-xl border border-white/10 bg-slate-900/90 p-2 shadow-lg sm:bottom-4 sm:right-4 sm:top-4">
+          <div className="max-w-full break-words text-center text-[8px] font-bold uppercase leading-tight text-white">{activeVariable} ({stats.unit})</div>
+          <div className="my-2 min-h-24 w-3 flex-1 rounded-full" style={{ backgroundImage: colorGradient(colorScale) }} />
+          <div className="flex h-24 flex-col justify-between text-[8px] font-mono text-gray-300">
             <span>{stats.maxV.toFixed(3)}</span>
+            <span>{stats.avgV.toFixed(3)}</span>
             <span>{stats.minV.toFixed(3)}</span>
           </div>
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <select value={activeVariable} onChange={(event) => setActiveVariable(event.target.value)} className="rounded-xl border border-white/10 bg-black px-4 py-2 text-[10px] font-black uppercase text-white">
+      <div className="mt-5 grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(180px,1fr)_minmax(220px,auto)_minmax(280px,1.2fr)]">
+        <select value={activeVariable} onChange={(event) => setActiveVariable(event.target.value)} className="min-w-0 rounded-xl border border-white/10 bg-black px-4 py-2 text-[10px] font-black uppercase text-white">
           <option value="temperature">Température (K)</option>
           <option value="pressure">Pression (MPa)</option>
           <option value="velocity_magnitude">Vitesse (m/s)</option>
           <option value="stress">Contrainte (MPa)</option>
         </select>
-        <div className="flex gap-1">
+        <div className="grid min-w-0 grid-cols-3 gap-1">
           {(["thermal", "viridis", "coolwarm"] as const).map((scale) => (
-            <button key={scale} type="button" onClick={() => setColorScale(scale)} className={`flex-1 rounded-xl py-2 text-[9px] font-black uppercase ${colorScale === scale ? "bg-blue-600 text-white" : "bg-white/5 text-gray-400"}`}>
+            <button key={scale} type="button" onClick={() => setColorScale(scale)} className={`min-w-0 rounded-xl py-2 text-[9px] font-black uppercase ${colorScale === scale ? "bg-blue-600 text-white" : "bg-white/5 text-gray-400"}`}>
               {scale}
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={exportCSV} disabled={!volumetricData.length} className="flex-1 rounded-xl border border-emerald-500/30 bg-emerald-900/30 text-[9px] font-black uppercase tracking-widest text-emerald-400 transition-colors hover:bg-emerald-600 hover:text-white disabled:opacity-40">
+        <div className="grid min-w-0 grid-cols-2 gap-2">
+          <button type="button" onClick={exportPNG} disabled={!rendererReady} className="min-w-0 rounded-xl border border-cyan-500/30 bg-cyan-900/30 px-2 py-2 text-[9px] font-black uppercase tracking-widest text-cyan-400 transition-colors hover:bg-cyan-600 hover:text-white disabled:opacity-40">
+            <ImageIcon className="mx-auto inline-block" size={13} /> Capture PNG
+          </button>
+          <button type="button" onClick={exportJSON} disabled={!volumetricData.length} className="min-w-0 rounded-xl border border-purple-500/30 bg-purple-900/30 px-2 py-2 text-[9px] font-black uppercase tracking-widest text-purple-400 transition-colors hover:bg-purple-600 hover:text-white disabled:opacity-40">
+            <FileJson className="mx-auto inline-block" size={13} /> JSON
+          </button>
+          <button type="button" onClick={exportCSV} disabled={!volumetricData.length} className="min-w-0 rounded-xl border border-emerald-500/30 bg-emerald-900/30 px-2 py-2 text-[9px] font-black uppercase tracking-widest text-emerald-400 transition-colors hover:bg-emerald-600 hover:text-white disabled:opacity-40">
             <Download className="mx-auto inline-block" size={13} /> CSV champ
           </button>
-          <button type="button" onClick={exportSTL} disabled={!sceneRef.current} className="flex-1 rounded-xl border border-blue-500/30 bg-blue-900/30 text-[9px] font-black uppercase tracking-widest text-blue-400 transition-colors hover:bg-blue-600 hover:text-white disabled:opacity-40">
+          <button type="button" onClick={exportSTL} disabled={!rendererReady} className="min-w-0 rounded-xl border border-blue-500/30 bg-blue-900/30 px-2 py-2 text-[9px] font-black uppercase tracking-widest text-blue-400 transition-colors hover:bg-blue-600 hover:text-white disabled:opacity-40">
             STL géométrie
           </button>
         </div>
