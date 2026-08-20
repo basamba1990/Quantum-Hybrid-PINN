@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const getSupabase = () => {
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured');
-  }
-  return createClient(supabaseUrl, supabaseServiceKey);
-};
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // ============================================================================
 // GET: Fetch a specific analysis
@@ -21,7 +16,6 @@ export async function GET(
   const { id } = await params;
   
   try {
-    const supabase = getSupabase();
     const { data: analysis, error } = await supabase
       .from('analyses')
       .select('*')
@@ -56,7 +50,6 @@ export async function PATCH(
   const { id } = await params;
 
   try {
-    const supabase = getSupabase();
     const updateData = await req.json();
 
     // Sanitize update data
@@ -115,7 +108,6 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    const supabase = getSupabase();
     const { error } = await supabase
       .from('analyses')
       .delete()

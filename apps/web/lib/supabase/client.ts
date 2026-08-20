@@ -1,10 +1,11 @@
 import { createBrowserClient } from '@supabase/ssr'
 
 export const createClient = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ivhxnaxhgfbiqlhgfkik.supabase.co'
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+
   if (!url || !key) {
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be configured')
+    console.error('Supabase environment variables are missing. Please check your .env file or Vercel dashboard.')
   }
 
   return createBrowserClient(url, key)

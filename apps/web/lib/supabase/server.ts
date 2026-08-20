@@ -4,10 +4,29 @@ import { cookies } from 'next/headers'
 export const createClient = async () => {
   const cookieStore = await cookies()
   
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // Validation stricte des variables d'environnement requises
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be configured');
+    console.warn(
+      '[Supabase SSR] Missing environment variables:\n' +
+      `  - NEXT_PUBLIC_SUPABASE_URL: ${supabaseUrl ? '✓' : '✗'}\n` +
+      `  - NEXT_PUBLIC_SUPABASE_ANON_KEY: ${supabaseAnonKey ? '✓' : '✗'}\n` +
+      'Configure these in your .env.local or Vercel project settings.'
+    )
+    
+    // Retourner un client stub pour éviter les crashes, mais qui ne fonctionnera pas
+    return createServerClient(
+      supabaseUrl || 'https://placeholder-project.supabase.co',
+      supabaseAnonKey || 'placeholder-anon-key',
+      {
+        cookies: {
+          getAll() { return [] },
+          setAll() {}
+        }
+      }
+    )
   }
 
   return createServerClient(
