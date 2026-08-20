@@ -219,11 +219,14 @@ export const buildVisualizationMetadata = (
     ?? "MPa";
   const tempUnit = validUnit(explicitFields.temperature?.unit)
     ?? "K";
+  const velUnit = validUnit(explicitFields.velocity_magnitude?.unit) ?? "m/s";
+  const stressUnit = validUnit(explicitFields.stress?.unit) ?? "MPa";
+
   const fields = {
     temperature: { unit: tempUnit, min: finite(explicitFields.temperature?.min) ?? 20.28, max: finite(explicitFields.temperature?.max) ?? 30.0, source: explicitFields.temperature?.source ?? "NIST REFPROP" },
     pressure: { unit: pressureUnit, min: finite(explicitFields.pressure?.min) ?? 1.1, max: finite(explicitFields.pressure?.max) ?? 1.3, source: explicitFields.pressure?.source ?? "NIST REFPROP" },
-    velocity_magnitude: { unit: validUnit(explicitFields.velocity_magnitude?.unit), min: finite(explicitFields.velocity_magnitude?.min), max: finite(explicitFields.velocity_magnitude?.max), source: explicitFields.velocity_magnitude?.source },
-    stress: { unit: validUnit(explicitFields.stress?.unit), min: finite(explicitFields.stress?.min), max: finite(explicitFields.stress?.max), source: explicitFields.stress?.source },
+    velocity_magnitude: { unit: velUnit, min: finite(explicitFields.velocity_magnitude?.min) ?? 0, max: finite(explicitFields.velocity_magnitude?.max) ?? 10, source: explicitFields.velocity_magnitude?.source ?? "Industrial Engine" },
+    stress: { unit: stressUnit, min: finite(explicitFields.stress?.min) ?? 0, max: finite(explicitFields.stress?.max) ?? 100, source: explicitFields.stress?.source ?? "Industrial Engine" },
   };
 
   return {

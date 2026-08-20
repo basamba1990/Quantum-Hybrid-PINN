@@ -152,10 +152,10 @@ export default function Industrial3DVisualizerEnhancedV11({
   const [showBubbles, setShowBubbles] = useState(true);
 
   const fieldOptions = useMemo(() => [
-    { key: "temperature", label: "Température", unit: metadata?.fields?.temperature?.unit ?? "N/D" },
-    { key: "pressure", label: "Pression", unit: metadata?.fields?.pressure?.unit ?? "N/D" },
-    { key: "velocity_magnitude", label: "Vitesse", unit: metadata?.fields?.velocity_magnitude?.unit ?? "N/D" },
-    { key: "stress", label: "Contrainte", unit: metadata?.fields?.stress?.unit ?? "N/D" },
+    { key: "temperature", label: "Température", unit: metadata?.fields?.temperature?.unit || "K" },
+    { key: "pressure", label: "Pression", unit: metadata?.fields?.pressure?.unit || "MPa" },
+    { key: "velocity_magnitude", label: "Vitesse", unit: metadata?.fields?.velocity_magnitude?.unit || "m/s" },
+    { key: "stress", label: "Contrainte", unit: metadata?.fields?.stress?.unit || "MPa" },
   ] as const, [metadata?.fields]);
 
   const volumetricData = useMemo(() => normalizeVisualizationPoints(data), [data]);
