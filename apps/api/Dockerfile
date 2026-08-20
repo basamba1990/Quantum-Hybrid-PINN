@@ -16,6 +16,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copier le contenu de apps/api vers /app
 COPY . .
 
+# Compiler le solver Fortran (HPC Core)
+RUN cd backend/fortran_solver && \
+    gfortran -O3 -fopenmp -shared -fPIC -o solver.so navier_stokes_kernel.f90
+
 ENV PYTHONPATH=/app
 ENV PORT=10000
 EXPOSE 10000
