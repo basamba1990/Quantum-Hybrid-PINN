@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   distDir: 'dist',
+  transpilePackages: ['three'],
   
   // Optimisations de performance (SWC est activé par défaut dans Next.js 15+)
   compress: true,
@@ -33,7 +34,7 @@ const nextConfig = {
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=3600, must-revalidate'
+            value: 'public, max-age=60, must-revalidate'
           },
           {
             key: 'X-Content-Type-Options',

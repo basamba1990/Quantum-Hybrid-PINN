@@ -8,66 +8,47 @@
   "artifacts": [
     {
       "scenario_type": "HEAVY_DUTY_HYDROGEN_REFUELING",
-      "step_repository_path": "apps/api/assets/dn50_refueling_enriched.step",
+      "step_repository_path": "fixtures/step/industrial/heavy_duty_refueling/geometry.step",
       "step_sha256": "bea4ba469909742cd16a02d138255abe307987d90dfbb27bd216e3e01ca87895",
       "glb_public_path": "/cad/HEAVY_DUTY_HYDROGEN_REFUELING/geometry.glb",
       "glb_sha256": "390120e618696d355ba4eb4aa56bfbc0ca22beb2d1bbb3ec2399cc66206f1eb9",
-      "glb_length_unit": "mm",
       "step_schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF",
       "brepcheck_valid": true,
-      "audit_status": "VALIDATED",
       "solids": 1,
       "shells": 2,
-      "faces": 42,
+      "faces": 20,
       "volume_m3": 0.002952701219304667,
-      "named_boundaries": ["inlet", "outlet", "wall", "branch_port", "sensor_port_1", "sensor_port_2"]
+      "bounds_m": {
+        "xmin": -0.2750000001,
+        "xmax": 0.2750000001,
+        "ymin": -0.055,
+        "ymax": 0.055,
+        "zmin": -0.0250000001,
+        "zmax": 2.5250000001
+      },
+      "named_boundaries": ["inlet", "outlet", "wall", "branch_port"]
     },
     {
       "scenario_type": "LH2_LARGE_SCALE_STORAGE_1250M3",
-      "step_repository_path": "apps/api/assets/lh2_storage_enriched.step",
-      "step_sha256": "04e70df2a7154b57f018253fb8cfed3952665c512a75202eb374a9670f4e3770",
+      "step_repository_path": "fixtures/step/industrial/lh2_storage_1250m3/geometry.step",
+      "step_sha256": "89ade7dbde9a74dea09614ceafb64e0db5a19a5379b3a631e0399978a6592751",
       "glb_public_path": "/cad/LH2_LARGE_SCALE_STORAGE_1250M3/geometry.glb",
       "glb_sha256": "780bfe480ff8ec975170c3ee164079cd23721551bd873b409aa1776e67ec80e3",
-      "glb_length_unit": "mm",
       "step_schema": "AP242_MANAGED_MODEL_BASED_3D_ENGINEERING_MIM_LF",
       "brepcheck_valid": true,
-      "audit_status": "VALIDATED",
-      "solids": 4,
-      "shells": 8,
-      "faces": 124,
+      "solids": 1,
+      "shells": 2,
+      "faces": 2,
       "volume_m3": 28.24746279314429,
-      "components": [
-        "outer_spherical_shell",
-        "inner_fluid_domain",
-        "dip_tube",
-        "anti_slosh_baffle_lower",
-        "anti_slosh_baffle_upper"
-      ],
-      "named_boundaries": ["inner_wall", "outer_wall", "vacuum_space_boundary", "dip_tube_surface", "baffle_contact"]
-    },
-    {
-      "scenario_type": "FPGA_HEATSINK",
-      "step_repository_path": "apps/api/assets/fpga_heatsink_enriched.step",
-      "step_sha256": "f5cd9f8cb6f55d7e80f50ea7bf8e9ac92d7f37f45b4c2aac19f80e0f234d0d2f",
-      "glb_public_path": "/cad/FPGA_HEATSINK/geometry.glb",
-      "glb_sha256": "bec40c51207fd907a888aada3718118bdfe746146ba7e50bdabea426cec9ef05",
-      "step_length_unit": "mm",
-      "glb_length_unit": "m",
-      "step_schema": "AP214_AUTOMOTIVE_DESIGN",
-      "audit_status": "VALIDATED",
-      "glb_bounds_m": {"xmin": -0.0225, "xmax": 0.0225, "ymin": -0.0225, "ymax": 0.0225, "zmin": 0.0, "zmax": 0.018}
-    },
-    {
-      "scenario_type": "DEEP_MINING_BLOCK",
-      "step_repository_path": "apps/api/assets/deep_mining_block_enriched.step",
-      "step_sha256": "4902038fd1678e16ff41454872cb3203f2b51b6ae902e0ae6ece775da4926ddf",
-      "glb_public_path": "/cad/DEEP_MINING_BLOCK/geometry.glb",
-      "glb_sha256": "eed8af34114d80b31dd07945f686edfd7361cb6816deff048df39c50b1e8e42e",
-      "step_length_unit": "mm",
-      "glb_length_unit": "m",
-      "step_schema": "AP214_AUTOMOTIVE_DESIGN",
-      "audit_status": "VALIDATED",
-      "glb_bounds_m": {"xmin": -10.0, "xmax": 10.0, "ymin": -10.0, "ymax": 10.0, "zmin": -10.0, "zmax": 10.0}
+      "bounds_m": {
+        "xmin": -6.73,
+        "xmax": 6.73,
+        "ymin": -6.73,
+        "ymax": 6.73,
+        "zmin": -6.73,
+        "zmax": 6.73
+      },
+      "named_boundaries": ["inner_wall", "outer_wall", "vacuum_space_boundary"]
     }
   ]
 }

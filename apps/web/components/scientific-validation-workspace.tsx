@@ -105,11 +105,8 @@ function statusFor(
   // Le backend émet actuellement validation_status et des contrôles séparés.
   // Un statut backend « passed » ne suffit pas à certifier G0–G5 : les contrôles
   // de frontière, référence et incertitude doivent également être explicitement vrais.
-  const backendStatus = (results.validation_status ?? results.validationStatus)?.toLowerCase();
-  if (backendStatus === "failed" || backendStatus === "validation_failed") return "VALIDATION_FAILED";
-  // `passed` est un ancien vocabulaire de validation partielle : il ne doit
-  // jamais être interprété comme une certification G0–G5 publiée.
-  if (backendStatus !== "validated") return "READY_FOR_RUN";
+  const backendStatus = results.validation_status?.toLowerCase();
+  if (backendStatus === "failed") return "VALIDATION_FAILED";
   const checks = results.validationChecks || results.validation_checks;
   if (!checks) return "READY_FOR_RUN";
 

@@ -7,7 +7,10 @@ export type ScenarioType =
   | 'MINING_INDUSTRIAL_SIM'
   | 'H2_COMPRESSION_STATION'
   | 'FPGA_HEATSINK'
-  | 'SMART_RADIATOR';
+  | 'SMART_RADIATOR'
+  | 'LH2_INFRASTRUCTURE_INTEGRITY'
+  | 'LH2_LARGE_SCALE_STORAGE_1250M3'
+  | 'HEAVY_DUTY_HYDROGEN_REFUELING';
 
 export interface ScenarioConfig {
   id: ScenarioType;
@@ -204,5 +207,82 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
       { name: 'thermalStability', label: 'Stabilité Thermique', unit: 'K' },
       { name: 'aiCorrectionFactor', label: 'Facteur Correction IA', unit: '' }
     ]
+  },
+  LH2_LARGE_SCALE_STORAGE_1250M3: {
+    id: 'LH2_LARGE_SCALE_STORAGE_1250M3',
+    name: 'Stockage LH2 grande capacité (1 250 m³)',
+    description: 'Scénario de stockage cryogénique grande capacité. Les paramètres, le maillage, les champs et la validation restent pilotés par les artefacts persistés du cas.',
+    inputs: [],
+    outputs: []
+  },
+  HEAVY_DUTY_HYDROGEN_REFUELING: {
+    id: 'HEAVY_DUTY_HYDROGEN_REFUELING',
+    name: 'Ravitaillement hydrogène poids lourds',
+    description: 'Scénario de ravitaillement rapide pour véhicules lourds conforme au contrat de cas SAE J2601-2 / PRHYDE lorsque les artefacts correspondants sont persistés.',
+    inputs: [],
+    outputs: []
+  },
+  LH2_INFRASTRUCTURE_INTEGRITY: {
+    id: 'LH2_INFRASTRUCTURE_INTEGRITY',
+    name: 'Intégrité Infrastructures LH2 (Kelly Senecal)',
+    description: 'Modélisation PINN avancée des discontinuités de fuite cryogénique (20.28K, 1.2 MPa), gradients thermiques et contraintes de von Mises avec validation des résidus Navier-Stokes.',
+    inputs: [
+      { name: 'operating_pressure', label: 'Pression de Service', type: 'number', unit: 'MPa', defaultValue: 1.2 },
+      { name: 'storage_temp', label: 'Température Stockage', type: 'number', unit: 'K', defaultValue: 20.28 },
+      { name: 'leak_diameter', label: 'Diamètre Discontinuité de Fuite', type: 'number', unit: 'mm', defaultValue: 5.0 },
+      { name: 'ambient_temp', label: 'Température Ambiante', type: 'number', unit: 'K', defaultValue: 293.15 }
+    ],
+    outputs: [
+      { name: 'credibilityScore', label: 'Score de Crédibilité PINN', unit: '%' },
+      { name: 'massResidual', label: 'Résidu Masse', unit: '' },
+      { name: 'momentumResidual', label: 'Résidu Momentum', unit: '' },
+      { name: 'energyResidual', label: 'Résidu Énergie', unit: '' },
+      { name: 'maxStress', label: 'Contrainte Von Mises Max', unit: 'MPa' },
+      { name: 'reynoldsNumber', label: 'Nombre de Reynolds', unit: '' }
+    ]
   }
 };
+
+export const SCENARIO_ALIASES: Record<string, ScenarioType> = {
+  PIPELINE: 'H2_PIPELINE',
+  H2_PIPELINE: 'H2_PIPELINE',
+  'H2 PIPELINE': 'H2_PIPELINE',
+  H2_DISTRIBUTION_HIGH_PRESSURE: 'H2_PIPELINE',
+  'HIGH-PRESSURE H2': 'H2_PIPELINE',
+  'HIGH PRESSURE H2': 'H2_PIPELINE',
+  PIPELINE_SAFETY: 'PIPELINE_SAFETY',
+  CRYOGENIC_TRANSPORT: 'CRYOGENIC_TRANSPORT',
+  LH2_STORAGE: 'LH2_STORAGE',
+  LH2_INFRASTRUCTURE_INTEGRITY: 'LH2_INFRASTRUCTURE_INTEGRITY',
+  LH2_LARGE_SCALE_STORAGE_1250M3: 'LH2_LARGE_SCALE_STORAGE_1250M3',
+  'LH2 LARGE SCALE STORAGE 1250M3': 'LH2_LARGE_SCALE_STORAGE_1250M3',
+  HEAVY_DUTY_HYDROGEN_REFUELING: 'HEAVY_DUTY_HYDROGEN_REFUELING',
+  'HEAVY DUTY HYDROGEN REFUELING': 'HEAVY_DUTY_HYDROGEN_REFUELING',
+  'INTÉGRITÉ INFRASTRUCTURES LH2 (KELLY SENECAL)': 'LH2_INFRASTRUCTURE_INTEGRITY',
+  'INTEGRITE INFRASTRUCTURES LH2 (KELLY SENECAL)': 'LH2_INFRASTRUCTURE_INTEGRITY',
+  MINING_INDUSTRIAL_SIM: 'MINING_INDUSTRIAL_SIM',
+  H2_COMPRESSION_STATION: 'H2_COMPRESSION_STATION',
+  FPGA_HEATSINK: 'FPGA_HEATSINK',
+  SMART_RADIATOR: 'SMART_RADIATOR',
+  PORT_ENERGY_OPTIMIZATION: 'PORT_ENERGY_OPTIMIZATION',
+};
+
+export function normalizeScenarioType(value?: string | null): ScenarioType | null {
+  if (!value) return null;
+  const key = value.trim().toUpperCase().replace(/[–—]/g, '-');
+  const direct = SCENARIO_ALIASES[key];
+  if (direct) return direct;
+  if (key.includes('LH2') && (key.includes('INTEGR') || key.includes('INFRA'))) return 'LH2_INFRASTRUCTURE_INTEGRITY';
+  if (key.includes('HIGH-PRESSURE H2') || key.includes('HIGH PRESSURE H2')) return 'H2_PIPELINE';
+  if (key.includes('PIPELINE')) return 'H2_PIPELINE';
+  return null;
+}
+
+export function inferScenarioTypeFromProject(project: { name?: string | null; category?: string | null; scenario_type?: string | null }): ScenarioType | null {
+  return normalizeScenarioType(project.scenario_type) || normalizeScenarioType(project.category) || normalizeScenarioType(project.name);
+}
+
+export function getScenarioDisplayName(value?: string | null): string {
+  const normalized = normalizeScenarioType(value);
+  return normalized ? INDUSTRIAL_SCENARIOS[normalized].name : (value?.trim() || 'Projet scientifique');
+}

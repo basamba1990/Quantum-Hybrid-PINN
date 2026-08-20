@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {
@@ -18,15 +15,22 @@ export async function GET(req: Request) {
       );
     }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json({ status: 'free', plan: 'free' }, { status: 200 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data, error } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('user_email', userEmail)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (error) {
+    if (error || !data) {
       return NextResponse.json(
         { status: 'free', plan: 'free' },
         { status: 200 }

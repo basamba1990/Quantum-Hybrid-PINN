@@ -4,10 +4,18 @@ import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { ArrowLeft, Activity } from 'lucide-react'
+
+const Industrial3DVisualizerEnhancedV11 = dynamic(
+  () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
+  { ssr: false, loading: () => <div className="h-[600px] rounded-3xl border border-white/10 bg-slate-950 flex items-center justify-center text-cyan-400 font-mono text-xs uppercase tracking-widest">Initialisation de la visualisation CFD...</div> }
+)
 import ScientificAuditCard from '@/components/scientific-audit-card'
 import ScientificSocialHub from '@/components/scientific-social-hub'
 import { format } from 'date-fns'
+import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
+import { getScenarioCadAssetUrl } from '@/lib/cad-assets'
 
 interface AnalysisDetail {
   id: string
@@ -17,6 +25,8 @@ interface AnalysisDetail {
   results: any
   created_at: string
   project_id: string
+  scenario_type?: string
+  transcription?: string
 }
 
 export default function AnalysisDetailPage() {
@@ -30,44 +40,71 @@ export default function AnalysisDetailPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchAnalysis = async () => {
-      try {
-        const { data, error: fetchError } = await supabase
-          .from('analyses')
-          .select('*')
-          .eq('id', analysisId)
-          .eq('project_id', projectId)
-          .single()
+        const fetchAnalysis = async () => {
+        try {
+          // 1. Fetch from analyses table for metadata
+          const { data, error: fetchError } = await supabase
+            .from('analyses')
+            .select('*')
+            .eq('id', analysisId)
+            .eq('project_id', projectId)
+            .maybeSingle()
 
-        if (fetchError) throw fetchError
-        if (!data) throw new Error('Analyse non trouvée')
+          if (fetchError) throw fetchError
+          if (!data) throw new Error('Analyse non trouvée')
 
-        // Parse results if it's a string
-        let results = data.results
-        if (typeof results === 'string') {
-          try {
-            results = JSON.parse(results)
-          } catch {
+          // 2. KELLY SENECAL V2.1.7: Fetch high-fidelity data from analysis_results
+          const { data: resRows, error: resError } = await supabase
+            .from('analysis_results')
+            .select('*')
+            .eq('analysis_id', analysisId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+          const resData = resRows?.[0] ?? null
+
+          // Parse results if it's a string, and always provide an object before merging persisted fields
+          let results = data?.results
+          if (typeof results === 'string') {
+            try {
+              results = JSON.parse(results)
+            } catch {
+              results = {}
+            }
+          } else if (!results || typeof results !== 'object') {
             results = {}
           }
-        }
 
-        // ✅ Correction: Assurer que le score et les résultats sont correctement structurés
-        const score = data.credibility_score ?? results?.credibility_score ?? results?.credibilityScore ?? 0;
-        
-        // S'assurer que predictions3d existe
-        if (results && !results.predictions3d && results.predictions) {
-          results.predictions3d = results.predictions;
-        }
+          // Merge high-fidelity predictions if available
+          if (resData) {
+            if (resData.pinn_predictions) results.predictions3d = resData.pinn_predictions;
+            if (resData.experimental_data) results.experimental_data = resData.experimental_data;
+            if (resData.mesh) results.mesh = resData.mesh;
+            if (resData.geometry) results.geometry = resData.geometry;
+            if (resData.discontinuity) results.discontinuity = resData.discontinuity;
+            results.extractedData = {
+              ...(results.extractedData || {}),
+              ...(resData.extracted_parameters || {})
+            };
+            results.credibilityScore = resData.credibility_score || results.credibilityScore;
+          }
 
-        console.log("Analysis Data Loaded:", { id: data.id, score, hasPredictions: !!results?.predictions3d });
-        
-        setAnalysis({
-          ...data,
-          credibility_score: score,
-          results: results || {}
-        })
-      } catch (err: any) {
+          // ✅ Correction: Assurer que le score et les résultats sont correctement structurés
+          const score = resData?.credibility_score ?? data.credibility_score ?? results?.credibility_score ?? results?.credibilityScore ?? 0;
+          
+          // S'assurer que predictions3d existe
+          if (results && !results.predictions3d && results.predictions) {
+            results.predictions3d = results.predictions;
+          }
+
+          console.log("Analysis Data Loaded (V2.1.7):", { id: data.id, score, hasPredictions: !!results?.predictions3d, points: results?.predictions3d?.length });
+          
+          setAnalysis({
+            ...data,
+            title: data.name || data.title || 'Analyse sans titre',
+            credibility_score: Number(score) || 0,
+            results: results || {}
+          })
+        } catch (err: any) {
         setError(err.message || 'Erreur lors du chargement de l\'analyse')
       } finally {
         setLoading(false)
@@ -103,6 +140,31 @@ export default function AnalysisDetailPage() {
     )
   }
 
+  const scenarioEvidence = [
+    analysis.transcription,
+    analysis.results?.scenario_inputs?.transcription,
+    analysis.results?.physicsParams?.transcription,
+    analysis.results?.extractedData?.transcription,
+  ].filter((value): value is string => typeof value === 'string').join('\n')
+
+  const resolvedScenarioType = resolveVisualizationScenario([
+    analysis.title,
+    analysis.scenario_type,
+    scenarioEvidence,
+    analysis.results?.scenario_type,
+    analysis.results?.scenarioType,
+    analysis.results?.extractedData,
+    analysis.results?.extracted_parameters,
+  ])
+  const visualizationPayload = extractVisualizationPayload(analysis)
+  const geometryAssetUrl = getScenarioCadAssetUrl(resolvedScenarioType, [
+    analysis.title,
+    analysis.scenario_type,
+    analysis.results?.scenario_type,
+    analysis.results?.scenarioType,
+    analysis.results?.extractedData?.scenario_type,
+  ])
+
   const auditData = {
     isPhysicallyCoherent: analysis.credibility_score > 50,
     credibilityScore: analysis.credibility_score,
@@ -137,10 +199,28 @@ export default function AnalysisDetailPage() {
           </p>
         </div>
         <div className="text-right">
-          <div className="text-5xl font-black text-blue-600">{analysis.credibility_score.toFixed(1)}</div>
+          <div className="text-5xl font-black text-blue-600">{(Number(analysis.credibility_score) || 0).toFixed(1)}</div>
           <div className="text-sm text-gray-600">/100</div>
         </div>
       </div>
+
+      {/* Vue CFD identique à la page Simulation CFD */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-black uppercase tracking-tight text-gray-900">Visualisation CFD</h2>
+          <span className="text-xs font-mono text-cyan-700">Surface B-Rep GLB issue d'Open CASCADE — colorbar liée au champ si le recouvrement spatial est validé</span>
+        </div>
+        <div className="h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-900/50">
+          <Industrial3DVisualizerEnhancedV11
+            data={visualizationPayload.points}
+            experimentalData={visualizationPayload.experimentalPoints}
+            metadata={visualizationPayload.metadata}
+            scenarioType={resolvedScenarioType}
+            geometryAssetUrl={geometryAssetUrl}
+            title={analysis.title}
+          />
+        </div>
+      </section>
 
       {/* Main Content Layout - 3 Columns Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -149,6 +229,7 @@ export default function AnalysisDetailPage() {
           <ScientificAuditCard
             auditData={auditData}
             projectName={analysis.title}
+            scenarioType={resolvedScenarioType}
           />
         </div>
 

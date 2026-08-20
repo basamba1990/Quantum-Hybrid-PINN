@@ -1,22 +1,8 @@
 'use client'
-
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { 
-  FlaskConical, 
-  Activity, 
-  Play, 
-  Share2, 
-  AlertCircle, 
-  Info,
-  Loader2,
-  ChevronRight,
-  Settings,
-  Database,
-  ShieldAlert,
-  Wind,
-  Layers,
-  CheckCircle2,
-  Lightbulb
+  FlaskConical, Activity, Play, Share2, AlertCircle, Info, Loader2, ChevronRight, Settings,
+  Database, ShieldAlert, Wind, Layers, CheckCircle2, Lightbulb, Maximize2, Download, FileJson
 } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -26,11 +12,13 @@ import { Badge } from "@/components/ui/badge"
 import dynamic from 'next/dynamic'
 import { HybridSimulationPanel } from "@/components/HybridSimulationPanel"
 import { createClient } from '@/lib/supabase/client'
+import { fr } from 'date-fns/locale'
+import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
+import { getScenarioCadAssetUrl } from '@/lib/cad-assets'
 
-// Import dynamique du nouveau visualiseur industriel V5
-const Industrial3DVisualizerEnhancedV5 = dynamic(
-  () => import('@/components/industrial-3d-visualizer-enhanced-v5'),
-  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur 3D...</div> }
+const Industrial3DVisualizerEnhancedV11 = dynamic(
+  () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-3xl border border-cyan-500/30 text-blue-500 animate-pulse font-mono text-xs uppercase tracking-widest">Initialisation du moteur V11...</div> }
 )
 
 const AdvancedPhysicsVisualization = dynamic(
@@ -44,31 +32,19 @@ export default function SimulationsPage() {
   const [analyses, setAnalyses] = useState<any[]>([])
   const [selectedAnalysis, setSelectedAnalysis] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [dynamicMetrics, setDynamicMetrics] = useState({ credibility: 0, computeTime: 0, validatedPoints: 0 })
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const visualizerRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const { data, error } = await supabase
-          .from('projects')
-          .select('*')
-          .order('created_at', { ascending: false })
-        
+        const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false })
         if (error) throw error
-        
-        const sortedProjects = data || []
-        setProjects(sortedProjects)
-        
-        if (sortedProjects.length > 0) {
-          // Prioriser le projet de démonstration industriel s'il existe
-          const demoProject = sortedProjects.find(p => p.name.includes('LH2-STORAGE'))
-          setSelectedProject(demoProject || sortedProjects[0])
-        }
-      } catch (err) {
-        console.error("Error fetching projects from Supabase:", err)
-      } finally {
-        setLoading(false)
-      }
+        setProjects(data || [])
+        if (data && data.length > 0) setSelectedProject(data[0])
+      } catch (err) { console.error(err) } finally { setLoading(false) }
     }
     fetchProjects()
   }, [supabase])
@@ -77,255 +53,125 @@ export default function SimulationsPage() {
     if (selectedProject) {
       const fetchAnalyses = async () => {
         try {
-          const { data, error } = await supabase
-            .from('analyses')
-            .select('*')
-            .eq('project_id', selectedProject.id)
-            .order('created_at', { ascending: false })
-          
-          if (error) throw error
-          
+          const { data } = await supabase.from('analyses').select('*').eq('project_id', selectedProject.id).order('created_at', { ascending: false })
           setAnalyses(data || [])
           if (data && data.length > 0) {
-            setSelectedAnalysis(data[0])
+            const latest = data[0]
+            const { data: analysisResult } = await supabase.from('analysis_results').select('*').eq('analysis_id', latest.id).maybeSingle()
+            const enriched = { ...latest, analysisResult }
+            setSelectedAnalysis(enriched)
+            const payload = extractVisualizationPayload(enriched, analysisResult)
+            const results = payload.results
+            setDynamicMetrics({
+              credibility: latest.credibility_score || results.credibility || analysisResult?.credibility_score || 0,
+              computeTime: results.computeTime || results.compute_time || 0,
+              validatedPoints: payload.points.length + payload.experimentalPoints.length
+            })
           } else {
             setSelectedAnalysis(null)
+            setDynamicMetrics({ credibility: 0, computeTime: 0, validatedPoints: 0 })
           }
-        } catch (err) {
-          console.error("Error fetching analyses from Supabase:", err)
-        }
+        } catch (err) { console.error(err) }
       }
       fetchAnalyses()
     }
   }, [selectedProject, supabase])
 
-  // Extraction des données 3D pour le visualiseur
-  const predictions3d = useMemo(() => {
-    let results = selectedAnalysis?.results as any;
-    if (typeof results === 'string') {
-      try {
-        results = JSON.parse(results);
-      } catch (e) {
-        results = {};
-      }
-    }
-    const rawData = results?.predictions3d || [];
-    return Array.isArray(rawData) 
-      ? rawData.map((p: any, i: number) => ({
-          x: p.x ?? (i % 10) * 0.1,
-          y: p.y ?? (Math.floor(i / 10) % 10) * 0.1,
-          z: p.z ?? (Math.floor(i / 100) % 10) * 0.1,
-          temperature: p.temperature ?? 0,
-          pressure: p.pressure ?? 0,
-          density: p.density ?? 1.225,
-          velocity_magnitude: p.velocity_magnitude ?? 0
-        }))
-      : [];
+  const visualizationPayload = useMemo(() => {
+    if (!selectedAnalysis) return { points: [], experimentalPoints: [], metadata: {}, results: {}, result: {} }
+    return extractVisualizationPayload(selectedAnalysis, selectedAnalysis.analysisResult)
   }, [selectedAnalysis])
 
-  if (projects.length === 0 && !loading) return (
-    <div className="p-8 max-w-7xl mx-auto text-center py-20 border-2 border-dashed border-white/5 rounded-[40px]">
-      <AlertCircle className="w-16 h-16 text-gray-700 mx-auto mb-6" />
-      <h2 className="text-2xl font-bold text-white">Aucun Projet Détecté</h2>
-      <Link href="/dashboard/projects/new"><Button className="mt-8 bg-blue-600 hover:bg-blue-700">Créer mon premier projet</Button></Link>
-    </div>
-  )
+  const predictions3d = visualizationPayload.points
+  const experimentalData = visualizationPayload.experimentalPoints
+  const scenarioType = useMemo(() => resolveVisualizationScenario([
+    selectedProject?.name,
+    selectedProject?.description,
+    selectedAnalysis?.scenario_type,
+    selectedAnalysis?.name,
+    selectedAnalysis?.results,
+    selectedAnalysis?.analysisResult,
+  ]), [selectedProject, selectedAnalysis])
+  const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType, [
+    selectedProject?.name,
+    selectedProject?.description,
+    selectedProject?.category,
+    selectedProject?.scenario_type,
+    selectedAnalysis?.name,
+    selectedAnalysis?.scenario_type,
+  ])
+
+  if (loading) return <div className="p-20 text-center animate-pulse text-blue-500 font-mono">CHARGEMENT DES SYSTÈMES...</div>
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
-      {/* En-tête industriel */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex justify-between items-center">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20 font-mono text-[10px] uppercase tracking-tighter">Production V9.0</Badge>
-            <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-mono uppercase tracking-tighter">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Engine Active
-            </div>
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight text-white">Simulations & Analyses</h1>
-          <div className="flex flex-wrap items-center gap-4 mt-2">
-            <div className="flex items-center gap-2">
-              <p className="text-gray-400 text-sm font-medium">Projet : </p>
-              <select 
-                className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-blue-400 font-bold focus:outline-none text-sm shadow-inner"
-                value={selectedProject?.id}
-                onChange={(e) => setSelectedProject(projects.find(p => p.id === e.target.value) || null)}
-              >
-                {projects.map(p => <option key={p.id} value={p.id} className="bg-[#0a0a0a]">{p.name}</option>)}
-              </select>
-            </div>
-          </div>
+          <h1 className="text-3xl font-black text-white tracking-tighter uppercase">Simulation Center</h1>
+          <p className="text-gray-500 text-xs font-mono uppercase">Kelly Senecal Gold Standard V2.1.7</p>
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
-          <Button variant="outline" className="flex-1 md:flex-none glass-card border-white/10 bg-white/5 text-xs font-bold uppercase tracking-widest text-white"><Share2 className="mr-2 h-3.5 w-3.5" /> Partager</Button>
-          <Link href={selectedProject ? `/dashboard/projects/${selectedProject.id}/analyses/new` : '#'} className="flex-1 md:flex-none">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-xs font-bold uppercase tracking-widest shadow-lg shadow-blue-900/20 text-white"><Play className="mr-2 h-3.5 w-3.5" /> Nouvelle Simulation</Button>
-          </Link>
+        <div className="flex gap-2">
+          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Engine Active</Badge>
         </div>
       </div>
 
-      <Tabs defaultValue="classic" className="space-y-6">
-        <TabsList className="bg-white/5 border border-white/10 p-1 w-full max-w-2xl">
-          <TabsTrigger value="classic" className="text-xs uppercase font-bold tracking-wider">Analyses 3D PINN</TabsTrigger>
-          <TabsTrigger value="hybrid" className="text-xs uppercase font-bold tracking-wider">Simulation Hybride</TabsTrigger>
-          <TabsTrigger value="audit" className="text-xs uppercase font-bold tracking-wider text-emerald-400">Audit Scientifique</TabsTrigger>
-          <TabsTrigger value="improvements" className="text-xs uppercase font-bold tracking-wider text-blue-400">Améliorations</TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <Card className="lg:col-span-1 bg-white/5 border-white/10 rounded-[32px]">
+          <CardHeader><CardTitle className="text-sm uppercase tracking-widest text-gray-400">Projets</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {projects.map(p => (
+              <button key={p.id} onClick={() => setSelectedProject(p)} className={`w-full text-left p-4 rounded-2xl transition-all ${selectedProject?.id === p.id ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}>
+                <p className="text-sm font-bold truncate">{p.name}</p>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
 
-        {loading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 animate-pulse">
-            <div className="lg:col-span-3 h-[600px] bg-white/5 rounded-[40px] border border-white/10 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="w-8 h-8 text-blue-500/50 animate-spin" />
-                <p className="text-[10px] font-mono text-gray-600 uppercase tracking-widest">Chargement des données PINN...</p>
+        <div className="lg:col-span-3 space-y-8">
+          <Tabs defaultValue="visualizer" className="w-full">
+            <TabsList className="bg-white/5 border border-white/10 p-1 rounded-2xl">
+              <TabsTrigger value="visualizer" className="rounded-xl uppercase text-[10px] font-bold">Visualiseur V11</TabsTrigger>
+              <TabsTrigger value="hybrid" className="rounded-xl uppercase text-[10px] font-bold">Hybrid Panel</TabsTrigger>
+              <TabsTrigger value="audit" className="rounded-xl uppercase text-[10px] font-bold">Audit Physique</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="visualizer" className="mt-6 space-y-6">
+              <div className="h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-900/50">
+                <Industrial3DVisualizerEnhancedV11
+                  data={predictions3d}
+                  experimentalData={experimentalData}
+                  metadata={visualizationPayload.metadata}
+                  scenarioType={scenarioType as any}
+                  geometryAssetUrl={geometryAssetUrl}
+                  title={selectedProject?.name}
+                />
               </div>
-            </div>
-            <div className="space-y-6">
-              <div className="h-64 bg-white/5 rounded-3xl border border-white/10" />
-              <div className="h-32 bg-white/5 rounded-3xl border border-white/10" />
-            </div>
-          </div>
-        ) : (
-        <TabsContent value="classic" className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Visualiseur 3D Principal */}
-            <Card className="lg:col-span-3 glass-card border-white/10 overflow-hidden bg-white/5 shadow-2xl">
-              <CardHeader className="border-b border-white/5 bg-white/[0.02]">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <CardTitle className="text-lg font-bold flex items-center gap-2 text-white">
-                      <Activity className="w-5 h-5 text-blue-500" />
-                      Visualisation 3D Isosurface
-                    </CardTitle>
-                    <CardDescription className="text-[10px] font-mono uppercase text-gray-500">Solveur PINN V9.0 // Haute Fidélité</CardDescription>
-                  </div>
-                  {analyses.length > 0 && (
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-mono text-gray-500 uppercase">Analyse active:</span>
-                      <select 
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1 text-emerald-400 font-bold text-xs focus:outline-none"
-                        value={selectedAnalysis?.id}
-                        onChange={(e) => setSelectedAnalysis(analyses.find(a => a.id === e.target.value) || null)}
-                      >
-                        {analyses.map(a => <option key={a.id} value={a.id} className="bg-[#0a0a0a]">{a.name || a.title || 'Analyse Directe'}</option>)}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {predictions3d.length === 0 ? (
-                  <div className="h-[600px] flex flex-col items-center justify-center text-center space-y-6 bg-slate-950/50">
-                    <div className="p-6 rounded-full bg-white/5 border border-white/10">
-                      <FlaskConical className="w-12 h-12 text-gray-700" />
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-xl font-bold text-white">Données 3D Manquantes</h3>
-                      <p className="text-gray-500 text-sm max-w-xs mx-auto">Lancez une analyse PINN pour générer les isosurfaces 3D industrielles.</p>
-                    </div>
-                    <Button variant="outline" className="border-white/10 hover:bg-white/5 text-white">Voir la documentation</Button>
-                  </div>
-                ) : (
-                  <div className="p-6">
-                    <Industrial3DVisualizerEnhancedV5 
-                      data={predictions3d} 
-                      title={selectedAnalysis?.name || "3D Isosurface"} 
-                      colorVariable="temperature"
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="bg-white/5 border-white/10 rounded-3xl p-6">
+                  <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Crédibilité</p>
+                  <p className="text-3xl font-black text-emerald-400">{dynamicMetrics.credibility.toFixed(1)}%</p>
+                </Card>
+                <Card className="bg-white/5 border-white/10 rounded-3xl p-6">
+                  <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Temps Calcul</p>
+                  <p className="text-3xl font-black text-blue-400">{dynamicMetrics.computeTime.toFixed(2)}s</p>
+                </Card>
+                <Card className="bg-white/5 border-white/10 rounded-3xl p-6">
+                  <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Points Voxels</p>
+                  <p className="text-3xl font-black text-cyan-400">{dynamicMetrics.validatedPoints.toLocaleString()}</p>
+                </Card>
+              </div>
+            </TabsContent>
 
-            {/* Panneau Latéral de Métriques Industrielles */}
-            <div className="space-y-6">
-              <Card className="glass-card border-white/10 bg-white/5 shadow-xl">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-gray-400">Détails de l'Analyse</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] uppercase font-bold text-gray-500">
-                      <span>Score Crédibilité</span>
-                      <span className="text-emerald-400">Excellent</span>
-                    </div>
-                    <div className="flex items-end gap-2">
-                      <span className="text-4xl font-black text-emerald-400 tracking-tighter">98.7%</span>
-                      <div className="mb-1.5 flex gap-0.5">
-                        {[1,2,3,4,5].map(i => <div key={i} className="w-1 h-3 bg-emerald-500/40 rounded-full" />)}
-                      </div>
-                    </div>
-                    <p className="text-[9px] text-gray-500 leading-tight">Basé sur la convergence des résidus de Navier-Stokes et la validation par rapport aux données DOE.</p>
-                  </div>
+            <TabsContent value="hybrid" className="mt-6">
+              <HybridSimulationPanel projectId={selectedProject?.id} />
+            </TabsContent>
 
-                  <div className="pt-4 border-t border-white/5 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] uppercase font-bold text-gray-500">Statut PINN</span>
-                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px] px-2 py-0">COMPLETED</Badge>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] uppercase font-bold text-gray-500">Temps Calcul</span>
-                      <span className="text-[11px] font-mono text-white">2.45 s</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] uppercase font-bold text-gray-500">Points Validés</span>
-                      <span className="text-[11px] font-mono text-white">52,480</span>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-white/5">
-                    <span className="text-[10px] uppercase font-bold text-gray-500 block mb-2">Anomalies Détectées</span>
-                    <div className="flex items-center gap-2 text-emerald-400 bg-emerald-400/5 border border-emerald-400/10 rounded p-2">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span className="text-[10px] font-bold">Zéro anomalie critique</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="glass-card border-white/10 bg-white/5 shadow-xl">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-gray-400 text-white">System Health</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[10px] text-gray-500">
-                      <span>GPU Usage</span>
-                      <span className="text-white">82%</span>
-                    </div>
-                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                      <div className="w-[82%] h-full bg-blue-500" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[10px] text-gray-500">
-                      <span>Memory</span>
-                      <span className="text-white">4.2 GB</span>
-                    </div>
-                    <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                      <div className="w-[45%] h-full bg-emerald-500" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </TabsContent>
-        )}
-
-        <TabsContent value="hybrid">
-          <div className="grid grid-cols-1 gap-8">
-            <HybridSimulationPanel />
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="audit">
-          <div className="grid grid-cols-1 gap-8">
-             <AdvancedPhysicsVisualization simulationId={selectedAnalysis?.id} time={0} />
-          </div>
-        </TabsContent>
-      </Tabs>
+            <TabsContent value="audit" className="mt-6">
+              <AdvancedPhysicsVisualization simulationId={selectedAnalysis?.id} time={0} data3d={predictions3d} scenarioType={scenarioType} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   )
 }

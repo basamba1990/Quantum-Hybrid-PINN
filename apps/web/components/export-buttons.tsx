@@ -5,7 +5,7 @@ import { Download, Image as ImageIcon, FileJson } from 'lucide-react'
 import html2canvas from 'html2canvas'
 
 interface ExportButtonsProps {
-  containerRef: React.RefObject<HTMLDivElement>
+  containerRef: React.RefObject<HTMLDivElement | null>
   fileName?: string
   onExportStart?: () => void
   onExportEnd?: () => void

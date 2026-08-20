@@ -13,7 +13,8 @@ import {
   BarChart3,
   FileText,
   ShieldCheck,
-  Lightbulb
+  Lightbulb,
+  Users
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -21,17 +22,27 @@ import { toast } from 'sonner'
 import type { User } from '@supabase/supabase-js'
 
 const menuItems = [
-  { icon: LayoutDashboard, label: 'Tableau de bord', href: '/dashboard' },
-  { icon: FlaskConical, label: 'Simulations', href: '/dashboard/simulations' },
-  { icon: BarChart3, label: 'Benchmark 3D', href: '/dashboard/benchmarks' },
-  { icon: MessageSquare, label: 'Assistant IA', href: '/dashboard/assistant' },
-  { icon: FileText, label: 'Média', href: '/dashboard/media' },
-  { icon: History, label: 'Projets', href: '/dashboard' },
-  { icon: ShieldCheck, label: 'Audits', href: '/dashboard/audits' },
-  { icon: Lightbulb, label: 'Améliorations', href: '/dashboard/improvements' },
-  { icon: Zap, label: 'Tarification', href: '/pricing' },
-  { icon: Settings, label: 'Paramètres', href: '/dashboard/settings' },
+  // Section Principale
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', section: 'PRINCIPAL' },
+  { icon: FlaskConical, label: 'Simulation CFD', href: '/dashboard/simulations', section: 'PRINCIPAL' },
+  { icon: Zap, label: 'Physics', href: '/dashboard/benchmarks', section: 'PRINCIPAL' },
+  { icon: BarChart3, label: 'Analysis', href: '/dashboard/sweet-spot-analysis', section: 'PRINCIPAL' },
+  { icon: Settings, label: 'Settings', href: '/dashboard/settings', section: 'PRINCIPAL' },
+  
+  // Section Secondaire
+  { icon: MessageSquare, label: 'Assistant IA', href: '/dashboard/assistant', section: 'OUTILS' },
+  { icon: FileText, label: 'Média', href: '/dashboard/media', section: 'OUTILS' },
+  { icon: Users, label: 'Social Hub', href: '/dashboard/social-hub', section: 'OUTILS' },
+  { icon: ShieldCheck, label: 'Audits', href: '/dashboard/audits', section: 'OUTILS' },
+  { icon: Lightbulb, label: 'Améliorations', href: '/dashboard/improvements', section: 'OUTILS' },
 ]
+
+interface MenuItem {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  href: string
+  section: 'PRINCIPAL' | 'OUTILS'
+}
 
 interface SidebarProps {
   user?: User
@@ -80,36 +91,82 @@ export function Sidebar({ user }: SidebarProps) {
         </div>
       </div>
       
-      <nav className="flex-1 px-4 space-y-2 mt-4 relative">
-        <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest px-4 mb-4">Navigation Système</div>
-        {menuItems.map((item) => {
-          const isActive = pathname === item.href
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all duration-300 group relative overflow-hidden",
-                isActive 
-                  ? "bg-blue-600/10 text-white border border-blue-500/20 shadow-[0_0_20px_rgba(37,99,235,0.1)]" 
-                  : "text-gray-400 hover:bg-white/5 hover:text-white"
-              )}
-            >
-              {isActive && (
-                <div className="absolute left-0 top-0 w-1 h-full bg-blue-500" />
-              )}
-              <div className="flex items-center gap-4">
-                <item.icon className={cn("w-5 h-5 transition-transform duration-300 group-hover:scale-110", isActive ? "text-blue-500" : "group-hover:text-white")} />
-                <span className="font-semibold text-sm tracking-tight">{item.label}</span>
-              </div>
-              {isActive ? (
-                <ChevronRight className="w-4 h-4 text-blue-500" />
-              ) : (
-                <div className="w-1 h-1 rounded-full bg-gray-700 group-hover:bg-gray-500" />
-              )}
-            </Link>
-          )
-        })}
+      <nav className="flex-1 px-4 space-y-6 mt-4 relative overflow-y-auto">
+        {/* Section Principale */}
+        <div>
+          <div className="text-[10px] font-mono text-cyan-500 uppercase tracking-widest px-4 mb-3 font-bold flex items-center gap-2">
+            <Zap className="w-3 h-3" />
+            Navigation Principale
+          </div>
+          <div className="space-y-2">
+            {menuItems.filter(item => item.section === 'PRINCIPAL').map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all duration-300 group relative overflow-hidden",
+                    isActive 
+                      ? "bg-gradient-to-r from-cyan-600/20 to-purple-600/20 text-white border border-cyan-500/30 shadow-[0_0_20px_rgba(34,211,238,0.2)] animate-glow-cyan" 
+                      : "text-gray-400 hover:bg-white/5 hover:text-white hover:border-white/10 border border-transparent"
+                  )}
+                >
+                  {isActive && (
+                    <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-cyan-500 to-purple-500" />
+                  )}
+                  <div className="flex items-center gap-4">
+                    <item.icon className={cn("w-5 h-5 transition-all duration-300 group-hover:scale-110", isActive ? "text-cyan-400" : "group-hover:text-cyan-400")} />
+                    <span className="font-semibold text-sm tracking-tight">{item.label}</span>
+                  </div>
+                  {isActive ? (
+                    <ChevronRight className="w-4 h-4 text-cyan-400" />
+                  ) : (
+                    <div className="w-1 h-1 rounded-full bg-gray-700 group-hover:bg-cyan-500/50" />
+                  )}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Section Outils */}
+        <div>
+          <div className="text-[10px] font-mono text-purple-500 uppercase tracking-widest px-4 mb-3 font-bold flex items-center gap-2">
+            <Settings className="w-3 h-3" />
+            Outils & Utilitaires
+          </div>
+          <div className="space-y-2">
+            {menuItems.filter(item => item.section === 'OUTILS').map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all duration-300 group relative overflow-hidden",
+                    isActive 
+                      ? "bg-gradient-to-r from-purple-600/20 to-pink-600/20 text-white border border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.2)]" 
+                      : "text-gray-400 hover:bg-white/5 hover:text-white hover:border-white/10 border border-transparent"
+                  )}
+                >
+                  {isActive && (
+                    <div className="absolute left-0 top-0 w-1 h-full bg-gradient-to-b from-purple-500 to-pink-500" />
+                  )}
+                  <div className="flex items-center gap-4">
+                    <item.icon className={cn("w-5 h-5 transition-all duration-300 group-hover:scale-110", isActive ? "text-purple-400" : "group-hover:text-purple-400")} />
+                    <span className="font-semibold text-sm tracking-tight">{item.label}</span>
+                  </div>
+                  {isActive ? (
+                    <ChevronRight className="w-4 h-4 text-purple-400" />
+                  ) : (
+                    <div className="w-1 h-1 rounded-full bg-gray-700 group-hover:bg-purple-500/50" />
+                  )}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
       </nav>
 
       <div className="p-6 border-t border-white/5 bg-white/[0.02] relative">

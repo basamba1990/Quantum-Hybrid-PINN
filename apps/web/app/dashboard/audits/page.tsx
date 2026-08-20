@@ -1,5 +1,9 @@
 'use client'
 
+// KELLY SENECAL TRULY-INDUSTRIAL DYNAMIC AUDIT V2.1.7
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -46,14 +50,20 @@ export default function AuditsPage() {
 
         if (error) throw error
 
-        // Récupérer les noms des projets
+        // ✅ Récupérer les noms des projets avec gestion d'erreur
         const projectIds = [...new Set(data?.map((d: any) => d.project_id) || [])]
-        const { data: projects } = await supabase
-          .from('projects')
-          .select('id, name')
-          .in('id', projectIds)
-
-        const projectMap = new Map(projects?.map((p: any) => [p.id, p.name]) || [])
+        const projectMap = new Map()
+        
+        if (projectIds.length > 0) {
+          const { data: projects, error: projectsError } = await supabase
+            .from('projects')
+            .select('id, name')
+            .in('id', projectIds)
+          
+          if (!projectsError && projects) {
+            projects.forEach((p: any) => projectMap.set(p.id, p.name))
+          }
+        }
 
         const auditRecords: AuditRecord[] = (data || []).map((analysis: any) => {
           let results = analysis.results
@@ -65,15 +75,16 @@ export default function AuditsPage() {
             }
           }
 
+          const credScore = Number(analysis.credibility_score || results?.credibilityScore || 0)
           return {
             id: analysis.id,
             project_id: analysis.project_id,
             project_name: projectMap.get(analysis.project_id) || 'Projet inconnu',
-            credibility_score: analysis.credibility_score || results?.credibilityScore || 0,
-            is_physically_coherent: (analysis.credibility_score || results?.credibilityScore || 0) > 50,
-            anomalies_count: results?.anomalies?.length || 0,
-            created_at: analysis.created_at,
-            status: analysis.status
+            credibility_score: isNaN(credScore) ? 0 : credScore,
+            is_physically_coherent: (isNaN(credScore) ? 0 : credScore) > 50,
+            anomalies_count: Array.isArray(results?.anomalies) ? results.anomalies.length : 0,
+            created_at: analysis.created_at || new Date().toISOString(),
+            status: analysis.status || 'completed'
           }
         })
 
@@ -98,7 +109,7 @@ export default function AuditsPage() {
     total: audits.length,
     coherent: audits.filter(a => a.is_physically_coherent).length,
     anomalies: audits.filter(a => !a.is_physically_coherent).length,
-    avgScore: audits.length > 0 ? (audits.reduce((sum, a) => sum + a.credibility_score, 0) / audits.length).toFixed(1) : 0
+    avgScore: audits.length > 0 ? (audits.reduce((sum, a) => sum + (Number(a.credibility_score) || 0), 0) / audits.length).toFixed(1) : "0.0"
   }
 
   const getCredibilityBadge = (score: number) => {

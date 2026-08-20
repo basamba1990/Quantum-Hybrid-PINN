@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Play, Activity, Shield, MapPin, Zap, TrendingUp, AlertCircle } from 'lucide-react';
+import { Loader2, Play, Activity, Shield, MapPin, Zap, TrendingUp, AlertCircle, Upload, FileText } from 'lucide-react';
 import { INDUSTRIAL_SCENARIOS, ScenarioType } from '@/types/simulation-scenarios';
 import { createClient } from '@/lib/supabase/client';
 
@@ -45,9 +45,23 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
   });
   const [jobs, setJobs] = useState<JobStatus[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobStatus | null>(null);
+  const [modeA, setModeA] = useState(false);
+  const [modeAFileName, setModeAFileName] = useState<string | null>(null);
+  const [modeASeries, setModeASeries] = useState<Array<{ time_s: number; pressure_Pa: number }>>([]);
+  const [modeAParams, setModeAParams] = useState({
+    wallTemperature_K: '',
+    outletPressure_Pa: '',
+    phase: 'inconnue',
+    geometry: 'inconnue',
+    defectType: 'inconnue',
+    defectDimensions_m: '',
+    defectPosition_m: '',
+    sourceDescription: 'NASA NTRS 20140002987 Figure 5; digitalisation approximative'
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingAnalysisIdRef = useRef<string | null>(null);
   const supabase = createClient();
 
   const currentScenario = INDUSTRIAL_SCENARIOS[scenarioType];
@@ -87,7 +101,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
           if (pollingRef.current) clearInterval(pollingRef.current);
           pollingRef.current = null;
           if (jobData.status === 'completed' && projectId) {
-            await createAnalysisFromHybridResults(jobData, projectId);
+            await createAnalysisFromHybridResults(jobData, projectId, pendingAnalysisIdRef.current);
           }
           fetchJobs();
         }
@@ -97,7 +111,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     }, 2000);
   };
 
-  const createAnalysisFromHybridResults = async (jobData: JobStatus, projectId: string) => {
+  const createAnalysisFromHybridResults = async (jobData: JobStatus, projectId: string, analysisId?: string | null) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -131,13 +145,47 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         created_at: new Date().toISOString(),
       };
 
-      const { error: insertError } = await supabase
-        .from('analyses')
-        .insert([analysisData]);
-
-      if (insertError) console.error('Supabase Insert Error:', insertError);
+      const query = analysisId
+        ? supabase.from('analyses').update(analysisData).eq('id', analysisId)
+        : supabase.from('analyses').insert([analysisData]);
+      const { error: persistError } = await query;
+      if (persistError) console.error('Supabase analysis persistence error:', persistError);
     } catch (err) {
       console.error('Failed to create analysis:', err);
+    }
+  };
+
+  const handleModeAFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      if (lines.length < 2) throw new Error('Le CSV doit contenir un en-tête et au moins une ligne.');
+      const header = lines[0].split(',').map(v => v.trim());
+      const timeIndex = header.indexOf('time_s');
+      const pressureIndex = header.indexOf('inlet_pressure_Pa_approx');
+      if (timeIndex < 0 || pressureIndex < 0) {
+        throw new Error('Colonnes requises absentes : time_s et inlet_pressure_Pa_approx.');
+      }
+      const series = lines.slice(1).map((line, index) => {
+        const cols = line.split(',');
+        const time_s = Number(cols[timeIndex]);
+        const pressure_Pa = Number(cols[pressureIndex]);
+        if (!Number.isFinite(time_s) || !Number.isFinite(pressure_Pa) || pressure_Pa <= 0) {
+          throw new Error(`Ligne CSV invalide à la ligne ${index + 2}.`);
+        }
+        return { time_s, pressure_Pa };
+      }).slice(0, 5000);
+      setModeASeries(series);
+      setModeAFileName(file.name);
+      setModeA(true);
+      setScenarioType('LH2_INFRASTRUCTURE_INTEGRITY');
+      setError(null);
+    } catch (err: any) {
+      setModeASeries([]);
+      setModeAFileName(null);
+      setError(err.message || 'CSV Mode A invalide');
     }
   };
 
@@ -145,31 +193,68 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     setLoading(true);
     setError(null);
     try {
+      if (!projectId) throw new Error('Sélectionnez un projet avant de lancer une simulation.');
+      if (modeA && modeASeries.length === 0) throw new Error('Importez une série CSV NASA avant de lancer le Mode A.');
+      if (modeA && (!modeAParams.wallTemperature_K || !modeAParams.outletPressure_Pa)) {
+        throw new Error('La température de paroi et la pression aval sont obligatoires pour le Mode A.');
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Session Supabase absente.');
+
+      const scenarioInputs = {
+        ...config.scenarioInputs,
+        mode: modeA ? 'A_DEMONSTRATION' : 'STANDARD',
+        inlet_pressure_series: modeA ? modeASeries : undefined,
+        mode_a_metadata: modeA ? {
+          source: modeAParams.sourceDescription,
+          file_name: modeAFileName,
+          uncertainty: 'figure-digitization uncertainty; not raw tabulated data'
+        } : undefined,
+        wall_temperature_K: modeA ? Number(modeAParams.wallTemperature_K) : undefined,
+        outlet_pressure_Pa: modeA ? Number(modeAParams.outletPressure_Pa) : undefined,
+        phase: modeA ? modeAParams.phase : undefined,
+        geometry: modeA ? modeAParams.geometry : undefined,
+        defect_type: modeA ? modeAParams.defectType : undefined,
+        defect_dimensions_m: modeA ? modeAParams.defectDimensions_m : undefined,
+        defect_position_m: modeA ? modeAParams.defectPosition_m : undefined,
+      };
+
+      const { data: analysis, error: analysisError } = await supabase.from('analyses').insert([{
+        project_id: projectId,
+        user_id: user.id,
+        name: `${modeA ? 'Mode A NASA' : 'Simulation'} - ${config.jobName}`,
+        title: modeA ? 'LH2 chilldown — NASA Figure 5 (digitalisation approximative)' : config.jobName,
+        status: 'pending',
+        analysis_type: modeA ? 'lh2_mode_a' : 'physics_verification',
+        scenario_type: scenarioType,
+        results: { mode: modeA ? 'A_DEMONSTRATION' : 'STANDARD', source: modeAParams.sourceDescription }
+      }]).select('id').single();
+      if (analysisError || !analysis) throw new Error(`Impossible de créer l’analyse : ${analysisError?.message || 'identifiant absent'}`);
+      pendingAnalysisIdRef.current = analysis.id;
+
       const response = await fetch('/api/hybrid/run-simulation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           project_id: projectId,
+          analysis_id: analysis.id,
+          user_id: user.id,
           job_name: config.jobName,
           case_path: config.casePath,
           scenario_type: scenarioType,
-          scenario_inputs: config.scenarioInputs,
+          scenario_inputs: scenarioInputs,
           n_steps: config.nSteps,
         }),
       });
-      
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erreur serveur');
-      
-      setSelectedJob({
-        jobId: data.job_id,
-        name: config.jobName,
-        status: 'running',
-        createdAt: new Date().toISOString(),
-      });
+      setSelectedJob({ jobId: data.job_id, name: config.jobName, status: 'running', createdAt: new Date().toISOString() });
+      await supabase.from('analyses').update({ status: 'processing', results: { job_id: data.job_id, mode: modeA ? 'A_DEMONSTRATION' : 'STANDARD' } }).eq('id', analysis.id);
       startPollingForJob(data.job_id);
     } catch (err: any) {
       setError(err.message);
+      if (pendingAnalysisIdRef.current) await supabase.from('analyses').update({ status: 'failed', error_message: err.message }).eq('id', pendingAnalysisIdRef.current);
     } finally {
       setLoading(false);
     }
@@ -242,13 +327,44 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
             ))}
           </div>
 
+          <div className="pt-4 border-t border-amber-500/20 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase text-amber-400 tracking-widest">Mode A — Benchmark NASA</p>
+                <p className="text-[10px] text-gray-500">Démonstration transitoire avec incertitude de digitalisation</p>
+              </div>
+              <button type="button" onClick={() => { setModeA(!modeA); if (!modeA) setScenarioType('LH2_INFRASTRUCTURE_INTEGRITY'); }} className={`px-3 py-2 rounded-lg text-[10px] font-black ${modeA ? 'bg-amber-500 text-black' : 'bg-white/10 text-gray-400'}`}>
+                {modeA ? 'MODE A ACTIF' : 'ACTIVER MODE A'}
+              </button>
+            </div>
+            {modeA && <div className="space-y-3">
+              <label className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 cursor-pointer">
+                <Upload className="w-4 h-4 text-amber-400" />
+                <span className="text-xs text-gray-300">Importer CSV NASA</span>
+                <input type="file" accept=".csv,text/csv" onChange={handleModeAFile} className="hidden" />
+                <span className="ml-auto text-[10px] text-amber-300 truncate max-w-[130px]">{modeAFileName || 'Aucun fichier'}</span>
+              </label>
+              {modeASeries.length > 0 && <p className="text-[10px] text-emerald-400"><FileText className="inline w-3 h-3 mr-1" />{modeASeries.length} points pression–temps validés (Pa, s)</p>}
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-[10px] text-gray-400">Température paroi (K)</Label><Input type="number" value={modeAParams.wallTemperature_K} onChange={e => setModeAParams({...modeAParams, wallTemperature_K: e.target.value})} placeholder="Obligatoire" className="bg-black/40 border-white/10" /></div>
+                <div><Label className="text-[10px] text-gray-400">Pression aval (Pa)</Label><Input type="number" value={modeAParams.outletPressure_Pa} onChange={e => setModeAParams({...modeAParams, outletPressure_Pa: e.target.value})} placeholder="Obligatoire" className="bg-black/40 border-white/10" /></div>
+                <div><Label className="text-[10px] text-gray-400">Phase</Label><Select value={modeAParams.phase} onValueChange={v => setModeAParams({...modeAParams, phase: v})}><SelectTrigger className="bg-black/40 border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-slate-900 text-white"><SelectItem value="liquide">Liquide</SelectItem><SelectItem value="vapeur">Vapeur</SelectItem><SelectItem value="diphasique">Diphasique</SelectItem><SelectItem value="inconnue">Inconnue</SelectItem></SelectContent></Select></div>
+                <div><Label className="text-[10px] text-gray-400">Géométrie</Label><Input value={modeAParams.geometry} onChange={e => setModeAParams({...modeAParams, geometry: e.target.value})} placeholder="conduite, réservoir..." className="bg-black/40 border-white/10" /></div>
+                <div><Label className="text-[10px] text-gray-400">Type défaut</Label><Input value={modeAParams.defectType} onChange={e => setModeAParams({...modeAParams, defectType: e.target.value})} placeholder="trou, fissure..." className="bg-black/40 border-white/10" /></div>
+                <div><Label className="text-[10px] text-gray-400">Dimensions défaut (m)</Label><Input value={modeAParams.defectDimensions_m} onChange={e => setModeAParams({...modeAParams, defectDimensions_m: e.target.value})} placeholder="Non renseigné" className="bg-black/40 border-white/10" /></div>
+              </div>
+              <div><Label className="text-[10px] text-gray-400">Position défaut [x,y,z] (m)</Label><Input value={modeAParams.defectPosition_m} onChange={e => setModeAParams({...modeAParams, defectPosition_m: e.target.value})} placeholder="Non renseigné" className="bg-black/40 border-white/10" /></div>
+              <p className="text-[10px] text-amber-300/80">Source : {modeAParams.sourceDescription}. Les données brutes NASA ne sont pas remplacées par cette digitalisation.</p>
+            </div>}
+          </div>
+
           <Button 
             onClick={handleRunSimulation} 
             disabled={loading} 
             className="w-full bg-blue-600 hover:bg-blue-500 h-14 rounded-2xl font-black text-sm shadow-lg shadow-blue-600/20 transition-all active:scale-95"
           >
             {loading ? <Loader2 className="animate-spin mr-2" /> : <Play className="w-4 h-4 mr-2 fill-current" />}
-            LANCER SIMULATION RÉELLE
+            {modeA ? 'LANCER MODE A — NASA' : 'LANCER SIMULATION RÉELLE'}
           </Button>
         </CardContent>
       </Card>

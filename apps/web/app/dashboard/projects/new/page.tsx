@@ -18,6 +18,7 @@ import {
   Atom
 } from 'lucide-react'
 import Link from 'next/link'
+import { normalizeScenarioType } from '@/types/simulation-scenarios'
 
 export default function NewProjectPage() {
   const router = useRouter()
@@ -86,6 +87,7 @@ export default function NewProjectPage() {
         .insert({
           name: formData.name,
           description: formData.description,
+          category: normalizeScenarioType(formData.name),
           video_url: videoUrl,
           transcription: formData.transcription || null,
           user_id: user.id,

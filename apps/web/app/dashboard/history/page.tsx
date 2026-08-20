@@ -34,14 +34,33 @@ export default function HistoryPage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
-        // On récupère les analyses qui servent d'historique de simulation
+        // Fetch completed analyses with their full results
         const { data, error } = await supabase
           .from('analyses')
-          .select('*')
+          .select('id, project_id, title, name, status, credibility_score, results, scenario_type, created_at, updated_at')
+          .eq('status', 'completed')
           .order('created_at', { ascending: false })
 
         if (error) throw error
-        setHistoryData(data || [])
+        
+        // Normalize results to ensure predictions3d is available
+        const normalizedData = (data || []).map(item => {
+          let results = item.results
+          if (typeof results === 'string') {
+            try {
+              results = JSON.parse(results)
+            } catch (e) {
+              results = {}
+            }
+          }
+          // Ensure predictions3d exists for rendering
+          if (!results.predictions3d && results.pinn_predictions) {
+            results.predictions3d = results.pinn_predictions
+          }
+          return { ...item, results }
+        })
+        
+        setHistoryData(normalizedData)
       } catch (err) {
         console.error('Error fetching history:', err)
         toast.error("Erreur lors de la récupération de l'historique")

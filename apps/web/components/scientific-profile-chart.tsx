@@ -8,6 +8,9 @@ interface DataPoint {
   temperature: number; pressure: number;
   density?: number;
   velocity_magnitude?: number;
+  velocity_u?: number; velocity_v?: number; velocity_w?: number;
+  stress?: number; sigma_1?: number; von_mises?: number;
+  damage?: number;
 }
 
 interface ScientificProfileChartProps {
