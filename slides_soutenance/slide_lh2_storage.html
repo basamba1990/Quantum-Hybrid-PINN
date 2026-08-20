@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #FFFFFF; color: #334155; }
+        .slide-container { width: 1280px; min-height: 720px; position: relative; display: flex; flex-direction: column; }
+        
+        .header { height: 100px; width: 100%; border-bottom: 2px solid #0F172A; display: flex; align-items: center; padding-left: 60px; }
+        .header h2 { font-family: 'Courier New', Courier, monospace; font-weight: 700; font-size: 32px; color: #0F172A; text-transform: uppercase; }
+        
+        .content { flex: 1; display: flex; width: 100%; }
+        
+        .left-col { width: 640px; padding-top: 60px; padding-left: 60px; padding-right: 40px; border-right: 2px solid #0284C7; }
+        .right-col { width: 640px; padding-top: 60px; display: flex; flex-direction: column; align-items: center; }
+        
+        .section-title { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0284C7; font-size: 22px; margin-bottom: 30px; text-transform: uppercase; }
+        
+        .metric-box { margin-bottom: 20px; }
+        .metric-label { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0F172A; font-size: 18px; margin-bottom: 8px; }
+        .metric-value { font-size: 20px; line-height: 1.5; }
+        .highlight { color: #0284C7; font-weight: 700; }
+        
+        .dashboard-img { width: 500px; height: 360px; object-fit: contain; border: 1px solid #e2e8f0; }
+        .img-caption { margin-top: 15px; font-family: 'Courier New', Courier, monospace; font-size: 14px; color: #64748b; text-align: center; width: 500px; }
+        
+        .footer { height: 60px; border-top: 2px solid #0F172A; display: flex; align-items: center; justify-content: space-between; padding: 0 60px; font-family: 'Courier New', Courier, monospace; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Application 2 : Stockage LH2 (1 250 m³)</h2>
+        </div>
+        
+        <div class="content">
+            <div class="left-col">
+                <p class="section-title">Spécifications Cryogéniques</p>
+                
+                <div class="metric-box">
+                    <p class="metric-label">Modélisation B-Rep Avancée</p>
+                    <p class="metric-value">Sphère NASA de <span class="highlight">6.73 m de rayon</span> modélisée sous Open CASCADE (STEP AP242).</p>
+                </div>
+                
+                <div class="metric-box">
+                    <p class="metric-label">Stabilité Thermique</p>
+                    <p class="metric-value">Maintien du parahydrogène à <span class="highlight">20.28 K</span> au cœur du réservoir (NIST REFPROP).</p>
+                </div>
+                
+                <div class="metric-box">
+                    <p class="metric-label">Sécurité Active</p>
+                    <p class="metric-value">Verrouillage de la colorbar garantissant <span class="highlight">zéro hallucination spatiale</span> sur le Dashboard.</p>
+                </div>
+                
+                <div class="metric-box">
+                    <p class="metric-label">Indicateur de Confiance</p>
+                    <p class="metric-value">Score de crédibilité global : <span class="highlight">99.95 %</span> validé par le jumeau numérique.</p>
+                </div>
+            </div>
+            
+            <div class="right-col">
+                <p class="section-title">Preuve Visuelle Dashboard</p>
+                <img src="https://private-us-east-1.manuscdn.com/sessionFile/Lyaq5DUBd1Q2IfB0RoP10C/sandbox/slides_resource_izrck3p3dmzeblgmf5qhk-f868e875-e2b-prod-us2_1786887387777_na1fn_L2hvbWUvdWJ1bnR1L3VwbG9hZC9TY3JlZW5zaG90XzIwMjYwODE2LTAyNDEzNA.png?x-oss-process=image/resize,w_1560,h_1560/format,webp&Expires=1788220800&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvTHlhcTVEVUJkMVEySWZCMFJvUDEwQy9zYW5kYm94L3NsaWRlc19yZXNvdXJjZV9penJjazNwM2RtemVibGdtZjVxaGstZjg2OGU4NzUtZTJiLXByb2QtdXMyXzE3ODY4ODczODc3NzdfbmExZm5fTDJodmJXVXZkV0oxYm5SMUwzVndiRzloWkM5VFkzSmxaVzV6YUc5MFh6SXdNall3T0RFMkxUQXlOREV6TkEucG5nP3gtb3NzLXByb2Nlc3M9aW1hZ2UvcmVzaXplLHdfMTU2MCxoXzE1NjAvZm9ybWF0LHdlYnAiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3ODgyMjA4MDB9fX1dfQ__&Key-Pair-Id=K2QY5QTL8JSY6C&Signature=MEQCIAsGNqhlva7mGNs4u5hfXCsGxmpCBmUSMUjzsJHnXgzwAiB1nbLBnhf8-lliHw1TRMTomGo~6i-iFB~ZyCIlxzQaeQ__" class="dashboard-img" alt="Dashboard LH2 Storage">
+                <p class="img-caption">Visualisation B-Rep et Profil Thermique NIST / Kelly Senecal</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <span>Samba Ba - Soutenance de Master</span>
+            <span>Slide 6 / 10</span>
+        </div>
+    </div>
+</body>
+</html>

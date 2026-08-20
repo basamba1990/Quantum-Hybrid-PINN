@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #020617; color: #f8fafc; font-family: 'Segoe UI', sans-serif; }
+      .slide-container { width: 1280px; min-height: 720px; padding: 60px; background: #020617; }
+      .header { border-bottom: 2px solid #22d3ee; padding-bottom: 20px; margin-bottom: 40px; }
+      h2 { font-size: 42px; color: #ffffff; text-transform: uppercase; letter-spacing: 2px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; min-height: 450px; }
+      .scenario-box { background: rgba(255, 255, 255, 0.03); padding: 40px; border-top: 5px solid #22d3ee; }
+      .scenario-box.alt { border-top-color: #f59e0b; }
+      .scenario-title { font-size: 28px; color: #22d3ee; margin-bottom: 25px; font-weight: 800; }
+      .scenario-box.alt .scenario-title { color: #f59e0b; }
+      .data-list { list-style: none; }
+      .data-item { margin-bottom: 20px; font-size: 22px; display: flex; align-items: center; }
+      .data-item i { width: 40px; color: #94a3b8; }
+      .highlight { font-weight: 800; color: #ffffff; margin-left: 10px; }
+      .chart-wrapper { height: 180px; margin-top: 30px; }
+      .footer-note { margin-top: 40px; font-size: 16px; color: #64748b; font-style: italic; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Défis de la Sécurité Cryogénique LH2</h2>
+        </div>
+        <div class="grid">
+            <div class="scenario-box">
+                <div class="scenario-title"><i class="fas fa-database"></i> Stockage Massif</div>
+                <ul class="data-list">
+                    <li class="data-item"><i class="fas fa-expand-arrows-alt"></i> Volume : <span class="highlight">1 250 m³</span></li>
+                    <li class="data-item"><i class="fas fa-thermometer-empty"></i> Température : <span class="highlight">20.28 K</span></li>
+                    <li class="data-item"><i class="fas fa-shield-alt"></i> Enjeu : <span class="highlight">Gestion du Boil-off</span></li>
+                </ul>
+                <div class="chart-wrapper">
+                    <canvas id="storageChart"></canvas>
+                </div>
+            </div>
+            <div class="scenario-box alt">
+                <div class="scenario-title"><i class="fas fa-gas-pump"></i> Ravitaillement Rapide</div>
+                <ul class="data-list">
+                    <li class="data-item"><i class="fas fa-compress-arrows-alt"></i> Diamètre : <span class="highlight">DN50 (Manifold)</span></li>
+                    <li class="data-item"><i class="fas fa-tachometer-alt"></i> Pression : <span class="highlight">35 MPa (H35)</span></li>
+                    <li class="data-item"><i class="fas fa-wind"></i> Débit : <span class="highlight">120 g/s (Heavy-Duty)</span></li>
+                </ul>
+                <div class="chart-wrapper">
+                    <canvas id="refuelChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="footer-note">
+            Sources : NIST REFPROP, NASA SNP-DOC-0046, Norme SAE J2601-2.
+        </div>
+    </div>
+    <script>
+        const ctx1 = document.getElementById('storageChart').getContext('2d');
+        new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: ['Stabilité Thermique', 'Isolation', 'Sécurité'],
+                datasets: [{
+                    label: 'Critères NASA (%)',
+                    data: [98, 95, 99],
+                    backgroundColor: 'rgba(34, 211, 238, 0.6)',
+                    borderColor: '#22d3ee',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: { x: { display: false, max: 100 }, y: { ticks: { color: '#94a3b8' } } }
+            }
+        });
+
+        const ctx2 = document.getElementById('refuelChart').getContext('2d');
+        new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: ['Pression', 'Turbulence', 'Intégrité'],
+                datasets: [{
+                    label: 'Critères SAE (%)',
+                    data: [99, 92, 97],
+                    backgroundColor: 'rgba(245, 158, 11, 0.6)',
+                    borderColor: '#f59e0b',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: { x: { display: false, max: 100 }, y: { ticks: { color: '#94a3b8' } } }
+            }
+        });
+    </script>
+</body>
+</html>

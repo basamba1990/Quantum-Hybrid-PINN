@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #020617; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+      .slide-container { 
+        width: 1280px; 
+        min-height: 720px; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center;
+        background: radial-gradient(circle at center, #1e293b 0%, #020617 80%);
+        padding-top: 40px;
+      }
+      .thank-you {
+        font-size: 32px;
+        color: #22d3ee;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 4px;
+        margin-bottom: 20px;
+      }
+      h1 {
+        font-size: 84px;
+        font-weight: 900;
+        color: #ffffff;
+        text-transform: uppercase;
+        letter-spacing: -2px;
+        margin-bottom: 60px;
+        text-shadow: 0 0 30px rgba(34, 211, 238, 0.3);
+      }
+      .accent-line {
+        width: 200px;
+        height: 6px;
+        background: #f59e0b;
+        margin-bottom: 60px;
+      }
+      .contact-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 40px;
+        width: 80%;
+        margin-top: 20px;
+      }
+      .contact-item {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 30px;
+        border: 1px solid rgba(34, 211, 238, 0.1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      .contact-item i {
+        font-size: 36px;
+        color: #22d3ee;
+        margin-bottom: 15px;
+      }
+      .contact-label {
+        font-size: 14px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        font-weight: 700;
+        margin-bottom: 5px;
+      }
+      .contact-value {
+        font-size: 18px;
+        color: #ffffff;
+        font-weight: 600;
+      }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="thank-you">Merci de votre attention</div>
+        <h1>Questions & Réponses</h1>
+        <div class="accent-line"></div>
+        
+        <div class="contact-grid">
+            <div class="contact-item">
+                <i class="fas fa-user"></i>
+                <div class="contact-label">Étudiant</div>
+                <div class="contact-value">Samba Ba</div>
+            </div>
+            <div class="contact-item">
+                <i class="fas fa-envelope"></i>
+                <div class="contact-label">Email</div>
+                <div class="contact-value">basamba1990@yahoo.fr</div>
+            </div>
+            <div class="contact-item">
+                <i class="fab fa-linkedin"></i>
+                <div class="contact-label">LinkedIn</div>
+                <div class="contact-value">samba-ba-952936184</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

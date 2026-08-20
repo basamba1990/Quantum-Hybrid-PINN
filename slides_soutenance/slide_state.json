@@ -1,0 +1,115 @@
+{
+  "project_info": {
+    "title": "Page de Garde",
+    "created": 1786887337.522,
+    "last_updated": 1786887474.076,
+    "total_slides": 10
+  },
+  "slides": [
+    {
+      "id": "slide_title",
+      "state": "edited",
+      "pageNum": 1
+    },
+    {
+      "id": "slide_context",
+      "state": "edited",
+      "pageNum": 2
+    },
+    {
+      "id": "slide_problem",
+      "state": "edited",
+      "pageNum": 3
+    },
+    {
+      "id": "slide_methodology_g0_g5",
+      "state": "edited",
+      "pageNum": 4
+    },
+    {
+      "id": "slide_heavy_duty",
+      "state": "edited",
+      "pageNum": 5
+    },
+    {
+      "id": "slide_lh2_storage",
+      "state": "edited",
+      "pageNum": 6
+    },
+    {
+      "id": "slide_results_autograd",
+      "state": "edited",
+      "pageNum": 7
+    },
+    {
+      "id": "slide_dashboard",
+      "state": "edited",
+      "pageNum": 8
+    },
+    {
+      "id": "slide_conclusion",
+      "state": "edited",
+      "pageNum": 9
+    },
+    {
+      "id": "slide_q_a",
+      "state": "edited",
+      "pageNum": 10
+    }
+  ],
+  "outline": [
+    {
+      "id": "slide_title",
+      "title": "Page de Garde",
+      "summary": "Titre du mémoire, nom de l'étudiant, domaine et date de soutenance."
+    },
+    {
+      "id": "slide_context",
+      "title": "Contexte et Enjeux de l'Hydrogène Décarboné",
+      "summary": "Défis du stockage LH2 et du ravitaillement rapide, limites des méthodes traditionnelles."
+    },
+    {
+      "id": "slide_problem",
+      "title": "Problématique de Recherche",
+      "summary": "Fiabilité des jumeaux numériques et nécessité de traçabilité CAO-Physique."
+    },
+    {
+      "id": "slide_methodology_g0_g5",
+      "title": "Architecture Méthodologique : La Chaîne G0–G5",
+      "summary": "Détail des 6 étapes de certification industrielle."
+    },
+    {
+      "id": "slide_heavy_duty",
+      "title": "Application 1 : Ravitaillement Poids Lourds (DN50)",
+      "summary": "Conformité SAE J2601-2, résidus Autograd et analyse Sweet Spot.",
+      "image_plan": "/home/ubuntu/upload/Screenshot_20260816-022601.png - Dashboard interface screenshot showing heavy-duty hydrogen refueling analysis and metrics"
+    },
+    {
+      "id": "slide_lh2_storage",
+      "title": "Application 2 : Stockage LH2 (1 250 m³)",
+      "summary": "Modélisation B-Rep Open CASCADE et stabilité cryogénique NASA.",
+      "image_plan": "/home/ubuntu/upload/Screenshot_20260816-024134.png - Dashboard scientific advanced physics and thermal profile view"
+    },
+    {
+      "id": "slide_results_autograd",
+      "title": "Résultats et Convergence Numérique",
+      "summary": "Précision des PINNs et alignement avec les références NIST."
+    },
+    {
+      "id": "slide_dashboard",
+      "title": "Plateforme Truly-Operational et Dashboard Vercel",
+      "summary": "Visualisation interactive et outils d'exportation certifiés."
+    },
+    {
+      "id": "slide_conclusion",
+      "title": "Conclusion et Perspectives Industrielles",
+      "summary": "Impact du projet et futures directions de recherche."
+    },
+    {
+      "id": "slide_q_a",
+      "title": "Remerciements et Questions",
+      "summary": "Ouverture de la discussion avec le jury.",
+      "image_plan": "Use a suitable image if needed"
+    }
+  ]
+}

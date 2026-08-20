@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #FFFFFF; color: #334155; }
+        .slide-container { width: 1280px; min-height: 720px; position: relative; display: flex; flex-direction: column; }
+        
+        .header { height: 100px; width: 100%; border-bottom: 2px solid #0F172A; display: flex; align-items: center; padding-left: 60px; }
+        .header h2 { font-family: 'Courier New', Courier, monospace; font-weight: 700; font-size: 32px; color: #0F172A; text-transform: uppercase; }
+        
+        .content { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 100px; }
+        
+        .question-box { border: 2px solid #0284C7; padding-top: 40px; padding-left: 40px; padding-right: 40px; width: 100%; position: relative; margin-bottom: 60px; }
+        .question-tag { position: absolute; top: -15px; left: 40px; background: #FFFFFF; padding: 0 15px; font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0284C7; }
+        .question-text { font-size: 26px; font-weight: 700; color: #0F172A; line-height: 1.4; }
+        
+        .points-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; }
+        .point { display: flex; align-items: flex-start; }
+        .icon { color: #0284C7; font-size: 24px; margin-right: 20px; margin-top: 4px; }
+        .point-text { font-size: 20px; line-height: 1.5; }
+        
+        .challenge-box { width: 100%; border-top: 2px solid #0F172A; padding-top: 30px; margin-top: 40px; text-align: center; }
+        .challenge-title { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0284C7; text-transform: uppercase; margin-bottom: 10px; }
+        .challenge-text { font-size: 24px; font-weight: 700; color: #0F172A; }
+        
+        .footer { height: 60px; border-top: 2px solid #0F172A; display: flex; align-items: center; justify-content: space-between; padding: 0 60px; font-family: 'Courier New', Courier, monospace; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Problématique de Recherche</h2>
+        </div>
+        
+        <div class="content">
+            <div class="question-box">
+                <span class="question-tag">QUESTION CENTRALE</span>
+                <p class="question-text">Comment garantir la fiabilité et l'absence d'hallucination d'un jumeau numérique appliqué à des infrastructures industrielles critiques ?</p>
+                <div style="height: 40px;"></div>
+            </div>
+            
+            <div class="points-grid">
+                <div class="point">
+                    <div class="icon"><i class="fas fa-shield-alt"></i></div>
+                    <p class="point-text">Dépasser les visualisations artistiques pour une <span style="color: #0284C7; font-weight: 700;">vérité physique</span>.</p>
+                </div>
+                <div class="point">
+                    <div class="icon"><i class="fas fa-link"></i></div>
+                    <p class="point-text">Assurer une <span style="color: #0284C7; font-weight: 700;">traçabilité totale</span> CAO-Physique.</p>
+                </div>
+            </div>
+            
+            <div class="challenge-box">
+                <p class="challenge-title">Le Défi Scientifique</p>
+                <p class="challenge-text">Passer de la géométrie native B-Rep aux équations de Navier-Stokes sans perte d'intégrité.</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <span>Samba Ba - Soutenance de Master</span>
+            <span>Slide 3 / 10</span>
+        </div>
+    </div>
+</body>
+</html>

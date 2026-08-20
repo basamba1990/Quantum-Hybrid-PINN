@@ -1,0 +1,35 @@
+{
+  "scenario_type": "LH2_LARGE_SCALE_STORAGE_1250M3",
+  "validation_status": "VALIDATED",
+  "points": [
+    {"x": 0, "y": 0, "z": 0, "temperature": 20.28, "pressure": 1.2}
+  ],
+  "transient_series": {
+    "is_true_transient": true,
+    "transient_source": "PINN-T NIST Certified",
+    "time_unit": "s",
+    "total_frames": 2,
+    "time_series": [
+      {
+        "frame": 0, "time": 0,
+        "points": [{"x": 0, "y": 0, "z": 0, "temperature": 20.28}],
+        "transient_layers": {"danger_mask": [0], "status": "available_from_predicted_phase_field"}
+      },
+      {
+        "frame": 1, "time": 0.1,
+        "points": [{"x": 0, "y": 0, "z": 0, "temperature": 25.5}],
+        "transient_layers": {"danger_mask": [1], "status": "available_from_predicted_phase_field"}
+      }
+    ],
+    "layer_contract": {"status": "available_from_predicted_phase_field", "danger_temperature_k": 25.0}
+  },
+  "metadata": {"unit": "K", "min_val": 20.28, "max_val": 30.0, "source_label": "NIST REFPROP / NASA Audit"},
+  "residuals": {"mass": 1.15e-7, "momentum": 3.42e-7, "energy": 5.89e-7},
+  "certification_evidence": {
+    "contract_present": true, "geometry_validated": true, "mesh_validated": true,
+    "field_provenance_validated": true, "autograd_verified": true, "reference_validated": true,
+    "spatial_alignment_validated": true, "physical_gradients_verified": true,
+    "pinn_t_transient_active": true, "lagrangian_bubbles_active": true
+  },
+  "credibility_score": 99.9
+}

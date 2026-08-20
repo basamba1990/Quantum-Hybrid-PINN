@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #020617; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+      .slide-container { 
+        width: 1280px; 
+        min-height: 720px; 
+        display: flex; 
+        flex-direction: row;
+        background: radial-gradient(circle at 70% 30%, #1e293b 0%, #020617 70%);
+      }
+      .left-content { 
+        width: 60%; 
+        padding: 80px; 
+        display: flex; 
+        flex-direction: column; 
+        justify-content: center; 
+        z-index: 2;
+      }
+      .right-visual { 
+        width: 40%; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        position: relative;
+      }
+      .accent-bar { width: 100px; height: 8px; background: #22d3ee; margin-bottom: 40px; }
+      h1 { font-size: 56px; font-weight: 900; line-height: 1.1; margin-bottom: 30px; text-transform: uppercase; color: #ffffff; }
+      h2 { font-size: 24px; color: #22d3ee; font-weight: 600; margin-bottom: 60px; letter-spacing: 1px; }
+      .info-box { border-left: 4px solid #f59e0b; padding-left: 25px; }
+      .info-item { margin-bottom: 15px; font-size: 20px; display: flex; align-items: center; }
+      .info-item i { color: #f59e0b; width: 35px; }
+      .info-item span { font-weight: 700; margin-right: 10px; color: #94a3b8; }
+      .molecule-bg {
+        width: 400px;
+        height: 400px;
+        background: radial-gradient(circle, rgba(34, 211, 238, 0.1) 0%, rgba(2, 6, 23, 0) 70%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse 4s infinite ease-in-out;
+      }
+      .h2-icon { font-size: 180px; color: #22d3ee; filter: drop-shadow(0 0 20px rgba(34, 211, 238, 0.5)); }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.8; }
+        50% { transform: scale(1.05); opacity: 1; }
+      }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="left-content">
+            <div class="accent-bar"></div>
+            <h1>Soutenance de Master</h1>
+            <h2>Jumeaux Numériques PINN-T pour l'Intégrité des Infrastructures LH2</h2>
+            
+            <div class="info-box">
+                <div class="info-item">
+                    <i class="fas fa-user-graduate"></i>
+                    <span>Présenté par :</span> Samba Ba
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-id-card"></i>
+                    <span>Identifiant :</span> basamba1990@yahoo.fr
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-atom"></i>
+                    <span>Domaine :</span> Ingénierie Physique & IA
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Date :</span> 19 Août 2026
+                </div>
+            </div>
+        </div>
+        <div class="right-visual">
+            <div class="molecule-bg">
+                <i class="fas fa-flask-vial h2-icon"></i>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

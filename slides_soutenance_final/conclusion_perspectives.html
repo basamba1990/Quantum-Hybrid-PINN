@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #020617; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+      .slide-container { 
+        width: 1280px; 
+        min-height: 720px; 
+        padding-top: 60px;
+        padding-left: 80px;
+        padding-right: 80px;
+        background: radial-gradient(circle at bottom right, #0f172a 0%, #020617 60%);
+      }
+      .header { 
+        border-bottom: 2px solid #22d3ee; 
+        padding-top: 10px;
+        margin-bottom: 50px; 
+      }
+      h2 { 
+        font-size: 42px; 
+        color: #ffffff; 
+        text-transform: uppercase; 
+        letter-spacing: 2px; 
+        font-weight: 900;
+      }
+      .content-grid { 
+        display: grid; 
+        grid-template-columns: 1fr 1fr; 
+        gap: 60px; 
+      }
+      .section-title { 
+        font-size: 28px; 
+        color: #22d3ee; 
+        margin-bottom: 30px; 
+        font-weight: 800; 
+        display: flex; 
+        align-items: center;
+      }
+      .section-title i { 
+        margin-right: 15px; 
+        color: #f59e0b;
+      }
+      .list-item { 
+        margin-bottom: 25px; 
+        display: flex; 
+        align-items: flex-start;
+      }
+      .list-item i { 
+        color: #22d3ee; 
+        margin-top: 6px; 
+        margin-right: 20px; 
+        font-size: 18px;
+      }
+      .item-text { 
+        font-size: 22px; 
+        line-height: 1.4;
+      }
+      .item-text strong { 
+        color: #ffffff; 
+        display: block; 
+        margin-bottom: 5px;
+      }
+      .highlight-box {
+        margin-top: 40px;
+        background: rgba(34, 211, 238, 0.05);
+        border-top: 4px solid #f59e0b;
+        padding-top: 30px;
+        padding-left: 30px;
+        padding-right: 30px;
+      }
+      .highlight-text {
+        font-size: 24px;
+        font-weight: 700;
+        color: #f59e0b;
+        text-align: center;
+        font-style: italic;
+      }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Conclusion et Perspectives Industrielles</h2>
+        </div>
+        
+        <div class="content-grid">
+            <div class="column">
+                <div class="section-title">
+                    <i class="fas fa-check-double"></i> Synthèse des Contributions
+                </div>
+                <div class="list-item">
+                    <i class="fas fa-microchip"></i>
+                    <div class="item-text">
+                        <strong>Architecture Hybride HPC</strong>
+                        Couplage Python/Fortran pour une résolution Navier-Stokes temps réel.
+                    </div>
+                </div>
+                <div class="list-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <div class="item-text">
+                        <strong>Certification G0-G5</strong>
+                        Protocole de validation rigoureux avec résidus Autograd < 10⁻⁷.
+                    </div>
+                </div>
+                <div class="list-item">
+                    <i class="fas fa-project-diagram"></i>
+                    <div class="item-text">
+                        <strong>Solveur PINN-T Opérationnel</strong>
+                        Modélisation transitoire fidèle des phénomènes cryogéniques LH2.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="column">
+                <div class="section-title">
+                    <i class="fas fa-rocket"></i> Perspectives Futures
+                </div>
+                <div class="list-item">
+                    <i class="fas fa-satellite-dish"></i>
+                    <div class="item-text">
+                        <strong>Intégration IoT & Edge-AI</strong>
+                        Assimilation de données capteurs pour la maintenance prédictive.
+                    </div>
+                </div>
+                <div class="list-item">
+                    <i class="fas fa-cogs"></i>
+                    <div class="item-text">
+                        <strong>Couplage Multi-physique</strong>
+                        Étude de la fragilisation des matériaux par l'hydrogène.
+                    </div>
+                </div>
+                <div class="list-item">
+                    <i class="fas fa-industry"></i>
+                    <div class="item-text">
+                        <strong>Déploiement Industriel</strong>
+                        Standardisation pour les hubs de stockage hydrogène européens.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="highlight-box">
+            <div class="highlight-text">
+                "La confiance industrielle naît de la transparence mathématique et de la rigueur physique."
+            </div>
+        </div>
+    </div>
+</body>
+</html>

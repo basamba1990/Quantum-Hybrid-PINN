@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #020617; color: #f8fafc; font-family: 'Segoe UI', sans-serif; }
+      .slide-container { width: 1280px; min-height: 720px; padding: 60px; background: #020617; }
+      .header { border-bottom: 2px solid #22d3ee; padding-bottom: 20px; margin-bottom: 40px; }
+      h2 { font-size: 42px; color: #ffffff; text-transform: uppercase; letter-spacing: 2px; }
+      .content-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 50px; }
+      .metrics-panel { display: flex; flex-direction: column; gap: 25px; }
+      .metric-card { background: rgba(255, 255, 255, 0.03); padding: 30px; border-left: 5px solid #f59e0b; }
+      .metric-title { font-size: 20px; color: #94a3b8; text-transform: uppercase; margin-bottom: 10px; font-weight: 700; }
+      .metric-value { font-size: 36px; color: #ffffff; font-weight: 900; }
+      .metric-value span { font-size: 20px; color: #f59e0b; margin-left: 10px; }
+      .chart-panel { background: rgba(255, 255, 255, 0.02); padding: 30px; border: 1px solid rgba(255, 255, 255, 0.1); }
+      .chart-title { font-size: 22px; color: #22d3ee; margin-bottom: 20px; font-weight: 800; text-align: center; }
+      .chart-container { height: 350px; width: 100%; }
+      .status-footer { margin-top: 40px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+      .badge-g5 { background: #065f46; color: #34d399; padding: 8px 20px; border-radius: 4px; font-weight: 800; font-size: 14px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Résultats : Ravitaillement Poids Lourds DN50</h2>
+        </div>
+        <div class="content-grid">
+            <div class="metrics-panel">
+                <div class="metric-card">
+                    <div class="metric-title"><i class="fas fa-thermometer-half"></i> Gradient Thermique</div>
+                    <div class="metric-value">233.15 - 279.00<span>K</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title"><i class="fas fa-compress-alt"></i> Pression de Service</div>
+                    <div class="metric-value">35.0<span>MPa</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title"><i class="fas fa-vial"></i> Facteur de Compressibilité</div>
+                    <div class="metric-value">1.12<span>(Z)</span></div>
+                </div>
+            </div>
+            <div class="chart-panel">
+                <div class="chart-title">Convergence des Résidus Autograd (G5)</div>
+                <div class="chart-container">
+                    <canvas id="residualChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="status-footer">
+            <div style="color: #94a3b8; font-size: 16px;">Conformité Norme SAE J2601-2 | Maillage : 11 000 points</div>
+            <div class="badge-g5"><i class="fas fa-check-double"></i> Certification G5 Validée</div>
+        </div>
+    </div>
+    <script>
+        const ctx = document.getElementById('residualChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['0', '500', '1000', '1500', '2000', '2500', '3000'],
+                datasets: [
+                    {
+                        label: 'Masse',
+                        data: [1e-2, 1e-3, 5e-5, 1e-6, 5e-7, 2e-7, 1.15e-7],
+                        borderColor: '#22d3ee',
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Momentum',
+                        data: [5e-2, 5e-3, 1e-4, 8e-6, 2e-6, 8e-7, 3.42e-7],
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Énergie',
+                        data: [8e-2, 1e-2, 8e-4, 5e-5, 1e-5, 2e-6, 5.89e-7],
+                        borderColor: '#ec4899',
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'logarithmic',
+                        min: 1e-8,
+                        max: 1,
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        ticks: { color: '#94a3b8' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#94a3b8' },
+                        title: { display: true, text: 'Itérations', color: '#94a3b8' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#f8fafc', padding: 20, font: { size: 14 } }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

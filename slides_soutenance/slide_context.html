@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #FFFFFF; color: #334155; }
+        .slide-container { width: 1280px; min-height: 720px; position: relative; display: flex; flex-direction: column; }
+        
+        .header { height: 100px; width: 100%; border-bottom: 2px solid #0F172A; display: flex; align-items: center; padding-left: 60px; }
+        .header h2 { font-family: 'Courier New', Courier, monospace; font-weight: 700; font-size: 32px; color: #0F172A; text-transform: uppercase; }
+        
+        .content { flex: 1; display: flex; width: 100%; }
+        
+        .section { flex: 1; padding-top: 60px; padding-left: 60px; padding-right: 40px; }
+        .section-left { border-right: 2px solid #0284C7; }
+        
+        .section-title { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0284C7; font-size: 22px; margin-bottom: 30px; text-transform: uppercase; }
+        
+        .point { margin-bottom: 40px; display: flex; align-items: flex-start; }
+        .icon { color: #0284C7; font-size: 24px; margin-right: 20px; margin-top: 4px; }
+        .text-content { flex: 1; }
+        .point-title { font-weight: 700; color: #0F172A; font-size: 20px; margin-bottom: 8px; }
+        .point-desc { font-size: 18px; line-height: 1.6; color: #334155; }
+        
+        .highlight { color: #0284C7; font-weight: 700; }
+        
+        .footer { height: 60px; border-top: 2px solid #0F172A; display: flex; align-items: center; justify-content: space-between; padding: 0 60px; font-family: 'Courier New', Courier, monospace; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Contexte et Enjeux de l'Hydrogène Décarboné</h2>
+        </div>
+        
+        <div class="content">
+            <div class="section section-left">
+                <p class="section-title">Défis du Vecteur Hydrogène</p>
+                
+                <div class="point">
+                    <div class="icon"><i class="fas fa-leaf"></i></div>
+                    <div class="text-content">
+                        <p class="point-title">Transition Énergétique</p>
+                        <p class="point-desc">L'hydrogène vert est le pilier incontournable pour une économie <span class="highlight">neutre en carbone</span>.</p>
+                    </div>
+                </div>
+                
+                <div class="point">
+                    <div class="icon"><i class="fas fa-temperature-low"></i></div>
+                    <div class="text-content">
+                        <p class="point-title">Conditions Extrêmes</p>
+                        <p class="point-desc">Stockage cryogénique à <span class="highlight">20 K</span> et ravitaillement haute pression à <span class="highlight">35 MPa / -40 °C</span>.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <p class="section-title">Limites Technologiques</p>
+                
+                <div class="point">
+                    <div class="icon"><i class="fas fa-microchip"></i></div>
+                    <div class="text-content">
+                        <p class="point-title">Simulations Traditionnelles</p>
+                        <p class="point-desc">Les méthodes CFD et FEM sont lourdes, cloisonnées et inadaptées au <span class="highlight">temps réel</span>.</p>
+                    </div>
+                </div>
+                
+                <div class="point">
+                    <div class="icon"><i class="fas fa-brain"></i></div>
+                    <div class="text-content">
+                        <p class="point-title">Opportunité IA Physique</p>
+                        <p class="point-desc">Coupler la physique des fluides avec les <span class="highlight">PINNs</span> pour une intelligence opérationnelle.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <span>Samba Ba - Soutenance de Master</span>
+            <span>Slide 2 / 10</span>
+        </div>
+    </div>
+</body>
+</html>

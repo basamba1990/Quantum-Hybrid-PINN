@@ -1,0 +1,111 @@
+{
+  "project_info": {
+    "title": "Titre de la Soutenance",
+    "created": 1787098218.443,
+    "last_updated": 1787098347.999,
+    "total_slides": 9
+  },
+  "slides": [
+    {
+      "id": "title_slide",
+      "state": "edited",
+      "pageNum": 1
+    },
+    {
+      "id": "problem_statement",
+      "state": "edited",
+      "pageNum": 2
+    },
+    {
+      "id": "methodology_g0_g5",
+      "state": "edited",
+      "pageNum": 3
+    },
+    {
+      "id": "pinn_t_solver",
+      "state": "edited",
+      "pageNum": 4
+    },
+    {
+      "id": "transient_results_refueling",
+      "state": "edited",
+      "pageNum": 5
+    },
+    {
+      "id": "transient_results_storage",
+      "state": "edited",
+      "pageNum": 6
+    },
+    {
+      "id": "animation_logic",
+      "state": "edited",
+      "pageNum": 7
+    },
+    {
+      "id": "conclusion_perspectives",
+      "state": "edited",
+      "pageNum": 8
+    },
+    {
+      "id": "q_a_slide",
+      "state": "edited",
+      "pageNum": 9
+    }
+  ],
+  "outline": [
+    {
+      "id": "title_slide",
+      "title": "Titre de la Soutenance",
+      "summary": "Présentation du sujet, de l'étudiant Samba Ba et du domaine d'expertise.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "problem_statement",
+      "title": "Défis de la Sécurité Cryogénique LH2",
+      "summary": "Explication des enjeux du stockage massif (1250m3) et du ravitaillement rapide (DN50).",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "methodology_g0_g5",
+      "title": "Méthodologie de Certification G0-G5",
+      "summary": "Détail des 5 portes de certification pour garantir l'intégrité industrielle.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "pinn_t_solver",
+      "title": "Architecture du Solveur PINN-T Hybride",
+      "summary": "Explication technique du solveur transitoire Navier-Stokes avec Autograd et Fortran/OpenMP.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "transient_results_refueling",
+      "title": "Résultats : Ravitaillement Poids Lourds DN50",
+      "summary": "Analyse des transitoires thermiques (233K-279K) et des résidus Autograd à 10^-7.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "transient_results_storage",
+      "title": "Résultats : Stockage Massif 1250m3",
+      "summary": "Visualisation des gradients de boil-off et validation du Sweet Spot thermodynamique.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "animation_logic",
+      "title": "Visualisation Transitoire : Physique vs Animation",
+      "summary": "Explication de l'interpolation physique des snapshots PINN-T et de la sémantique des couleurs.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "conclusion_perspectives",
+      "title": "Conclusion et Perspectives Industrielles",
+      "summary": "Synthèse des contributions et vision pour le déploiement futur de l'économie hydrogène.",
+      "image_plan": "Use a suitable image if needed"
+    },
+    {
+      "id": "q_a_slide",
+      "title": "Questions & Réponses",
+      "summary": "Invitation au jury pour la séance de questions interactive.",
+      "image_plan": "Use a suitable image if needed"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "format": "STEP",
+  "requested_schema": "AP242",
+  "actual_schema": "AP214",
+  "generator": "Open CASCADE OCP B-Rep",
+  "sha256": "04e70df2a7154b57f018253fb8cfed3952665c512a75202eb374a9670f4e3770",
+  "length_unit": "m",
+  "components": [
+    {
+      "name": "outer_spherical_shell",
+      "radius_m": 6.83,
+      "wall_thickness_m": 0.04999999999999982
+    },
+    {
+      "name": "inner_fluid_domain",
+      "radius_m": 6.78
+    },
+    {
+      "name": "dip_tube",
+      "radius_m": 0.15,
+      "length_m": 14.0
+    },
+    {
+      "name": "anti_slosh_baffle_lower",
+      "radius_m": 5.0,
+      "thickness_m": 0.03,
+      "z_m": -2.0
+    },
+    {
+      "name": "anti_slosh_baffle_upper",
+      "radius_m": 5.0,
+      "thickness_m": 0.03,
+      "z_m": 2.0
+    }
+  ],
+  "geometry_type": "closed B-Rep compound",
+  "visualization_note": "The dashboard must load a triangulated GLB derived from this STEP to display the enriched components."
+}

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #FFFFFF; color: #334155; }
+        .slide-container { width: 1280px; min-height: 720px; position: relative; display: flex; flex-direction: column; }
+        
+        .header { height: 100px; width: 100%; border-bottom: 2px solid #0F172A; display: flex; align-items: center; padding-left: 60px; }
+        .header h2 { font-family: 'Courier New', Courier, monospace; font-weight: 700; font-size: 32px; color: #0F172A; text-transform: uppercase; }
+        
+        .content { flex: 1; padding: 40px 60px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 30px; }
+        
+        .gate-box { border-top: 2px solid #0284C7; padding-top: 20px; position: relative; }
+        .gate-box::before { content: ""; position: absolute; left: 0; top: 0; height: 100%; width: 2px; background: #0284C7; opacity: 0.2; }
+        
+        .gate-id { font-family: 'Courier New', Courier, monospace; font-weight: 700; color: #0284C7; font-size: 24px; margin-bottom: 10px; }
+        .gate-title { font-weight: 700; color: #0F172A; font-size: 18px; margin-bottom: 15px; text-transform: uppercase; }
+        .gate-desc { font-size: 16px; line-height: 1.4; }
+        
+        .highlight-tag { display: inline-block; background: #0284C7; color: #FFFFFF; font-family: 'Courier New', Courier, monospace; font-size: 12px; padding: 2px 8px; margin-top: 10px; font-weight: 700; }
+        
+        .footer { height: 60px; border-top: 2px solid #0F172A; display: flex; align-items: center; justify-content: space-between; padding: 0 60px; font-family: 'Courier New', Courier, monospace; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Architecture Méthodologique : La Chaîne G0–G5</h2>
+        </div>
+        
+        <div class="content">
+            <div class="gate-box">
+                <p class="gate-id">G0</p>
+                <p class="gate-title">Source CAO & Unités</p>
+                <p class="gate-desc">Import natif STEP AP242 (ISO 10303). Révision immuable avec empreinte SHA-256.</p>
+                <span class="highlight-tag">TRAÇABILITÉ</span>
+            </div>
+            
+            <div class="gate-box">
+                <p class="gate-id">G1</p>
+                <p class="gate-title">Topologie & Manifold</p>
+                <p class="gate-desc">Vérification d'étanchéité B-Rep. Zéro arête ouverte. Assignation des frontières nommées.</p>
+                <span class="highlight-tag">INTÉGRITÉ</span>
+            </div>
+            
+            <div class="gate-box">
+                <p class="gate-id">G2</p>
+                <p class="gate-title">Maillage Volumique</p>
+                <p class="gate-desc">Discrétisation tétraédrique. Jacobien > 0.85. Élimination des cellules négatives.</p>
+                <span class="highlight-tag">QUALITÉ</span>
+            </div>
+            
+            <div class="gate-box">
+                <p class="gate-id">G3</p>
+                <p class="gate-title">Physique & Modèle</p>
+                <p class="gate-desc">Intégration NIST REFPROP. Équations d'état réelles (Peng-Robinson / SAE J2601-2).</p>
+                <span class="highlight-tag">RIGUEUR</span>
+            </div>
+            
+            <div class="gate-box">
+                <p class="gate-id">G4</p>
+                <p class="gate-title">Contrat de Cas</p>
+                <p class="gate-desc">Référence immuable liant géométrie, maillage et physique. Aucun ingrédient simulé.</p>
+                <span class="highlight-tag">CONTRAT</span>
+            </div>
+            
+            <div class="gate-box">
+                <p class="gate-id">G5</p>
+                <p class="gate-title">Résidus Autograd</p>
+                <p class="gate-desc">Évaluation quantitative par différenciation automatique PyTorch. Seuil critique < 10⁻⁷.</p>
+                <span class="highlight-tag">CERTIFICATION</span>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <span>Samba Ba - Soutenance de Master</span>
+            <span>Slide 4 / 10</span>
+        </div>
+    </div>
+</body>
+</html>
