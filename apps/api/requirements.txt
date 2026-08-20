@@ -1,1 +1,7 @@
-fastapi\nuvicorn\ntorch\nnumpy\nrequests\npython-multipart\npydantic-settings
+fastapi
+uvicorn
+torch
+numpy
+requests
+python-multipart
+pydantic-settings
