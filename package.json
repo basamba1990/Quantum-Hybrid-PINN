@@ -1,0 +1,26 @@
+{
+  "name": "quantum-hybrid-pinn-v8",
+  "version": "8.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "cd apps/api && uvicorn main:app --reload",
+    "dev:queue": "cd apps/api && ts-node pinn_queue_system.ts",
+    "build:web": "pnpm --filter web build",
+    "start:web": "pnpm --filter web start"
+  },
+  "dependencies": {
+    "bullmq": "^5.79.2",
+    "ioredis": "^5.11.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.4.1+sha512.c753b6c3ad7afa13af388fa6d808035a008e30ea9993f58c6663e2bc5ff21679aa834db094987129aa4d488b86df57f7b634981b2f827cdcacc698cc0cfb88af"
+}
