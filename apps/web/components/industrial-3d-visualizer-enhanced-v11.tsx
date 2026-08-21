@@ -513,9 +513,11 @@ export default function Industrial3DVisualizerEnhancedV11({
     const voxelGeometry = new THREE.BoxGeometry(particleSize, particleSize, particleSize);
     const voxelMaterial = new THREE.MeshBasicMaterial({ 
       vertexColors: true,
+      transparent: true,
+      opacity: 0.85,
       polygonOffset: true,
-      polygonOffsetFactor: 1,
-      polygonOffsetUnits: 1
+      polygonOffsetFactor: -2, // Force les points devant la CAO
+      polygonOffsetUnits: -2
     });
     const instancedMesh = new THREE.InstancedMesh(voxelGeometry, voxelMaterial, volumetricData.length);
     instancedMesh.frustumCulled = false;
@@ -567,7 +569,15 @@ export default function Industrial3DVisualizerEnhancedV11({
     bubbleGeometry.setAttribute("position", new THREE.BufferAttribute(bubblePositions, 3));
     bubbleGeometry.setAttribute("color", new THREE.BufferAttribute(bubbleColors, 3));
     bubbleGeometry.setDrawRange(0, 0);
-    const bubbleMaterial = new THREE.PointsMaterial({ size: Math.max(particleSize * 2.5, 0.014), vertexColors: true, transparent: true, opacity: 0.9, sizeAttenuation: true });
+    const bubbleMaterial = new THREE.PointsMaterial({ 
+      size: Math.max(particleSize * 4.0, 0.025), // Bulles plus grosses pour la visibilité
+      vertexColors: true, 
+      transparent: true, 
+      opacity: 1.0, 
+      sizeAttenuation: true,
+      depthWrite: false, // Les bulles brillent à travers
+      blending: THREE.AdditiveBlending // Effet de brillance
+    });
     const bubblePoints = new THREE.Points(bubbleGeometry, bubbleMaterial);
     bubblePoints.frustumCulled = false;
     scene.add(bubblePoints);
@@ -644,7 +654,7 @@ export default function Industrial3DVisualizerEnhancedV11({
         surfaceColors.needsUpdate = true;
       }
 
-      bubblePoints.visible = Boolean(showBubbles && isTrueTransient && renderMode !== "danger" && activeBubbles.length && transientLayerStatus === "available_from_predicted_phase_field");
+      bubblePoints.visible = Boolean(showBubbles && isTrueTransient && renderMode !== "danger" && activeBubbles.length); // Relaxation de la condition de statut
       const bubblePositionAttribute = bubbleGeometry.getAttribute("position") as THREE.BufferAttribute;
       const bubbleColorAttribute = bubbleGeometry.getAttribute("color") as THREE.BufferAttribute;
       for (let index = 0; index < Math.max(maxBubbles, 1); index += 1) {
@@ -710,7 +720,10 @@ export default function Industrial3DVisualizerEnhancedV11({
               metalness: 0.08,
               side: THREE.DoubleSide,
               wireframe: false,
-              depthWrite: false, // Empêche le CAO d'occlure les points internes
+              depthWrite: true, // Rétablit l'écriture de profondeur pour la structure
+              polygonOffset: true,
+              polygonOffsetFactor: 1, // Pousse la CAO vers l'arrière
+              polygonOffsetUnits: 1
             });
             cadMeshes.push(child);
           });
@@ -788,9 +801,10 @@ export default function Industrial3DVisualizerEnhancedV11({
       const deltaSeconds = Math.min((timestamp - previousTimestamp) / 1000, 0.1);
       previousTimestamp = timestamp;
       if (isPlayingRef.current) {
-        animationPhaseRef.current = (animationPhaseRef.current + deltaSeconds * speedRef.current) % 1;
+        animationPhaseRef.current = (animationPhaseRef.current + deltaSeconds * speedRef.current) % 1.0;
         forceApplyRef.current = true;
-        if (timestamp - lastUiUpdate > 100) {
+        // Mise à jour plus fréquente de l'UI pour la fluidité
+        if (timestamp - lastUiUpdate > 33) {
           setAnimationPhase(animationPhaseRef.current);
           lastUiUpdate = timestamp;
         }
