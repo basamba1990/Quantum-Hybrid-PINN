@@ -138,6 +138,7 @@ export const normalizeVisualizationPoints = (value: unknown): VisualizationPoint
       stress: ["stress", "von_mises", "sigma_vm"],
       damage: ["damage"],
       von_mises: ["von_mises", "stress", "sigma_vm"],
+      shear_stress: ["shear_stress", "tau"],
       mesh_level: ["mesh_level", "refinement_level"],
     };
 
@@ -226,11 +227,11 @@ export const buildVisualizationMetadata = (
     LH2_LARGE_SCALE_STORAGE_1250M3: { temperature: "K", pressure: "MPa", velocity_magnitude: "m/s", stress: "MPa" },
     HEAVY_DUTY_HYDROGEN_REFUELING: { temperature: "K", pressure: "MPa", velocity_magnitude: "m/s", stress: "MPa" },
     FPGA_HEATSINK: { temperature: "K", pressure: "Pa", velocity_magnitude: "m/s", stress: "MPa" },
-    DEEP_MINING_BLOCK: { temperature: "K", pressure: "MPa", velocity_magnitude: "m/s", stress: "MPa" },
+    DEEP_MINING_BLOCK: { temperature: "K", pressure: "MPa", velocity_magnitude: "m/s", stress: "MPa", shear_stress: "MPa" },
   };
 
   const fields: NonNullable<VisualizationMetadata["fields"]> = {};
-  for (const key of ["temperature", "pressure", "velocity_magnitude", "stress"]) {
+  for (const key of ["temperature", "pressure", "velocity_magnitude", "stress", "shear_stress"]) {
     const rawField = parseRecord(explicitFields[key]);
     const field = {
       unit: validUnit(rawField.unit) || scenarioDefaults[scenarioType]?.[key],
@@ -254,6 +255,7 @@ export const buildVisualizationMetadata = (
     discontinuity: Object.keys(discontinuity).length ? discontinuity : undefined,
     mesh,
     fields: Object.keys(fields).length ? fields : undefined,
+    transient: rawMetadata.transient ?? result.transient ?? results.transient,
   };
 };
 

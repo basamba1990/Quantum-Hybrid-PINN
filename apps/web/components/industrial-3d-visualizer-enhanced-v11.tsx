@@ -157,6 +157,7 @@ export default function Industrial3DVisualizerEnhancedV11({
     { key: "pressure", label: "Pression", unit: metadata?.fields?.pressure?.unit },
     { key: "velocity_magnitude", label: "Vitesse", unit: metadata?.fields?.velocity_magnitude?.unit },
     { key: "stress", label: "Contrainte", unit: metadata?.fields?.stress?.unit },
+    { key: "shear_stress", label: "Cisaillement", unit: metadata?.fields?.shear_stress?.unit },
   ] as const, [metadata?.fields]);
 
   const volumetricData = useMemo(() => normalizeVisualizationPoints(data), [data]);
@@ -474,7 +475,12 @@ export default function Industrial3DVisualizerEnhancedV11({
 
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+      renderer = new THREE.WebGLRenderer({ 
+        antialias: true, 
+        alpha: true, 
+        preserveDrawingBuffer: true,
+        logarithmicDepthBuffer: true
+      });
     } catch {
       setRendererReady(false);
       setRenderError("Contexte WebGL indisponible : le champ persisté reste exportable, mais le rendu 3D ne peut pas être initialisé dans cet environnement.");
@@ -619,7 +625,7 @@ export default function Industrial3DVisualizerEnhancedV11({
       if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
       (cloudGeometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
       (cloudGeometry.getAttribute("color") as THREE.BufferAttribute).needsUpdate = true;
-      instancedMesh.visible = renderMode !== "surface" && renderMode !== "danger";
+      instancedMesh.visible = renderMode !== "surface";
       continuousCloud.visible = renderMode === "surface" && surfaceMesh === null;
       if (surfaceMesh) {
         surfaceMesh.visible = renderMode === "surface";
