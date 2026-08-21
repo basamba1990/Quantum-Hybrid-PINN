@@ -7,7 +7,7 @@ import asyncio
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from datetime import datetime
 from supabase import create_client, Client
 

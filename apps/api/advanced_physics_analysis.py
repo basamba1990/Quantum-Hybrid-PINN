@@ -5,7 +5,7 @@ and residual map generation for CFD/PINN hybrid simulations.
 """
 
 import numpy as np
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 
 class AdvancedPhysicsAnalysis:

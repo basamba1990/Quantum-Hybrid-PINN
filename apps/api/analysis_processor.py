@@ -5,6 +5,7 @@ Handles analysis submission, processing, and status updates
 
 import asyncio
 import numpy as np
+import os
 import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
