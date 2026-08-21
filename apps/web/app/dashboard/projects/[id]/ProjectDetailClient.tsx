@@ -26,8 +26,13 @@ const ScientificValidationWorkspace = dynamic(
   { ssr: false, loading: () => <div className="h-96 bg-slate-950 rounded-3xl border border-white/10 animate-pulse" /> }
 )
 
-export default function ProjectDetailClient({ id }: { id: string }) {
-  const [project, setProject] = useState<Project | null>(null)
+interface ProjectDetailClientProps {
+  id: string
+  project: Project | null
+}
+
+export default function ProjectDetailClient({ id, project: initialProject }: ProjectDetailClientProps) {
+  const [project, setProject] = useState<Project | null>(initialProject)
   const [reports, setReports] = useState<Report[]>([])
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
   const [latestAnalysis, setLatestAnalysis] = useState<Analysis | null>(null)
@@ -57,8 +62,10 @@ export default function ProjectDetailClient({ id }: { id: string }) {
       try {
         if (!id) return
 
-        const { data: projectData } = await supabase.from('projects').select('*').eq('id', id).maybeSingle()
-        setProject(projectData)
+        if (!project) {
+          const { data: projectData } = await supabase.from('projects').select('*').eq('id', id).maybeSingle()
+          setProject(projectData)
+        }
 
         const { data: reportsData } = await supabase.from('reports').select('*').eq('project_id', id).order('created_at', { ascending: false })
         setReports(reportsData || [])
@@ -77,9 +84,9 @@ export default function ProjectDetailClient({ id }: { id: string }) {
       }
     }
     fetchData()
-  }, [id, supabase])
+  }, [id, supabase, project])
 
-  if (loading) return (
+  if (loading && !project) return (
     <div className="flex flex-col items-center justify-center h-[80vh] space-y-4">
       <div className="h-12 w-12 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
       <p className="text-xs font-mono text-blue-500 uppercase tracking-widest animate-pulse">Loading Module...</p>
@@ -188,8 +195,8 @@ export default function ProjectDetailClient({ id }: { id: string }) {
             )
           ) : (
             <ScientificValidationWorkspace 
-              analysis={latestAnalysis}
-              project={project}
+              scenarioType={scenarioType}
+              results={latestAnalysis as any}
             />
           )}
         </div>
