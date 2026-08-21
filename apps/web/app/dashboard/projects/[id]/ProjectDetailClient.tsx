@@ -58,12 +58,14 @@ export default function ProjectDetailClient({ id, project }: any) {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const { data: analysisRows } = await supabase
+        const { data: analysisRows, error: anaError } = await supabase
           .from('analyses')
           .select('*')
           .eq('project_id', id)
           .order('created_at', { ascending: false })
           .limit(50)
+        if (anaError) console.error("Supabase Analyses Error:", anaError)
+        console.log("Fetched Analyses Count:", analysisRows?.length || 0)
         if (!analysisRows?.length) { setLoading(false); return }
 
         const analysisIds = analysisRows.map((row: any) => row.id)
