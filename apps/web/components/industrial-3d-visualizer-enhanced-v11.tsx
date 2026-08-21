@@ -174,10 +174,11 @@ export default function Industrial3DVisualizerEnhancedV11({
   const transientFrames = transientSeries?.time_series ?? [];
   const transientLayerStatus = transientFrames[0]?.transient_layers?.status;
   const transientThreshold = useMemo(() => {
-    const raw = (metadata?.transient?.layer_contract as Record<string, unknown> | undefined)?.danger_temperature_k;
+    const raw = (metadata?.transient?.layer_contract as Record<string, unknown> | undefined)?.danger_temperature_k
+      ?? (transientSeries?.layer_contract as Record<string, unknown> | undefined)?.danger_temperature_k;
     const numeric = finiteValue(raw);
     return numeric;
-  }, [metadata?.transient?.layer_contract]);
+  }, [metadata?.transient?.layer_contract, transientSeries?.layer_contract]);
 
   const domain = useMemo(() => {
     if (!volumetricData.length) {
@@ -702,7 +703,7 @@ export default function Industrial3DVisualizerEnhancedV11({
             cadMeshes.push(child);
           });
 
-          const matchTolerance = Math.max(domain.spanX, domain.spanY, domain.spanZ, 1e-6) * displayTransform.scale * 0.02;
+          const matchTolerance = Math.max(domain.spanX, domain.spanY, domain.spanZ, 1e-6) * displayTransform.scale * 0.15; // Augmentation de la tolérance pour éviter le clignotement
           const sortedPointIndices = volumetricData.map((point, index) => ({ x: point.x, index })).sort((a, b) => a.x - b.x);
           const fieldColor = new THREE.Color();
           const vertex = new THREE.Vector3();
@@ -744,7 +745,8 @@ export default function Industrial3DVisualizerEnhancedV11({
                   const value = getInterpolatedValue(sample.index, phase) ?? stats.minV;
                   fieldColor.copy(getColorFromScale(value, stats.minV, stats.maxV, colorScale));
                 } else {
-                  fieldColor.setRGB(0.16, 0.20, 0.28);
+                  // Fallback industriel : au lieu du noir, on utilise un gris clair neutre ou on garde la couleur précédente
+                  fieldColor.setRGB(0.4, 0.4, 0.4);
                 }
                 colors.setXYZ(index, fieldColor.r, fieldColor.g, fieldColor.b);
               }

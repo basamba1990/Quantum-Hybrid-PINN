@@ -236,7 +236,7 @@ export default function ProjectDetailClient({ id, project }: any) {
 
                 <TabsContent value="volumetric" className="m-0 p-8">
                   <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 min-h-[760px]">
-                    <Industrial3DVisualizerEnhancedV11 data={repairedPoints} experimentalData={visualizationPayload.experimentalPoints} metadata={persistedMetadata} title={projectDisplayName || "LH2_INFRASTRUCTURE_INTEGRITY"} colorVariable="temperature" scenarioType={scenarioType} geometryAssetUrl={geometryAssetUrl} metrics={{ credibilityScore, residuals }} />
+                    <Industrial3DVisualizerEnhancedV11 data={repairedPoints} experimentalData={visualizationPayload.experimentalPoints} metadata={persistedMetadata} transientSeries={visualizationPayload.transientSeries} title={projectDisplayName || "LH2_INFRASTRUCTURE_INTEGRITY"} colorVariable="temperature" scenarioType={scenarioType} geometryAssetUrl={geometryAssetUrl} metrics={{ credibilityScore, residuals }} />
                   </div>
                 </TabsContent>
 
