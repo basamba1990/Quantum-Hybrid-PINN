@@ -700,13 +700,19 @@ export default function Industrial3DVisualizerEnhancedV11({
           else if (targetAxis === 0 && sourceAxis === 1) cadModel.rotation.z = -Math.PI / 2;
           const cadDisplayScale = displayTransform.scale * cadUnitScale;
           cadModel.scale.setScalar(cadDisplayScale);
-          // Aligner le (0,0,0) physique du CAO avec le (0,0,0) physique du champ
-          // Le champ est décalé de -domain.midX et mis à l'échelle par displayTransform.scale
-          cadModel.position.set(
-            -domain.midX * displayTransform.scale,
-            -domain.midY * displayTransform.scale,
-            -domain.midZ * displayTransform.scale
-          );
+          
+          // --- ALIGNEMENT INDUSTRIEL RIGOUREUX ---
+          const cadBox = new THREE.Box3().setFromObject(cadModel);
+          const cadCenter = cadBox.getCenter(new THREE.Vector3());
+          
+          // On centre le modèle CAO par rapport à son propre volume
+          cadModel.position.x -= cadCenter.x;
+          cadModel.position.y -= cadCenter.y;
+          cadModel.position.z -= cadCenter.z;
+          
+          // Puis on l'aligne sur le centre du champ de données (0,0,0 visuel)
+          // Note: transformPoint centre déjà les données en soustrayant domain.midX/Y/Z
+          console.log(`[CAD] Aligned ${scenarioType} center:`, cadCenter);
           const cadMeshes: THREE.Mesh[] = [];
           cadModel.traverse((child) => {
             if (!(child instanceof THREE.Mesh)) return;
