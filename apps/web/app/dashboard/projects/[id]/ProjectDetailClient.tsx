@@ -160,7 +160,9 @@ export default function ProjectDetailClient({ id, project }: any) {
   }), [scenarioType, visualizationPayload.points, persistedMetadata, residuals, chaosMode, leakAlertMode, credibilityScore, results, validationStatus])
 
   // Seuls les points réellement persistés sont rendus ; aucune génération aléatoire côté interface.
-  const repairedPoints = visualizationPayload.points?.length > 0 ? visualizationPayload.points : (Array.isArray(results?.pinn_predictions) ? results.pinn_predictions : [])
+  const repairedPoints = visualizationPayload.points?.length > 0 
+    ? visualizationPayload.points 
+    : (Array.isArray(results?.pinn_predictions) ? results.pinn_predictions : (Array.isArray(results?.points) ? results.points : (Array.isArray(results?.predictions3d) ? results.predictions3d : [])))
 
   const projectDisplayName = getScenarioDisplayName(project?.scenario_type || project?.category || project?.name)
   const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType, [project?.name, project?.scenario_type, latestAnalysis?.scenario_type])
