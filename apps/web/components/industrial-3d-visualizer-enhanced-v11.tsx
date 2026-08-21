@@ -507,11 +507,16 @@ export default function Industrial3DVisualizerEnhancedV11({
     scene.add(new THREE.AxesHelper(1));
 
     const particleSize = Math.max(
-      Math.min(displayTransform.displaySpanX, displayTransform.displaySpanY, displayTransform.displaySpanZ) / 80,
-      0.008,
+      Math.min(displayTransform.displaySpanX, displayTransform.displaySpanY, displayTransform.displaySpanZ) / 120,
+      0.004,
     );
     const voxelGeometry = new THREE.BoxGeometry(particleSize, particleSize, particleSize);
-    const voxelMaterial = new THREE.MeshBasicMaterial({ vertexColors: true });
+    const voxelMaterial = new THREE.MeshBasicMaterial({ 
+      vertexColors: true,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1
+    });
     const instancedMesh = new THREE.InstancedMesh(voxelGeometry, voxelMaterial, volumetricData.length);
     instancedMesh.frustumCulled = false;
     scene.add(instancedMesh);
@@ -700,11 +705,12 @@ export default function Industrial3DVisualizerEnhancedV11({
               vertexColors: true,
               color: 0xffffff,
               transparent: true,
-              opacity: 0.35, // Augmentation de la transparence pour voir les points internes
+              opacity: 0.35,
               roughness: 0.42,
               metalness: 0.08,
               side: THREE.DoubleSide,
               wireframe: false,
+              depthWrite: false, // Empêche le CAO d'occlure les points internes
             });
             cadMeshes.push(child);
           });
