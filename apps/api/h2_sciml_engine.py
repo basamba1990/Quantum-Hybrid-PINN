@@ -273,57 +273,66 @@ class TransientPINNLoss(nn.Module):
         )[0]
         return torch.zeros_like(variable) if gradient is None else gradient
 
-    def pointwise_terms(self, model: torch.nn.Module, t: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
-        coordinates = [v.requires_grad_(True) for v in (t, x, y, z)]
-        t, x, y, z = coordinates
-        outputs = model(torch.cat([t, x, y, z], dim=-1))
-        if outputs.shape[-1] < 6:
-            raise ValueError("Le PINN-T doit retourner au moins rho, u, v, w, p, T.")
-        rho, u, p, temperature = outputs[:, 0:1], outputs[:, 1:2], outputs[:, 4:5], outputs[:, 5:6]
-        drho_dt, drho_dx = self._grad(rho, t), self._grad(rho, x)
-        du_dt, du_dx = self._grad(u, t), self._grad(u, x)
-        dp_dx = self._grad(p, x)
-        dT_dt, dT_dx = self._grad(temperature, t), self._grad(temperature, x)
-        d2u_dx2 = self._grad(du_dx, x)
-        d2T_dx2 = self._grad(dT_dx, x)
-        mass = drho_dt + u * drho_dx + rho * du_dx
-        momentum = rho * (du_dt + u * du_dx) + dp_dx - self.mu * d2u_dx2
-        energy = rho * self.cp * (dT_dt + u * dT_dx) - self.k_thermal * d2T_dx2
-        return {
-            "drho_dt": drho_dt, "drho_dx": drho_dx,
-            "du_dt": du_dt, "du_dx": du_dx, "d2u_dx2": d2u_dx2,
-            "dp_dx": dp_dx, "dT_dt": dT_dt, "dT_dx": dT_dx,
-            "d2T_dx2": d2T_dx2, "rho": rho, "u": u,
-            "mass": mass, "momentum": momentum, "energy": energy,
-        }
+    def compute_saturation_pressure(self, T: torch.Tensor) -> torch.Tensor:
+        # Approximation NIST pour le parahydrogène (20K - 33K)
+        # P_sat(T) = exp(A - B/T - C*ln(T))
+        A, B, C = 12.6, 173.0, 0.5
+        return torch.exp(A - B / (T + 1e-6) - C * torch.log(T + 1e-6))
 
     def pointwise_terms(self, model: torch.nn.Module, t: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
         coordinates = [v.requires_grad_(True) for v in (t, x, y, z)]
         t, x, y, z = coordinates
         outputs = model(torch.cat([t, x, y, z], dim=-1))
-        if outputs.shape[-1] < 6:
-            raise ValueError("Le PINN-T doit retourner au moins rho, u, v, w, p, T.")
-        rho, u, p, temperature = outputs[:, 0:1], outputs[:, 1:2], outputs[:, 4:5], outputs[:, 5:6]
+        
+        # Mapping des sorties : [rho, u, v, w, p, T, R]
+        rho = outputs[:, 0:1]
+        u = outputs[:, 1:2]
+        p = outputs[:, 4:5]
+        temperature = outputs[:, 5:6]
+        
+        # Dérivées premières
         drho_dt, drho_dx = self._grad(rho, t), self._grad(rho, x)
         du_dt, du_dx = self._grad(u, t), self._grad(u, x)
         dp_dx = self._grad(p, x)
         dT_dt, dT_dx = self._grad(temperature, t), self._grad(temperature, x)
+        
+        # Dérivées secondes
         d2u_dx2 = self._grad(du_dx, x)
         d2T_dx2 = self._grad(dT_dx, x)
+        
+        # Résidus Navier-Stokes
         mass = drho_dt + u * drho_dx + rho * du_dx
         momentum = rho * (du_dt + u * du_dx) + dp_dx - self.mu * d2u_dx2
         energy = rho * self.cp * (dT_dt + u * dT_dx) - self.k_thermal * d2T_dx2
-        return {
-            "drho_dt": drho_dt, "drho_dx": drho_dx,
-            "du_dt": du_dt, "du_dx": du_dx, "d2u_dx2": d2u_dx2,
-            "dp_dx": dp_dx, "dT_dt": dT_dt, "dT_dx": dT_dx,
-            "d2T_dx2": d2T_dx2, "rho": rho, "u": u,
-            "mass": mass, "momentum": momentum, "energy": energy,
+        
+        res_dict = {
+            "mass": mass, "momentum": momentum, "energy": energy
         }
+        
+        # --- COUPLAGE RAYLEIGH-PLESSET (Boil-off) ---
+        if outputs.shape[-1] >= 7:
+            R = outputs[:, 6:7]
+            dR_dt = self._grad(R, t)
+            d2R_dt2 = self._grad(dR_dt, t)
+            
+            # Paramètres physiques LH2
+            sigma = 0.0019 # N/m (Tension superficielle LH2 à 20K)
+            nu_liq = 1.3e-7 # m²/s (Viscosité cinématique)
+            rho_liq = 70.8 # kg/m³
+            
+            p_sat = self.compute_saturation_pressure(temperature)
+            
+            # Équation de Rayleigh-Plesset : R*R'' + 1.5*(R')² + 4*nu*R'/R + 2*sigma/(rho*R) = (P_sat - P)/rho
+            rp_residual = R * d2R_dt2 + 1.5 * (dR_dt**2) + (4 * nu_liq / (R + 1e-9)) * dR_dt + \
+                          (2 * sigma / (rho_liq * R + 1e-9)) - (p_sat - p) / rho_liq
+            
+            res_dict["rayleigh_plesset"] = rp_residual
+            
+        return res_dict
 
     def forward(self, model: torch.nn.Module, t: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
         terms = self.pointwise_terms(model, t, x, y, z)
-        return {name: torch.mean(terms[name].square()) for name in ("mass", "momentum", "energy")}
+        return {name: torch.mean(terms[name].square()) for name in terms.keys()}
 
 # --- Classe pour interagir avec l'API PINN ---
 class H2PinnAPIClient:

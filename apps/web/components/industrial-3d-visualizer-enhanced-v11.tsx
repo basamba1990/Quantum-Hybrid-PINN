@@ -511,13 +511,16 @@ export default function Industrial3DVisualizerEnhancedV11({
       0.004,
     );
     const voxelGeometry = new THREE.BoxGeometry(particleSize, particleSize, particleSize);
-    const voxelMaterial = new THREE.MeshBasicMaterial({ 
+    const voxelMaterial = new THREE.MeshStandardMaterial({ 
       vertexColors: true,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.9,
+      roughness: 0.2,
+      metalness: 0.1,
       polygonOffset: true,
       polygonOffsetFactor: -2, // Force les points devant la CAO
-      polygonOffsetUnits: -2
+      polygonOffsetUnits: -2,
+      depthWrite: true
     });
     const instancedMesh = new THREE.InstancedMesh(voxelGeometry, voxelMaterial, volumetricData.length);
     instancedMesh.frustumCulled = false;
@@ -570,13 +573,14 @@ export default function Industrial3DVisualizerEnhancedV11({
     bubbleGeometry.setAttribute("color", new THREE.BufferAttribute(bubbleColors, 3));
     bubbleGeometry.setDrawRange(0, 0);
     const bubbleMaterial = new THREE.PointsMaterial({ 
-      size: Math.max(particleSize * 4.0, 0.025), // Bulles plus grosses pour la visibilité
+      size: Math.max(particleSize * 6.0, 0.04), // Bulles plus visibles
       vertexColors: true, 
       transparent: true, 
-      opacity: 1.0, 
+      opacity: 0.95, 
       sizeAttenuation: true,
-      depthWrite: false, // Les bulles brillent à travers
-      blending: THREE.AdditiveBlending // Effet de brillance
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/disc.png')
     });
     const bubblePoints = new THREE.Points(bubbleGeometry, bubbleMaterial);
     bubblePoints.frustumCulled = false;
@@ -801,9 +805,10 @@ export default function Industrial3DVisualizerEnhancedV11({
       const deltaSeconds = Math.min((timestamp - previousTimestamp) / 1000, 0.1);
       previousTimestamp = timestamp;
       if (isPlayingRef.current) {
-        animationPhaseRef.current = (animationPhaseRef.current + deltaSeconds * speedRef.current) % 1.0;
+        // Accélération de la progression pour un mouvement plus dynamique
+        const speedMultiplier = 5.0; 
+        animationPhaseRef.current = (animationPhaseRef.current + deltaSeconds * speedRef.current * speedMultiplier) % 1.0;
         forceApplyRef.current = true;
-        // Mise à jour plus fréquente de l'UI pour la fluidité
         if (timestamp - lastUiUpdate > 33) {
           setAnimationPhase(animationPhaseRef.current);
           lastUiUpdate = timestamp;
