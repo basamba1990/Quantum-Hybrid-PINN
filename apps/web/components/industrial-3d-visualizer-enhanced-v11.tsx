@@ -592,8 +592,8 @@ export default function Industrial3DVisualizerEnhancedV11({
         const visible = !isDangerMode || dangerous;
 
         dummy.position.copy(renderedPoint);
-        // On augmente légèrement la taille pour une meilleure visibilité
-        dummy.scale.setScalar(visible ? 0.75 : 0);
+        // On augmente significativement la taille pour une meilleure visibilité industrielle
+        dummy.scale.setScalar(visible ? 1.25 : 0);
         dummy.updateMatrix();
         instancedMesh.setMatrixAt(index, dummy.matrix);
 
@@ -693,7 +693,7 @@ export default function Industrial3DVisualizerEnhancedV11({
               vertexColors: true,
               color: 0xffffff,
               transparent: true,
-              opacity: 0.88,
+              opacity: 0.35, // Augmentation de la transparence pour voir les points internes
               roughness: 0.42,
               metalness: 0.08,
               side: THREE.DoubleSide,
