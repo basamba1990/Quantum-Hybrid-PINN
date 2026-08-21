@@ -147,15 +147,16 @@ export default function Industrial3DVisualizerEnhancedV11({
   const [animAmplitude, setAnimAmplitude] = useState(0.30);
   const [exportStatus, setExportStatus] = useState<string>("");
   const [rendererReady, setRendererReady] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
   const [renderMode, setRenderMode] = useState<"points" | "surface" | "danger">("points");
   const [dangerThreshold, setDangerThreshold] = useState<number | null>(null);
   const [showBubbles, setShowBubbles] = useState(true);
 
   const fieldOptions = useMemo(() => [
-    { key: "temperature", label: "Température", unit: metadata?.fields?.temperature?.unit || "K" },
-    { key: "pressure", label: "Pression", unit: metadata?.fields?.pressure?.unit || "MPa" },
-    { key: "velocity_magnitude", label: "Vitesse", unit: metadata?.fields?.velocity_magnitude?.unit || "m/s" },
-    { key: "stress", label: "Contrainte", unit: metadata?.fields?.stress?.unit || "MPa" },
+    { key: "temperature", label: "Température", unit: metadata?.fields?.temperature?.unit },
+    { key: "pressure", label: "Pression", unit: metadata?.fields?.pressure?.unit },
+    { key: "velocity_magnitude", label: "Vitesse", unit: metadata?.fields?.velocity_magnitude?.unit },
+    { key: "stress", label: "Contrainte", unit: metadata?.fields?.stress?.unit },
   ] as const, [metadata?.fields]);
 
   const volumetricData = useMemo(() => normalizeVisualizationPoints(data), [data]);
@@ -247,7 +248,7 @@ export default function Industrial3DVisualizerEnhancedV11({
       avgV: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0,
       count: volumetricData.length,
       fieldCount: values.length,
-      unit: metadata?.fields?.[activeVariable]?.unit ?? "N/D",
+      unit: metadata?.fields?.[activeVariable]?.unit,
     };
   }, [activeVariable, metadata, transientFrames, volumetricData]);
 
@@ -460,6 +461,7 @@ export default function Industrial3DVisualizerEnhancedV11({
     const container = containerRef.current;
     const width = Math.max(container.clientWidth, 320);
     const height = Math.max(container.clientHeight, 420);
+    setRenderError(null);
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020617);
     sceneRef.current = scene;
@@ -469,7 +471,14 @@ export default function Industrial3DVisualizerEnhancedV11({
     camera.lookAt(0, 0, 0);
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    } catch {
+      setRendererReady(false);
+      setRenderError("Contexte WebGL indisponible : le champ persisté reste exportable, mais le rendu 3D ne peut pas être initialisé dans cet environnement.");
+      return;
+    }
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -838,7 +847,7 @@ export default function Industrial3DVisualizerEnhancedV11({
         <div className="min-w-0">
           <h3 className="break-words text-xl font-black uppercase tracking-tight text-white">{title}</h3>
           <p className="break-words font-mono text-[10px] text-cyan-400">
-            {metadata?.source_label || "Données persistées"} — {stats.count.toLocaleString()} points
+            {metadata?.source_label || (volumetricData.length ? "Données de champ persistées" : "Aucun champ de prédiction persisté")} — {stats.count.toLocaleString()} points
           </p>
         </div>
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-col xl:flex-row">
@@ -890,7 +899,7 @@ export default function Industrial3DVisualizerEnhancedV11({
           </select>
         </label>
         <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_5rem] items-center gap-3">
-          <span className="text-rose-300">Seuil {stats.unit}</span>
+          <span className="text-rose-300">Seuil {stats.unit ?? "N/D"}</span>
           <input
             className="min-w-0 accent-rose-500"
             type="range"
@@ -899,9 +908,9 @@ export default function Industrial3DVisualizerEnhancedV11({
             step="any"
             value={dangerThreshold ?? transientThreshold ?? stats.maxV}
             onChange={(event) => setDangerThreshold(Number(event.target.value))}
-            disabled={transientThreshold === undefined && !transientFrames.some((frame) => Array.isArray(frame.transient_layers?.danger_mask))}
+            disabled={!stats.fieldCount || (transientThreshold === undefined && !transientFrames.some((frame) => Array.isArray(frame.transient_layers?.danger_mask)))}
           />
-          <span className="text-right font-mono text-white">{(dangerThreshold ?? transientThreshold ?? stats.maxV).toFixed(2)}</span>
+          <span className="text-right font-mono text-white">{dangerThreshold !== null || transientThreshold !== undefined ? (dangerThreshold ?? transientThreshold)!.toFixed(2) : (stats.fieldCount ? stats.maxV.toFixed(2) : "N/D")}</span>
         </label>
         <label className="flex items-center justify-end gap-2 text-cyan-200">
           <input type="checkbox" checked={showBubbles} onChange={(event) => setShowBubbles(event.target.checked)} className="accent-cyan-400" />
@@ -913,13 +922,14 @@ export default function Industrial3DVisualizerEnhancedV11({
 
       <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-2xl border border-white/10 bg-black/40 sm:min-h-[520px] lg:min-h-[560px]">
         <div ref={containerRef} className="absolute inset-0 min-h-0 min-w-0" />
+        {renderError && <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950/85 p-8 text-center text-xs font-bold uppercase tracking-widest text-amber-300">{renderError}</div>}
         <div className="absolute bottom-3 right-3 top-3 flex w-16 flex-col items-center justify-between rounded-xl border border-white/10 bg-slate-900/90 p-2 shadow-lg sm:bottom-4 sm:right-4 sm:top-4">
-          <div className="max-w-full break-words text-center text-[8px] font-bold uppercase leading-tight text-white">{activeVariable} ({stats.unit})</div>
+          <div className="max-w-full break-words text-center text-[8px] font-bold uppercase leading-tight text-white">{activeVariable} ({stats.unit ?? "N/D"})</div>
           <div className="my-2 min-h-24 w-3 flex-1 rounded-full" style={{ backgroundImage: colorGradient(colorScale) }} />
           <div className="flex h-24 flex-col justify-between text-[8px] font-mono text-gray-300">
-            <span>{stats.maxV.toFixed(3)}</span>
-            <span>{stats.avgV.toFixed(3)}</span>
-            <span>{stats.minV.toFixed(3)}</span>
+            <span>{stats.fieldCount ? stats.maxV.toFixed(3) : "N/D"}</span>
+            <span>{stats.fieldCount ? stats.avgV.toFixed(3) : "N/D"}</span>
+            <span>{stats.fieldCount ? stats.minV.toFixed(3) : "N/D"}</span>
           </div>
         </div>
       </div>
@@ -927,7 +937,7 @@ export default function Industrial3DVisualizerEnhancedV11({
       <div className="mt-5 grid min-w-0 grid-cols-1 gap-3 xl:grid-cols-[minmax(180px,1fr)_minmax(220px,auto)_minmax(280px,1.2fr)]">
         <select value={activeVariable} onChange={(event) => setActiveVariable(event.target.value)} disabled={!availableFieldOptions.length} className="min-w-0 rounded-xl border border-white/10 bg-black px-4 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50">
           {availableFieldOptions.length > 0 ? availableFieldOptions.map((field) => (
-            <option key={field.key} value={field.key}>{field.label} ({field.unit})</option>
+            <option key={field.key} value={field.key}>{field.label} ({field.unit ?? "N/D"})</option>
           )) : <option value="temperature">Aucun champ physique persisté</option>}
         </select>
         <div className="grid min-w-0 grid-cols-3 gap-1">

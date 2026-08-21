@@ -91,7 +91,7 @@ export interface TransientSeries {
 export interface VisualizationMetadata {
   source?: "pinn" | "experimental" | "mixed" | "required_input";
   source_label?: string;
-  unit?: string; // --- ADDED FOR INDUSTRIAL FALLBACKS ---
+  unit?: string;
   geometry?: Record<string, unknown>;
   discontinuity?: Record<string, unknown>;
   mesh?: VisualizationMeshMetadata;
@@ -124,6 +124,7 @@ export const normalizeVisualizationPoints = (value: unknown): VisualizationPoint
     const y = finite(point.y);
     const z = finite(point.z);
     if (x === undefined || y === undefined || z === undefined) return [];
+
     const normalized: VisualizationPoint = { x, y, z };
     const aliases: Record<string, string[]> = {
       time: ["time", "t"],
@@ -139,6 +140,7 @@ export const normalizeVisualizationPoints = (value: unknown): VisualizationPoint
       von_mises: ["von_mises", "stress", "sigma_vm"],
       mesh_level: ["mesh_level", "refinement_level"],
     };
+
     for (const [target, candidates] of Object.entries(aliases)) {
       const candidate = candidates.map((key) => finite(point[key])).find((item) => item !== undefined);
       if (candidate !== undefined) normalized[target] = candidate;
@@ -159,10 +161,7 @@ const evidenceText = (evidence: unknown[]): string =>
 
 export const resolveVisualizationScenario = (evidence: unknown[]): VisualizationScenario => {
   const text = evidenceText(evidence);
-  // Explicit LH2 infrastructure evidence has priority over generic storage labels.
-  if (/(lh2[_ -]?infrastructure|dn50|cryogenic.*(leak|fuite)|discontinuit|trou de fuite|through[_ -]?hole)/i.test(text)) {
-    return "LH2_INFRASTRUCTURE_INTEGRITY";
-  }
+  if (/(lh2[_ -]?infrastructure|dn50|cryogenic.*(leak|fuite)|discontinuit|trou de fuite|through[_ -]?hole)/i.test(text)) return "LH2_INFRASTRUCTURE_INTEGRITY";
   if (/(heavy[_ -]?duty.*hydrogen.*refuel|heavy.*duty.*refuel|j2601-2|prhyde)/i.test(text)) return "HEAVY_DUTY_HYDROGEN_REFUELING";
   if (/(lh2[_ -]?large[_ -]?scale.*storage|large[_ -]?scale.*storage|1250\s*m3|1250\s*m³)/i.test(text)) return "LH2_LARGE_SCALE_STORAGE_1250M3";
   if (/(fpga|heatsink|dissipateur|thermal management)/i.test(text)) return "FPGA_HEATSINK";
@@ -180,18 +179,30 @@ export const resolveVisualizationScenario = (evidence: unknown[]): Visualization
   return "H2_PIPELINE";
 };
 
+const validUnit = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const unit = value.trim();
+  if (!unit || ["unit_required", "required_input", "unknown", "inconnue", "n/d", "nd"].includes(unit.toLowerCase())) return undefined;
+  return unit;
+};
+
+const validSource = (value: unknown): string | undefined => {
+  if (typeof value !== "string") return undefined;
+  const source = value.trim();
+  return source.length > 0 ? source : undefined;
+};
+
 export const buildVisualizationMetadata = (
   result: Record<string, any>,
   results: Record<string, any>,
-  experimentalPoints: VisualizationPoint[],
-  points: VisualizationPoint[],
+  _experimentalPoints: VisualizationPoint[] = [],
+  _points: VisualizationPoint[] = [],
 ): VisualizationMetadata => {
   const extracted = parseRecord(result.extracted_parameters ?? results.extracted_parameters ?? results.extractedData);
-  const geometry = parseRecord(result.geometry ?? results.geometry ?? extracted.geometry);
-  const discontinuity = parseRecord(
-    result.discontinuity ?? results.discontinuity ?? extracted.discontinuity ?? extracted.leak,
-  );
-  const meshRaw = parseRecord(result.mesh ?? results.mesh ?? extracted.mesh);
+  const rawMetadata = parseRecord(result.metadata ?? results.metadata);
+  const geometry = parseRecord(result.geometry ?? results.geometry ?? extracted.geometry ?? rawMetadata.geometry);
+  const discontinuity = parseRecord(result.discontinuity ?? results.discontinuity ?? extracted.discontinuity ?? extracted.leak ?? rawMetadata.discontinuity);
+  const meshRaw = parseRecord(result.mesh ?? results.mesh ?? extracted.mesh ?? rawMetadata.mesh);
   const mesh: VisualizationMeshMetadata | undefined = Object.keys(meshRaw).length
     ? {
         points: Array.isArray(meshRaw.points) ? meshRaw.points : undefined,
@@ -207,35 +218,34 @@ export const buildVisualizationMetadata = (
       }
     : undefined;
 
-  const explicitFields = parseRecord(result.fields ?? results.fields ?? parseRecord(result.metadata).fields ?? parseRecord(results.metadata).fields);
-  const validUnit = (value: unknown): string | undefined => {
-    if (typeof value !== "string") return undefined;
-    const unit = value.trim();
-    if (!unit || ["unit_required", "required_input", "unknown", "inconnue", "n/d", "nd"].includes(unit.toLowerCase())) return undefined;
-    return unit;
-  };
-  const pressureUnit = validUnit(explicitFields.pressure?.unit)
-    ?? validUnit(extracted.pressure_unit)
-    ?? "MPa";
-  const tempUnit = validUnit(explicitFields.temperature?.unit)
-    ?? "K";
-  const velUnit = validUnit(explicitFields.velocity_magnitude?.unit) ?? "m/s";
-  const stressUnit = validUnit(explicitFields.stress?.unit) ?? "MPa";
+  const explicitFields = parseRecord(
+    result.fields ?? results.fields ?? rawMetadata.fields,
+  );
+  const fields: NonNullable<VisualizationMetadata["fields"]> = {};
+  for (const key of ["temperature", "pressure", "velocity_magnitude", "stress"]) {
+    const rawField = parseRecord(explicitFields[key]);
+    const field = {
+      unit: validUnit(rawField.unit),
+      min: finite(rawField.min),
+      max: finite(rawField.max),
+      source: validSource(rawField.source),
+    };
+    if (Object.values(field).some((value) => value !== undefined)) fields[key] = field;
+  }
 
-  const fields = {
-    temperature: { unit: tempUnit, min: finite(explicitFields.temperature?.min) ?? 20.28, max: finite(explicitFields.temperature?.max) ?? 30.0, source: explicitFields.temperature?.source ?? "NIST REFPROP" },
-    pressure: { unit: pressureUnit, min: finite(explicitFields.pressure?.min) ?? 1.1, max: finite(explicitFields.pressure?.max) ?? 1.3, source: explicitFields.pressure?.source ?? "NIST REFPROP" },
-    velocity_magnitude: { unit: velUnit, min: finite(explicitFields.velocity_magnitude?.min) ?? 0, max: finite(explicitFields.velocity_magnitude?.max) ?? 10, source: explicitFields.velocity_magnitude?.source ?? "Industrial Engine" },
-    stress: { unit: stressUnit, min: finite(explicitFields.stress?.min) ?? 0, max: finite(explicitFields.stress?.max) ?? 100, source: explicitFields.stress?.source ?? "Industrial Engine" },
-  };
+  const sourceCandidate = rawMetadata.source ?? result.source ?? results.source;
+  const source = ["pinn", "experimental", "mixed", "required_input"].includes(sourceCandidate)
+    ? sourceCandidate as VisualizationMetadata["source"]
+    : undefined;
+  const sourceLabel = validSource(rawMetadata.source_label ?? result.source_label ?? results.source_label);
 
   return {
-    source: "pinn",
-    source_label: "Données PINN persistées — G0-G5 validées par preuves",
+    source,
+    source_label: sourceLabel,
     geometry: Object.keys(geometry).length ? geometry : undefined,
     discontinuity: Object.keys(discontinuity).length ? discontinuity : undefined,
     mesh,
-    fields,
+    fields: Object.keys(fields).length ? fields : undefined,
   };
 };
 
@@ -244,30 +254,11 @@ export const extractVisualizationPayload = (analysis: Record<string, any>, resul
   const result = parseRecord(resultInput);
   const rawPoints = result.pinn_predictions ?? result.predictions3d ?? result.predictions ?? result.points ?? results.pinn_predictions ?? results.predictions3d ?? results.predictions ?? results.points ?? analysis.pinn_predictions;
   const rawExperimental = result.experimental_data ?? result.measurements ?? results.experimental_data ?? results.measurements;
-  let points = normalizeVisualizationPoints(rawPoints);
-  if (points.length === 0) {
-    // Generate certified fallback volumetric points (4096 points)
-    for (let i = 0; i < 4096; i++) {
-      const theta = Math.random() * 2 * Math.PI;
-      const phi = Math.acos(Math.random() * 2 - 1);
-      const r = Math.cbrt(Math.random()) * 6.73;
-      points.push({
-        x: Number((r * Math.sin(phi) * Math.cos(theta)).toFixed(3)),
-        y: Number((r * Math.sin(phi) * Math.sin(theta)).toFixed(3)),
-        z: Number((r * Math.cos(phi)).toFixed(3)),
-        temperature: Number((20.28 + Math.random() * 9.72).toFixed(2)),
-        pressure: Number((1.1 + Math.random() * 0.2).toFixed(3)),
-        stress: Number((10 + Math.random() * 30).toFixed(2)),
-      });
-    }
-  }
+  const points = normalizeVisualizationPoints(rawPoints);
   const experimentalPoints = normalizeVisualizationPoints(rawExperimental);
-  
-  // Support pour le True Transient (PINN-T)
-  const transientSeries = results.transient_series || result.transient_series;
-  const transientMetadata = transientSeries && typeof transientSeries === "object"
-    ? { transient: transientSeries as TransientSeries }
-    : {};
+  const transientSeries = results.transient_series ?? result.transient_series;
+  const metadata = buildVisualizationMetadata(result, results);
+  if (transientSeries && typeof transientSeries === "object") metadata.transient = transientSeries as TransientSeries;
 
   return {
     results,
@@ -275,6 +266,24 @@ export const extractVisualizationPayload = (analysis: Record<string, any>, resul
     points,
     experimentalPoints,
     transientSeries,
-    metadata: { ...buildVisualizationMetadata(result, results, experimentalPoints, points), ...transientMetadata },
+    metadata,
   };
 };
+
+export type VisualizationPayload = ReturnType<typeof extractVisualizationPayload>;
+export type VisualizationMetadataType = VisualizationMetadata;
+export type VisualizationPointType = VisualizationPoint;
+export type TransientSeriesType = TransientSeries;
+export type TransientBubbleType = TransientBubble;
+export type TransientFrameType = TransientFrame;
+export type VisualizationMeshMetadataType = VisualizationMeshMetadata;
+export type RefinementZoneType = RefinementZone;
+export type VisualizationScenarioType = VisualizationScenario;
+export type { VisualizationMetadata as VisualizationMetadataExport };
+export type { TransientBubble as TransientBubbleExport };
+export type { TransientSeries as TransientSeriesExport };
+export type { VisualizationPoint as VisualizationPointExport };
+export type { VisualizationScenario as VisualizationScenarioExport };
+export type { VisualizationMeshMetadata as VisualizationMeshMetadataExport };
+export type { RefinementZone as RefinementZoneExport };
+export type { TransientFrame as TransientFrameExport };

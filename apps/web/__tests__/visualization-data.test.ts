@@ -36,7 +36,7 @@ describe("visualization data contract", () => {
       [],
       [{ x: 0, y: 0, z: 0, temperature: 20 }],
     );
-    expect(metadata.fields?.pressure?.unit).toBe("unit_required");
+    expect(metadata.fields?.pressure?.unit).toBeUndefined();
     expect(metadata.mesh?.refinement_applied).toBe(true);
     expect(metadata.mesh?.refinement_zones?.[0]?.boundary_name).toBe("leak");
   });

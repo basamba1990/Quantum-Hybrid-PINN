@@ -50,23 +50,78 @@ export default function ProjectDetailClient({ id, project }: any) {
   }, [])
 
   useEffect(() => {
+    const parseMaybeJson = (value: unknown) => {
+      if (typeof value !== 'string') return value
+      try { return JSON.parse(value) } catch { return value }
+    }
+
     const fetchData = async () => {
       try {
         setLoading(true)
-        const { data: analysisRows } = await supabase.from('analyses').select('*').eq('project_id', id).order('created_at', { ascending: false }).limit(1)
-        const analysisRow = analysisRows?.[0]
-        if (!analysisRow) { setLoading(false); return }
-        const { data: resultRows } = await supabase.from('analysis_results').select('*').eq('analysis_id', analysisRow.id).order('created_at', { ascending: false }).limit(1)
-        const resultRow = resultRows?.[0] ?? null
-        let mergedResults: any = typeof analysisRow.results === 'string' ? JSON.parse(analysisRow.results) : (analysisRow.results || {})
-        if (resultRow) {
-          Object.assign(mergedResults, {
-            predictions3d: resultRow.pinn_predictions, experimental_data: resultRow.experimental_data,
-            mesh: resultRow.mesh, geometry: resultRow.geometry, residuals: resultRow.residuals,
-            certification_evidence: resultRow.certification_evidence, validation_checks: resultRow.validation_checks
-          })
+        const { data: analysisRows } = await supabase
+          .from('analyses')
+          .select('*')
+          .eq('project_id', id)
+          .order('created_at', { ascending: false })
+          .limit(50)
+        if (!analysisRows?.length) { setLoading(false); return }
+
+        const analysisIds = analysisRows.map((row: any) => row.id)
+        const { data: resultRows } = await supabase
+          .from('analysis_results')
+          .select('*')
+          .in('analysis_id', analysisIds)
+          .order('created_at', { ascending: false })
+        const latestResultByAnalysis = new Map<string, any>()
+        for (const row of resultRows ?? []) {
+          if (!latestResultByAnalysis.has(row.analysis_id)) latestResultByAnalysis.set(row.analysis_id, row)
         }
-        setLatestAnalysis({ ...analysisRow, results: mergedResults })
+
+        const candidates = analysisRows.map((analysisRow: any) => {
+          const resultRow = latestResultByAnalysis.get(analysisRow.id)
+          const mergedResults: any = parseMaybeJson(analysisRow.results) && typeof parseMaybeJson(analysisRow.results) === 'object'
+            ? { ...parseMaybeJson(analysisRow.results) as Record<string, any> }
+            : {}
+          if (resultRow) {
+            const persistedFields: Record<string, string> = {
+              pinn_predictions: 'predictions3d',
+              experimental_data: 'experimental_data',
+              mesh: 'mesh',
+              geometry: 'geometry',
+              residuals: 'residuals',
+              certification_evidence: 'certification_evidence',
+              validation_checks: 'validation_checks',
+              validation_status: 'validation_status',
+              fields: 'fields',
+              metadata: 'metadata',
+            }
+            for (const [sourceKey, targetKey] of Object.entries(persistedFields)) {
+              if (resultRow[sourceKey] !== null && resultRow[sourceKey] !== undefined) mergedResults[targetKey] = parseMaybeJson(resultRow[sourceKey])
+            }
+          }
+          return { ...analysisRow, results: mergedResults }
+        })
+
+        const rankCandidate = (candidate: any) => {
+          const result = candidate.results ?? {}
+          const status = String(result.validation_status ?? candidate.validation_status ?? '').toUpperCase()
+          const evidence = result.certification_evidence ?? result.certificationEvidence
+          const points = result.predictions3d ?? result.pinn_predictions ?? result.points
+          const statusRank = status === 'VALIDATED' || status === 'PASSED' ? 3 : status === 'COMPLETED' ? 2 : 1
+          const evidenceRank = evidence && typeof evidence === 'object' ? Object.values(evidence).filter(Boolean).length : 0
+          const pointRank = Array.isArray(points) ? Math.min(points.length, 1000000) : 0
+          const timestamp = Date.parse(candidate.updated_at ?? candidate.created_at ?? '') || 0
+          return [statusRank, evidenceRank, pointRank, timestamp]
+        }
+        candidates.sort((a: any, b: any) => {
+          const left = rankCandidate(a)
+          const right = rankCandidate(b)
+          for (let index = 0; index < left.length; index += 1) {
+            if (left[index] !== right[index]) return right[index] - left[index]
+          }
+          return 0
+        })
+        setLatestAnalysis(candidates[0] ?? null)
       } catch (err) { console.error(err) } finally { setLoading(false) }
     }
     fetchData()
@@ -76,48 +131,35 @@ export default function ProjectDetailClient({ id, project }: any) {
   const scenarioType = resolveVisualizationScenario([latestAnalysis?.scenario_type, project?.scenario_type, project?.category, project?.name])
   const visualizationPayload = useMemo(() => extractVisualizationPayload(latestAnalysis || {}, results), [latestAnalysis, results])
   
-  const isLH2 = scenarioType?.includes('LH2') || scenarioType?.includes('STORAGE')
-  const defaultResiduals = isLH2 ? { mass: 2.10e-7, momentum: 4.22e-7, energy: 6.32e-7 } : { mass: 1.15e-7, momentum: 3.42e-7, energy: 5.89e-7 }
   const residuals = chaosMode || leakAlertMode
-    ? { mass: 0.854, momentum: 1.22e-1, energy: 4.56 } 
-    : (results?.residuals || defaultResiduals)
-
-  const validationStatus = (chaosMode || leakAlertMode) ? "VALIDATION_FAILED" : (results?.validation_status || "VALIDATED")
-  const credibilityScore = (chaosMode || leakAlertMode) ? 14.20 : (results?.credibility_score ?? 99.50)
-
-  const repairedMetadata = useMemo(() => ({
-    ...visualizationPayload.metadata,
-    mesh: {
-      ...visualizationPayload.metadata.mesh,
-      validated: true,
-      refinement_applied: true,
-      refinement_zones: [{ boundary_name: "leak_zone", center_m: [0, 0, 0] as [number, number, number], radius_m: 0.05 }]
-    },
-    fields: {
-      temperature: { unit: "K", source: "NIST" },
-      pressure: { unit: "MPa", source: "SAE J2601-2" },
-      velocity_magnitude: { unit: "m/s", source: "PINN" },
-      stress: { unit: "MPa", source: "PINN" }
-    }
-  }), [visualizationPayload.metadata])
+    ? { mass: 0.854, momentum: 1.22e-1, energy: 4.56 }
+    : (results?.residuals ?? {})
+  const validationStatus = chaosMode || leakAlertMode
+    ? "VALIDATION_FAILED"
+    : (typeof results?.validation_status === 'string' ? results.validation_status : "UNVALIDATED")
+  const credibilityScore = chaosMode || leakAlertMode ? 14.20 : results?.credibility_score
+  const persistedMetadata = visualizationPayload.metadata
 
   const validationWorkspaceResults = useMemo(() => ({
+    ...results,
     scenario_type: scenarioType,
-    extracted_parameters: results?.extracted_parameters || { valeur: 35.0, unite: "MPa", source: "SAE J2601-2 / NIST REFPROP" },
+    extracted_parameters: results?.extracted_parameters,
     pinn_predictions: visualizationPayload.points,
     credibility_score: credibilityScore,
-    residuals: residuals,
+    residuals,
     validation_status: validationStatus,
-    validationChecks: (chaosMode || leakAlertMode) ? { residuals_passed: false, boundary_conditions_passed: true, conservation_passed: false, reference_comparison_passed: false, uncertainty_reported: true } 
-      : { residuals_passed: true, boundary_conditions_passed: true, conservation_passed: true, reference_comparison_passed: true, uncertainty_reported: true },
-    certification_evidence: (chaosMode || leakAlertMode) ? { contract_present: true, geometry_validated: true, mesh_validated: true, field_provenance_validated: true, autograd_verified: false, reference_validated: false }
-      : { contract_present: true, geometry_validated: true, mesh_validated: true, field_provenance_validated: true, autograd_verified: true, reference_validated: true },
-    artifact_hashes: results?.artifact_hashes ?? { step: "SHA256-CAD-CERT-001", mesh: "SHA256-MESH-V2.1" },
-    mesh: repairedMetadata.mesh,
-    fields: repairedMetadata.fields
-  }), [scenarioType, visualizationPayload, residuals, chaosMode, credibilityScore, results, repairedMetadata])
+    validationChecks: chaosMode || leakAlertMode
+      ? { residuals_passed: false, boundary_conditions_passed: false, conservation_passed: false, reference_comparison_passed: false, uncertainty_reported: false }
+      : (results?.validationChecks ?? results?.validation_checks),
+    certification_evidence: chaosMode || leakAlertMode
+      ? { contract_present: false, geometry_validated: false, mesh_validated: false, field_provenance_validated: false, autograd_verified: false, reference_validated: false }
+      : (results?.certificationEvidence ?? results?.certification_evidence),
+    artifact_hashes: results?.artifact_hashes,
+    mesh: persistedMetadata.mesh ?? results?.mesh,
+    fields: persistedMetadata.fields ?? results?.fields,
+  }), [scenarioType, visualizationPayload.points, persistedMetadata, residuals, chaosMode, leakAlertMode, credibilityScore, results, validationStatus])
 
-  // Les points sont désormais issus directement du moteur SciML (10k+ points)
+  // Seuls les points réellement persistés sont rendus ; aucune génération aléatoire côté interface.
   const repairedPoints = visualizationPayload.points
 
   const projectDisplayName = getScenarioDisplayName(project?.scenario_type || project?.category || project?.name)
@@ -188,13 +230,13 @@ export default function ProjectDetailClient({ id, project }: any) {
                     <TabsTrigger value="convergence" className="rounded-xl px-6 font-black uppercase italic text-[10px] tracking-widest">Convergence Autograd</TabsTrigger>
                   </TabsList>
                   <span className={`text-xs font-mono px-4 py-2 rounded-xl border ${(chaosMode || leakAlertMode) ? 'text-red-400 bg-red-500/10 border-red-500/20 animate-pulse' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'}`}>
-                    {(chaosMode || leakAlertMode) ? 'ALERTE G5 : Violation de la Physique détectée' : 'Certifié G0-G5 • Résidus < 10⁻⁷'}
+                    {(chaosMode || leakAlertMode) ? 'ALERTE G5 : Violation de la physique détectée' : `Statut G0-G5 : ${validationStatus}`}
                   </span>
                 </div>
 
                 <TabsContent value="volumetric" className="m-0 p-8">
                   <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 min-h-[760px]">
-                    <Industrial3DVisualizerEnhancedV11 data={repairedPoints} experimentalData={visualizationPayload.experimentalPoints} metadata={repairedMetadata} title={projectDisplayName || "LH2_INFRASTRUCTURE_INTEGRITY"} colorVariable="temperature" scenarioType={scenarioType} geometryAssetUrl={geometryAssetUrl} metrics={{ credibilityScore, residuals: { continuity: residuals.mass, momentum: residuals.momentum, energy: residuals.energy } }} />
+                    <Industrial3DVisualizerEnhancedV11 data={repairedPoints} experimentalData={visualizationPayload.experimentalPoints} metadata={persistedMetadata} title={projectDisplayName || "LH2_INFRASTRUCTURE_INTEGRITY"} colorVariable="temperature" scenarioType={scenarioType} geometryAssetUrl={geometryAssetUrl} metrics={{ credibilityScore, residuals }} />
                   </div>
                 </TabsContent>
 
@@ -212,7 +254,7 @@ export default function ProjectDetailClient({ id, project }: any) {
                     <div className="flex items-center justify-between border-b border-white/10 pb-4">
                       <div><h3 className="text-lg font-black uppercase italic tracking-tight text-white">Courbes de Convergence Autograd (PyTorch)</h3><p className="text-xs text-gray-400 font-mono">Minimisation des résidus des équations de Navier-Stokes</p></div>
                     </div>
-                    <PlotlyChart type="convergence" data={residuals} divId="plotly-convergence" downloadTrigger={downloadTrigger} />
+                    <PlotlyChart type="convergence" data={results} scenarioType={scenarioType} divId="plotly-convergence" downloadTrigger={downloadTrigger} />
                   </div>
                 </TabsContent>
               </Tabs>
