@@ -136,7 +136,7 @@ export default function ProjectDetailClient({ id, project }: any) {
     : (results?.residuals ?? {})
   const validationStatus = chaosMode || leakAlertMode
     ? "VALIDATION_FAILED"
-    : (typeof results?.validation_status === 'string' ? results.validation_status : "UNVALIDATED")
+    : (typeof results?.validation_status === 'string' ? results.validation_status : (typeof latestAnalysis?.validation_status === 'string' ? latestAnalysis.validation_status : "UNVALIDATED"))
   const credibilityScore = chaosMode || leakAlertMode ? 14.20 : results?.credibility_score
   const persistedMetadata = visualizationPayload.metadata
 
@@ -160,7 +160,7 @@ export default function ProjectDetailClient({ id, project }: any) {
   }), [scenarioType, visualizationPayload.points, persistedMetadata, residuals, chaosMode, leakAlertMode, credibilityScore, results, validationStatus])
 
   // Seuls les points réellement persistés sont rendus ; aucune génération aléatoire côté interface.
-  const repairedPoints = visualizationPayload.points
+  const repairedPoints = visualizationPayload.points?.length > 0 ? visualizationPayload.points : (Array.isArray(results?.pinn_predictions) ? results.pinn_predictions : [])
 
   const projectDisplayName = getScenarioDisplayName(project?.scenario_type || project?.category || project?.name)
   const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType, [project?.name, project?.scenario_type, latestAnalysis?.scenario_type])
