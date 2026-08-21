@@ -262,11 +262,11 @@ export const buildVisualizationMetadata = (
 export const extractVisualizationPayload = (analysis: Record<string, any>, resultInput?: unknown) => {
   const results = parseRecord(analysis.results);
   const result = parseRecord(resultInput);
-  const rawPoints = result.pinn_predictions ?? result.predictions3d ?? result.predictions ?? result.points ?? results.pinn_predictions ?? results.predictions3d ?? results.predictions ?? results.points ?? analysis.pinn_predictions;
+  const transientSeries = results.transient_series ?? result.transient_series;
+  const rawPoints = result.pinn_predictions ?? result.predictions3d ?? result.predictions ?? result.points ?? results.pinn_predictions ?? results.predictions3d ?? results.predictions ?? results.points ?? analysis.pinn_predictions ?? transientSeries?.time_series?.[0]?.points;
   const rawExperimental = result.experimental_data ?? result.measurements ?? results.experimental_data ?? results.measurements;
   const points = normalizeVisualizationPoints(rawPoints);
   const experimentalPoints = normalizeVisualizationPoints(rawExperimental);
-  const transientSeries = results.transient_series ?? result.transient_series;
   const metadata = buildVisualizationMetadata(result, results);
   if (transientSeries && typeof transientSeries === "object") metadata.transient = transientSeries as TransientSeries;
 
