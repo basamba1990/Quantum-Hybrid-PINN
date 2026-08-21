@@ -221,11 +221,19 @@ export const buildVisualizationMetadata = (
   const explicitFields = parseRecord(
     result.fields ?? results.fields ?? rawMetadata.fields,
   );
+  const scenarioType = resolveVisualizationScenario([result.scenario_type, results.scenario_type]);
+  const scenarioDefaults: Record<string, Record<string, string>> = {
+    LH2_LARGE_SCALE_STORAGE_1250M3: { temperature: "K", pressure: "MPa", velocity_magnitude: "m/s", stress: "MPa" },
+    HEAVY_DUTY_HYDROGEN_REFUELING: { temperature: "K", pressure: "MPa", velocity_magnitude: "m/s", stress: "MPa" },
+    FPGA_HEATSINK: { temperature: "K", pressure: "Pa", velocity_magnitude: "m/s", stress: "MPa" },
+    DEEP_MINING_BLOCK: { temperature: "K", pressure: "MPa", velocity_magnitude: "m/s", stress: "MPa" },
+  };
+
   const fields: NonNullable<VisualizationMetadata["fields"]> = {};
   for (const key of ["temperature", "pressure", "velocity_magnitude", "stress"]) {
     const rawField = parseRecord(explicitFields[key]);
     const field = {
-      unit: validUnit(rawField.unit),
+      unit: validUnit(rawField.unit) || scenarioDefaults[scenarioType]?.[key],
       min: finite(rawField.min),
       max: finite(rawField.max),
       source: validSource(rawField.source),
