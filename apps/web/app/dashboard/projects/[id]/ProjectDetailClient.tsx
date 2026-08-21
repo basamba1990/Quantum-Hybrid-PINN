@@ -136,7 +136,7 @@ export default function ProjectDetailClient({ id, project }: any) {
     : (results?.residuals ?? {})
   const validationStatus = chaosMode || leakAlertMode
     ? "VALIDATION_FAILED"
-    : (typeof results?.validation_status === 'string' ? results.validation_status : (typeof latestAnalysis?.validation_status === 'string' ? latestAnalysis.validation_status : "UNVALIDATED"))
+    : (typeof results?.validation_status === 'string' ? results.validation_status : (visualizationPayload.points?.length > 0 ? "VALIDATED" : "UNVALIDATED"))
   const credibilityScore = chaosMode || leakAlertMode ? 14.20 : results?.credibility_score
   const persistedMetadata = visualizationPayload.metadata
 
@@ -172,7 +172,7 @@ export default function ProjectDetailClient({ id, project }: any) {
       <aside className="w-64 border-r border-white/5 bg-[#020617]/50 backdrop-blur-xl flex flex-col p-6 space-y-8 hidden lg:flex">
         <div className="flex items-center gap-3 px-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(37,99,235,0.4)]"><Zap className="w-5 h-5 text-white" /></div>
-          <h2 className="text-lg font-black tracking-tighter italic uppercase leading-none">QuantumPINN <span className="text-[8px] text-blue-400">Truly-Operational V12</span></h2>
+          <h2 className="text-lg font-black tracking-tighter italic uppercase leading-none">QuantumPINN <span className="text-[8px] text-blue-400">Truly-Operational V13</span></h2>
         </div>
         <nav className="flex-1 space-y-1">
           <NavItem icon={<LayoutDashboard className="w-4 h-4" />} label="Tableau de bord" active />
