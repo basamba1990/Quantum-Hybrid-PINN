@@ -74,10 +74,12 @@ export default function AnalysisDetailPage() {
             results = {}
           }
 
-          // Merge high-fidelity predictions if available
+          // Merge high-fidelity persisted artifacts if available.
           if (resData) {
             if (resData.pinn_predictions) results.predictions3d = resData.pinn_predictions;
             if (resData.experimental_data) results.experimental_data = resData.experimental_data;
+            if (resData.transient_series) results.transient_series = resData.transient_series;
+            if (resData.metadata) results.metadata = resData.metadata;
             if (resData.mesh) results.mesh = resData.mesh;
             if (resData.geometry) results.geometry = resData.geometry;
             if (resData.discontinuity) results.discontinuity = resData.discontinuity;
@@ -85,7 +87,7 @@ export default function AnalysisDetailPage() {
               ...(results.extractedData || {}),
               ...(resData.extracted_parameters || {})
             };
-            results.credibilityScore = resData.credibility_score || results.credibilityScore;
+            results.credibilityScore = resData.credibility_score ?? results.credibilityScore;
           }
 
           // ✅ Correction: Assurer que le score et les résultats sont correctement structurés
@@ -215,6 +217,7 @@ export default function AnalysisDetailPage() {
             data={visualizationPayload.points}
             experimentalData={visualizationPayload.experimentalPoints}
             metadata={visualizationPayload.metadata}
+            transientSeries={visualizationPayload.transientSeries}
             scenarioType={resolvedScenarioType}
             geometryAssetUrl={geometryAssetUrl}
             title={analysis.title}

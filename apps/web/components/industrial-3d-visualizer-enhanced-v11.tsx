@@ -787,7 +787,7 @@ export default function Industrial3DVisualizerEnhancedV11({
         const step = Math.floor(volumetricData.length / arrowCount);
         arrows.forEach((arrow, i) => {
           const idx = i * step;
-          const pt = getInterpolatedPoint(idx) ?? volumetricData[idx];
+          const pt = getInterpolatedPoint(idx, clampedPhase) ?? volumetricData[idx];
           const renderedPt = transformPoint(pt, clampedPhase);
           const vel = finiteValue(pt.velocity_magnitude) ?? 0;
           

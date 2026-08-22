@@ -78,7 +78,7 @@ export default function SimulationsPage() {
   }, [selectedProject, supabase])
 
   const visualizationPayload = useMemo(() => {
-    if (!selectedAnalysis) return { points: [], experimentalPoints: [], metadata: {}, results: {}, result: {} }
+    if (!selectedAnalysis) return { points: [], experimentalPoints: [], transientSeries: undefined, metadata: {}, results: {}, result: {} }
     return extractVisualizationPayload(selectedAnalysis, selectedAnalysis.analysisResult)
   }, [selectedAnalysis])
 
@@ -141,6 +141,7 @@ export default function SimulationsPage() {
                   data={predictions3d}
                   experimentalData={experimentalData}
                   metadata={visualizationPayload.metadata}
+                  transientSeries={visualizationPayload.transientSeries}
                   scenarioType={scenarioType as any}
                   geometryAssetUrl={geometryAssetUrl}
                   title={selectedProject?.name}

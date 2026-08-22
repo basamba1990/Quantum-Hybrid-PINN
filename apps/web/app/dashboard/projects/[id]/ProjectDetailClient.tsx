@@ -133,15 +133,20 @@ export default function ProjectDetailClient({ id, project }: any) {
   const scenarioType = resolveVisualizationScenario([latestAnalysis?.scenario_type, project?.scenario_type, project?.category, project?.name])
   const visualizationPayload = useMemo(() => extractVisualizationPayload(latestAnalysis || {}, results), [latestAnalysis, results])
   
+  // Seuls les points réellement persistés sont rendus ; aucune génération aléatoire côté interface.
+  const repairedPoints = visualizationPayload.points?.length > 0
+    ? visualizationPayload.points
+    : (Array.isArray(results?.pinn_predictions) ? results.pinn_predictions : (Array.isArray(results?.points) ? results.points : (Array.isArray(results?.predictions3d) ? results.predictions3d : [])))
+
   const residuals = chaosMode || leakAlertMode
     ? { mass: 0.854, momentum: 1.22e-1, energy: 4.56 }
     : (results?.residuals ?? {})
   const validationStatus = chaosMode || leakAlertMode
     ? "VALIDATION_FAILED"
-    : (repairedPoints?.length > 0 ? "VALIDATED" : (typeof results?.validation_status === 'string' ? results.validation_status.toUpperCase() : "UNVALIDATED"))
+    : (repairedPoints.length > 0 ? "VALIDATED" : (typeof results?.validation_status === 'string' ? results.validation_status.toUpperCase() : "UNVALIDATED"))
   const credibilityScore = chaosMode || leakAlertMode
     ? 14.20
-    : (repairedPoints?.length > 0 ? 98.75 : (typeof results?.credibility_score === 'number' ? results.credibility_score : null))
+    : (repairedPoints.length > 0 ? 98.75 : (typeof results?.credibility_score === 'number' ? results.credibility_score : null))
   const persistedMetadata = visualizationPayload.metadata
 
   const validationWorkspaceResults = useMemo(() => ({
@@ -165,11 +170,6 @@ export default function ProjectDetailClient({ id, project }: any) {
     mesh: persistedMetadata.mesh ?? results?.mesh,
     fields: persistedMetadata.fields ?? results?.fields,
   }), [scenarioType, visualizationPayload.points, persistedMetadata, residuals, chaosMode, leakAlertMode, credibilityScore, results, validationStatus])
-
-  // Seuls les points réellement persistés sont rendus ; aucune génération aléatoire côté interface.
-  const repairedPoints = visualizationPayload.points?.length > 0 
-    ? visualizationPayload.points 
-    : (Array.isArray(results?.pinn_predictions) ? results.pinn_predictions : (Array.isArray(results?.points) ? results.points : (Array.isArray(results?.predictions3d) ? results.predictions3d : [])))
 
   const projectDisplayName = getScenarioDisplayName(project?.scenario_type || project?.category || project?.name)
   const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType, [project?.name, project?.scenario_type, latestAnalysis?.scenario_type])
