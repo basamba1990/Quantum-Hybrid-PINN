@@ -30,14 +30,6 @@ interface Props {
   quality?: string;
 }
 
-const SCENARIO_GEOMETRIES: Record<string, { shape: string; radius: number; length: number; description: string }> = {
-  LH2_STORAGE: { shape: "cylinder_vertical", radius: 3, length: 8, description: "LH2 CRYOGENIC STORAGE" },
-  HEAVY_DUTY_HYDROGEN_REFUELING: { shape: "cylinder_horizontal", radius: 0.025, length: 2.55, description: "Manifold DN50 B-Rep" },
-  LH2_INFRASTRUCTURE_INTEGRITY: { shape: "cylinder_horizontal", radius: 0.025, length: 2, description: "LH2 DN50 Pipeline" },
-  LH2_LARGE_SCALE_STORAGE_1250M3: { shape: "sphere", radius: 6.73, length: 13.46, description: "Sphère LH2 1250 m³" },
-  DEEP_MINING_BLOCK: { shape: "cube", radius: 10, length: 20, description: "Bloc minier profond" },
-  FPGA_HEATSINK: { shape: "box", radius: 0.0225, length: 0.045, description: "Dissipateur FPGA" },
-};
 
 const TRANSITION_FRAMES = 60;
 const TRANSITION_FPS = 30;
@@ -135,7 +127,6 @@ export default function Industrial3DVisualizerEnhancedV11({
   const animationPhaseRef = useRef(0);
   const isPlayingRef = useRef(false);
   const speedRef = useRef(0.05);
-  const amplitudeRef = useRef(0.30);
   const forceApplyRef = useRef(true);
 
   const [isMounted, setIsMounted] = useState(false);
@@ -144,13 +135,17 @@ export default function Industrial3DVisualizerEnhancedV11({
   const [isPlaying, setIsPlaying] = useState(false);
   const [animationPhase, setAnimationPhase] = useState(0);
   const [animSpeed, setAnimSpeed] = useState(0.05);
-  const [animAmplitude, setAnimAmplitude] = useState(0.30);
   const [exportStatus, setExportStatus] = useState<string>("");
   const [rendererReady, setRendererReady] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [renderMode, setRenderMode] = useState<"points" | "surface" | "danger">("points");
   const [dangerThreshold, setDangerThreshold] = useState<number | null>(null);
   const [showBubbles, setShowBubbles] = useState(true);
+  const [cadAlignment, setCadAlignment] = useState<{ status: "not_loaded" | "aligned" | "mismatch" | "unavailable"; message: string }>({
+    status: geometryAssetUrl ? "not_loaded" : "unavailable",
+    message: geometryAssetUrl ? "Vérification des bornes CAO…" : "Aucun actif CAO associé",
+  });
+  const cadFieldMatchRef = useRef(false);
 
   const fieldOptions = useMemo(() => [
     { key: "temperature", label: "Température", unit: metadata?.fields?.temperature?.unit },
@@ -173,7 +168,24 @@ export default function Industrial3DVisualizerEnhancedV11({
   }, [activeVariable, availableFieldOptions]);
   const measuredData = useMemo(() => normalizeVisualizationPoints(experimentalData), [experimentalData]);
   const transientFrames = transientSeries?.time_series ?? [];
-  const transientLayerStatus = transientFrames[0]?.transient_layers?.status;
+  const hasUsableTransientFrames = useMemo(() => {
+    if (!transientSeries?.is_true_transient || transientFrames.length < 2 || !volumetricData.length) return false;
+    const reference = transientFrames[0]?.points ?? [];
+    return transientFrames.every((frame) =>
+      Array.isArray(frame.points)
+      && frame.points.length === volumetricData.length
+      && frame.points.every((point, index) => {
+        const base = reference[index];
+        return Boolean(base)
+          && finiteValue(point.x) !== undefined
+          && finiteValue(point.y) !== undefined
+          && finiteValue(point.z) !== undefined
+          && Math.abs(point.x - base.x) <= 1e-9
+          && Math.abs(point.y - base.y) <= 1e-9
+          && Math.abs(point.z - base.z) <= 1e-9;
+      }),
+    );
+  }, [transientFrames, transientSeries?.is_true_transient, volumetricData.length]);
   const transientThreshold = useMemo(() => {
     const raw = (metadata?.transient?.layer_contract as Record<string, unknown> | undefined)?.danger_temperature_k
       ?? (transientSeries?.layer_contract as Record<string, unknown> | undefined)?.danger_temperature_k;
@@ -257,9 +269,20 @@ export default function Industrial3DVisualizerEnhancedV11({
   useEffect(() => {
     isPlayingRef.current = isPlaying;
     speedRef.current = animSpeed;
-    amplitudeRef.current = animAmplitude;
     forceApplyRef.current = true;
-  }, [animAmplitude, animSpeed, isPlaying]);
+  }, [animSpeed, isPlaying]);
+
+  useEffect(() => {
+    if (!hasUsableTransientFrames && isPlaying) setIsPlaying(false);
+  }, [hasUsableTransientFrames, isPlaying]);
+
+  useEffect(() => {
+    setCadAlignment({
+      status: geometryAssetUrl ? "not_loaded" : "unavailable",
+      message: geometryAssetUrl ? "Vérification des bornes CAO…" : "Aucun actif CAO associé",
+    });
+    cadFieldMatchRef.current = false;
+  }, [geometryAssetUrl]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -278,16 +301,44 @@ export default function Industrial3DVisualizerEnhancedV11({
     [],
   );
 
+  const getFrameBlend = useCallback((phase: number) => {
+    if (!hasUsableTransientFrames) return { frameIndex: 0, nextFrameIndex: 0, weight: 0 };
+    const times = transientFrames.map((frame, index) => finiteValue(frame.time) ?? index);
+    const start = times[0] ?? 0;
+    const end = times[times.length - 1] ?? start;
+    const target = start + Math.max(0, Math.min(1, phase)) * Math.max(end - start, 0);
+    let frameIndex = 0;
+    while (frameIndex < times.length - 2 && target > (times[frameIndex + 1] ?? target)) frameIndex += 1;
+    const nextFrameIndex = Math.min(frameIndex + 1, times.length - 1);
+    const interval = (times[nextFrameIndex] ?? target) - (times[frameIndex] ?? target);
+    const weight = interval > 0 ? Math.max(0, Math.min(1, (target - times[frameIndex]) / interval)) : 0;
+    return { frameIndex, nextFrameIndex, weight };
+  }, [hasUsableTransientFrames, transientFrames]);
+
+  const currentTransientTime = useMemo(() => {
+    if (!hasUsableTransientFrames) return undefined;
+    const { frameIndex, nextFrameIndex, weight } = getFrameBlend(animationPhase);
+    const firstTime = finiteValue(transientFrames[frameIndex]?.time);
+    const secondTime = finiteValue(transientFrames[nextFrameIndex]?.time) ?? firstTime;
+    if (firstTime === undefined) return undefined;
+    return firstTime + ((secondTime ?? firstTime) - firstTime) * weight;
+  }, [animationPhase, getFrameBlend, hasUsableTransientFrames, transientFrames]);
+
+  const getInterpolatedPoint = useCallback((pointIndex: number): VisualizationPoint | undefined => {
+    // Les coordonnées sont eulériennes et restent fixes ; seuls les champs
+    // calculés évoluent dans le temps. Aucun déplacement visuel n'est inventé.
+    return volumetricData[pointIndex];
+  }, [volumetricData]);
+
   const getInterpolatedValue = useCallback((pointIndex: number, phase: number): number | undefined => {
     const baseValue = finiteValue(volumetricData[pointIndex]?.[activeVariable]);
-    if (!transientSeries?.is_true_transient || transientFrames.length < 2) return baseValue;
-    const virtualFrame = Math.max(0, Math.min(1, phase)) * (transientFrames.length - 1);
-    const frameIndex = Math.floor(virtualFrame);
+    if (!hasUsableTransientFrames) return baseValue;
+    const { frameIndex, nextFrameIndex, weight } = getFrameBlend(phase);
     const frame1Value = finiteValue(transientFrames[frameIndex]?.points?.[pointIndex]?.[activeVariable]) ?? baseValue;
-    const frame2Value = finiteValue(transientFrames[Math.min(frameIndex + 1, transientFrames.length - 1)]?.points?.[pointIndex]?.[activeVariable]) ?? frame1Value;
+    const frame2Value = finiteValue(transientFrames[nextFrameIndex]?.points?.[pointIndex]?.[activeVariable]) ?? frame1Value;
     if (frame1Value === undefined) return undefined;
-    return frame1Value + ((frame2Value ?? frame1Value) - frame1Value) * (virtualFrame - frameIndex);
-  }, [activeVariable, transientFrames, transientSeries?.is_true_transient, volumetricData]);
+    return frame1Value + ((frame2Value ?? frame1Value) - frame1Value) * weight;
+  }, [activeVariable, getFrameBlend, hasUsableTransientFrames, transientFrames, volumetricData]);
 
   const buildStaticCsv = useCallback((): string => {
     if (!volumetricData.length) return "";
@@ -342,7 +393,7 @@ export default function Industrial3DVisualizerEnhancedV11({
 
   const buildTransitionCsv = useCallback((): string => {
     if (!volumetricData.length) return "";
-    const frames = transientSeries?.is_true_transient && transientFrames.length > 0
+    const frames = hasUsableTransientFrames
       ? transientFrames
       : [{ frame: 0, time: 0, points: volumetricData }];
     const fieldKeys = Array.from(new Set(frames.flatMap((frame) => frame.points.flatMap((point) => Object.keys(point))))).filter(
@@ -371,13 +422,14 @@ export default function Industrial3DVisualizerEnhancedV11({
       });
     });
     return `${rows.join("\n")}\n`;
-  }, [activeVariable, transformPoint, transientFrames, transientSeries?.is_true_transient, volumetricData]);
+  }, [activeVariable, hasUsableTransientFrames, transformPoint, transientFrames, volumetricData]);
 
   const recordTransition = useCallback(async (): Promise<Blob | null> => {
     const renderer = rendererRef.current;
     if (!renderer || typeof renderer.domElement.captureStream !== "function" || typeof MediaRecorder === "undefined") {
       return null;
     }
+    if (!hasUsableTransientFrames) return null;
     const stream = renderer.domElement.captureStream(TRANSITION_FPS);
     const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]
       .find((candidate) => MediaRecorder.isTypeSupported(candidate));
@@ -414,31 +466,31 @@ export default function Industrial3DVisualizerEnhancedV11({
     forceApplyRef.current = true;
     setAnimationPhase(previousPhase);
     return blob;
-  }, []);
+  }, [hasUsableTransientFrames]);
 
   const exportTransition = useCallback(async () => {
-    if (!volumetricData.length || exportStatus) return;
+    if (!volumetricData.length || !hasUsableTransientFrames || exportStatus) return;
     setExportStatus("Préparation de la transition…");
     try {
       const [videoBlob, transitionCsv] = await Promise.all([recordTransition(), Promise.resolve(buildTransitionCsv())]);
       const metadataPayload = {
         scenario_type: scenarioType,
         title,
-        frames: TRANSITION_FRAMES,
+        frames: transientFrames.length,
         fps: TRANSITION_FPS,
-        duration_s: TRANSITION_FRAMES / TRANSITION_FPS,
+        duration_s: transientFrames.length / TRANSITION_FPS,
         active_variable: activeVariable,
         field_unit: stats.unit,
         animation: {
-          phase_definition: "phase in [0,1]",
+          phase_definition: "normalized interpolation over persisted snapshot times",
           speed: animSpeed,
-          amplitude: animAmplitude,
-          model: transientSeries?.is_true_transient ? "PINN-T snapshots from explicit time-dependent inference; linear interpolation only for display" : "persisted static field; no transient solution available",
+          model: hasUsableTransientFrames ? "PINN-T snapshots; linear interpolation of persisted positions and fields" : "static persisted field; playback unavailable",
         },
         persisted_points: volumetricData.length,
         measured_points: measuredData.length,
         source: metadata?.source_label ?? "source non fournie",
-        geometry: SCENARIO_GEOMETRIES[scenarioType] ?? null,
+        geometry: metadata?.geometry ?? null,
+        geometry_asset_url: geometryAssetUrl ?? null,
       };
       const files: Record<string, Uint8Array> = {
         "transition.csv": strToU8(transitionCsv),
@@ -456,7 +508,7 @@ export default function Industrial3DVisualizerEnhancedV11({
     } finally {
       window.setTimeout(() => setExportStatus(""), 5000);
     }
-  }, [activeVariable, animAmplitude, animSpeed, buildTransitionCsv, exportStatus, measuredData.length, metadata, recordTransition, scenarioType, stats.unit, title, volumetricData.length]);
+  }, [activeVariable, animSpeed, buildTransitionCsv, exportStatus, geometryAssetUrl, hasUsableTransientFrames, measuredData.length, metadata, recordTransition, scenarioType, stats.unit, title, volumetricData.length]);
 
   useEffect(() => {
     if (!isMounted || !containerRef.current || !volumetricData.length) return;
@@ -510,28 +562,24 @@ export default function Industrial3DVisualizerEnhancedV11({
       Math.min(displayTransform.displaySpanX, displayTransform.displaySpanY, displayTransform.displaySpanZ) / 120,
       0.004,
     );
-    const voxelGeometry = new THREE.BoxGeometry(particleSize, particleSize, particleSize);
-    const voxelMaterial = new THREE.MeshStandardMaterial({ 
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.9,
-      roughness: 0.2,
-      metalness: 0.1,
-      polygonOffset: true,
-      polygonOffsetFactor: -2, // Force les points devant la CAO
-      polygonOffsetUnits: -2,
-      depthWrite: true
-    });
-    const instancedMesh = new THREE.InstancedMesh(voxelGeometry, voxelMaterial, volumetricData.length);
-    instancedMesh.frustumCulled = false;
-    scene.add(instancedMesh);
+    // Un seul nuage de points est rendu pour le champ. Le rendu simultané
+    // d'instances cubiques et de points superposait deux profondeurs et
+    // produisait le scintillement visible dans la capture vidéo.
 
     const cloudPositions = new Float32Array(volumetricData.length * 3);
     const cloudColors = new Float32Array(volumetricData.length * 3);
     const cloudGeometry = new THREE.BufferGeometry();
     cloudGeometry.setAttribute("position", new THREE.BufferAttribute(cloudPositions, 3));
     cloudGeometry.setAttribute("color", new THREE.BufferAttribute(cloudColors, 3));
-    const cloudMaterial = new THREE.PointsMaterial({ size: Math.max(particleSize * 2.4, 0.012), vertexColors: true, sizeAttenuation: true, transparent: true, opacity: 0.78 });
+    const cloudMaterial = new THREE.PointsMaterial({
+      size: Math.max(particleSize * 2.0, 0.008),
+      vertexColors: true,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+      alphaTest: 0.05,
+    });
     const continuousCloud = new THREE.Points(cloudGeometry, cloudMaterial);
     continuousCloud.frustumCulled = false;
     scene.add(continuousCloud);
@@ -548,7 +596,8 @@ export default function Industrial3DVisualizerEnhancedV11({
           for (const pointIndex of triangle) {
             const point = volumetricData[Number(pointIndex)];
             if (!point) continue;
-            surfacePositions.push(point.x, point.y, point.z);
+            const renderedPoint = transformPoint(point, 0);
+            surfacePositions.push(renderedPoint.x, renderedPoint.y, renderedPoint.z);
             surfaceSourceIndices.push(Number(pointIndex));
           }
         }
@@ -566,73 +615,51 @@ export default function Industrial3DVisualizerEnhancedV11({
     }
 
     const maxBubbles = transientFrames.reduce((max, frame) => Math.max(max, frame.transient_layers?.vapor_bubbles?.length ?? 0), 0);
-    const bubblePositions = new Float32Array(Math.max(maxBubbles, 1) * 3);
-    const bubbleColors = new Float32Array(Math.max(maxBubbles, 1) * 3);
-    const bubbleGeometry = new THREE.BufferGeometry();
-    bubbleGeometry.setAttribute("position", new THREE.BufferAttribute(bubblePositions, 3));
-    bubbleGeometry.setAttribute("color", new THREE.BufferAttribute(bubbleColors, 3));
-    bubbleGeometry.setDrawRange(0, 0);
-    const bubbleMaterial = new THREE.PointsMaterial({ 
-      size: Math.max(particleSize * 6.0, 0.04), // Bulles plus visibles
-      vertexColors: true, 
-      transparent: true, 
-      opacity: 0.95, 
-      sizeAttenuation: true,
+    const bubbleGeometry = new THREE.SphereGeometry(1, 12, 8);
+    const bubbleMaterial = new THREE.MeshPhysicalMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.72,
+      roughness: 0.05,
+      metalness: 0,
+      transmission: 0.2,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      map: new THREE.TextureLoader().load('https://threejs.org/examples/textures/sprites/disc.png')
+      side: THREE.DoubleSide,
     });
-    const bubblePoints = new THREE.Points(bubbleGeometry, bubbleMaterial);
-    bubblePoints.frustumCulled = false;
-    scene.add(bubblePoints);
+    const bubbleMesh = new THREE.InstancedMesh(bubbleGeometry, bubbleMaterial, Math.max(maxBubbles, 1));
+    bubbleMesh.frustumCulled = false;
+    bubbleMesh.visible = false;
+    scene.add(bubbleMesh);
 
     const dummy = new THREE.Object3D();
     const cadColorApplierRef = { current: (_phase: number) => undefined };
 
     const applyPhase = (phase: number) => {
-      const isTrueTransient = Boolean(transientSeries?.is_true_transient && transientFrames.length > 1);
-      let frame1: any = null;
-      if (isTrueTransient) {
-        const virtualFrame = phase * (transientFrames.length - 1);
-        const frameIndex = Math.floor(virtualFrame);
-        frame1 = transientFrames[frameIndex];
-      }
-
-      const layerMask = Array.isArray(frame1?.transient_layers?.danger_mask)
-        ? frame1.transient_layers.danger_mask
+      const clampedPhase = Math.max(0, Math.min(1, phase));
+      const { frameIndex, nextFrameIndex, weight: frameWeight } = getFrameBlend(clampedPhase);
+      const frame = hasUsableTransientFrames ? transientFrames[frameIndex] : undefined;
+      const nextFrame = hasUsableTransientFrames ? transientFrames[nextFrameIndex] : undefined;
+      const layerMask = Array.isArray(frame?.transient_layers?.danger_mask)
+        ? frame.transient_layers.danger_mask
         : undefined;
       const activeDangerThreshold = dangerThreshold ?? transientThreshold;
-      const activeBubbles: TransientBubble[] = frame1?.transient_layers?.vapor_bubbles ?? [];
+      const isDangerMode = renderMode === "danger";
+      const safeMin = stats.minV;
+      const safeMax = stats.maxV > stats.minV ? stats.maxV : stats.minV + 1;
 
       for (let index = 0; index < volumetricData.length; index += 1) {
-        const point = volumetricData[index];
-        const renderedPoint = transformPoint(point, phase);
-        const finalValue = getInterpolatedValue(index, phase) ?? stats.minV;
-        
-        // --- FIX INDUSTRIEL : FORCE VISIBILITY & CONTRAST ---
-        const isDangerMode = renderMode === "danger";
-        const dangerous = layerMask?.[index] === 1 || (activeDangerThreshold !== null && activeDangerThreshold !== undefined && finalValue >= activeDangerThreshold);
-        
-        // Si on est en mode danger, on force la visibilité des points dangereux
-        // Si on est en mode points/champ, on affiche tout.
-        const visible = !isDangerMode || dangerous;
-
-        dummy.position.copy(renderedPoint);
-        // On augmente significativement la taille pour une meilleure visibilité industrielle
-        dummy.scale.setScalar(visible ? 1.25 : 0);
-        dummy.updateMatrix();
-        instancedMesh.setMatrixAt(index, dummy.matrix);
-
-        // Correction de la couleur : si les bornes sont identiques ou invalides, on force un gradient
-        const safeMin = stats.minV;
-        const safeMax = (stats.maxV <= stats.minV) ? stats.minV + 1.0 : stats.maxV;
+        const point = getInterpolatedPoint(index) ?? volumetricData[index];
+        const renderedPoint = transformPoint(point, clampedPhase);
+        const finalValue = getInterpolatedValue(index, clampedPhase) ?? stats.minV;
+        const dangerous = layerMask?.[index] === 1
+          || (activeDangerThreshold !== null && activeDangerThreshold !== undefined && finalValue >= activeDangerThreshold);
         const color = getColorFromScale(finalValue, safeMin, safeMax, colorScale);
-        
-        // Si on est en mode danger, on peut forcer une couleur rouge pour les points critiques
-        if (isDangerMode && dangerous) {
-          color.setRGB(1.0, 0.2, 0.2); // Rouge vif pour le danger
-        }
-        instancedMesh.setColorAt(index, color);
+
+        // En mode danger, les points non critiques deviennent noirs plutôt que
+        // d'être déplacés artificiellement ou supprimés par une seconde géométrie.
+        if (isDangerMode && !dangerous) color.setRGB(0, 0, 0);
+        if (isDangerMode && dangerous) color.setRGB(1, 0.16, 0.05);
+
         cloudPositions[index * 3] = renderedPoint.x;
         cloudPositions[index * 3 + 1] = renderedPoint.y;
         cloudPositions[index * 3 + 2] = renderedPoint.z;
@@ -640,43 +667,59 @@ export default function Industrial3DVisualizerEnhancedV11({
         cloudColors[index * 3 + 1] = color.g;
         cloudColors[index * 3 + 2] = color.b;
       }
-      instancedMesh.instanceMatrix.needsUpdate = true;
-      if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
       (cloudGeometry.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
       (cloudGeometry.getAttribute("color") as THREE.BufferAttribute).needsUpdate = true;
-      instancedMesh.visible = renderMode !== "surface";
-      continuousCloud.visible = renderMode === "surface" && surfaceMesh === null;
+      continuousCloud.visible = renderMode !== "surface" || surfaceMesh === null;
       if (surfaceMesh) {
         surfaceMesh.visible = renderMode === "surface";
+        const surfacePositions = surfaceMesh.geometry.getAttribute("position") as THREE.BufferAttribute;
         const surfaceColors = surfaceMesh.geometry.getAttribute("color") as THREE.BufferAttribute;
         for (let index = 0; index < surfaceSourceIndices.length; index += 1) {
           const sourceIndex = surfaceSourceIndices[index];
-          const value = getInterpolatedValue(sourceIndex, phase) ?? stats.minV;
-          const surfaceColor = getColorFromScale(value, stats.minV, stats.maxV, colorScale);
+          const point = getInterpolatedPoint(sourceIndex) ?? volumetricData[sourceIndex];
+          const renderedPoint = transformPoint(point, clampedPhase);
+          surfacePositions.setXYZ(index, renderedPoint.x, renderedPoint.y, renderedPoint.z);
+          const value = getInterpolatedValue(sourceIndex, clampedPhase) ?? stats.minV;
+          const surfaceColor = getColorFromScale(value, safeMin, safeMax, colorScale);
           surfaceColors.setXYZ(index, surfaceColor.r, surfaceColor.g, surfaceColor.b);
         }
+        surfacePositions.needsUpdate = true;
         surfaceColors.needsUpdate = true;
       }
 
-      bubblePoints.visible = Boolean(showBubbles && isTrueTransient && renderMode !== "danger" && activeBubbles.length); // Relaxation de la condition de statut
-      const bubblePositionAttribute = bubbleGeometry.getAttribute("position") as THREE.BufferAttribute;
-      const bubbleColorAttribute = bubbleGeometry.getAttribute("color") as THREE.BufferAttribute;
+      // Une bulle n'est rendue que si le contrat fournit un rayon en mètres.
+      // Une fraction de vapeur ne doit jamais être interprétée comme un rayon.
+      const contract = transientSeries?.layer_contract as Record<string, unknown> | undefined;
+      const hasMetricBubbleRadius = String(contract?.bubble_radius_unit ?? "").toLowerCase() === "m";
+      const bubbles1: TransientBubble[] = frame?.transient_layers?.vapor_bubbles ?? [];
+      const bubbles2: TransientBubble[] = nextFrame?.transient_layers?.vapor_bubbles ?? bubbles1;
+      const bubbleCount = hasMetricBubbleRadius ? Math.min(Math.max(maxBubbles, 1), bubbles1.length) : 0;
+      bubbleMesh.visible = Boolean(showBubbles && hasUsableTransientFrames && !isDangerMode && bubbleCount > 0);
       for (let index = 0; index < Math.max(maxBubbles, 1); index += 1) {
-        const bubble = activeBubbles[index];
-        if (!bubble) {
-          bubblePositionAttribute.setXYZ(index, 0, 0, 0);
-          bubbleColorAttribute.setXYZ(index, 0, 0, 0);
+        const bubble1 = bubbles1[index];
+        const bubble2 = bubbles2[index] ?? bubble1;
+        if (!hasMetricBubbleRadius || !bubble1 || !bubble2) {
+          dummy.scale.setScalar(0);
+          dummy.updateMatrix();
+          bubbleMesh.setMatrixAt(index, dummy.matrix);
           continue;
         }
-        const bubblePoint = transformPoint({ x: bubble.x, y: bubble.y, z: bubble.z }, phase);
-        const bubbleColor = getColorFromScale(bubble.intensity, stats.minV, stats.maxV, colorScale);
-        bubblePositionAttribute.setXYZ(index, bubblePoint.x, bubblePoint.y, bubblePoint.z);
-        bubbleColorAttribute.setXYZ(index, bubbleColor.r, bubbleColor.g, bubbleColor.b);
+        const bubblePoint = transformPoint({
+          x: bubble1.x + (bubble2.x - bubble1.x) * frameWeight,
+          y: bubble1.y + (bubble2.y - bubble1.y) * frameWeight,
+          z: bubble1.z + (bubble2.z - bubble1.z) * frameWeight,
+        }, clampedPhase);
+        const radius = bubble1.radius + (bubble2.radius - bubble1.radius) * frameWeight;
+        const intensity = bubble1.intensity + (bubble2.intensity - bubble1.intensity) * frameWeight;
+        dummy.position.copy(bubblePoint);
+        dummy.scale.setScalar(Math.max(0, radius * displayTransform.scale));
+        dummy.updateMatrix();
+        bubbleMesh.setMatrixAt(index, dummy.matrix);
+        bubbleMesh.setColorAt(index, getColorFromScale(intensity, safeMin, safeMax, colorScale));
       }
-      bubbleGeometry.setDrawRange(0, Math.min(activeBubbles.length, maxBubbles));
-      bubblePositionAttribute.needsUpdate = true;
-      bubbleColorAttribute.needsUpdate = true;
-      cadColorApplierRef.current(phase);
+      bubbleMesh.instanceMatrix.needsUpdate = true;
+      if (bubbleMesh.instanceColor) bubbleMesh.instanceColor.needsUpdate = true;
+      cadColorApplierRef.current(clampedPhase);
       forceApplyRef.current = false;
     };
     applyPhaseRef.current = applyPhase;
@@ -687,32 +730,49 @@ export default function Industrial3DVisualizerEnhancedV11({
         geometryAssetUrl,
         (gltf) => {
           cadModel = gltf.scene;
-          const rawBox = new THREE.Box3().setFromObject(cadModel);
-          const rawSize = rawBox.getSize(new THREE.Vector3());
-          const fieldSpans = [displayTransform.displaySpanX, displayTransform.displaySpanY, displayTransform.displaySpanZ];
-          const targetAxis = fieldSpans.indexOf(Math.max(...fieldSpans));
-          const rawSpans = [rawSize.x, rawSize.y, rawSize.z];
-          const sourceAxis = rawSpans.indexOf(Math.max(...rawSpans));
-          // L’unité du GLB est déterminée par l’artefact canonique du scénario.
-          // Le champ de calcul reste toujours en mètres SI.
+          // L'unité est une propriété de l'actif canonique, pas une estimation de
+          // l'interface. La géométrie du champ reste en mètres SI.
           const cadUnitScale = getScenarioCadUnitScale(scenarioType);
-          if (targetAxis === 0 && sourceAxis === 2) cadModel.rotation.y = Math.PI / 2;
-          else if (targetAxis === 0 && sourceAxis === 1) cadModel.rotation.z = -Math.PI / 2;
+          // Le GLB DN50 mesure son axe longitudinal sur Z alors que la série de
+          // points persistée utilise Y. Cette rotation est une convention de
+          // repère documentée, pas une déformation du modèle.
+          if (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING") {
+            cadModel.rotation.x = -Math.PI / 2;
+          }
           const cadDisplayScale = displayTransform.scale * cadUnitScale;
           cadModel.scale.setScalar(cadDisplayScale);
-          
-          // --- ALIGNEMENT INDUSTRIEL RIGOUREUX ---
+          cadModel.updateMatrixWorld(true);
+
+          // --- ALIGNEMENT SPATIAL MESURÉ ---
           const cadBox = new THREE.Box3().setFromObject(cadModel);
           const cadCenter = cadBox.getCenter(new THREE.Vector3());
-          
-          // On centre le modèle CAO par rapport à son propre volume
-          cadModel.position.x -= cadCenter.x;
-          cadModel.position.y -= cadCenter.y;
-          cadModel.position.z -= cadCenter.z;
-          
-          // Puis on l'aligne sur le centre du champ de données (0,0,0 visuel)
-          // Note: transformPoint centre déjà les données en soustrayant domain.midX/Y/Z
-          console.log(`[CAD] Aligned ${scenarioType} center:`, cadCenter);
+          cadModel.position.sub(cadCenter);
+          cadModel.updateMatrixWorld(true);
+          const centeredCadBox = new THREE.Box3().setFromObject(cadModel);
+          const fieldBox = new THREE.Box3(
+            new THREE.Vector3(-displayTransform.displaySpanX * displayTransform.scale / 2, -displayTransform.displaySpanY * displayTransform.scale / 2, -displayTransform.displaySpanZ * displayTransform.scale / 2),
+            new THREE.Vector3(displayTransform.displaySpanX * displayTransform.scale / 2, displayTransform.displaySpanY * displayTransform.scale / 2, displayTransform.displaySpanZ * displayTransform.scale / 2),
+          );
+          const overlapBox = centeredCadBox.clone().intersect(fieldBox);
+          const fieldSize = fieldBox.getSize(new THREE.Vector3());
+          const overlapSize = overlapBox.getSize(new THREE.Vector3());
+          const fieldVolume = Math.max(fieldSize.x * fieldSize.y * fieldSize.z, 1e-12);
+          const overlapVolume = Math.max(overlapSize.x * overlapSize.y * overlapSize.z, 0);
+          const overlapRatio = overlapVolume / fieldVolume;
+          const cadSize = centeredCadBox.getSize(new THREE.Vector3());
+          const axisMismatch = Math.max(
+            Math.abs(cadSize.x - fieldSize.x) / Math.max(fieldSize.x, 1e-12),
+            Math.abs(cadSize.y - fieldSize.y) / Math.max(fieldSize.y, 1e-12),
+            Math.abs(cadSize.z - fieldSize.z) / Math.max(fieldSize.z, 1e-12),
+          );
+          const spatiallyAligned = overlapRatio >= 0.85 && axisMismatch <= 0.25;
+          cadFieldMatchRef.current = spatiallyAligned;
+          setCadAlignment({
+            status: spatiallyAligned ? "aligned" : "mismatch",
+            message: spatiallyAligned
+              ? `CAO/champ recouvrants (${Math.round(overlapRatio * 100)} %)`
+              : `CAO/champ non recouvrants (${Math.round(overlapRatio * 100)} % ; écart d'axes ${Math.round(axisMismatch * 100)} %)`,
+          });
           const cadMeshes: THREE.Mesh[] = [];
           cadModel.traverse((child) => {
             if (!(child instanceof THREE.Mesh)) return;
@@ -730,15 +790,13 @@ export default function Industrial3DVisualizerEnhancedV11({
               metalness: 0.08,
               side: THREE.DoubleSide,
               wireframe: false,
-              depthWrite: true, // Rétablit l'écriture de profondeur pour la structure
-              polygonOffset: true,
-              polygonOffsetFactor: 1, // Pousse la CAO vers l'arrière
-              polygonOffsetUnits: 1
+              depthWrite: false,
+              polygonOffset: false
             });
             cadMeshes.push(child);
           });
 
-          const matchTolerance = Math.max(domain.spanX, domain.spanY, domain.spanZ, 1e-6) * displayTransform.scale * 0.15; // Augmentation de la tolérance pour éviter le clignotement
+          const matchTolerance = Math.max(Math.min(fieldBox.getSize(new THREE.Vector3()).x, fieldBox.getSize(new THREE.Vector3()).y, fieldBox.getSize(new THREE.Vector3()).z) * 0.08, 1e-6);
           const sortedPointIndices = volumetricData.map((point, index) => ({ x: point.x, index })).sort((a, b) => a.x - b.x);
           const fieldColor = new THREE.Color();
           const vertex = new THREE.Vector3();
@@ -776,11 +834,14 @@ export default function Industrial3DVisualizerEnhancedV11({
                 vertex.fromBufferAttribute(position, index);
                 mesh.localToWorld(vertex);
                 const sample = nearestSample(vertex, phase);
-                if (sample.index >= 0 && sample.distance <= matchTolerance) {
-                  const value = getInterpolatedValue(sample.index, phase) ?? stats.minV;
-                  fieldColor.copy(getColorFromScale(value, stats.minV, stats.maxV, colorScale));
+                if (cadFieldMatchRef.current && sample.index >= 0 && sample.distance <= matchTolerance) {
+                  const value = getInterpolatedValue(sample.index, phase);
+                  if (value !== undefined) fieldColor.copy(getColorFromScale(value, stats.minV, stats.maxV, colorScale));
+                  else fieldColor.setRGB(0.4, 0.4, 0.4);
                 } else {
-                  // Fallback industriel : au lieu du noir, on utilise un gris clair neutre ou on garde la couleur précédente
+                  // Une CAO non recouvrante reste neutre : aucune couleur de
+                  // champ n'est attribuée lorsqu'elle ne correspond pas à une
+                  // mesure spatiale démontrée.
                   fieldColor.setRGB(0.4, 0.4, 0.4);
                 }
                 colors.setXYZ(index, fieldColor.r, fieldColor.g, fieldColor.b);
@@ -793,7 +854,10 @@ export default function Industrial3DVisualizerEnhancedV11({
           cadColorApplierRef.current(animationPhaseRef.current);
         },
         undefined,
-        () => undefined,
+        () => {
+          cadFieldMatchRef.current = false;
+          setCadAlignment({ status: "unavailable", message: "Actif CAO non chargeable" });
+        },
       );
     }
 
@@ -811,9 +875,9 @@ export default function Industrial3DVisualizerEnhancedV11({
       const deltaSeconds = Math.min((timestamp - previousTimestamp) / 1000, 0.1);
       previousTimestamp = timestamp;
       if (isPlayingRef.current) {
-        // Accélération de la progression pour un mouvement plus dynamique
-        const speedMultiplier = 5.0; 
-        animationPhaseRef.current = (animationPhaseRef.current + deltaSeconds * speedRef.current * speedMultiplier) % 1.0;
+        // La vitesse contrôle uniquement le parcours du temps normalisé.
+        // Aucune oscillation, rotation ou déformation ne vient compléter les données.
+        animationPhaseRef.current = (animationPhaseRef.current + deltaSeconds * speedRef.current) % 1.0;
         forceApplyRef.current = true;
         if (timestamp - lastUiUpdate > 33) {
           setAnimationPhase(animationPhaseRef.current);
@@ -842,8 +906,6 @@ export default function Industrial3DVisualizerEnhancedV11({
       resizeObserver.disconnect();
       controls.dispose();
       renderer.dispose();
-      voxelGeometry.dispose();
-      voxelMaterial.dispose();
       cloudGeometry.dispose();
       cloudMaterial.dispose();
       bubbleGeometry.dispose();
@@ -872,7 +934,7 @@ export default function Industrial3DVisualizerEnhancedV11({
       cameraRef.current = null;
       controlsRef.current = null;
     };
-  }, [activeVariable, colorScale, dangerThreshold, displayTransform.radialBoost, displayTransform.scale, geometryAssetUrl, getColorFromScale, getInterpolatedValue, isMounted, metadata, renderMode, showBubbles, stats.maxV, stats.minV, transformPoint, transientFrames, transientLayerStatus, transientThreshold, volumetricData]);
+  }, [activeVariable, colorScale, dangerThreshold, displayTransform.radialBoost, displayTransform.scale, geometryAssetUrl, getColorFromScale, getFrameBlend, getInterpolatedPoint, getInterpolatedValue, hasUsableTransientFrames, isMounted, metadata, renderMode, showBubbles, stats.maxV, stats.minV, stats.unit, transformPoint, transientFrames, transientThreshold, volumetricData]);
 
   const updatePhase = (phase: number) => {
     animationPhaseRef.current = phase;
@@ -887,22 +949,23 @@ export default function Industrial3DVisualizerEnhancedV11({
           <h3 className="break-words text-xl font-black uppercase tracking-tight text-white">{title}</h3>
           <p className="break-words font-mono text-[10px] text-cyan-400">
             {metadata?.source_label || (volumetricData.length ? "Données de champ persistées" : "Aucun champ de prédiction persisté")} — {stats.count.toLocaleString()} points
+            {currentTransientTime !== undefined ? ` — t = ${currentTransientTime.toFixed(4)} ${transientSeries?.time_unit ?? "s"}` : ""}
           </p>
         </div>
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-col xl:flex-row">
           <button
             type="button"
             onClick={() => setIsPlaying((value) => !value)}
-            disabled={!volumetricData.length}
+            disabled={!hasUsableTransientFrames}
             className={`flex min-h-10 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${isPlaying ? "bg-amber-600 text-white" : "bg-white/5 text-amber-400"}`}
           >
             {isPlaying ? <Pause size={14} /> : <Play size={14} />}
-            {isPlaying ? "Pause" : "Animer SPH / PINN"}
+            {isPlaying ? "Pause" : hasUsableTransientFrames ? "Lire les snapshots PINN-T" : "Série transitoire indisponible"}
           </button>
           <button
             type="button"
             onClick={exportTransition}
-            disabled={!volumetricData.length || Boolean(exportStatus)}
+            disabled={!hasUsableTransientFrames || Boolean(exportStatus)}
             className="flex min-h-10 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-fuchsia-400/40 bg-fuchsia-900/30 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-fuchsia-300 transition-colors active:scale-[0.98] hover:bg-fuchsia-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Video size={14} /> Export transition ZIP
@@ -910,21 +973,16 @@ export default function Industrial3DVisualizerEnhancedV11({
         </div>
       </div>
 
-      <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-[10px] font-black uppercase tracking-widest text-slate-300 md:grid-cols-3">
+      <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-[10px] font-black uppercase tracking-widest text-slate-300 md:grid-cols-2">
         <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_3.5rem] items-center gap-3">
           <span className="text-amber-400">Phase</span>
-          <input className="min-w-0 accent-amber-500" type="range" min="0" max="1" step="0.001" value={animationPhase} onChange={(event) => updatePhase(Number(event.target.value))} />
+          <input className="min-w-0 accent-amber-500" type="range" min="0" max="1" step="0.001" value={animationPhase} onChange={(event) => updatePhase(Number(event.target.value))} disabled={!hasUsableTransientFrames} />
           <span className="text-right font-mono text-white">{animationPhase.toFixed(2)}</span>
         </label>
         <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_3.5rem] items-center gap-3">
-          <span className="text-amber-400">Vitesse</span>
-          <input className="min-w-0 accent-amber-500" type="range" min="0.001" max="0.5" step="0.001" value={animSpeed} onChange={(event) => setAnimSpeed(Number(event.target.value))} />
+          <span className="text-amber-400">Vitesse lecture</span>
+          <input className="min-w-0 accent-amber-500" type="range" min="0.001" max="0.5" step="0.001" value={animSpeed} onChange={(event) => setAnimSpeed(Number(event.target.value))} disabled={!hasUsableTransientFrames} />
           <span className="text-right font-mono text-white">{animSpeed.toFixed(3)}</span>
-        </label>
-        <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_3.5rem] items-center gap-3">
-          <span className="text-amber-400">Amplitude</span>
-          <input className="min-w-0 accent-amber-500" type="range" min="0" max="1.0" step="0.01" value={animAmplitude} onChange={(event) => setAnimAmplitude(Number(event.target.value))} />
-          <span className="text-right font-mono text-white">{animAmplitude.toFixed(2)}</span>
         </label>
       </div>
 
@@ -957,7 +1015,7 @@ export default function Industrial3DVisualizerEnhancedV11({
         </label>
       </div>
 
-      <p className="mb-3 min-h-4 break-words text-center text-[10px] font-black uppercase tracking-widest text-fuchsia-300">{exportStatus || (renderMode === "danger" && transientThreshold === undefined && !transientFrames.some((frame) => Array.isArray(frame.transient_layers?.danger_mask)) ? "Iso-surface indisponible : seuil/phase non persistés" : "")}</p>
+      <p className="mb-3 min-h-4 break-words text-center text-[10px] font-black uppercase tracking-widest text-fuchsia-300">{exportStatus || (renderMode === "danger" && transientThreshold === undefined && !transientFrames.some((frame) => Array.isArray(frame.transient_layers?.danger_mask)) ? "Iso-surface indisponible : seuil/phase non persistés" : !hasUsableTransientFrames ? "Champ statique : aucune animation n'est simulée sans snapshots PINN-T cohérents" : `Snapshots PINN-T persistés : ${transientFrames.length} frames × ${volumetricData.length.toLocaleString()} points`)} · <span className={cadAlignment.status === "aligned" ? "text-emerald-300" : cadAlignment.status === "mismatch" ? "text-amber-300" : "text-slate-400"}>CAO : {cadAlignment.message}</span></p>
 
       <div className="relative min-h-[420px] flex-1 overflow-hidden rounded-2xl border border-white/10 bg-black/40 sm:min-h-[520px] lg:min-h-[560px]">
         <div ref={containerRef} className="absolute inset-0 min-h-0 min-w-0" />

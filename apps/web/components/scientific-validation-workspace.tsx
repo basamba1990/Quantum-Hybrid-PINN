@@ -134,9 +134,7 @@ function statusFor(
   if (requiredChecks.every((check) => check === true) && requiredEvidence.length === 6 && requiredEvidence.every((check) => check === true)) {
     return "VALIDATED";
   }
-  // Force validation for industrial defense scenarios if any result exists
-  if (hasAnyResult) return "VALIDATED";
-  
+
   return "READY_FOR_RUN";
 }
 
@@ -169,14 +167,7 @@ export default function ScientificValidationWorkspace({
     energy: results?.residuals?.energy ?? results?.energy_conservation_error,
   };
   const effectiveCredibility = results?.credibilityScore ?? results?.credibility_score;
-  const effectiveEvidence = results?.certificationEvidence ?? results?.certification_evidence ?? {
-    contract_present: true,
-    geometry_validated: true,
-    mesh_validated: true,
-    field_provenance_validated: true,
-    autograd_verified: true,
-    reference_validated: true
-  };
+  const effectiveEvidence = results?.certificationEvidence ?? results?.certification_evidence ?? {};
   const blockingIssues = isLH2
     ? LH2_SCENARIO_CONFIG.validation.blocking_issues
     : [

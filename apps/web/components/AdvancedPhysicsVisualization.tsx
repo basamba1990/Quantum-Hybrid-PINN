@@ -37,26 +37,33 @@ export default function AdvancedPhysicsVisualization({
   const [backendDerivedFieldsData, setBackendDerivedFieldsData] = useState<any>(null);
 
   const realData3d = useMemo(() => {
-    if (!data3d || !Array.isArray(data3d) || data3d.length === 0) return [];
-    return data3d.filter(p => 
-      typeof p.x === 'number' && 
-      typeof p.y === 'number' && 
-      typeof p.z === 'number'
-    ).map(p => ({
-      x: p.x,
-      y: p.y,
-      z: p.z,
-      temperature: Number(p.temperature ?? (p as any).temp ?? 293.15),
-      pressure: Number(p.pressure ?? (p as any).p ?? 1.0),
-      density: Number(p.density ?? 1.0),
-      velocity_magnitude: Number(p.velocity_magnitude ?? (p as any).velocityMagnitude ?? 0),
-      velocity_u: Number(p.velocity_u ?? (p as any).velocityU ?? 0),
-      velocity_v: Number(p.velocity_v ?? (p as any).velocityV ?? 0),
-      velocity_w: Number(p.velocity_w ?? (p as any).velocityW ?? 0),
-      stress: Number(p.stress ?? (p as any).von_mises ?? (p as any).vonMises ?? 0),
-      damage: Number(p.damage ?? 0),
-      prediction: Number(p.prediction ?? p.temperature ?? 0)
-    }));
+    if (!Array.isArray(data3d) || data3d.length === 0) return [];
+    const aliases: Record<string, string[]> = {
+      temperature: ['temperature', 'temp'],
+      pressure: ['pressure', 'p'],
+      density: ['density'],
+      velocity_magnitude: ['velocity_magnitude', 'velocityMagnitude'],
+      velocity_u: ['velocity_u', 'velocityU'],
+      velocity_v: ['velocity_v', 'velocityV'],
+      velocity_w: ['velocity_w', 'velocityW'],
+      stress: ['stress', 'von_mises', 'vonMises'],
+      damage: ['damage'],
+      prediction: ['prediction'],
+    };
+    const numeric = (value: unknown): number | undefined => {
+      const result = typeof value === 'number' ? value : Number(value);
+      return Number.isFinite(result) ? result : undefined;
+    };
+    return data3d
+      .filter((point) => numeric(point?.x) !== undefined && numeric(point?.y) !== undefined && numeric(point?.z) !== undefined)
+      .map((point) => {
+        const normalized: Record<string, number> = { x: numeric(point.x)!, y: numeric(point.y)!, z: numeric(point.z)! };
+        for (const [field, fieldAliases] of Object.entries(aliases)) {
+          const value = fieldAliases.map((alias) => numeric(point[alias])).find((item) => item !== undefined);
+          if (value !== undefined) normalized[field] = value;
+        }
+        return normalized;
+      });
   }, [data3d]);
 
   const chartData = useMemo(() => {
@@ -65,17 +72,23 @@ export default function AdvancedPhysicsVisualization({
     const sortedByZ = [...realData3d].sort((a, b) => a.z - b.z);
     const sortedByY = [...realData3d].sort((a, b) => a.y - b.y);
 
-    const tempProfileZ = sortedByZ.map((p) => ({
-      z: p.z,
-      temperature: p.temperature,
-      pressure: p.pressure,
-      velocity: Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2),
-    }));
+    const tempProfileZ = sortedByZ
+      .filter((point) => typeof point.temperature === 'number')
+      .map((p) => ({
+        z: p.z,
+        temperature: p.temperature,
+        ...(typeof p.pressure === 'number' ? { pressure: p.pressure } : {}),
+        ...(typeof p.velocity_u === 'number' && typeof p.velocity_v === 'number' && typeof p.velocity_w === 'number'
+          ? { velocity: Math.sqrt(p.velocity_u ** 2 + p.velocity_v ** 2 + p.velocity_w ** 2) }
+          : {}),
+      }));
 
-    const velocityProfile = sortedByY.map((p) => ({
-      y: p.y,
-      velocity: Math.sqrt((p.velocity_u || 0) ** 2 + (p.velocity_v || 0) ** 2 + (p.velocity_w || 0) ** 2),
-    }));
+    const velocityProfile = sortedByY
+      .filter((point) => typeof point.velocity_u === 'number' && typeof point.velocity_v === 'number' && typeof point.velocity_w === 'number')
+      .map((p) => ({
+        y: p.y,
+        velocity: Math.sqrt(p.velocity_u ** 2 + p.velocity_v ** 2 + p.velocity_w ** 2),
+      }));
 
     return {
       tempProfileZ,

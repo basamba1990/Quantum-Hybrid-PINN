@@ -1,9 +1,10 @@
 import type { ScenarioType } from '@/types/simulation-scenarios'
 
 /**
- * Surfaces tessellées depuis les STEP AP242 par Open CASCADE.
- * Les chemins sont des assets versionnés du frontend ; aucun volume paramétrique
- * de remplacement n'est utilisé lorsqu'un scénario industriel est sélectionné.
+ * Actifs glTF versionnés utilisés par le frontend.
+ * La provenance et la nature de chaque actif doivent être vérifiées dans le
+ * manifeste CAO ; un glTF tessellé ne constitue pas, à lui seul, une preuve
+ * de solide B-Rep STEP ou de génération Open CASCADE.
  */
 export function getScenarioCadAssetUrl(scenarioType?: string | null, evidence: unknown[] = []): string | undefined {
   const evidenceText = [scenarioType, ...evidence]
@@ -54,6 +55,6 @@ export function getScenarioCadUnitScale(scenarioType?: string | null): number {
 export const CAD_ASSET_SHA256: Record<string, string> = {
   '/cad/HEAVY_DUTY_HYDROGEN_REFUELING/geometry.glb': '390120e618696d355ba4eb4aa56bfbc0ca22beb2d1bbb3ec2399cc66206f1eb9',
   '/cad/LH2_LARGE_SCALE_STORAGE_1250M3/geometry.glb': '780bfe480ff8ec975170c3ee164079cd23721551bd873b409aa1776e67ec80e3',
-  '/cad/DEEP_MINING_BLOCK/geometry.glb': 'eed8af34114d80b31dd07945f686edfd7361cb6816deff048df39c50b1e8e42e',
-  '/cad/FPGA_HEATSINK/geometry.glb': 'bec40c51207fd907a888aada3718118bdfe746146ba7e50bdabea426cec9ef05',
+  '/cad/DEEP_MINING_BLOCK/geometry.glb': 'f37dd5538b06ed0994bc2ad1ca5c5b77069a6e0368e84c65144a5d58543f3427',
+  '/cad/FPGA_HEATSINK/geometry.glb': '1650421f6b7d87814b953cb6692f917e3054eeb173f0dbc4ac2d6e406bd6c7c3',
 }

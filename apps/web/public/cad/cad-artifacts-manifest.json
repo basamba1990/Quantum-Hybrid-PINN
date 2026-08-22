@@ -1,9 +1,9 @@
 {
   "schema": "industrial-cad-artifacts/v1",
   "generated_by": {
-    "kernel": "Open CASCADE via OCP/CadQuery",
     "surface_format": "GLB glTF 2.0",
-    "length_unit": "m"
+    "length_unit": "m",
+    "provenance_policy": "A glTF tessellated surface is not a STEP/B-Rep certificate; source CAD provenance must be supplied separately."
   },
   "artifacts": [
     {
@@ -17,7 +17,9 @@
         "zmin": -0.025,
         "zmax": 0.025
       },
-      "named_boundaries": ["inlet", "outlet", "wall"]
+      "named_boundaries": [],
+      "named_boundaries_verified": false,
+      "source_provenance": "glTF tessellation; source STEP not present in repository"
     },
     {
       "scenario_type": "LH2_LARGE_SCALE_STORAGE_1250M3",
@@ -30,7 +32,9 @@
         "zmin": -6.73,
         "zmax": 6.73
       },
-      "named_boundaries": ["inner_wall", "outer_wall"]
+      "named_boundaries": [],
+      "named_boundaries_verified": false,
+      "source_provenance": "glTF tessellation; source STEP not present in repository"
     },
     {
       "scenario_type": "DEEP_MINING_BLOCK",
@@ -43,7 +47,9 @@
         "zmin": -10.0,
         "zmax": 10.0
       },
-      "named_boundaries": ["surface", "tunnel_wall"]
+      "named_boundaries": [],
+      "named_boundaries_verified": false,
+      "source_provenance": "minimal glTF mesh; source STEP not present in repository"
     },
     {
       "scenario_type": "FPGA_HEATSINK",
@@ -56,7 +62,9 @@
         "zmin": 0.0,
         "zmax": 0.045
       },
-      "named_boundaries": ["base", "pins", "air_interface"]
+      "named_boundaries": [],
+      "named_boundaries_verified": false,
+      "source_provenance": "minimal glTF mesh; source STEP not present in repository"
     }
   ]
 }
