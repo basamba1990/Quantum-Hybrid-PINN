@@ -473,20 +473,24 @@ class SciMLEngine:
         physics: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """Interroge le PINN pour chaque (t,x,y,z), sans synthèse analytique."""
-        if not x_coords or not time_steps:
-            # Fallback si les coordonnées ne sont pas fournies par le frontend
-            # On utilise le domaine DN50 standard (11,000 points)
-            num_points = 11000
-            x_coords = np.linspace(-1.275, 1.275, num_points).tolist()
-            y_coords = np.zeros(num_points).tolist()
-            z_coords = np.zeros(num_points).tolist()
-        
+        if not x_coords or not y_coords or not z_coords:
+            raise ValueError("Les coordonnées persistées x, y et z sont obligatoires ; aucun domaine spatial de secours n'est généré.")
         if not time_steps:
-            time_steps = [0.0, 0.5, 1.0, 2.0, 5.0]
-
+            raise ValueError("Les instants persistés sont obligatoires ; aucune grille temporelle de secours n'est générée.")
         if not (len(x_coords) == len(y_coords) == len(z_coords)):
             raise ValueError("Les coordonnées spatiales doivent avoir la même longueur.")
-        
+        if len(time_steps) < 2:
+            raise ValueError("Une série PINN-T doit contenir au moins deux instants persistés.")
+
+        coordinates = [np.asarray(values, dtype=float) for values in (x_coords, y_coords, z_coords)]
+        if any(not np.isfinite(values).all() for values in coordinates):
+            raise ValueError("Les coordonnées persistées doivent être finies.")
+        time_array = np.asarray(time_steps, dtype=float)
+        if not np.isfinite(time_array).all() or np.any(np.diff(time_array) <= 0):
+            raise ValueError("Les instants persistés doivent être finis et strictement croissants.")
+        x_coords, y_coords, z_coords = (values.tolist() for values in coordinates)
+        time_steps = time_array.tolist()
+
         num_spatial_points = len(x_coords)
         flat_t = np.repeat(np.asarray(time_steps, dtype=float), num_spatial_points).tolist()
         flat_x = np.tile(np.asarray(x_coords, dtype=float), len(time_steps)).tolist()
@@ -530,11 +534,16 @@ class SciMLEngine:
                 any(key in point for key in ("vapor_fraction", "phase_fraction", "boil_off_rate"))
                 for point in points
             )
+            bubble_radius_field_present = any(
+                any(key in point for key in ("vapor_bubble_radius_m", "bubble_radius_m"))
+                for point in points
+            )
             thresholds_available = (
                 finite_number(saturation_temperature_k) is not None
                 and finite_number(danger_temperature_k) is not None
                 and gravity_axis in {"x", "y", "z"}
                 and phase_field_present
+                and bubble_radius_field_present
                 and bubble_limit > 0
             )
             danger_mask = None
@@ -551,8 +560,11 @@ class SciMLEngine:
                     phase_fraction = finite_number(
                         point.get("vapor_fraction", point.get("phase_fraction", point.get("boil_off_rate")))
                     )
+                    bubble_radius_m = finite_number(
+                        point.get("vapor_bubble_radius_m", point.get("bubble_radius_m"))
+                    )
                     temperature = finite_number(point.get("temperature"))
-                    if phase_fraction is None or temperature is None or temperature < saturation_temperature_k or phase_fraction <= 0:
+                    if phase_fraction is None or bubble_radius_m is None or temperature is None or temperature < saturation_temperature_k or phase_fraction <= 0 or bubble_radius_m <= 0:
                         continue
                     velocity_axis = finite_number(point.get(f"velocity_{gravity_axis}"))
                     if velocity_axis is None:
@@ -563,7 +575,7 @@ class SciMLEngine:
                         "x": position["x"],
                         "y": position["y"],
                         "z": position["z"],
-                        "radius": float(max(0.0, phase_fraction)),
+                        "radius": float(bubble_radius_m),
                         "intensity": float(phase_fraction),
                         "source": "predicted_phase_field"
                     })
@@ -598,6 +610,7 @@ class SciMLEngine:
                 "danger_temperature_k": finite_number((physics or {}).get("danger_temperature_k")),
                 "gravity_axis": (physics or {}).get("gravity_axis"),
                 "bubble_limit": (physics or {}).get("bubble_limit"),
+                "bubble_radius_unit": "m" if bubble_radius_field_present else None,
                 "source": "case_contract_and_predicted_phase_field",
             },
         }
