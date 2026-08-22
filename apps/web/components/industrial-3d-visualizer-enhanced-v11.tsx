@@ -141,7 +141,7 @@ export default function Industrial3DVisualizerEnhancedV11({
   const [renderMode, setRenderMode] = useState<"points" | "surface" | "danger">("points");
   const [dangerThreshold, setDangerThreshold] = useState<number | null>(null);
   const [showBubbles, setShowBubbles] = useState(true);
-  const [showPiezometers, setShowPiezometers] = useState(true);
+  const [showPiezometers, setShowPiezometers] = useState(false);
   const [showVelocityVectors, setShowVelocityVectors] = useState(false);
   const [cadAlignment, setCadAlignment] = useState<{ status: "not_loaded" | "aligned" | "mismatch" | "unavailable"; message: string }>({
     status: geometryAssetUrl ? "not_loaded" : "unavailable",
@@ -1095,10 +1095,7 @@ export default function Industrial3DVisualizerEnhancedV11({
             <input type="checkbox" checked={showBubbles} onChange={(event) => setShowBubbles(event.target.checked)} className="accent-cyan-400" />
             Bulles
           </label>
-          <label className="flex items-center gap-2 text-blue-200">
-            <input type="checkbox" checked={showPiezometers} onChange={(event) => setShowPiezometers(event.target.checked)} className="accent-blue-400" />
-            Piézomètres
-          </label>
+
           <label className="flex items-center gap-2 text-emerald-200">
             <input type="checkbox" checked={showVelocityVectors} onChange={(event) => setShowVelocityVectors(event.target.checked)} className="accent-emerald-400" />
             Vecteurs V
