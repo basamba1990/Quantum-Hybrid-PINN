@@ -172,20 +172,14 @@ export default function Industrial3DVisualizerEnhancedV11({
   const transientFrames = transientSeries?.time_series ?? [];
   const hasUsableTransientFrames = useMemo(() => {
     if (!transientSeries?.is_true_transient || transientFrames.length < 2 || !volumetricData.length) return false;
-    const reference = transientFrames[0]?.points ?? [];
     return transientFrames.every((frame) =>
       Array.isArray(frame.points)
       && frame.points.length === volumetricData.length
-      && frame.points.every((point, index) => {
-        const base = reference[index];
-        return Boolean(base)
-          && finiteValue(point.x) !== undefined
-          && finiteValue(point.y) !== undefined
-          && finiteValue(point.z) !== undefined
-          && Math.abs(point.x - base.x) <= 1e-9
-          && Math.abs(point.y - base.y) <= 1e-9
-          && Math.abs(point.z - base.z) <= 1e-9;
-      }),
+      && frame.points.every((point) => 
+        finiteValue(point.x) !== undefined && 
+        finiteValue(point.y) !== undefined && 
+        finiteValue(point.z) !== undefined
+      ),
     );
   }, [transientFrames, transientSeries?.is_true_transient, volumetricData.length]);
   const transientThreshold = useMemo(() => {
@@ -326,11 +320,19 @@ export default function Industrial3DVisualizerEnhancedV11({
     return firstTime + ((secondTime ?? firstTime) - firstTime) * weight;
   }, [animationPhase, getFrameBlend, hasUsableTransientFrames, transientFrames]);
 
-  const getInterpolatedPoint = useCallback((pointIndex: number): VisualizationPoint | undefined => {
-    // Les coordonnées sont eulériennes et restent fixes ; seuls les champs
-    // calculés évoluent dans le temps. Aucun déplacement visuel n'est inventé.
-    return volumetricData[pointIndex];
-  }, [volumetricData]);
+  const getInterpolatedPoint = useCallback((pointIndex: number, phase: number): VisualizationPoint | undefined => {
+    const base = volumetricData[pointIndex];
+    if (!hasUsableTransientFrames) return base;
+    const { frameIndex, nextFrameIndex, weight } = getFrameBlend(phase);
+    const p1 = transientFrames[frameIndex]?.points?.[pointIndex] || base;
+    const p2 = transientFrames[nextFrameIndex]?.points?.[pointIndex] || p1;
+    return {
+      ...p1,
+      x: p1.x + (p2.x - p1.x) * weight,
+      y: p1.y + (p2.y - p1.y) * weight,
+      z: p1.z + (p2.z - p1.z) * weight,
+    };
+  }, [getFrameBlend, hasUsableTransientFrames, transientFrames, volumetricData]);
 
   const getInterpolatedValue = useCallback((pointIndex: number, phase: number): number | undefined => {
     const baseValue = finiteValue(volumetricData[pointIndex]?.[activeVariable]);
@@ -693,7 +695,7 @@ export default function Industrial3DVisualizerEnhancedV11({
       const safeMax = stats.maxV > stats.minV ? stats.maxV : stats.minV + 1;
 
       for (let index = 0; index < volumetricData.length; index += 1) {
-        const point = getInterpolatedPoint(index) ?? volumetricData[index];
+        const point = getInterpolatedPoint(index, clampedPhase) ?? volumetricData[index];
         const renderedPoint = transformPoint(point, clampedPhase);
         const finalValue = getInterpolatedValue(index, clampedPhase) ?? stats.minV;
         const dangerous = layerMask?.[index] === 1
@@ -721,7 +723,7 @@ export default function Industrial3DVisualizerEnhancedV11({
         const surfaceColors = surfaceMesh.geometry.getAttribute("color") as THREE.BufferAttribute;
         for (let index = 0; index < surfaceSourceIndices.length; index += 1) {
           const sourceIndex = surfaceSourceIndices[index];
-          const point = getInterpolatedPoint(sourceIndex) ?? volumetricData[sourceIndex];
+          const point = getInterpolatedPoint(sourceIndex, clampedPhase) ?? volumetricData[sourceIndex];
           const renderedPoint = transformPoint(point, clampedPhase);
           surfacePositions.setXYZ(index, renderedPoint.x, renderedPoint.y, renderedPoint.z);
           const value = getInterpolatedValue(sourceIndex, clampedPhase) ?? stats.minV;
