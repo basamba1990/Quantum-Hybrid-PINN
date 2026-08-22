@@ -141,6 +141,8 @@ export default function Industrial3DVisualizerEnhancedV11({
   const [renderMode, setRenderMode] = useState<"points" | "surface" | "danger">("points");
   const [dangerThreshold, setDangerThreshold] = useState<number | null>(null);
   const [showBubbles, setShowBubbles] = useState(true);
+  const [showPiezometers, setShowPiezometers] = useState(true);
+  const [showVelocityVectors, setShowVelocityVectors] = useState(false);
   const [cadAlignment, setCadAlignment] = useState<{ status: "not_loaded" | "aligned" | "mismatch" | "unavailable"; message: string }>({
     status: geometryAssetUrl ? "not_loaded" : "unavailable",
     message: geometryAssetUrl ? "Vérification des bornes CAO…" : "Aucun actif CAO associé",
@@ -631,6 +633,49 @@ export default function Industrial3DVisualizerEnhancedV11({
     bubbleMesh.visible = false;
     scene.add(bubbleMesh);
 
+    // --- PIEZOMETRIC TUBES (FLOW-3D Style) ---
+    const piezometerGroup = new THREE.Group();
+    piezometerGroup.visible = false;
+    scene.add(piezometerGroup);
+
+    const createPiezometer = (x: number, y: number, z: number, label: string) => {
+      const group = new THREE.Group();
+      // Tube transparent
+      const tubeGeom = new THREE.CylinderGeometry(0.02, 0.02, 1, 16);
+      const tubeMat = new THREE.MeshPhysicalMaterial({ transparent: true, opacity: 0.2, color: 0xffffff, roughness: 0, transmission: 0.5 });
+      const tube = new THREE.Mesh(tubeGeom, tubeMat);
+      group.add(tube);
+      // Liquide interne (Head)
+      const liquidGeom = new THREE.CylinderGeometry(0.018, 0.018, 1, 16);
+      const liquidMat = new THREE.MeshBasicMaterial({ color: 0x3b4cc0 });
+      const liquid = new THREE.Mesh(liquidGeom, liquidMat);
+      liquid.name = "liquid";
+      group.add(liquid);
+      group.position.set(x, y, z);
+      piezometerGroup.add(group);
+      return group;
+    };
+
+    // Placer des piézomètres aux extrémités et au milieu pour les scénarios hydrauliques
+    if (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING" || scenarioType === "LH2_LARGE_SCALE_STORAGE_1250M3") {
+      createPiezometer(-displayTransform.displaySpanX * 0.4, 0.5, 0, "Inlet");
+      createPiezometer(0, 0.5, 0, "Mid");
+      createPiezometer(displayTransform.displaySpanX * 0.4, 0.5, 0, "Outlet");
+    }
+
+    // --- VELOCITY VECTORS (Arrows) ---
+    const velocityArrows = new THREE.Group();
+    velocityArrows.visible = false;
+    scene.add(velocityArrows);
+
+    const arrowCount = Math.min(volumetricData.length, 200); // Échantillon pour ne pas surcharger
+    const arrows: THREE.ArrowHelper[] = [];
+    for (let i = 0; i < arrowCount; i++) {
+      const arrow = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), 0.1, 0x00ffff);
+      arrows.push(arrow);
+      velocityArrows.add(arrow);
+    }
+
     const dummy = new THREE.Object3D();
     const cadColorApplierRef = { current: (_phase: number) => undefined };
 
@@ -719,6 +764,40 @@ export default function Industrial3DVisualizerEnhancedV11({
       }
       bubbleMesh.instanceMatrix.needsUpdate = true;
       if (bubbleMesh.instanceColor) bubbleMesh.instanceColor.needsUpdate = true;
+
+      // Update Piezometers
+      piezometerGroup.visible = showPiezometers && (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING" || scenarioType === "LH2_LARGE_SCALE_STORAGE_1250M3");
+      piezometerGroup.children.forEach((p: any, i) => {
+        const liquid = p.getObjectByName("liquid");
+        if (liquid) {
+          // Simuler une variation de head basée sur la pression moyenne locale
+          const sampleIdx = Math.floor((i / piezometerGroup.children.length) * volumetricData.length);
+          const press = getInterpolatedValue(sampleIdx, clampedPhase) ?? stats.minV;
+          const head = 0.2 + (press / stats.maxV) * 0.6;
+          liquid.scale.set(1, head, 1);
+          liquid.position.y = -0.5 + head / 2;
+        }
+      });
+
+      // Update Velocity Arrows
+      velocityArrows.visible = showVelocityVectors;
+      if (showVelocityVectors) {
+        const step = Math.floor(volumetricData.length / arrowCount);
+        arrows.forEach((arrow, i) => {
+          const idx = i * step;
+          const pt = getInterpolatedPoint(idx) ?? volumetricData[idx];
+          const renderedPt = transformPoint(pt, clampedPhase);
+          const vel = finiteValue(pt.velocity_magnitude) ?? 0;
+          
+          arrow.position.copy(renderedPt);
+          // Direction simplifiée (selon l'axe principal du scénario)
+          const dir = scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING" ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1);
+          arrow.setDirection(dir);
+          arrow.setLength(Math.max(0.01, (vel / 150) * 0.2));
+          arrow.setColor(new THREE.Color().setHSL(0.6, 1, 0.5));
+        });
+      }
+
       cadColorApplierRef.current(clampedPhase);
       forceApplyRef.current = false;
     };
@@ -1009,10 +1088,20 @@ export default function Industrial3DVisualizerEnhancedV11({
           />
           <span className="text-right font-mono text-white">{dangerThreshold !== null || transientThreshold !== undefined ? (dangerThreshold ?? transientThreshold)!.toFixed(2) : (stats.fieldCount ? stats.maxV.toFixed(2) : "N/D")}</span>
         </label>
-        <label className="flex items-center justify-end gap-2 text-cyan-200">
-          <input type="checkbox" checked={showBubbles} onChange={(event) => setShowBubbles(event.target.checked)} className="accent-cyan-400" />
-          Bulles vapeur
-        </label>
+        <div className="flex flex-wrap items-center justify-end gap-4">
+          <label className="flex items-center gap-2 text-cyan-200">
+            <input type="checkbox" checked={showBubbles} onChange={(event) => setShowBubbles(event.target.checked)} className="accent-cyan-400" />
+            Bulles
+          </label>
+          <label className="flex items-center gap-2 text-blue-200">
+            <input type="checkbox" checked={showPiezometers} onChange={(event) => setShowPiezometers(event.target.checked)} className="accent-blue-400" />
+            Piézomètres
+          </label>
+          <label className="flex items-center gap-2 text-emerald-200">
+            <input type="checkbox" checked={showVelocityVectors} onChange={(event) => setShowVelocityVectors(event.target.checked)} className="accent-emerald-400" />
+            Vecteurs V
+          </label>
+        </div>
       </div>
 
       <p className="mb-3 min-h-4 break-words text-center text-[10px] font-black uppercase tracking-widest text-fuchsia-300">{exportStatus || (renderMode === "danger" && transientThreshold === undefined && !transientFrames.some((frame) => Array.isArray(frame.transient_layers?.danger_mask)) ? "Iso-surface indisponible : seuil/phase non persistés" : !hasUsableTransientFrames ? "Champ statique : aucune animation n'est simulée sans snapshots PINN-T cohérents" : `Snapshots PINN-T persistés : ${transientFrames.length} frames × ${volumetricData.length.toLocaleString()} points`)} · <span className={cadAlignment.status === "aligned" ? "text-emerald-300" : cadAlignment.status === "mismatch" ? "text-amber-300" : "text-slate-400"}>CAO : {cadAlignment.message}</span></p>
