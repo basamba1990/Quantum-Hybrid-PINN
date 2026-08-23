@@ -34,6 +34,7 @@ from scenario_engines import SCENARIO_ENGINES
 from analysis_processor import router as analysis_router, init_processor
 from pgd_pinn_api import router as pgd_pinn_router
 from export_router import router as export_router
+from cfd_import_router import router as cfd_import_router
 
 # Sweet Spot Analyzer — Lazy import (Industrial Grade Stability Analysis)
 def _get_sweet_spot_analyzer():
@@ -99,6 +100,7 @@ def trim_jobs_store():
 app.include_router(analysis_router)
 app.include_router(pgd_pinn_router)
 app.include_router(export_router)
+app.include_router(cfd_import_router)
 
 # Lazy import du pipeline CAO industriel (volets 1–9) pour ne pas bloquer
 # le démarrage : les portes G0–G5 restent évaluées au runtime.

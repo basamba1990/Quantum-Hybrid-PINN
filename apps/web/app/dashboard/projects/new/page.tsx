@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { normalizeScenarioType } from '@/types/simulation-scenarios'
+import { CFDImportForm } from '@/components/cfd/CFDImportForm'
 
 export default function NewProjectPage() {
   const router = useRouter()
@@ -313,6 +314,8 @@ export default function NewProjectPage() {
               </div>
             </div>
           </div>
+
+          <CFDImportForm caseId={watch('name') || ''} />
         </div>
 
         {/* Media & Action (Right) */}
