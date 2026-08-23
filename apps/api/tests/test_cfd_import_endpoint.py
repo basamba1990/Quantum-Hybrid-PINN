@@ -30,12 +30,14 @@ def test_import_accepts_exact_hashes_and_builds_dataset():
         files.append(('vtu_files', (spec['file'], payload, 'application/xml')))
     files.append(('sidecar', ('sidecar.json', json.dumps(metadata).encode(), 'application/json')))
     with patch.dict(os.environ, {'CFD_IMPORT_API_TOKEN': 'test-token'}), patch(
+        'cfd_import_router._verify_project_owner'
+    ), patch(
         'cfd_import_router._persist_dataset', return_value='analysis-test'
     ) as persist:
         response = make_client().post(
             '/v2/cfd/import',
             headers={'Authorization': 'Bearer test-token'},
-            data={'case_id': 'LH2_TEST', 'owner_id': 'user-test'},
+            data={'case_id': 'LH2_TEST', 'project_id': '11111111-1111-4111-8111-111111111111', 'owner_id': '22222222-2222-4222-8222-222222222222'},
             files=files,
         )
     assert response.status_code == 201, response.text
@@ -55,7 +57,7 @@ def test_import_rejects_tampered_vtu_hash():
         response = make_client().post(
             '/v2/cfd/import',
             headers={'Authorization': 'Bearer test-token'},
-            data={'case_id': 'LH2_TEST', 'owner_id': 'user-test'},
+            data={'case_id': 'LH2_TEST', 'project_id': '11111111-1111-4111-8111-111111111111', 'owner_id': '22222222-2222-4222-8222-222222222222'},
             files=files,
         )
     assert response.status_code == 422

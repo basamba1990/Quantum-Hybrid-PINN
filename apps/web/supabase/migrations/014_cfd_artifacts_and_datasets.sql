@@ -6,6 +6,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.cfd_datasets (
   id uuid primary key,
   analysis_id uuid not null unique,
+  project_id uuid references public.projects(id) on delete restrict,
   case_id text not null check (char_length(case_id) between 1 and 160),
   owner_id uuid not null,
   status text not null check (status in ('STRUCTURAL_TEST_UNVALIDATED', 'UNVALIDATED', 'VALIDATED')),
@@ -15,6 +16,9 @@ create table if not exists public.cfd_datasets (
   created_at timestamptz not null default now()
 );
 
+alter table public.cfd_datasets add column if not exists project_id uuid references public.projects(id) on delete restrict;
+
+create index if not exists cfd_datasets_project_id_idx on public.cfd_datasets (project_id);
 create index if not exists cfd_datasets_case_id_idx on public.cfd_datasets (case_id);
 create index if not exists cfd_datasets_owner_id_idx on public.cfd_datasets (owner_id);
 create index if not exists cfd_datasets_mesh_revision_idx on public.cfd_datasets (mesh_revision);

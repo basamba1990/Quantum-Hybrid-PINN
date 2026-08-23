@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 export type CfdImportResponse = {
   analysisId?: string
   datasetId?: string
+  projectId?: string
   meshRevision?: string
   pointCount?: number
   cellCount?: number
@@ -20,12 +21,14 @@ export type CfdImportResponse = {
 
 type Props = {
   caseId: string
+  projectId?: string
+  onBeforeImport?: () => Promise<string>
   onImported?: (result: CfdImportResponse) => void
 }
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024
 
-export function CFDImportForm({ caseId, onImported }: Props) {
+export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }: Props) {
   const [vtuFiles, setVtuFiles] = useState<File[]>([])
   const [sidecar, setSidecar] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
@@ -83,12 +86,28 @@ export function CFDImportForm({ caseId, onImported }: Props) {
       return
     }
 
+    setBusy(true)
+    let ensuredProjectId = projectId
+    try {
+      ensuredProjectId = ensuredProjectId ?? await onBeforeImport?.()
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Impossible de créer le projet avant l’import CFD.'
+      setError(message)
+      toast.error(message)
+      setBusy(false)
+      return
+    }
+    if (!ensuredProjectId) {
+      setError('Le projet doit être créé avant la persistance du dataset CFD.')
+      setBusy(false)
+      return
+    }
+
     const formData = new FormData()
     for (const file of vtuFiles) formData.append('vtu_files', file, file.name)
     formData.append('sidecar', sidecar, sidecar.name)
     formData.append('case_id', caseId)
-
-    setBusy(true)
+    formData.append('project_id', ensuredProjectId)
     try {
       const response = await fetch('/api/cfd/import', {
         method: 'POST',

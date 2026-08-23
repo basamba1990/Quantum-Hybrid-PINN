@@ -64,9 +64,35 @@ export default function ProjectDetailClient({ id, project }: any) {
           .eq('project_id', id)
           .order('created_at', { ascending: false })
           .limit(50)
+        const { data: cfdRows, error: cfdError } = await supabase
+          .from('cfd_datasets')
+          .select('*')
+          .eq('project_id', id)
+          .order('created_at', { ascending: false })
+          .limit(10)
         if (anaError) console.error("Supabase Analyses Error:", anaError)
+        if (cfdError) console.error("Supabase CFD Dataset Error:", cfdError)
         console.log("Fetched Analyses Count:", analysisRows?.length || 0)
-        if (!analysisRows?.length) { setLoading(false); return }
+        const latestCfd = cfdRows?.[0]
+        if (!analysisRows?.length) {
+          if (latestCfd?.dataset) {
+            setLatestAnalysis({
+              id: latestCfd.analysis_id,
+              project_id: id,
+              created_at: latestCfd.created_at,
+              updated_at: latestCfd.created_at,
+              status: 'completed',
+              results: {
+                cfd_dataset: latestCfd.dataset,
+                validation_status: latestCfd.status,
+                artifact_hashes: latestCfd.artifact_manifest,
+                certification_evidence: latestCfd.dataset.evidence ?? null,
+              },
+            })
+          }
+          setLoading(false)
+          return
+        }
 
         const analysisIds = analysisRows.map((row: any) => row.id)
         const { data: resultRows } = await supabase
@@ -103,6 +129,22 @@ export default function ProjectDetailClient({ id, project }: any) {
           }
           return { ...analysisRow, results: mergedResults }
         })
+
+        if (latestCfd?.dataset) {
+          candidates.push({
+            id: latestCfd.analysis_id,
+            project_id: id,
+            created_at: latestCfd.created_at,
+            updated_at: latestCfd.created_at,
+            status: 'completed',
+            results: {
+              cfd_dataset: latestCfd.dataset,
+              validation_status: latestCfd.status,
+              artifact_hashes: latestCfd.artifact_manifest,
+              certification_evidence: latestCfd.dataset.evidence ?? null,
+            },
+          })
+        }
 
         const rankCandidate = (candidate: any) => {
           const result = candidate.results ?? {}

@@ -37,6 +37,29 @@ export default function NewProjectPage() {
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [jsonFile, setJsonFile] = useState<File | null>(null)
   const [jsonData, setJsonData] = useState<any>(null)
+  const [cfdProjectId, setCfdProjectId] = useState<string | null>(null)
+
+  const ensureCfdProject = async (): Promise<string> => {
+    if (cfdProjectId) return cfdProjectId
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error('Session expirée ou utilisateur non trouvé.')
+    const name = watch('name')?.trim()
+    if (!name) throw new Error('Renseignez l’identifiant du projet avant l’import CFD.')
+    const { data: project, error } = await supabase
+      .from('projects')
+      .insert({
+        name,
+        description: watch('description')?.trim() || null,
+        category: normalizeScenarioType(name),
+        user_id: user.id,
+        status: 'draft',
+      })
+      .select('id')
+      .single()
+    if (error || !project?.id) throw new Error(`Création du projet CFD échouée : ${error?.message ?? 'identifiant absent'}`)
+    setCfdProjectId(project.id)
+    return project.id
+  }
 
   const onSubmit = async (formData: { name: string; description: string; video?: FileList; transcription?: string }) => {
     setLoading(true)
@@ -315,7 +338,18 @@ export default function NewProjectPage() {
             </div>
           </div>
 
-          <CFDImportForm caseId={watch('name') || ''} />
+          <CFDImportForm
+            caseId={watch('name') || ''}
+            projectId={cfdProjectId ?? undefined}
+            onBeforeImport={ensureCfdProject}
+            onImported={(result) => {
+              const importedProjectId = result.projectId ?? cfdProjectId
+              if (result.analysisId && importedProjectId) {
+                router.push(`/dashboard/projects/${importedProjectId}`)
+                router.refresh()
+              }
+            }}
+          />
         </div>
 
         {/* Media & Action (Right) */}

@@ -25,10 +25,11 @@ export async function POST(request: NextRequest) {
   const vtuFiles = incoming.getAll('vtu_files').filter((value): value is File => value instanceof File)
   const sidecar = incoming.get('sidecar')
   const caseId = incoming.get('case_id')
+  const projectId = incoming.get('project_id')
 
-  if (vtuFiles.length === 0 || !(sidecar instanceof File) || typeof caseId !== 'string' || !caseId.trim()) {
+  if (vtuFiles.length === 0 || !(sidecar instanceof File) || typeof caseId !== 'string' || !caseId.trim() || typeof projectId !== 'string' || !projectId.trim()) {
     return NextResponse.json(
-      { error: 'Le formulaire doit contenir vtu_files[], sidecar et case_id.' },
+      { error: 'Le formulaire doit contenir vtu_files[], sidecar, case_id et project_id.' },
       { status: 400 },
     )
   }
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
   for (const file of vtuFiles) body.append('vtu_files', file, file.name)
   body.append('sidecar', sidecar, sidecar.name)
   body.append('case_id', caseId.trim())
+  body.append('project_id', projectId.trim())
   body.append('owner_id', user.id)
 
   const apiToken = process.env.CFD_IMPORT_API_TOKEN

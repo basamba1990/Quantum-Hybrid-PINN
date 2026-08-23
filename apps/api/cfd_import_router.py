@@ -261,7 +261,7 @@ def _build_dataset(sidecar: Dict[str, Any], parsed: list[Dict[str, Any]]) -> Dic
             "cellTypes": item["cellTypes"],
             "fields": item["fields"],
         })
-    dataset = {key: value for key, value in sidecar.items() if key not in {"frames", "fieldDescriptors", "classification"}}
+    dataset = {key: value for key, value in sidecar.items() if key != "frames"}
     dataset.update({
         "contractVersion": "cfd-volume.v1",
         "pointCount": first["pointCount"],
@@ -279,7 +279,18 @@ def _supabase() -> Client:
     return create_client(url, key)
 
 
-def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_bytes: bytes, case_id: str, owner_id: str) -> str:
+def _verify_project_owner(project_id: str, owner_id: str) -> None:
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", project_id) or not re.fullmatch(r"[0-9a-fA-F-]{36}", owner_id):
+        raise HTTPException(status_code=422, detail="project_id/owner_id doivent être des UUID valides.")
+    try:
+        response = _supabase().table("projects").select("id,user_id").eq("id", project_id).eq("user_id", owner_id).limit(1).execute()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Vérification du projet échouée: {exc}") from exc
+    if not getattr(response, "data", None):
+        raise HTTPException(status_code=404, detail="Projet absent ou non accessible par l’utilisateur connecté.")
+
+
+def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_bytes: bytes, case_id: str, project_id: str, owner_id: str) -> str:
     analysis_id = str(uuid.uuid4())
     dataset_id = str(uuid.uuid4())
     status = "UNVALIDATED"
@@ -318,6 +329,7 @@ def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_b
     row = {
         "id": dataset_id,
         "analysis_id": analysis_id,
+        "project_id": project_id,
         "case_id": case_id,
         "owner_id": owner_id,
         "status": status,
@@ -344,6 +356,7 @@ async def import_cfd_dataset(
     vtu_files: List[UploadFile] = File(..., description="Un ou plusieurs fichiers .vtu"),
     sidecar: UploadFile = File(..., description="Sidecar JSON du contrat cfd-volume.v1"),
     case_id: str = Form(..., min_length=1, max_length=160),
+    project_id: str = Form(..., min_length=1, max_length=160),
     owner_id: str = Form(..., min_length=1, max_length=160),
     _auth: None = Depends(require_cfd_import_auth),
 ) -> Dict[str, Any]:
@@ -367,7 +380,8 @@ async def import_cfd_dataset(
     descriptors = metadata.get("fieldDescriptors", {})
     parsed = [_parse_vtu(uploaded[name], name, descriptors) for name in [spec["file"] for spec in metadata["frames"]]]
     dataset = _build_dataset(metadata, parsed)
-    analysis_id = _persist_dataset(dataset, uploaded, sidecar_bytes, case_id, owner_id)
+    _verify_project_owner(project_id, owner_id)
+    analysis_id = _persist_dataset(dataset, uploaded, sidecar_bytes, case_id, project_id, owner_id)
     return {
         "analysisId": analysis_id,
         "datasetId": analysis_id,
@@ -377,6 +391,7 @@ async def import_cfd_dataset(
         "cellCount": dataset["cellCount"],
         "frameCount": len(dataset["frames"]),
         "status": "STRUCTURAL_TEST_UNVALIDATED" if str(metadata.get("classification", "")).startswith("SYNTHETIC") else "UNVALIDATED",
+        "projectId": project_id,
         "sidecar": sidecar_name,
         "artifactHashes": {
             "sidecar": _sha256(sidecar_bytes),
