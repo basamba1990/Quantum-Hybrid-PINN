@@ -15,8 +15,9 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react'
-import Industrial3DVisualizerEnhancedV11 from './industrial-3d-visualizer-enhanced-v11'
+import CFDViewer from './cfd/CFDViewer'
 import HybridChartVisualizer from './hybrid-chart-visualizer'
+import type { CfdBufferDataset } from '@/lib/cfd/cfd-contract'
 import type { Prediction3D } from '@/types'
 
 interface ConfidenceMetrics {
@@ -34,6 +35,7 @@ interface AuditData {
   anomalies: string[]
   extractedData: Record<string, number>
   predictions3d?: Prediction3D[]
+  cfdDataset?: CfdBufferDataset | null
   confidenceMetrics?: ConfidenceMetrics;
   analysisId?: string;
 }
@@ -142,7 +144,7 @@ export default function ScientificAuditCard({
           </div>
         </div>
 
-        {auditData.predictions3d && auditData.predictions3d.length > 0 && (
+        {auditData.cfdDataset && (
           <div className="space-y-8">
             <div className="flex items-center justify-between px-2">
               <div className="flex items-center gap-4">
@@ -157,18 +159,12 @@ export default function ScientificAuditCard({
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 bg-black/40 border border-white/10 rounded-[40px] overflow-hidden shadow-inner relative group h-[600px]">
-                <Industrial3DVisualizerEnhancedV11 
-                  data={auditData.predictions3d} 
-                  title={`${projectName} - SCIENTIFIC AUDIT`}
-                  colorVariable={visualizationType === 'field' ? 'temperature' : 'pressure'}
-                  quality="ultra"
-                  scenarioType={scenarioType}
-                />
+                <CFDViewer dataset={auditData.cfdDataset} className="min-h-[600px]" />
               </div>
 
               <div className="space-y-6">
                 <div className="bg-white/[0.03] border border-white/10 rounded-[32px] p-6 h-full">
-                   <HybridChartVisualizer predictions={auditData.predictions3d} title="Analyse Temporelle" />
+                   <p className="text-sm text-gray-400">Les séries temporelles historiques ne sont pas affichées ici : elles doivent être fournies dans le contrat CFD versionné.</p>
                 </div>
               </div>
             </div>

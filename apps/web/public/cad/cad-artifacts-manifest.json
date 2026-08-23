@@ -1,70 +1,33 @@
 {
-  "schema": "industrial-cad-artifacts/v1",
-  "generated_by": {
-    "surface_format": "GLB glTF 2.0",
-    "length_unit": "m",
-    "provenance_policy": "A glTF tessellated surface is not a STEP/B-Rep certificate; source CAD provenance must be supplied separately."
+  "schema": "industrial-cad-artifacts/v2",
+  "status": "NO_VERIFIED_CAD_ARTIFACTS",
+  "policy": {
+    "no_implicit_geometry": true,
+    "no_glb_as_brep_certificate": true,
+    "no_default_units": true,
+    "requires_source_revision_and_sha256": true
   },
-  "artifacts": [
+  "artifacts": [],
+  "retired_assets": [
     {
       "scenario_type": "HEAVY_DUTY_HYDROGEN_REFUELING",
-      "glb_public_path": "/cad/HEAVY_DUTY_HYDROGEN_REFUELING/geometry.glb",
-      "bounds_m": {
-        "xmin": -1.275,
-        "xmax": 1.275,
-        "ymin": -0.025,
-        "ymax": 0.025,
-        "zmin": -0.025,
-        "zmax": 0.025
-      },
-      "named_boundaries": [],
-      "named_boundaries_verified": false,
-      "source_provenance": "glTF tessellation; source STEP not present in repository"
+      "former_path": "/cad/HEAVY_DUTY_HYDROGEN_REFUELING/geometry.glb",
+      "reason": "GLB de démonstration retiré ; aucun STEP/IGES source vérifié dans le dépôt."
     },
     {
       "scenario_type": "LH2_LARGE_SCALE_STORAGE_1250M3",
-      "glb_public_path": "/cad/LH2_LARGE_SCALE_STORAGE_1250M3/geometry.glb",
-      "bounds_m": {
-        "xmin": -6.73,
-        "xmax": 6.73,
-        "ymin": -6.73,
-        "ymax": 6.73,
-        "zmin": -6.73,
-        "zmax": 6.73
-      },
-      "named_boundaries": [],
-      "named_boundaries_verified": false,
-      "source_provenance": "glTF tessellation; source STEP not present in repository"
+      "former_path": "/cad/LH2_LARGE_SCALE_STORAGE_1250M3/geometry.glb",
+      "reason": "GLB de démonstration retiré ; aucun STEP/IGES source vérifié dans le dépôt."
     },
     {
       "scenario_type": "DEEP_MINING_BLOCK",
-      "glb_public_path": "/cad/DEEP_MINING_BLOCK/geometry.glb",
-      "bounds_m": {
-        "xmin": -10.0,
-        "xmax": 10.0,
-        "ymin": -10.0,
-        "ymax": 10.0,
-        "zmin": -10.0,
-        "zmax": 10.0
-      },
-      "named_boundaries": [],
-      "named_boundaries_verified": false,
-      "source_provenance": "minimal glTF mesh; source STEP not present in repository"
+      "former_path": "/cad/DEEP_MINING_BLOCK/geometry.glb",
+      "reason": "GLB de démonstration retiré ; aucune géométrie de site ou de benchmark licenciée intégrée."
     },
     {
       "scenario_type": "FPGA_HEATSINK",
-      "glb_public_path": "/cad/FPGA_HEATSINK/geometry.glb",
-      "bounds_m": {
-        "xmin": -0.0225,
-        "xmax": 0.0225,
-        "ymin": -0.0225,
-        "ymax": 0.0225,
-        "zmin": 0.0,
-        "zmax": 0.045
-      },
-      "named_boundaries": [],
-      "named_boundaries_verified": false,
-      "source_provenance": "minimal glTF mesh; source STEP not present in repository"
+      "former_path": "/cad/FPGA_HEATSINK/geometry.glb",
+      "reason": "GLB de démonstration retiré ; aucun modèle correspondant à un composant identifié intégré."
     }
   ]
 }

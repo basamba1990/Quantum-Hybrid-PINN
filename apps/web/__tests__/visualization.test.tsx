@@ -1,482 +1,129 @@
-/**
- * Comprehensive Unit and Integration Tests for Visualization Components
- * Testing suite for Industrial-grade 3D and 2D visualizers
- *
- * Test Categories:
- * 1. Data Validation Tests
- * 2. Rendering Tests
- * 3. Interaction Tests
- * 4. Performance Tests
- * 5. Edge Case Tests
- * 6. Integration Tests
- */
-
-import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import '@testing-library/jest-dom'
-import Industrial3DVisualizerEnhancedV11 from '@/components/industrial-3d-visualizer-enhanced-v11'
-import HybridChartVisualizerIndustrial from '@/components/hybrid-chart-visualizer-industrial'
-
-// ==================== TEST DATA ====================
-
-const mockDataPoints = [
-  { x: 0, y: 0, z: 0, temperature: 300, pressure: 101325, velocity_magnitude: 1.0, density: 1.2 },
-  { x: 0.5, y: 0.5, z: 0.5, temperature: 350, pressure: 150000, velocity_magnitude: 2.0, density: 1.5 },
-  { x: 1, y: 1, z: 1, temperature: 400, pressure: 200000, velocity_magnitude: 3.0, density: 1.8 },
-  { x: -0.5, y: -0.5, z: -0.5, temperature: 250, pressure: 80000, velocity_magnitude: 0.5, density: 0.9 },
-  { x: 0.2, y: 0.3, z: 0.4, temperature: 320, pressure: 120000, velocity_magnitude: 1.5, density: 1.3 },
-]
-
-const mockPredictions = [
-  { time: 0, timestamp: '1970-01-01T00:00:00.000Z', x: 0.5, y: 0.5, z: 0.5, temperature: 300, pressure: 101325, velocity_u: 0.5, velocity_v: 0.5, velocity_w: 0.5, density: 1.2 },
-  { time: 1, timestamp: '1970-01-01T00:00:01.000Z', x: 0.5, y: 0.5, z: 0.5, temperature: 320, pressure: 120000, velocity_u: 0.6, velocity_v: 0.6, velocity_w: 0.6, density: 1.3 },
-  { time: 2, timestamp: '1970-01-01T00:00:02.000Z', x: 0.5, y: 0.5, z: 0.5, temperature: 350, pressure: 150000, velocity_u: 0.7, velocity_v: 0.7, velocity_w: 0.7, density: 1.5 },
-  { time: 3, timestamp: '1970-01-01T00:00:03.000Z', x: 0.5, y: 0.5, z: 0.5, temperature: 380, pressure: 180000, velocity_u: 0.8, velocity_v: 0.8, velocity_w: 0.8, density: 1.7 },
-]
-
-// ==================== UNIT TESTS: DATA VALIDATION ====================
-
-describe('Data Validation Tests', () => {
-  test('should handle empty data array gracefully', () => {
-    const { container } = render(
-      <Industrial3DVisualizerEnhancedV11 data={[]} title="Test" />
-    )
-    expect(container).toBeInTheDocument()
-  })
-
-  test('should validate data point structure', () => {
-    const invalidData = [
-      { x: 0, y: 0 }, // Missing z, temperature, pressure
-      { x: 1, y: 1, z: 1, temperature: 300 }, // Missing pressure
-    ]
-    // Should not throw error
-    expect(() => {
-      render(<Industrial3DVisualizerEnhancedV11 data={invalidData as any} />)
-    }).not.toThrow()
-  })
-
-  test('should handle NaN and Infinity values', () => {
-    const dataWithNaN = [
-      { x: NaN, y: 0, z: 0, temperature: 300, pressure: 101325 },
-      { x: 1, y: Infinity, z: 0, temperature: 300, pressure: 101325 },
-      { x: 1, y: 1, z: -Infinity, temperature: 300, pressure: 101325 },
-    ]
-    expect(() => {
-      render(<Industrial3DVisualizerEnhancedV11 data={dataWithNaN as any} />)
-    }).not.toThrow()
-  })
-
-  test('should correctly calculate statistics from data', () => {
-    const { rerender } = render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} title="Stats Test" />
-    )
-
-    // Verify component renders without errors
-    expect(screen.getByText('Stats Test')).toBeInTheDocument()
-
-    rerender(<Industrial3DVisualizerEnhancedV11 data={mockDataPoints} title="Stats Test" />)
-  })
-})
-
-// ==================== UNIT TESTS: RENDERING ====================
-
-describe('3D Visualizer Rendering Tests', () => {
-  test('should render with default props', () => {
-    const { container } = render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-    )
-    expect(container.querySelector('.w-full')).toBeInTheDocument()
-  })
-
-  test('should render with custom title', () => {
-    render(
-      <Industrial3DVisualizerEnhancedV11
-        data={mockDataPoints}
-        title="Custom 3D Visualization"
-      />
-    )
-    expect(screen.getByText('Custom 3D Visualization')).toBeInTheDocument()
-  })
-
-  test('should render the persisted field state', () => {
-    render(
-      <Industrial3DVisualizerEnhancedV11
-        data={mockDataPoints}
-        title="Axes 3D"
-      />
-    )
-    expect(screen.getByText('Axes 3D')).toBeInTheDocument()
-    expect(screen.getByText(/Données de champ persistées/)).toBeInTheDocument()
-  })
-
-  test('should render the scientific variable selector', () => {
-    render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-    )
-    expect(screen.getByDisplayValue('Température (K)')).toBeInTheDocument()
-    expect(screen.getByText('Palette Thermique')).toBeInTheDocument()
-  })
-
-  test('should display field statistics and synchronized colorbar', () => {
-    render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-    )
-    expect(screen.getByText(/5 points/)).toBeInTheDocument()
-    expect(screen.getByDisplayValue('Température (K)')).toBeInTheDocument()
-    expect(screen.getAllByText(/Température \(K\)/).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('Vue 3D')).toBeInTheDocument()
-  })
-})
-
-describe('2D Chart Visualizer Rendering Tests', () => {
-  test('should render with default props', async () => {
-    render(
-      <HybridChartVisualizerIndustrial predictions={mockPredictions} />
-    )
-    await waitFor(() => {
-      expect(screen.getByText(/Analyse Temporelle PINN V8/)).toBeInTheDocument()
-    })
-  })
-
-  test('should render tab navigation', async () => {
-    render(
-      <HybridChartVisualizerIndustrial predictions={mockPredictions} />
-    )
-    await waitFor(() => {
-      expect(screen.getByText('Pression')).toBeInTheDocument()
-      expect(screen.getByText('Température')).toBeInTheDocument()
-      expect(screen.getByText('Vitesse')).toBeInTheDocument()
-      expect(screen.getByText('Densité')).toBeInTheDocument()
-    })
-  })
-
-  test('should render statistics panel', async () => {
-    render(
-      <HybridChartVisualizerIndustrial
-        predictions={mockPredictions}
-        showStatistics={true}
-      />
-    )
-    await waitFor(() => {
-      expect(screen.getByText(/Pression Moy./)).toBeInTheDocument()
-      expect(screen.getByText(/Température Moy./)).toBeInTheDocument()
-    })
-  })
-
-  test('should handle empty predictions gracefully', () => {
-    const { container } = render(
-      <HybridChartVisualizerIndustrial predictions={[]} />
-    )
-    expect(container).toBeInTheDocument()
-  })
-})
-
-// ==================== UNIT TESTS: INTERACTION ====================
-
-describe('3D Visualizer Interaction Tests', () => {
-  test('should switch the active scalar field', async () => {
-    render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-    )
-
-    const selector = screen.getByDisplayValue('Température (K)')
-    fireEvent.change(selector, { target: { value: 'pressure' } })
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Pression (MPa)')).toBeInTheDocument()
-    })
-  })
-
-  test('should adjust the physical clipping plane', async () => {
-    render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-    )
-
-    const clippingSlider = screen.getByDisplayValue('1')
-    fireEvent.change(clippingSlider, { target: { value: '0.5' } })
-
-    await waitFor(() => {
-      expect(clippingSlider).toHaveValue('0.5')
-    })
-  })
-
-  test('should switch to a perceptual palette', async () => {
-    render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-    )
-
-    const viridis = screen.getByText('viridis')
-    fireEvent.click(viridis)
-
-    await waitFor(() => {
-      expect(viridis).toHaveClass('bg-blue-600')
-    })
-  })
-})
-
-describe('2D Chart Visualizer Interaction Tests', () => {
-  test('should switch between tabs', async () => {
-    render(
-      <HybridChartVisualizerIndustrial predictions={mockPredictions} />
-    )
-
-    const temperatureTab = screen.getByText('Température')
-    fireEvent.click(temperatureTab)
-
-    await waitFor(() => {
-      expect(temperatureTab).toHaveAttribute('data-state', 'active')
-    })
-  })
-
-  test('should handle tab switching without errors', async () => {
-    render(
-      <HybridChartVisualizerIndustrial predictions={mockPredictions} />
-    )
-
-    const tabs = ['Pression', 'Température', 'Vitesse', 'Densité']
-
-    for (const tab of tabs) {
-      const tabElement = screen.getByText(tab)
-      fireEvent.click(tabElement)
-      await waitFor(() => {
-        expect(tabElement).toHaveAttribute('data-state', 'active')
-      })
-    }
-  })
-})
-
-// ==================== UNIT TESTS: EDGE CASES ====================
-
-describe('Edge Case Tests', () => {
-  test('should handle single data point', () => {
-    const singlePoint = [mockDataPoints[0]]
-    const { container } = render(
-      <Industrial3DVisualizerEnhancedV11 data={singlePoint} />
-    )
-    expect(container).toBeInTheDocument()
-  })
-
-  test('should handle very large datasets', () => {
-    const largeDataset = Array.from({ length: 10000 }, (_, i) => ({
-      x: Math.random() * 2 - 1,
-      y: Math.random() * 2 - 1,
-      z: Math.random() * 2 - 1,
-      temperature: 250 + Math.random() * 150,
-      pressure: 50000 + Math.random() * 150000,
-      velocity_magnitude: Math.random() * 5,
-      density: 0.5 + Math.random() * 2,
-    }))
-
-    const { container } = render(
-      <Industrial3DVisualizerEnhancedV11 data={largeDataset} />
-    )
-    expect(container).toBeInTheDocument()
-  })
-
-  test('should handle identical values', () => {
-    const identicalData = Array.from({ length: 5 }, () => ({
-      x: 0.5,
-      y: 0.5,
-      z: 0.5,
-      temperature: 300,
-      pressure: 101325,
-      velocity_magnitude: 1.0,
-      density: 1.2,
-    }))
-
-    const { container } = render(
-      <Industrial3DVisualizerEnhancedV11 data={identicalData} />
-    )
-    expect(container).toBeInTheDocument()
-  })
-
-  test('should handle extreme value ranges', () => {
-    const extremeData = [
-      { x: -1000, y: -1000, z: -1000, temperature: 0.001, pressure: 0.001 },
-      { x: 1000, y: 1000, z: 1000, temperature: 1e6, pressure: 1e8 },
-    ]
-
-    const { container } = render(
-      <Industrial3DVisualizerEnhancedV11 data={extremeData as any} />
-    )
-    expect(container).toBeInTheDocument()
-  })
-
-  test('should handle predictions with missing optional fields', () => {
-    const incompletePredictions = [
-      { time: 0, x: 0.5, y: 0.5, z: 0.5, temperature: 300, pressure: 101325 },
-      { time: 1, x: 0.5, y: 0.5, z: 0.5, temperature: 320, pressure: 120000, velocity_u: 0.6 },
-    ]
-
-    render(
-      <HybridChartVisualizerIndustrial predictions={incompletePredictions as any} />
-    )
-
-    expect(screen.getByText(/Analyse Temporelle PINN V8/)).toBeInTheDocument()
-  })
-})
-
-// ==================== INTEGRATION TESTS ====================
-
-describe('Integration Tests', () => {
-  test('should render both visualizers together', async () => {
-    const { container } = render(
-      <div>
-        <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} title="3D View" />
-        <HybridChartVisualizerIndustrial predictions={mockPredictions} title="2D Analysis" />
-      </div>
-    )
-
-    expect(screen.getByText('3D View')).toBeInTheDocument()
-    await waitFor(() => {
-      expect(screen.getByText(/2D Analysis/)).toBeInTheDocument()
-    })
-  })
-
-  test('should maintain state consistency across component lifecycle', async () => {
-    const { rerender } = render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} colorVariable="temperature" />
-    )
-
-    expect(screen.getByDisplayValue('Température (K)')).toBeInTheDocument()
-    rerender(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} colorVariable="pressure" />
-    )
-    expect(screen.getByDisplayValue('Température (K)')).toBeInTheDocument()
-  })
-
-  test('should handle rapid data updates', async () => {
-    const { rerender } = render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-    )
-
-    for (let i = 0; i < 5; i++) {
-      const newData = mockDataPoints.map(p => ({
-        ...p,
-        temperature: p.temperature + Math.random() * 10,
-      }))
-      rerender(
-        <Industrial3DVisualizerEnhancedV11 data={newData} />
-      )
-    }
-
-    expect(screen.getByText(/5 points/)).toBeInTheDocument()
-  })
-
-  test('should properly clean up resources on unmount', () => {
-    const { unmount } = render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-    )
-
-    expect(() => {
-      unmount()
-    }).not.toThrow()
-  })
-})
-
-// ==================== PERFORMANCE TESTS ====================
-
-describe('Performance Tests', () => {
-  test('should render 1000 points within acceptable time', () => {
-    const largeDataset = Array.from({ length: 1000 }, (_, i) => ({
-      x: Math.random() * 2 - 1,
-      y: Math.random() * 2 - 1,
-      z: Math.random() * 2 - 1,
-      temperature: 250 + Math.random() * 150,
-      pressure: 50000 + Math.random() * 150000,
-      velocity_magnitude: Math.random() * 5,
-      density: 0.5 + Math.random() * 2,
-    }))
-
-    const startTime = performance.now()
-    render(
-      <Industrial3DVisualizerEnhancedV11 data={largeDataset} />
-    )
-    const endTime = performance.now()
-
-    // Should render in less than 5 seconds
-    expect(endTime - startTime).toBeLessThan(5000)
-  })
-
-  test('should not cause memory leaks on repeated mounts/unmounts', () => {
-    for (let i = 0; i < 10; i++) {
-      const { unmount } = render(
-        <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-      )
-      unmount()
-    }
-
-    // If we reach here without crashing, memory management is acceptable
-    expect(true).toBe(true)
-  })
-})
-
-// ==================== SCIENTIFIC VALIDATION TESTS ====================
-
-describe('Scientific Validation Tests', () => {
-  test('should correctly calculate velocity magnitude', () => {
-    const testPrediction = {
-      time: 0,
-      x: 0.5,
-      y: 0.5,
-      z: 0.5,
-      temperature: 300,
-      pressure: 101325,
-      velocity_u: 3,
-      velocity_v: 4,
-      velocity_w: 0,
-      density: 1.2,
-    }
-
-    // Expected magnitude: sqrt(3^2 + 4^2 + 0^2) = 5
-    const expectedMagnitude = 5
-    const calculatedMagnitude = Math.sqrt(
-      testPrediction.velocity_u ** 2 +
-      testPrediction.velocity_v ** 2 +
-      testPrediction.velocity_w ** 2
-    )
-
-    expect(calculatedMagnitude).toBeCloseTo(expectedMagnitude, 5)
-  })
-
-  test('should correctly convert pressure units', () => {
-    const pressurePa = 101325 // 1 atm in Pa
-    const pressureBar = pressurePa / 1e5 // Convert to bar
-
-    expect(pressureBar).toBeCloseTo(1.01325, 5)
-  })
-
-  test('should detect cryogenic hydrogen correctly', () => {
-    const cryogenicTemp = 20 // K (liquid hydrogen)
-    const normalTemp = 300 // K (room temperature)
-
-    expect(cryogenicTemp < 100).toBe(true)
-    expect(normalTemp < 100).toBe(false)
-  })
-})
-
-// ==================== ACCESSIBILITY TESTS ====================
-
-describe('Accessibility Tests', () => {
-  test('should have proper ARIA labels', () => {
-    render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-    )
-
-    const buttons = screen.getAllByRole('button')
-    expect(buttons.length).toBeGreaterThan(0)
-  })
-
-  test('should support keyboard navigation', async () => {
-    render(
-      <Industrial3DVisualizerEnhancedV11 data={mockDataPoints} />
-    )
-
-    const selector = screen.getByDisplayValue('Température (K)')
-    selector.focus()
-
-    await waitFor(() => {
-      expect(selector).toHaveFocus()
-    })
-  })
-})
+import React from "react";
+import { render, screen } from "@testing-library/react";
+import "@testing-library/jest-dom";
+import { describe, expect, test } from "vitest";
+import { parseCfdMetadata } from "@/lib/cfd/cfd-contract";
+import { normalizeCfdDataset, interpolateFrame } from "@/lib/cfd/cfd-normalize";
+import { validateCfdDataset, validateCfdBufferDataset } from "@/lib/cfd/cfd-validation";
+import { loadCertifiedCfdDataset } from "@/lib/cfd/cfd-repository";
+import { buildCfdSurfaceMesh } from "@/components/cfd/CFDMeshRenderer";
+import { extractCfdIsoSurface } from "@/components/cfd/CFDIsoSurface";
+import CFDViewer from "@/components/cfd/CFDViewer";
+
+const HASH = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+function makeDataset() {
+  const points0 = [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1];
+  const points1 = [0, 0, 0, 1, 0, 0, 0, 1.1, 0, 0, 0, 1];
+  const fields = (temperature: number[]) => [
+    { name: "temperature", association: "point" as const, components: 1, values: temperature, unit: "K", quantity: "temperature" },
+    { name: "pressure", association: "point" as const, components: 1, values: [100000, 101000, 102000, 103000], unit: "Pa", quantity: "pressure" },
+  ];
+  return {
+    contractVersion: "cfd-volume.v1" as const,
+    meshRevision: "mesh-test-revision-1",
+    coordinateSystem: "cartesian",
+    lengthUnit: "m",
+    pointCount: 4,
+    cellCount: 1,
+    frames: [
+      { frameId: "t0", time: 0, points: points0, cells: [0, 1, 2, 3], offsets: [0, 4], cellTypes: [10], fields: fields([20, 21, 22, 23]) },
+      { frameId: "t1", time: 1, points: points1, cells: [0, 1, 2, 3], offsets: [0, 4], cellTypes: [10], fields: fields([21, 22, 23, 24]) },
+    ],
+    boundarySets: [{ name: "wall", association: "point" as const, indices: [0, 1, 2, 3] }],
+    provenance: { solver: "test-solver", solverVersion: "1.0.0", sourceUri: "https://example.invalid/cfd.vtu", sourceHash: HASH, calculationId: "calculation-test-1", generatedAt: "2026-08-23T00:00:00.000Z" },
+    residuals: { mass: 1e-8, momentum: 2e-8, energy: 3e-8, norm: "L2" as const, computedBy: "test-solver", computedAt: "2026-08-23T00:00:00.000Z" },
+    references: [{ id: "reference-1", title: "Reference CFD case", uri: "https://example.invalid/reference", variables: ["temperature", "pressure"], comparisonHash: HASH }],
+    evidence: { meshGeometryAndTopology: true, fieldsAndUnits: true, namedBoundaries: true, solverProvenance: true, solverResiduals: true, referenceComparison: true, immutableHashes: true, calculatedTransientStates: true },
+  };
+}
+
+describe("CFD contract and validation", () => {
+  test("accepts a complete versioned dataset and exposes all eight evidence criteria", () => {
+    const dataset = parseCfdMetadata(makeDataset());
+    const report = validateCfdDataset(dataset);
+    expect(report.valid).toBe(true);
+    expect(report.canClaimValidated).toBe(true);
+    expect(Object.keys(dataset.evidence)).toHaveLength(8);
+  });
+
+  test("rejects a dataset with missing units and invalid topology", () => {
+    const invalid = makeDataset();
+    invalid.frames[0].fields[0].unit = "";
+    invalid.frames[0].cells = [0, 1, 2, 9];
+    expect(() => parseCfdMetadata(invalid)).toThrow();
+  });
+
+  test("rejects identical transient frames instead of enabling animation", () => {
+    const staticDataset = makeDataset();
+    staticDataset.frames[1].points = [...staticDataset.frames[0].points];
+    const report = validateCfdDataset(parseCfdMetadata(staticDataset));
+    expect(report.valid).toBe(false);
+    expect(report.hasRealTransientStates).toBe(false);
+    expect(report.issues.some((item) => item.code === "TIME_SERIES_INVALID")).toBe(true);
+  });
+});
+
+describe("CFD repository and buffers", () => {
+  test("loads only cfd_dataset and normalizes typed buffers", () => {
+    const loaded = loadCertifiedCfdDataset({ results: { cfd_dataset: makeDataset() } });
+    expect(loaded.report?.canClaimValidated).toBe(true);
+    expect(loaded.buffers?.frames[0].points).toBeInstanceOf(Float32Array);
+    expect(loaded.buffers?.frames[0].cells).toBeInstanceOf(Uint32Array);
+    expect(validateCfdBufferDataset(loaded.buffers!).valid).toBe(true);
+  });
+
+  test("does not accept legacy points or pinn_predictions as CFD data", () => {
+    const loaded = loadCertifiedCfdDataset({ results: { points: [{ x: 0, y: 0, z: 0 }], pinn_predictions: [] } });
+    expect(loaded.dataset).toBeNull();
+    expect(loaded.buffers).toBeNull();
+  });
+
+  test("interpolates only frames with unchanged topology", () => {
+    const buffers = normalizeCfdDataset(parseCfdMetadata(makeDataset()));
+    const interpolated = interpolateFrame(buffers.frames[0], buffers.frames[1], 0.5);
+    expect(interpolated.time).toBe(0.5);
+    expect(interpolated.points[7]).toBeCloseTo(1.05);
+    expect(interpolated.cells).toBe(buffers.frames[0].cells);
+  });
+});
+
+describe("Connected mesh and iso-surface", () => {
+  test("triangulates the external face of a persisted tetrahedral cell", () => {
+    const buffers = normalizeCfdDataset(parseCfdMetadata(makeDataset()));
+    const mesh = buildCfdSurfaceMesh({ frame: buffers.frames[0] });
+    const position = mesh.geometry.getAttribute("position");
+    expect(position.count).toBe(12);
+    mesh.geometry.dispose();
+    (mesh.material as import("three").Material).dispose();
+  });
+
+  test("extracts an iso-surface from the scalar field and cell connectivity", () => {
+    const buffers = normalizeCfdDataset(parseCfdMetadata(makeDataset()));
+    const surface = extractCfdIsoSurface(buffers.frames[0], "temperature", 21.5);
+    const positions = surface.geometry.getAttribute("position");
+    expect(positions.count).toBeGreaterThan(0);
+    expect(positions.count % 3).toBe(0);
+    surface.geometry.dispose();
+    (surface.material as import("three").Material).dispose();
+  });
+
+  test("rejects an unavailable scalar field instead of generating geometry", () => {
+    const buffers = normalizeCfdDataset(parseCfdMetadata(makeDataset()));
+    expect(() => extractCfdIsoSurface(buffers.frames[0], "density", 1)).toThrow("CFD_ISO_POINT_SCALAR_REQUIRED");
+  });
+});
+
+describe("CFD viewer states", () => {
+  test("shows an explicit missing-data state", () => {
+    render(<CFDViewer dataset={null} />);
+    expect(document.querySelector('[data-cfd-state="missing"]')).toBeInTheDocument();
+  });
+
+  test("shows an explicit rejected-data state", () => {
+    const buffers = normalizeCfdDataset(parseCfdMetadata(makeDataset()));
+    const invalid = { ...buffers, pointCount: 99 };
+    render(<CFDViewer dataset={invalid} />);
+    expect(document.querySelector('[data-cfd-state="rejected"]')).toBeInTheDocument();
+  });
+});

@@ -141,7 +141,6 @@ export default function Industrial3DVisualizerEnhancedV11({
   const [renderMode, setRenderMode] = useState<"points" | "surface" | "danger">("points");
   const [dangerThreshold, setDangerThreshold] = useState<number | null>(null);
   const [showBubbles, setShowBubbles] = useState(true);
-  const [showPiezometers, setShowPiezometers] = useState(false);
   const [showVelocityVectors, setShowVelocityVectors] = useState(false);
   const [cadAlignment, setCadAlignment] = useState<{ status: "not_loaded" | "aligned" | "mismatch" | "unavailable"; message: string }>({
     status: geometryAssetUrl ? "not_loaded" : "unavailable",
@@ -172,15 +171,23 @@ export default function Industrial3DVisualizerEnhancedV11({
   const transientFrames = transientSeries?.time_series ?? [];
   const hasUsableTransientFrames = useMemo(() => {
     if (!transientSeries?.is_true_transient || transientFrames.length < 2 || !volumetricData.length) return false;
-    return transientFrames.every((frame) =>
+    const validFrames = transientFrames.every((frame) =>
       Array.isArray(frame.points)
       && frame.points.length === volumetricData.length
-      && frame.points.every((point) => 
-        finiteValue(point.x) !== undefined && 
-        finiteValue(point.y) !== undefined && 
-        finiteValue(point.z) !== undefined
-      ),
+      && frame.points.every((point) => (
+        finiteValue(point.x) !== undefined
+        && finiteValue(point.y) !== undefined
+        && finiteValue(point.z) !== undefined
+      )),
     );
+    if (!validFrames) return false;
+    const firstFrame = transientFrames[0].points;
+    return transientFrames.slice(1).some((frame) => frame.points.some((point, index) => {
+      const firstPoint = firstFrame[index];
+      return Math.abs(point.x - firstPoint.x) > 1e-12
+        || Math.abs(point.y - firstPoint.y) > 1e-12
+        || Math.abs(point.z - firstPoint.z) > 1e-12;
+    }));
   }, [transientFrames, transientSeries?.is_true_transient, volumetricData.length]);
   const transientThreshold = useMemo(() => {
     const raw = (metadata?.transient?.layer_contract as Record<string, unknown> | undefined)?.danger_temperature_k
@@ -635,36 +642,6 @@ export default function Industrial3DVisualizerEnhancedV11({
     bubbleMesh.visible = false;
     scene.add(bubbleMesh);
 
-    // --- PIEZOMETRIC TUBES (FLOW-3D Style) ---
-    const piezometerGroup = new THREE.Group();
-    piezometerGroup.visible = false;
-    scene.add(piezometerGroup);
-
-    const createPiezometer = (x: number, y: number, z: number, label: string) => {
-      const group = new THREE.Group();
-      // Tube transparent
-      const tubeGeom = new THREE.CylinderGeometry(0.02, 0.02, 1, 16);
-      const tubeMat = new THREE.MeshPhysicalMaterial({ transparent: true, opacity: 0.2, color: 0xffffff, roughness: 0, transmission: 0.5 });
-      const tube = new THREE.Mesh(tubeGeom, tubeMat);
-      group.add(tube);
-      // Liquide interne (Head)
-      const liquidGeom = new THREE.CylinderGeometry(0.018, 0.018, 1, 16);
-      const liquidMat = new THREE.MeshBasicMaterial({ color: 0x3b4cc0 });
-      const liquid = new THREE.Mesh(liquidGeom, liquidMat);
-      liquid.name = "liquid";
-      group.add(liquid);
-      group.position.set(x, y, z);
-      piezometerGroup.add(group);
-      return group;
-    };
-
-    // Placer des piézomètres aux extrémités et au milieu pour les scénarios hydrauliques
-    if (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING" || scenarioType === "LH2_LARGE_SCALE_STORAGE_1250M3") {
-      createPiezometer(-displayTransform.displaySpanX * 0.4, 0.5, 0, "Inlet");
-      createPiezometer(0, 0.5, 0, "Mid");
-      createPiezometer(displayTransform.displaySpanX * 0.4, 0.5, 0, "Outlet");
-    }
-
     // --- VELOCITY VECTORS (Arrows) ---
     const velocityArrows = new THREE.Group();
     velocityArrows.visible = false;
@@ -767,20 +744,6 @@ export default function Industrial3DVisualizerEnhancedV11({
       bubbleMesh.instanceMatrix.needsUpdate = true;
       if (bubbleMesh.instanceColor) bubbleMesh.instanceColor.needsUpdate = true;
 
-      // Update Piezometers
-      piezometerGroup.visible = showPiezometers && (scenarioType === "HEAVY_DUTY_HYDROGEN_REFUELING" || scenarioType === "LH2_LARGE_SCALE_STORAGE_1250M3");
-      piezometerGroup.children.forEach((p: any, i) => {
-        const liquid = p.getObjectByName("liquid");
-        if (liquid) {
-          // Simuler une variation de head basée sur la pression moyenne locale
-          const sampleIdx = Math.floor((i / piezometerGroup.children.length) * volumetricData.length);
-          const press = getInterpolatedValue(sampleIdx, clampedPhase) ?? stats.minV;
-          const head = 0.2 + (press / stats.maxV) * 0.6;
-          liquid.scale.set(1, head, 1);
-          liquid.position.y = -0.5 + head / 2;
-        }
-      });
-
       // Update Velocity Arrows
       velocityArrows.visible = showVelocityVectors;
       if (showVelocityVectors) {
@@ -814,6 +777,10 @@ export default function Industrial3DVisualizerEnhancedV11({
           // L'unité est une propriété de l'actif canonique, pas une estimation de
           // l'interface. La géométrie du champ reste en mètres SI.
           const cadUnitScale = getScenarioCadUnitScale(scenarioType);
+          if (cadUnitScale == null) {
+            console.error('CAD asset rejected: no verified unit scale in the CFD contract.');
+            return;
+          }
           // Le GLB DN50 mesure son axe longitudinal sur Z alors que la série de
           // points persistée utilise Y. Cette rotation est une convention de
           // repère documentée, pas une déformation du modèle.

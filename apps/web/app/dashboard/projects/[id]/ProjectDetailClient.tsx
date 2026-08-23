@@ -9,13 +9,13 @@ import {
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import ScientificValidationWorkspace from '@/components/scientific-validation-workspace'
-import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
+import { resolveVisualizationScenario } from '@/lib/visualization-data'
 import { getScenarioDisplayName } from '@/types/simulation-scenarios'
-import { getScenarioCadAssetUrl } from '@/lib/cad-assets'
+import { loadCertifiedCfdDataset } from '@/lib/cfd/cfd-repository'
 
-const Industrial3DVisualizerEnhancedV11 = nextDynamic(
-  () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
-  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-[32px] border border-white/10 text-blue-500 animate-pulse font-black uppercase tracking-widest">Nexus Quantique...</div> }
+const CFDViewer = nextDynamic(
+  () => import('@/components/cfd/CFDViewer'),
+  { ssr: false, loading: () => <div className="h-[600px] flex items-center justify-center bg-slate-950 rounded-[32px] border border-white/10 text-blue-500 font-black uppercase tracking-widest">Chargement du maillage CFD...</div> }
 )
 
 const SweetSpotAnalysisPanel = nextDynamic(
@@ -86,7 +86,7 @@ export default function ProjectDetailClient({ id, project }: any) {
             : {}
           if (resultRow) {
             const persistedFields: Record<string, string> = {
-              pinn_predictions: 'predictions3d',
+              cfd_dataset: 'cfd_dataset',
               experimental_data: 'experimental_data',
               mesh: 'mesh',
               geometry: 'geometry',
@@ -108,12 +108,11 @@ export default function ProjectDetailClient({ id, project }: any) {
           const result = candidate.results ?? {}
           const status = String(result.validation_status ?? candidate.validation_status ?? '').toUpperCase()
           const evidence = result.certification_evidence ?? result.certificationEvidence
-          const points = result.predictions3d ?? result.pinn_predictions ?? result.points ?? (result.transient_series?.time_series?.[0]?.points)
-          const statusRank = status === 'VALIDATED' || status === 'PASSED' ? 3 : status === 'COMPLETED' ? 2 : 1
+          const hasContract = result.cfd_dataset !== null && result.cfd_dataset !== undefined
+          const statusRank = hasContract && (status === 'VALIDATED' || status === 'PASSED') ? 3 : hasContract ? 2 : 1
           const evidenceRank = evidence && typeof evidence === 'object' ? Object.values(evidence).filter(Boolean).length : 0
-          const pointRank = Array.isArray(points) ? Math.min(points.length, 1000000) : 0
           const timestamp = Date.parse(candidate.updated_at ?? candidate.created_at ?? '') || 0
-          return [statusRank, evidenceRank, pointRank, timestamp]
+          return [statusRank, evidenceRank, timestamp]
         }
         candidates.sort((a: any, b: any) => {
           const left = rankCandidate(a)
@@ -131,29 +130,23 @@ export default function ProjectDetailClient({ id, project }: any) {
 
   const results = latestAnalysis?.results || {}
   const scenarioType = resolveVisualizationScenario([latestAnalysis?.scenario_type, project?.scenario_type, project?.category, project?.name])
-  const visualizationPayload = useMemo(() => extractVisualizationPayload(latestAnalysis || {}, results), [latestAnalysis, results])
-  
-  // Seuls les points réellement persistés sont rendus ; aucune génération aléatoire côté interface.
-  const repairedPoints = visualizationPayload.points?.length > 0
-    ? visualizationPayload.points
-    : (Array.isArray(results?.pinn_predictions) ? results.pinn_predictions : (Array.isArray(results?.points) ? results.points : (Array.isArray(results?.predictions3d) ? results.predictions3d : [])))
-
+  const certifiedCfd = useMemo(() => loadCertifiedCfdDataset(latestAnalysis, results), [latestAnalysis, results])
   const residuals = chaosMode || leakAlertMode
-    ? { mass: 0.854, momentum: 1.22e-1, energy: 4.56 }
-    : (results?.residuals ?? {})
+      ? {}
+      : (results?.residuals ?? {})
   const validationStatus = chaosMode || leakAlertMode
     ? "VALIDATION_FAILED"
-    : (repairedPoints.length > 0 ? "VALIDATED" : (typeof results?.validation_status === 'string' ? results.validation_status.toUpperCase() : "UNVALIDATED"))
+    : (certifiedCfd.report?.canClaimValidated ? "VALIDATED" : "UNVALIDATED")
   const credibilityScore = chaosMode || leakAlertMode
-    ? 14.20
-    : (repairedPoints.length > 0 ? 98.75 : (typeof results?.credibility_score === 'number' ? results.credibility_score : null))
-  const persistedMetadata = visualizationPayload.metadata
+    ? null
+    : (typeof results?.credibility_score === 'number' ? results.credibility_score : null)
+  const persistedMetadata: Record<string, unknown> = {}
 
   const validationWorkspaceResults = useMemo(() => ({
     ...results,
     scenario_type: scenarioType,
     extracted_parameters: results?.extracted_parameters,
-    pinn_predictions: visualizationPayload.points,
+    pinn_predictions: [],
     credibility_score: credibilityScore,
     residuals,
     validation_status: validationStatus,
@@ -167,12 +160,10 @@ export default function ProjectDetailClient({ id, project }: any) {
       ? { residuals_passed: false, boundary_conditions_passed: false, conservation_passed: false, reference_comparison_passed: false, uncertainty_reported: false }
       : (results?.validation_checks ?? results?.validationChecks),
     artifact_hashes: results?.artifact_hashes,
-    mesh: persistedMetadata.mesh ?? results?.mesh,
-    fields: persistedMetadata.fields ?? results?.fields,
-  }), [scenarioType, visualizationPayload.points, persistedMetadata, residuals, chaosMode, leakAlertMode, credibilityScore, results, validationStatus])
+    cfd_dataset: certifiedCfd.dataset,
+  }), [scenarioType, persistedMetadata, residuals, chaosMode, leakAlertMode, credibilityScore, results, validationStatus, certifiedCfd.buffers])
 
   const projectDisplayName = getScenarioDisplayName(project?.scenario_type || project?.category || project?.name)
-  const geometryAssetUrl = getScenarioCadAssetUrl(scenarioType, [project?.name, project?.scenario_type, latestAnalysis?.scenario_type])
 
   return (
     <div className="flex min-h-screen bg-[#020617] text-white">
@@ -245,7 +236,7 @@ export default function ProjectDetailClient({ id, project }: any) {
 
                 <TabsContent value="volumetric" className="m-0 p-8">
                   <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 min-h-[760px]">
-                    <Industrial3DVisualizerEnhancedV11 data={repairedPoints} experimentalData={visualizationPayload.experimentalPoints} metadata={persistedMetadata} transientSeries={visualizationPayload.transientSeries} title={projectDisplayName || "LH2_INFRASTRUCTURE_INTEGRITY"} colorVariable="temperature" scenarioType={scenarioType} geometryAssetUrl={geometryAssetUrl} metrics={{ credibilityScore, residuals }} />
+                    <CFDViewer dataset={certifiedCfd.buffers} className="min-h-[600px]" />
                   </div>
                 </TabsContent>
 

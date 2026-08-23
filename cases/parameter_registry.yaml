@@ -1,0 +1,176 @@
+schema_version: "case-parameters.v1"
+registry_status: "INPUTS_REQUIRED"
+policy:
+  no_defaults: true
+  no_synthetic_validation: true
+  validated_requires_source_and_provenance: true
+  null_values_block_solver_run: true
+  null_values_block_g0_g5: true
+
+sources:
+  nist_srd_69:
+    title: "NIST Chemistry WebBook, SRD 69 — Thermophysical Properties of Fluid Systems"
+    uri: "https://webbook.nist.gov/chemistry/fluid/"
+    authority: "NIST"
+    use: "Hydrogen/parahydrogen thermophysical properties and unit-consistent reference tables"
+  nasa_zbot:
+    title: "NASA — Zero-Boil-Off Tank Experiments"
+    uri: "https://science.nasa.gov/science-research/science-enabling-technology/zero-boil-off-tank-experiments-to-enable-long-duration-space-exploration/"
+    authority: "NASA"
+    use: "Cryogenic tank self-pressurization, boiling, jet mixing, temperature, pressure and PIV comparison"
+  nrel_heavy_duty:
+    title: "OSTI/NREL — Assessment of Heavy-Duty Fueling Methods and Components"
+    uri: "https://www.osti.gov/biblio/3013239"
+    authority: "NREL/DOE"
+    use: "Heavy-duty hydrogen fueling methods, components and operating data"
+  altera_thermal:
+    title: "Altera — Thermal Design User Guide, Heat Sinks"
+    uri: "https://docs.altera.com/r/docs/814008/24.3/thermal-design-user-guide-agilextm-5-fpgas-and-socs/heat-sinks"
+    authority: "Altera"
+    use: "Device-specific thermal limits and heatsink design inputs"
+  usgs_hoek_brown:
+    title: "USGS — Defining the Hoek–Brown constant mi for volcanic lithologies"
+    uri: "https://pubs.usgs.gov/publication/70237589"
+    authority: "USGS"
+    use: "Rock-mass strength parameter provenance and Hoek–Brown context"
+
+cases:
+  LH2_LARGE_SCALE_STORAGE_1250M3:
+    scenario_type: "LH2_LARGE_SCALE_STORAGE_1250M3"
+    evidence_level: "NOT_VALIDATED"
+    geometry:
+      source_file: null
+      source_hash_sha256: null
+      format: null
+      units: null
+      mesh_artifact: null
+      mesh_hash_sha256: null
+      named_boundaries: []
+    physics:
+      model_scope: null
+      fluid_identity: null
+      phase_model: null
+      equation_of_state: null
+      initial_conditions: null
+      boundary_conditions: null
+      material_properties: null
+      source_refs: ["nist_srd_69", "nasa_zbot"]
+    solver:
+      name: null
+      version: null
+      commit: null
+      execution_id: null
+      result_artifact: null
+      result_hash_sha256: null
+      time_states: null
+    validation:
+      experimental_reference: null
+      residual_log: null
+      comparison_artifact: null
+      comparison_hash_sha256: null
+
+  HEAVY_DUTY_HYDROGEN_REFUELING:
+    scenario_type: "HEAVY_DUTY_HYDROGEN_REFUELING"
+    evidence_level: "NOT_VALIDATED"
+    geometry:
+      source_file: null
+      source_hash_sha256: null
+      format: null
+      units: null
+      mesh_artifact: null
+      mesh_hash_sha256: null
+      named_boundaries: []
+    physics:
+      model_scope: null
+      fluid_identity: null
+      phase_model: null
+      equation_of_state: null
+      initial_conditions: null
+      boundary_conditions: null
+      material_properties: null
+      source_refs: ["nrel_heavy_duty"]
+    solver:
+      name: null
+      version: null
+      commit: null
+      execution_id: null
+      result_artifact: null
+      result_hash_sha256: null
+      time_states: null
+    validation:
+      protocol_reference: null
+      experimental_reference: null
+      residual_log: null
+      comparison_artifact: null
+      comparison_hash_sha256: null
+
+  FPGA_HEATSINK:
+    scenario_type: "FPGA_HEATSINK"
+    evidence_level: "NOT_VALIDATED"
+    geometry:
+      source_file: null
+      source_hash_sha256: null
+      format: null
+      units: null
+      mesh_artifact: null
+      mesh_hash_sha256: null
+      named_boundaries: []
+    physics:
+      device_part_number: null
+      power_source: null
+      power_value_w: null
+      ambient_temperature_k: null
+      airflow_m_s: null
+      solid_materials: null
+      fluid_properties: null
+      boundary_conditions: null
+      source_refs: ["altera_thermal"]
+    solver:
+      name: null
+      version: null
+      commit: null
+      execution_id: null
+      result_artifact: null
+      result_hash_sha256: null
+      time_states: null
+    validation:
+      datasheet_reference: null
+      measured_temperature_artifact: null
+      residual_log: null
+      comparison_artifact: null
+      comparison_hash_sha256: null
+
+  DEEP_MINING_BLOCK:
+    scenario_type: "DEEP_MINING_BLOCK"
+    evidence_level: "NOT_VALIDATED"
+    geometry:
+      source_file: null
+      source_hash_sha256: null
+      format: null
+      units: null
+      mesh_artifact: null
+      mesh_hash_sha256: null
+      named_boundaries: []
+    physics:
+      site_or_benchmark_identity: null
+      depth_m: null
+      rock_lithology: null
+      density_kg_m3: null
+      elastic_parameters: null
+      strength_parameters: null
+      in_situ_stress_artifact: null
+      excavation_stages: null
+      source_refs: ["usgs_hoek_brown"]
+    solver:
+      name: null
+      version: null
+      commit: null
+      execution_id: null
+      result_artifact: null
+      result_hash_sha256: null
+      time_states: null
+    validation:
+      site_measurement_reference: null
+      residual_log: null
+      comparison_artifact: null
+      comparison_hash_sha256: null

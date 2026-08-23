@@ -7,15 +7,15 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { ArrowLeft, Activity } from 'lucide-react'
 
-const Industrial3DVisualizerEnhancedV11 = dynamic(
-  () => import('@/components/industrial-3d-visualizer-enhanced-v11'),
-  { ssr: false, loading: () => <div className="h-[600px] rounded-3xl border border-white/10 bg-slate-950 flex items-center justify-center text-cyan-400 font-mono text-xs uppercase tracking-widest">Initialisation de la visualisation CFD...</div> }
+const CFDViewer = dynamic(
+  () => import('@/components/cfd/CFDViewer'),
+  { ssr: false, loading: () => <div className="h-[600px] rounded-3xl border border-white/10 bg-slate-950 flex items-center justify-center text-cyan-400 font-mono text-xs uppercase tracking-widest">Chargement du maillage CFD...</div> }
 )
 import ScientificAuditCard from '@/components/scientific-audit-card'
 import ScientificSocialHub from '@/components/scientific-social-hub'
 import { format } from 'date-fns'
-import { extractVisualizationPayload, resolveVisualizationScenario } from '@/lib/visualization-data'
-import { getScenarioCadAssetUrl } from '@/lib/cad-assets'
+import { resolveVisualizationScenario } from '@/lib/visualization-data'
+import { loadCertifiedCfdDataset } from '@/lib/cfd/cfd-repository'
 
 interface AnalysisDetail {
   id: string
@@ -78,7 +78,7 @@ export default function AnalysisDetailPage() {
           if (resData) {
             if (resData.pinn_predictions) results.predictions3d = resData.pinn_predictions;
             if (resData.experimental_data) results.experimental_data = resData.experimental_data;
-            if (resData.transient_series) results.transient_series = resData.transient_series;
+            if (resData.cfd_dataset) results.cfd_dataset = resData.cfd_dataset;
             if (resData.metadata) results.metadata = resData.metadata;
             if (resData.mesh) results.mesh = resData.mesh;
             if (resData.geometry) results.geometry = resData.geometry;
@@ -158,14 +158,7 @@ export default function AnalysisDetailPage() {
     analysis.results?.extractedData,
     analysis.results?.extracted_parameters,
   ])
-  const visualizationPayload = extractVisualizationPayload(analysis)
-  const geometryAssetUrl = getScenarioCadAssetUrl(resolvedScenarioType, [
-    analysis.title,
-    analysis.scenario_type,
-    analysis.results?.scenario_type,
-    analysis.results?.scenarioType,
-    analysis.results?.extractedData?.scenario_type,
-  ])
+  const certifiedCfd = loadCertifiedCfdDataset(analysis, analysis.results)
 
   const auditData = {
     isPhysicallyCoherent: analysis.credibility_score > 50,
@@ -173,7 +166,8 @@ export default function AnalysisDetailPage() {
     credibility_score: analysis.credibility_score,
     anomalies: analysis.results?.anomalies || [],
     extractedData: analysis.results?.extractedData || {},
-    predictions3d: analysis.results?.predictions3d || [],
+    predictions3d: [],
+    cfdDataset: certifiedCfd.buffers,
     confidenceMetrics: analysis.results?.confidenceMetrics,
     assimilation: analysis.results?.assimilation,
     riskAssessment: analysis.results?.risk_assessment,
@@ -210,18 +204,10 @@ export default function AnalysisDetailPage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-black uppercase tracking-tight text-gray-900">Visualisation CFD</h2>
-          <span className="text-xs font-mono text-cyan-700">Surface B-Rep GLB issue d'Open CASCADE — colorbar liée au champ si le recouvrement spatial est validé</span>
+          <span className="text-xs font-mono text-cyan-700">Maillage CFD connecté uniquement si l’artefact versionné est présent et validé</span>
         </div>
         <div className="h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-900/50">
-          <Industrial3DVisualizerEnhancedV11
-            data={visualizationPayload.points}
-            experimentalData={visualizationPayload.experimentalPoints}
-            metadata={visualizationPayload.metadata}
-            transientSeries={visualizationPayload.transientSeries}
-            scenarioType={resolvedScenarioType}
-            geometryAssetUrl={geometryAssetUrl}
-            title={analysis.title}
-          />
+          <CFDViewer dataset={certifiedCfd.buffers} className="min-h-[600px]" />
         </div>
       </section>
 
