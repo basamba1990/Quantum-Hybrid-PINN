@@ -62,14 +62,14 @@ export const CfdReferenceSchema = z.object({
  * calculé à partir du nombre de points et aucun champ absent n’est complété.
  */
 export const CfdEvidenceSchema = z.object({
-  meshGeometryAndTopology: z.literal(true),
-  fieldsAndUnits: z.literal(true),
-  namedBoundaries: z.literal(true),
-  solverProvenance: z.literal(true),
-  solverResiduals: z.literal(true),
-  referenceComparison: z.literal(true),
-  immutableHashes: z.literal(true),
-  calculatedTransientStates: z.literal(true),
+  meshGeometryAndTopology: z.boolean(),
+  fieldsAndUnits: z.boolean(),
+  namedBoundaries: z.boolean(),
+  solverProvenance: z.boolean(),
+  solverResiduals: z.boolean(),
+  referenceComparison: z.boolean(),
+  immutableHashes: z.boolean(),
+  calculatedTransientStates: z.boolean(),
 });
 
 export const CfdVolumeDatasetSchema = z.object({
