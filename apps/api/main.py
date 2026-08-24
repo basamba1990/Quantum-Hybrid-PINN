@@ -12,6 +12,8 @@ from datetime import datetime
 from supabase import create_client, Client
 
 # Global instances (Lazy Loaded)
+API_VERSION = "8.0.13"
+
 current_model_v8 = None
 risk_manager = None
 fno_orchestrator = None
@@ -63,7 +65,7 @@ def clean_json(obj):
 
 app = FastAPI(
     title="Quantum-Hybrid PINN API (V8) - Memory Optimized",
-    version="8.0.13",
+    version=API_VERSION,
     description="API Industrielle optimisée pour Render Free (RAM < 512MB)."
 )
 
@@ -247,13 +249,15 @@ async def root():
     return clean_json({
         "message": "Quantum-Hybrid PINN API (V8) is running",
         "status": "operational",
-        "version": "8.0.12",
+        "version": API_VERSION,
         "device": str(_get_device()),
         "endpoints": {
-            "core": ["/health", "/jobs", "/jobs/{job_id}"],
-            "hybrid": ["/hybrid/run-simulation", "/v2/validate-3d", "/v2/assimilate"],
-            "analysis_v2": ["/v2/submit-analysis", "/v2/analysis-status/{job_id}", "/v2/analysis-result/{job_id}"],
-            "pgd_v2": ["/v2/hybrid/submit-hybrid-simulation", "/v2/hybrid/hybrid-status/{job_id}", "/v2/hybrid/hybrid-result/{job_id}", "/v2/hybrid/upload-mesh"],
+            "core": ["/", "/health", "/jobs/{job_id}"],
+            "cfd": ["/v2/cfd/import", "/v2/cfd/{analysis_id}"],
+            "cao": ["/v2/cao/import", "/v2/cao/mesh", "/v2/cao/contract", "/v2/cao/gates", "/v2/cao/export", "/v2/cao/publish"],
+            "analysis_v2": ["/v2/submit-analysis", "/v2/analysis-status/{job_id}", "/v2/analysis-result/{job_id}", "/v2/analysis/boundary-layer", "/v2/analysis/residuals-map"],
+            "hybrid": ["/hybrid/run-simulation", "/v2/validate-3d", "/v2/predict-batch", "/v2/assimilate"],
+            "hybrid_v2": ["/v2/hybrid/submit-hybrid-simulation", "/v2/hybrid/hybrid-status/{job_id}", "/v2/hybrid/hybrid-result/{job_id}", "/v2/hybrid/upload-mesh"],
             "export_v2": ["/v2/export/predictions/csv", "/v2/export/predictions/json", "/v2/export/residuals/csv", "/v2/export/audit/csv", "/v2/export/simulation/json", "/v2/export/simulation/csv", "/v2/export/validation-report/json", "/v2/export/formats"]
         }
     })
