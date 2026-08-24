@@ -6,14 +6,12 @@ Provides REST endpoints for training, inference, and data assimilation with 3D P
 import sys
 import os
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Optional, Any
 import torch
 import numpy as np # Ajouté pour np.linspace, etc.
 from datetime import datetime
-import uvicorn
 
 # ============================================================================
 # FIX FOR RENDER: Add current directory to Python path
@@ -33,21 +31,10 @@ from fno_3d_navier_stokes import PINO3DNavierStokes
 from advanced_physics_analysis import AdvancedPhysicsAnalysis
 from pvt_physics_engine import PVTPhysicsEngine
 
-# Initialize FastAPI app
-app = FastAPI(
-    title="Quantum-Hybrid PINN API (V8)",
-    description="Physics-Informed Neural Network for Hydrogen Storage Analysis with 3D Navier-Stokes and Deep Kalman Filter",
-    version="2.0.0",
-)
-
-# CORS middleware - FIXED: Added missing comma
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# Routeur versionné inclus par l’unique application FastAPI de main.py.
+router = APIRouter(
+    prefix="/v2",
+    tags=["hydrogen-v2"],
 )
 
 # Global model storage
@@ -190,20 +177,13 @@ class DeriveFieldsResponse(BaseModel):
 # Health Check
 # ============================================================================
 
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "service": "Quantum-Hybrid PINN API (V8)",
-        "version": "2.0.0"
-    }
+# Le health check canonique est défini exclusivement dans main.py.
 
 # ============================================================================
 # V1 Endpoints
 # ============================================================================
 
-@app.post("/model/initialize")
+@router.post("/legacy/model/initialize", include_in_schema=False)
 async def initialize_model(request: InitializeRequest):
     global current_model
     try:
@@ -219,7 +199,7 @@ async def initialize_model(request: InitializeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Initialization error: {str(e)}")
 
-@app.post("/model/train")
+@router.post("/legacy/model/train", include_in_schema=False)
 async def train_model(request: TrainRequest):
     global current_model
     try:
@@ -248,7 +228,7 @@ async def train_model(request: TrainRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Training error: {str(e)}")
 
-@app.post("/predict", response_model=PredictionResponse)
+@router.post("/legacy/predict", response_model=PredictionResponse, include_in_schema=False)
 async def predict(request: PredictionRequest):
     global current_model
     try:
@@ -266,7 +246,7 @@ async def predict(request: PredictionRequest):
 # V2 Endpoints
 # ============================================================================
 
-@app.post("/v2/model/initialize")
+@router.post("/model/initialize")
 async def initialize_model_v8(request: InitializeRequestV8):
     global current_model_v8
     try:
@@ -291,7 +271,7 @@ async def initialize_model_v8(request: InitializeRequestV8):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Initialization error V8: {str(e)}")
 
-@app.post("/v2/model/train")
+@router.post("/model/train")
 async def train_model_v8(request: TrainRequestV8):
     global current_model_v8
     try:
@@ -317,7 +297,7 @@ async def train_model_v8(request: TrainRequestV8):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Training error V8: {str(e)}")
 
-@app.post("/v2/validate-3d", response_model=PredictionResponseV8)
+@router.post("/validate-3d", response_model=PredictionResponseV8)
 async def validate_3d(request: PredictionRequestV8):
     global current_model_v8
     try:
@@ -359,7 +339,7 @@ async def validate_3d(request: PredictionRequestV8):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"3D Validation error: {str(e)}")
 
-@app.post("/v2/predict-batch")
+@router.post("/predict-batch")
 async def predict_batch_v8(request: BatchPredictionRequestV8):
     global current_model_v8
     try:
@@ -381,7 +361,7 @@ async def predict_batch_v8(request: BatchPredictionRequestV8):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Batch prediction error: {str(e)}")
 
-@app.post("/v2/assimilate", response_model=AssimilationResponseV8)
+@router.post("/assimilate", response_model=AssimilationResponseV8)
 async def assimilate_data(request: AssimilationRequestV8):
     global current_model_v8
     try:
@@ -399,7 +379,7 @@ async def assimilate_data(request: AssimilationRequestV8):
     # Advanced Analysis Endpoints
     # ============================================================================
 
-    @app.post("/v2/analysis/derive-fields", response_model=DeriveFieldsResponse)
+    @router.post("/analysis/derive-fields", response_model=DeriveFieldsResponse)
     async def derive_fields_endpoint(request: DeriveFieldsRequest):
         global analysis_service
         try:
@@ -431,7 +411,7 @@ async def assimilate_data(request: AssimilationRequestV8):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error deriving fields: {str(e)}")
 
-    @app.post("/v2/analysis/turbulence-spectra")
+    @router.post("/analysis/turbulence-spectra")
     async def get_turbulence_spectra(request: TurbulenceSpectraRequest):
         global current_model_v8, analysis_service
         try:
@@ -470,7 +450,7 @@ async def assimilate_data(request: AssimilationRequestV8):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Turbulence analysis error: {str(e)}")
 
-@app.post("/v2/analysis/boundary-layer")
+@router.post("/analysis/boundary-layer")
 async def get_boundary_layer(request: BoundaryLayerRequest):
     global current_model_v8
     try:
@@ -508,7 +488,7 @@ async def get_boundary_layer(request: BoundaryLayerRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Boundary layer analysis error: {str(e)}")
 
-@app.post("/v2/analysis/residuals-map")
+@router.post("/analysis/residuals-map")
 async def get_residuals_map(request: ResidualMapRequest):
     global current_model_v8
     try:
@@ -560,23 +540,4 @@ async def get_residuals_map(request: ResidualMapRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Residual map error: {str(e)}")
 
-# ============================================================================
-# Main Entry Point
-# ============================================================================
-
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
-    host = os.getenv("HOST", "0.0.0.0")
-    reload = os.getenv("RELOAD", "false").lower() == "true"
-
-    print(f"Starting Quantum-Hybrid PINN API (V8) on {host}:{port}")
-    print(f"Swagger UI: http://{host}:{port}/docs")
-    print(f"ReDoc: http://{host}:{port}/redoc")
-
-    uvicorn.run(
-        app,
-        host=host,
-        port=port,
-        reload=reload,
-        log_level="info",
-    )
+# Ce module expose uniquement `router`; le serveur est lancé exclusivement par main.py.

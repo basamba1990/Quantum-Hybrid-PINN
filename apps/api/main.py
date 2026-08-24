@@ -35,21 +35,12 @@ from analysis_processor import router as analysis_router, init_processor
 from pgd_pinn_api import router as pgd_pinn_router
 from export_router import router as export_router
 from cfd_import_router import router as cfd_import_router
+from hydrogen_api_v2 import router as hydrogen_v2_router
 
 # Sweet Spot Analyzer — Lazy import (Industrial Grade Stability Analysis)
 def _get_sweet_spot_analyzer():
     from sweet_spot_analyzer import run_sweet_spot_analysis as _ssa
     return _ssa
-
-# IMPORT V2 APP LAZILY to avoid blocking port binding
-# This prevents Render timeout when heavy modules take too long to import
-hydrogen_api_v2_app = None
-def _import_hydrogen_api_v2():
-    global hydrogen_api_v2_app
-    if hydrogen_api_v2_app is None:
-        from hydrogen_api_v2 import app as v2
-        hydrogen_api_v2_app = v2
-    return hydrogen_api_v2_app
 
 def clean_float(value: float, fallback: float = 0.0) -> float:
     if value is None or not np.isfinite(value):
@@ -101,6 +92,7 @@ app.include_router(analysis_router)
 app.include_router(pgd_pinn_router)
 app.include_router(export_router)
 app.include_router(cfd_import_router)
+app.include_router(hydrogen_v2_router)
 
 # Lazy import du pipeline CAO industriel (volets 1–9) pour ne pas bloquer
 # le démarrage : les portes G0–G5 restent évaluées au runtime.
@@ -140,7 +132,7 @@ SUPABASE_MODEL_PATH = os.getenv("SUPABASE_MODEL_PATH", "pinn_model.pt")
 @app.on_event("startup")
 async def startup_event():
     """Import heavy modules AFTER port is bound to prevent Render timeout."""
-    global hydrogen_api_v2_app, HydrogenPINNTFCV8, GeometryHandler, \
+    global HydrogenPINNTFCV8, GeometryHandler, \
            DeepKalmanFilter, CFDValidationService, T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX, \
            IndustrialRiskManager
     try:
@@ -166,15 +158,6 @@ async def startup_event():
         Z_MIN = _ZMIN
         Z_MAX = _ZMAX
         IndustrialRiskManager = _IRM
-        
-        # Mount V2 app
-        v2_app = _import_hydrogen_api_v2()
-        # The v2_app already has /v2 prefixes in its routes, so we mount at root
-        # or we should strip the prefixes from v2_app. 
-        # Given the frontend calls /v2/analysis, and v2_app has /v2/analysis, 
-        # mounting at / works better.
-        app.mount("/", v2_app)
-        print("✅ V2 API mounted successfully")
         
         # Initialize Supabase
         SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ivhxnaxhgfbiqlhgfkik.supabase.co")
@@ -258,27 +241,6 @@ class SimulationResponse(BaseModel):
     status: str
     message: str
 
-class PredictionRequestV8(BaseModel):
-    time: Optional[float] = 0.0
-    x: Optional[float] = 0.0
-    y: Optional[float] = 0.0
-    z: Optional[float] = 0.0
-    scenario_type: Optional[str] = "H2_PIPELINE"
-    fluid_type: Optional[str] = "H2"
-    n_points: Optional[int] = 10
-
-class PredictionResponseV8(BaseModel):
-    pressure: float
-    velocity_u: float
-    velocity_v: float
-    velocity_w: float
-    temperature: float
-    density: float
-    credibility_score: Optional[float] = 100.0
-    residuals: Optional[Dict[str, float]] = None
-    predictions3d: Optional[List[Dict]] = None
-    timestamp: str
-
 # ==================== ENDPOINTS ====================
 @app.get("/")
 async def root():
@@ -306,53 +268,6 @@ async def get_job_status(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found in memory (Trimmed or Expired)")
     return clean_json(job)
-
-@app.post("/v2/validate-3d", response_model=PredictionResponseV8)
-async def validate_3d(request: PredictionRequestV8):
-    await ensure_pinn_loaded()
-    try:
-        t = request.time or 0.0
-        N_points = min(request.n_points or 10, 100)
-        
-        t_samples, x_samples, y_samples, z_samples = current_model_v8.geometry_handler.get_sampling_points(N_points)
-        t_samples = torch.full_like(x_samples, t)
-        
-        with torch.no_grad():
-            rho_s, u_s, v_s, w_s, T_s = current_model_v8.pinn_model(
-                t_samples.to(current_model_v8.device), 
-                x_samples.to(current_model_v8.device), 
-                y_samples.to(current_model_v8.device), 
-                z_samples.to(current_model_v8.device)
-            )
-            
-        predictions_list = []
-        for i in range(N_points):
-            rho_val = rho_s[i].view(1, 1)
-            T_val = T_s[i].view(1, 1)
-            p_val = get_eos(current_model_v8.fluid_type, rho_val, T_val)
-            
-            predictions_list.append({
-                "time": t, "x": float(x_samples[i].item()), "y": float(y_samples[i].item()), "z": float(z_samples[i].item()),
-                "pressure": float(p_val.item()), "velocity_u": float(u_s[i].item()),
-                "velocity_v": float(v_s[i].item()), "velocity_w": float(w_s[i].item()),
-                "temperature": float(T_s[i].item()), "density": float(rho_s[i].item()),
-                "velocity_magnitude": float(torch.sqrt(u_s[i]**2 + v_s[i]**2 + w_s[i]**2).item())
-            })
-
-        idx = N_points // 2
-        return PredictionResponseV8(
-            pressure=float(get_eos(current_model_v8.fluid_type, rho_s[idx].view(1,1), T_s[idx].view(1,1)).item()),
-            velocity_u=float(u_s[idx].item()),
-            velocity_v=float(v_s[idx].item()),
-            velocity_w=float(w_s[idx].item()),
-            temperature=float(T_s[idx].item()),
-            density=float(rho_s[idx].item()),
-            credibility_score=95.0,
-            predictions3d=clean_json(predictions_list),
-            timestamp=datetime.now().isoformat()
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/hybrid/run-simulation", response_model=SimulationResponse)
 async def run_hybrid_simulation_endpoint(request: SimulationRequest, background_tasks: BackgroundTasks):
