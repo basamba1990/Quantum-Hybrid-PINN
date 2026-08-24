@@ -5,8 +5,9 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const BACKEND_URL = (
-  process.env.H2_INFERENCE_API_URL ||
+  process.env.CFD_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
+  process.env.H2_INFERENCE_API_URL ||
   ''
 ).replace(/\/$/, '')
 
@@ -58,6 +59,12 @@ export async function POST(request: NextRequest) {
       signal: AbortSignal.timeout(180_000),
     })
     const payload = await response.json().catch(() => ({ error: 'Réponse backend non JSON.' }))
+    if (!response.ok && typeof payload === 'object' && payload !== null) {
+      return NextResponse.json(
+        { ...payload, upstreamStatus: response.status, upstreamPath: '/v2/cfd/import' },
+        { status: response.status },
+      )
+    }
     return NextResponse.json(payload, { status: response.status })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur réseau lors de l’import CFD.'
