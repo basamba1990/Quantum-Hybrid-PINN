@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
+import type { ChangeEvent } from 'react'
 import { UploadCloud, ShieldCheck, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -69,8 +69,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
     setSidecar(file)
   }
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function submit() {
     setError(null)
     setResult(null)
     if (!caseId.trim()) {
@@ -131,7 +130,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+    <div role="form" aria-label="Importer un artefact CFD" className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
       <div className="flex items-start gap-3">
         <UploadCloud className="mt-0.5 h-5 w-5 text-cyan-300" />
         <div>
@@ -160,13 +159,13 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
         <span>Un dataset synthétique reste `STRUCTURAL_TEST_UNVALIDATED`, même si son maillage est lisible.</span>
       </div>
 
-      <button type="submit" disabled={busy || !caseId.trim() || !vtuFiles.length || !sidecar} className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">
+      <button type="button" onClick={() => void submit()} disabled={busy || !caseId.trim() || !vtuFiles.length || !sidecar} className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">
         <UploadCloud className="h-4 w-4" />
         {busy ? 'Vérification et persistance…' : 'Importer et vérifier'}
       </button>
 
       {error && <div role="alert" className="flex items-start gap-2 border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-100"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
       {result && <div className="space-y-1 border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-100"><div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4" />Import confirmé — statut {result.status}</div><div>Analysis ID : <code>{result.analysisId}</code></div><div>Mesh revision : <code>{result.meshRevision}</code></div><div>{result.pointCount} points · {result.cellCount} cellules · {result.frameCount} frame(s)</div></div>}
-    </form>
+    </div>
   )
 }
