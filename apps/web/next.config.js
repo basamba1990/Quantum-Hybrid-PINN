@@ -53,16 +53,9 @@ const nextConfig = {
     ]
   },
 
-  // Redirects pour l'API
-  async redirects() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com'}/:path*`,
-        permanent: false
-      }
-    ]
-  }
+  // Aucun redirect global `/api/*` : les route handlers Next.js, notamment
+  // `/api/cfd/import`, doivent être exécutés localement et proxyfier eux-mêmes
+  // vers les routes backend versionnées.
 };
 
 export default nextConfig;
