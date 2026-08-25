@@ -26,7 +26,7 @@ export default function CFDViewer({ dataset, className }: CFDViewerProps) {
   const fields = useMemo(() => frame ? [...new Set([...frame.pointData.keys(), ...frame.cellData.keys()])] : [], [frame]);
   const scalarField = fieldName ? frame?.pointData.get(fieldName) ?? frame?.cellData.get(fieldName) : undefined;
   const times = useMemo(() => dataset?.frames.map((item) => item.time) ?? [], [dataset]);
-  const canAnimate = Boolean(report?.valid && report.hasRealTransientStates && dataset && dataset.frames.length > 1);
+  const canAnimate = Boolean(report?.canRender && report.hasRealTransientStates && dataset && dataset.frames.length > 1);
 
   useEffect(() => {
     if (!fieldName && fields.length) setFieldName(fields[0]);
@@ -50,7 +50,7 @@ export default function CFDViewer({ dataset, className }: CFDViewerProps) {
   }, [canAnimate, dataset, playing, time, times]);
 
   useEffect(() => {
-    if (!canvasRef.current || !frame || !report?.valid) return;
+    if (!canvasRef.current || !frame || !report?.canRender) return;
     sceneRef.current?.dispose();
     try {
       const handle = createCfdScene(canvasRef.current, frame, fieldName, isoValue);
@@ -63,10 +63,10 @@ export default function CFDViewer({ dataset, className }: CFDViewerProps) {
       sceneRef.current = null;
       return undefined;
     }
-  }, [frame, fieldName, isoValue, report?.valid]);
+  }, [frame, fieldName, isoValue, report?.canRender]);
 
   if (!dataset) return <div className={className} data-cfd-state="missing">Maillage CFD indisponible : aucun artefact réel chargé.</div>;
-  if (!report?.valid) return <div className={className} data-cfd-state="rejected">Dataset CFD rejeté : topologie, champs ou preuves incomplets.</div>;
+  if (!report?.canRender) return <div className={className} data-cfd-state="rejected">Dataset CFD rejeté : topologie ou champs incompatibles avec le rendu.</div>;
 
   return (
     <section className={className} data-cfd-viewer="versioned">
