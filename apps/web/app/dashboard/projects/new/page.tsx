@@ -345,7 +345,7 @@ export default function NewProjectPage() {
             onImported={(result) => {
               const importedProjectId = result.projectId ?? cfdProjectId
               if (result.analysisId && importedProjectId) {
-                router.push(`/dashboard/projects/${importedProjectId}`)
+                router.push(`/dashboard/projects/${importedProjectId}?cfdAnalysisId=${encodeURIComponent(result.analysisId)}`)
                 router.refresh()
               }
             }}

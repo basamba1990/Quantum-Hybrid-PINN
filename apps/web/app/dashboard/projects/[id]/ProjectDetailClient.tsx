@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import nextDynamic from 'next/dynamic'
@@ -34,6 +35,8 @@ export default function ProjectDetailClient({ id, project }: any) {
   const [deleting, setDeleting] = useState(false)
   const [downloadTrigger, setDownloadTrigger] = useState(0)
   const supabase = useMemo(() => createClient(), [])
+  const searchParams = useSearchParams()
+  const requestedCfdAnalysisId = searchParams.get('cfdAnalysisId')
 
   // --- MODES DE DÉMONSTRATION (POUR LA SOUTENANCE) ---
   const [chaosMode, setChaosMode] = useState(false)
@@ -58,6 +61,23 @@ export default function ProjectDetailClient({ id, project }: any) {
     const fetchData = async () => {
       try {
         setLoading(true)
+        let explicitCfd: any | null = null
+        if (requestedCfdAnalysisId) {
+          const cfdResponse = await fetch(`/api/cfd/${encodeURIComponent(requestedCfdAnalysisId)}`, { credentials: 'include', cache: 'no-store' })
+          const cfdPayload = await cfdResponse.json().catch(() => null)
+          if (cfdResponse.ok && cfdPayload?.dataset) {
+            explicitCfd = {
+              analysis_id: cfdPayload.analysisId,
+              project_id: id,
+              created_at: new Date().toISOString(),
+              status: cfdPayload.status,
+              dataset: cfdPayload.dataset,
+              artifact_manifest: cfdPayload.artifactManifest,
+            }
+          } else if (cfdResponse.status !== 404) {
+            console.warn('CFD dataset explicit loading failed:', cfdPayload)
+          }
+        }
         const { data: analysisRows, error: anaError } = await supabase
           .from('analyses')
           .select('*')
@@ -73,7 +93,7 @@ export default function ProjectDetailClient({ id, project }: any) {
         if (anaError) console.error("Supabase Analyses Error:", anaError)
         if (cfdError) console.error("Supabase CFD Dataset Error:", cfdError)
         console.log("Fetched Analyses Count:", analysisRows?.length || 0)
-        const latestCfd = cfdRows?.[0]
+        const latestCfd = explicitCfd ?? cfdRows?.[0]
         if (!analysisRows?.length) {
           if (latestCfd?.dataset) {
             setLatestAnalysis({
@@ -168,7 +188,7 @@ export default function ProjectDetailClient({ id, project }: any) {
       } catch (err) { console.error(err) } finally { setLoading(false) }
     }
     fetchData()
-  }, [id, supabase])
+  }, [id, supabase, requestedCfdAnalysisId])
 
   const results = latestAnalysis?.results || {}
   const scenarioType = resolveVisualizationScenario([latestAnalysis?.scenario_type, project?.scenario_type, project?.category, project?.name])
