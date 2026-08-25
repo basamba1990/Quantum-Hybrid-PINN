@@ -23,6 +23,8 @@ import numpy as np
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from supabase import Client, create_client
 
+from cfd_gate_service import evaluate_cfd_gates
+
 try:
     import meshio
 except ImportError as exc:  # pragma: no cover - configuration error
@@ -398,6 +400,21 @@ async def import_cfd_dataset(
             "frames": {name: _sha256(payload) for name, payload in sorted(uploaded.items())},
         },
     }
+
+
+@router.get("/{analysis_id}/gates")
+def get_cfd_gates(analysis_id: str, _auth: None = Depends(require_cfd_import_auth)) -> Dict[str, Any]:
+    """Expose the server-authoritative G0-G5 matrix for one persisted CFD dataset."""
+    try:
+        response = _supabase().table("cfd_datasets").select("analysis_id,status,dataset,artifact_manifest").eq("analysis_id", analysis_id).limit(1).execute()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Lecture cfd_datasets échouée: {exc}") from exc
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Dataset CFD absent.")
+    row = response.data[0]
+    report = evaluate_cfd_gates(row.get("dataset") or {}, row.get("artifact_manifest") or {})
+    report.update({"analysisId": analysis_id, "persistedStatus": row.get("status")})
+    return report
 
 
 @router.get("/{analysis_id}")
