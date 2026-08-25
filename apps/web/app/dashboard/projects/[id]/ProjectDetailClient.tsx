@@ -31,6 +31,7 @@ const PlotlyChart = nextDynamic(
 
 export default function ProjectDetailClient({ id, project }: any) {
   const [latestAnalysis, setLatestAnalysis] = useState<any | null>(null)
+  const [explicitCfdDataset, setExplicitCfdDataset] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [downloadTrigger, setDownloadTrigger] = useState(0)
@@ -62,10 +63,12 @@ export default function ProjectDetailClient({ id, project }: any) {
       try {
         setLoading(true)
         let explicitCfd: any | null = null
+        setExplicitCfdDataset(null)
         if (requestedCfdAnalysisId) {
           const cfdResponse = await fetch(`/api/cfd/${encodeURIComponent(requestedCfdAnalysisId)}`, { credentials: 'include', cache: 'no-store' })
           const cfdPayload = await cfdResponse.json().catch(() => null)
           if (cfdResponse.ok && cfdPayload?.dataset) {
+            setExplicitCfdDataset(cfdPayload.dataset)
             explicitCfd = {
               analysis_id: cfdPayload.analysisId,
               project_id: id,
@@ -192,7 +195,9 @@ export default function ProjectDetailClient({ id, project }: any) {
 
   const results = latestAnalysis?.results || {}
   const scenarioType = resolveVisualizationScenario([latestAnalysis?.scenario_type, project?.scenario_type, project?.category, project?.name])
-  const certifiedCfd = useMemo(() => loadCertifiedCfdDataset(latestAnalysis, results), [latestAnalysis, results])
+  const certifiedCfd = useMemo(() => explicitCfdDataset
+    ? loadCertifiedCfdDataset({ cfd_dataset: explicitCfdDataset }, {})
+    : loadCertifiedCfdDataset(latestAnalysis, results), [explicitCfdDataset, latestAnalysis, results])
   const residuals = chaosMode || leakAlertMode
       ? {}
       : (results?.residuals ?? {})
