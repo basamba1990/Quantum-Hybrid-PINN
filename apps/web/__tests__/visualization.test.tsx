@@ -57,6 +57,7 @@ describe("CFD contract and validation", () => {
   test("rejects identical transient frames instead of enabling animation", () => {
     const staticDataset = makeDataset();
     staticDataset.frames[1].points = [...staticDataset.frames[0].points];
+    staticDataset.frames[1].fields = staticDataset.frames[0].fields.map((field) => ({ ...field, values: [...field.values] }));
     const report = validateCfdDataset(parseCfdMetadata(staticDataset));
     expect(report.valid).toBe(false);
     expect(report.hasRealTransientStates).toBe(false);

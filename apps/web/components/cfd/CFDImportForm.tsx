@@ -26,7 +26,7 @@ type Props = {
   onImported?: (result: CfdImportResponse) => void
 }
 
-const MAX_FILE_BYTES = 100 * 1024 * 1024
+const MAX_FILE_BYTES = 50 * 1024 * 1024
 
 export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }: Props) {
   const [vtuFiles, setVtuFiles] = useState<File[]>([])
@@ -47,7 +47,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       file => !file.name.toLowerCase().endsWith('.vtu') || file.size === 0 || file.size > MAX_FILE_BYTES,
     )
     if (invalid) {
-      setError(`Fichier VTU refusé : ${invalid.name}. Extension .vtu et taille maximale de 100 MB requises.`)
+      setError(`Fichier VTU refusé : ${invalid.name}. Extension .vtu et taille maximale de 50 MiB requises.`)
       setVtuFiles([])
       return
     }
@@ -60,7 +60,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
     const file = event.target.files?.[0] ?? null
     if (!file) return
     if (!file.name.toLowerCase().endsWith('.json') || file.size === 0 || file.size > MAX_FILE_BYTES) {
-      setError('Sidecar refusé : fichier JSON non vide de 100 MB maximum requis.')
+      setError('Sidecar refusé : fichier JSON non vide de 50 MiB maximum requis.')
       setSidecar(null)
       return
     }
@@ -81,7 +81,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       return
     }
     if (totalBytes > MAX_FILE_BYTES) {
-      setError('La taille totale de l’upload dépasse 100 MB.')
+      setError('La taille totale de l’upload dépasse 50 MiB.')
       return
     }
 

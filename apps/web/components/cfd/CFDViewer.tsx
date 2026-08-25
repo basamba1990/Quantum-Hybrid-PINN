@@ -72,7 +72,7 @@ export default function CFDViewer({ dataset, className }: CFDViewerProps) {
     <section className={className} data-cfd-viewer="versioned">
       <div className="flex gap-4">
         <div className="min-w-0 flex-1"><canvas ref={canvasRef} style={{ display: "block", width: "100%", minHeight: 420 }} /></div>
-        <aside className="w-56"><CFDScalarLegend field={scalarField} /><CFDControls fieldName={fieldName} availableFields={fields} time={time} times={times} isoValue={isoValue} onFieldChange={setFieldName} onTimeChange={setTime} onIsoValueChange={setIsoValue} /><button type="button" onClick={() => setPlaying((value) => !value)} disabled={!canAnimate}>{canAnimate ? (playing ? "Pause" : "Animer") : "Animation indisponible"}</button><p>Révision : {dataset.meshRevision}</p><p>{dataset.cellCount} cellules · {dataset.pointCount} sommets</p><p>{isoValue === undefined ? "Iso-surface : seuil requis" : "Iso-surface : extracteur à connecter"}</p></aside>
+        <aside className="w-56"><CFDScalarLegend field={scalarField} /><CFDControls fieldName={fieldName} availableFields={fields} time={time} times={times} isoValue={isoValue} onFieldChange={setFieldName} onTimeChange={setTime} onIsoValueChange={setIsoValue} /><button type="button" onClick={() => setPlaying((value) => !value)} disabled={!canAnimate}>{canAnimate ? (playing ? "Pause" : "Animer") : "Animation indisponible"}</button><p>Révision : {dataset.meshRevision}</p><p>{dataset.cellCount} cellules · {dataset.pointCount} sommets</p><p>{isoValue === undefined ? "Iso-surface : seuil requis" : "Iso-surface : extraite depuis la connectivité réelle"}</p></aside>
       </div>
     </section>
   );

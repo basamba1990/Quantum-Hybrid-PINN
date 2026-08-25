@@ -223,7 +223,8 @@ class ExportService:
                 'simulation_id': simulation_id,
                 'timestamp': datetime.utcnow().isoformat(),
                 'credibility_score': credibility_score,
-                'certification_level': ExportService._get_certification_level(credibility_score),
+                'certification_level': 'EVIDENCE_GATES_REQUIRED',
+                'certification_note': 'A score cannot establish G0-G5 validation; an authoritative evidence-gate report is required.',
                 'physics_validation': {
                     'residuals': residuals,
                     'violations_detected': physics_violations,
@@ -234,7 +235,8 @@ class ExportService:
                 'summary': {
                     'total_warnings': len(warnings),
                     'total_recommendations': len(recommendations),
-                    'ready_for_production': credibility_score >= 85 and physics_violations == 0
+                    'ready_for_production': False,
+                    'decision_basis': 'G0-G5 evidence report required; score and violation count are non-authoritative',
                 }
             }
         }
@@ -243,12 +245,5 @@ class ExportService:
     
     @staticmethod
     def _get_certification_level(credibility_score: float) -> str:
-        """Determine certification level based on credibility score"""
-        if credibility_score >= 90:
-            return 'INDUSTRIAL-GOLD'
-        elif credibility_score >= 75:
-            return 'CERTIFIED-PRO'
-        elif credibility_score >= 50:
-            return 'VALIDATION-REQUIRED'
-        else:
-            return 'CRITICAL-FAILURE'
+        """Legacy compatibility label; never use this as a G0-G5 decision."""
+        return 'EVIDENCE_GATES_REQUIRED'

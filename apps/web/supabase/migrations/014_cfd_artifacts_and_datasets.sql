@@ -60,7 +60,7 @@ select
   'cfd-artifacts',
   'cfd-artifacts',
   false,
-  104857600,
+  52428800,
   array['application/xml', 'application/json']::text[]
 where not exists (
   select 1 from storage.buckets where id = 'cfd-artifacts'
@@ -80,7 +80,7 @@ drop policy if exists "cfd_artifacts_authenticated_delete" on storage.objects;
 
 update storage.buckets
 set public = false,
-    file_size_limit = 104857600,
+    file_size_limit = 52428800,
     allowed_mime_types = array['application/xml', 'application/json']::text[]
 where id = 'cfd-artifacts';
 

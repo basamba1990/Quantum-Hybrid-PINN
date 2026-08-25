@@ -69,7 +69,14 @@ function validateFrame(frame: CfdFrame, frameIndex: number, pointCount: number, 
 function hasMeasuredTransientDifference(frames: readonly CfdFrame[]): boolean {
   if (frames.length < 2) return false;
   const first = frames[0];
-  return frames.slice(1).some((frame) => frame.points.some((value, index) => Math.abs(value - first.points[index]) > 1e-12));
+  return frames.slice(1).some((frame) => {
+    const firstFields = new Map(first.fields.map((field) => [`${field.association}:${field.name}`, field]));
+    return frame.fields.some((field) => {
+      const baseline = firstFields.get(`${field.association}:${field.name}`);
+      if (!baseline || baseline.components !== field.components || baseline.values.length !== field.values.length) return false;
+      return field.values.some((value, index) => Math.abs(value - baseline.values[index]) > 1e-12);
+    });
+  });
 }
 
 function validateTransient(frames: readonly CfdFrame[]): CfdValidationIssue[] {

@@ -1,7 +1,7 @@
 import { parseCfdMetadata, type CfdVolumeDataset } from "./cfd-contract";
 import { loadCfdVtuSeries, fetchVtuSeries, type VtuFrameSource, type VtuSidecar } from "./cfd-loader";
 import { normalizeCfdDataset } from "./cfd-normalize";
-import { validateCfdDataset, type CfdValidationReport } from "./cfd-validation";
+import { validateCfdBufferDataset, validateCfdDataset, type CfdValidationReport } from "./cfd-validation";
 
 export * from "./cfd-contract";
 export * from "./cfd-loader";
@@ -30,7 +30,12 @@ export function parseAndNormalizeCfdDataset(raw: unknown) {
 
 export async function loadAndNormalizeCfdVtuSeries(sources: readonly VtuFrameSource[], sidecar: VtuSidecar) {
   const buffers = await loadCfdVtuSeries(sources, sidecar);
-  return { buffers, validation: { valid: true, canClaimValidated: true, issues: [] } as const };
+  const validation = validateCfdBufferDataset(buffers);
+  if (!validation.valid) {
+    const details = validation.issues.map((item) => `${item.code}: ${item.message}`).join(" | ");
+    throw new Error(`CFD_DATASET_REJECTED: ${details || "buffer_validation_failed"}`);
+  }
+  return { buffers, validation };
 }
 
 export async function fetchAndNormalizeCfdVtuSeries(
@@ -39,5 +44,10 @@ export async function fetchAndNormalizeCfdVtuSeries(
   signal?: AbortSignal,
 ) {
   const buffers = await fetchVtuSeries(urls, sidecar, signal);
-  return { buffers, validation: { valid: true, canClaimValidated: true, issues: [] } as const };
+  const validation = validateCfdBufferDataset(buffers);
+  if (!validation.valid) {
+    const details = validation.issues.map((item) => `${item.code}: ${item.message}`).join(" | ");
+    throw new Error(`CFD_DATASET_REJECTED: ${details || "buffer_validation_failed"}`);
+  }
+  return { buffers, validation };
 }

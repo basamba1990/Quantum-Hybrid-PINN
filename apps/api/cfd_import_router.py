@@ -31,7 +31,7 @@ except ImportError as exc:  # pragma: no cover - configuration error
 
 router = APIRouter(prefix="/v2/cfd", tags=["cfd-import"])
 
-MAX_UPLOAD_BYTES = int(os.getenv("CFD_IMPORT_MAX_BYTES", str(100 * 1024 * 1024)))
+MAX_UPLOAD_BYTES = int(os.getenv("CFD_IMPORT_MAX_BYTES", str(50 * 1024 * 1024)))
 MAX_FILES_PER_IMPORT = int(os.getenv("CFD_IMPORT_MAX_FILES", "32"))
 _ALLOWED_VTU = {".vtu"}
 _VTK_CELL_TYPES = {
