@@ -253,7 +253,7 @@ async def root():
         "device": str(_get_device()),
         "endpoints": {
             "core": ["/", "/health", "/jobs/{job_id}"],
-            "cfd": ["/v2/cfd/import", "/v2/cfd/{analysis_id}"],
+            "cfd": ["/v2/cfd/import", "/v2/cfd/{analysis_id}", "/v2/cfd/{analysis_id}/gates"],
             "cao": ["/v2/cao/import", "/v2/cao/mesh", "/v2/cao/contract", "/v2/cao/gates", "/v2/cao/export", "/v2/cao/publish"],
             "analysis_v2": ["/v2/submit-analysis", "/v2/analysis-status/{job_id}", "/v2/analysis-result/{job_id}", "/v2/analysis/boundary-layer", "/v2/analysis/residuals-map"],
             "hybrid": ["/hybrid/run-simulation", "/v2/validate-3d", "/v2/predict-batch", "/v2/assimilate"],

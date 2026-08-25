@@ -261,7 +261,7 @@ export default function ProjectDetailClient({ id, project }: any) {
           </div>
 
           <div className="space-y-6">
-            <ScientificValidationWorkspace scenarioType={scenarioType} results={validationWorkspaceResults} loading={loading} />
+            <ScientificValidationWorkspace scenarioType={scenarioType} results={validationWorkspaceResults} loading={loading} analysisId={latestAnalysis?.analysis_id ?? latestAnalysis?.analysisId ?? latestAnalysis?.id ?? null} />
             <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white px-2">Scientific Advanced Physics & Analytics</h2>
             <div className="bg-black border border-white/10 rounded-[40px] overflow-hidden shadow-2xl">
               <Tabs defaultValue="volumetric" className="w-full">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -67,10 +67,25 @@ type WorkspaceResults = {
   } | null;
 };
 
+type GateState = "PASS" | "BLOCKED" | "NOT_REACHED";
+
+type GateReport = {
+  overallStatus?: string;
+  blockingGate?: string | null;
+  gates?: Array<{
+    gate: string;
+    name: string;
+    state: GateState;
+    reasons: string[];
+  }>;
+  error?: string;
+};
+
 type Props = {
   scenarioType: string;
   results?: WorkspaceResults | null;
   loading?: boolean;
+  analysisId?: string | null;
 };
 
 function formatValue(value: number | null | undefined, unit: string) {
@@ -142,7 +157,32 @@ export default function ScientificValidationWorkspace({
   scenarioType,
   results,
   loading = false,
+  analysisId,
 }: Props) {
+  const [gateReport, setGateReport] = useState<GateReport | null>(null);
+  const [gateLoading, setGateLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (!analysisId) {
+      setGateReport(null);
+      return () => { active = false; };
+    }
+    setGateLoading(true);
+    fetch(`/api/cfd/${encodeURIComponent(analysisId)}/gates`, { cache: "no-store" })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({ error: "Réponse G0–G5 illisible." }));
+        if (!response.ok) throw new Error(payload.error || `Lecture G0–G5 échouée (${response.status}).`);
+        return payload as GateReport;
+      })
+      .then((payload) => { if (active) setGateReport(payload); })
+      .catch((error: unknown) => {
+        if (active) setGateReport({ error: error instanceof Error ? error.message : "Lecture G0–G5 échouée." });
+      })
+      .finally(() => { if (active) setGateLoading(false); });
+    return () => { active = false; };
+  }, [analysisId]);
+
   const isLH2 = scenarioType === LH2_SCENARIO_CONFIG.scenario_type;
   const scenarioLabel = getScenarioDisplayName(scenarioType);
   const status = useMemo(() => statusFor(results), [results]);
@@ -266,6 +306,40 @@ export default function ScientificValidationWorkspace({
               : "Verrouillage Séquentiel"}
           </p>
         </div>
+      </div>
+
+      <div className="mt-7 rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.03] p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-black uppercase tracking-widest text-white">Matrice de validation G0–G5</div>
+            <p className="mt-1 text-xs text-slate-500">Décision lue depuis le rapport serveur ; aucun état n’est généré par l’interface.</p>
+          </div>
+          <span className="font-mono text-[10px] uppercase tracking-widest text-cyan-300">
+            {gateLoading ? "Lecture serveur…" : gateReport?.overallStatus || (analysisId ? "Non disponible" : "Analyse non sélectionnée")}
+          </span>
+        </div>
+        {gateReport?.error ? (
+          <p className="text-xs text-amber-200">{gateReport.error}</p>
+        ) : gateReport?.gates?.length ? (
+          <div className="grid gap-2 sm:grid-cols-6">
+            {gateReport.gates.map((gate) => {
+              const stateClass = gate.state === "PASS"
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                : gate.state === "BLOCKED"
+                  ? "border-red-500/40 bg-red-500/10 text-red-200"
+                  : "border-slate-500/30 bg-slate-500/10 text-slate-300";
+              return (
+                <div key={gate.gate} className={`min-h-[92px] rounded-xl border p-3 ${stateClass}`} title={gate.reasons.join(" ") || "Porte satisfaite"}>
+                  <div className="text-lg font-black">{gate.gate}</div>
+                  <div className="mt-1 text-[10px] font-bold uppercase tracking-wider">{gate.state}</div>
+                  <div className="mt-2 line-clamp-2 text-[10px] opacity-80">{gate.reasons[0] || "Preuves présentes"}</div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">Aucune matrice serveur disponible pour cette analyse.</p>
+        )}
       </div>
 
       <div className="mt-7 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
