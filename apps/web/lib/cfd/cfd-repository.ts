@@ -12,9 +12,9 @@ export function loadCertifiedCfdDataset(analysis: unknown, result?: unknown) {
   try {
     const dataset = parseCfdMetadata(raw);
     const report = validateCfdDataset(dataset);
-    if (!report.valid || !report.canClaimValidated) return { dataset, buffers: null, report } as const;
+    if (!report.canRender) return { dataset, buffers: null, report } as const;
     return { dataset, buffers: normalizeCfdDataset(dataset), report } as const;
   } catch (error) {
-    return { dataset: null, buffers: null, report: { valid: false, canClaimValidated: false, hasRealTransientStates: false, issues: [{ code: "CONTRACT_INVALID", message: error instanceof Error ? error.message : "Contrat CFD illisible" }] } } as const;
+    return { dataset: null, buffers: null, report: { valid: false, canRender: false, canClaimValidated: false, hasRealTransientStates: false, issues: [{ code: "CONTRACT_INVALID", message: error instanceof Error ? error.message : "Contrat CFD illisible" }] } } as const;
   }
 }

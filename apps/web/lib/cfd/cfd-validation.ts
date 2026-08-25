@@ -22,6 +22,8 @@ export type CfdValidationReport = {
   valid: boolean;
   issues: CfdValidationIssue[];
   hasRealTransientStates: boolean;
+  /** Les buffers sont sûrs à préparer pour le rendu, même si la certification est bloquée. */
+  canRender: boolean;
   canClaimValidated: boolean;
 };
 
@@ -121,11 +123,19 @@ export function validateCfdDataset(dataset: CfdVolumeDataset): CfdValidationRepo
   }
   issues.push(...validateTransient(dataset.frames));
 
+  const hasStructuralRenderingIssue = issues.some((item) => [
+    "CONTRACT_INVALID",
+    "POINT_BUFFER_INVALID",
+    "CELL_TOPOLOGY_INVALID",
+    "FIELD_ASSOCIATION_INVALID",
+    "BOUNDARY_INVALID",
+  ].includes(item.code));
   const hasRealTransientStates = !issues.some((item) => item.code === "TIME_SERIES_INVALID");
   return {
     valid: issues.length === 0,
     issues,
     hasRealTransientStates,
+    canRender: !hasStructuralRenderingIssue,
     canClaimValidated: issues.length === 0 && Object.values(dataset.evidence).every(Boolean),
   };
 }
@@ -142,7 +152,20 @@ export function validateCfdBufferDataset(dataset: CfdBufferDataset): CfdValidati
   }
   const hasRealTransientStates = dataset.frames.length > 1 && dataset.frames.slice(1).every((frame, index) => frame.time > dataset.frames[index].time) && dataset.frames.slice(1).some((frame) => frame.points.some((value, index) => Math.abs(value - dataset.frames[0].points[index]) > 1e-12));
   if (!hasRealTransientStates) issues.push(issue("TIME_SERIES_INVALID", "Aucun état transitoire spatialement différent n’est disponible."));
-  return { valid: issues.length === 0, issues, hasRealTransientStates, canClaimValidated: issues.length === 0 && Object.values(dataset.evidence).every(Boolean) };
+  const hasStructuralRenderingIssue = issues.some((item) => [
+    "CONTRACT_INVALID",
+    "POINT_BUFFER_INVALID",
+    "CELL_TOPOLOGY_INVALID",
+    "FIELD_ASSOCIATION_INVALID",
+    "BOUNDARY_INVALID",
+  ].includes(item.code));
+  return {
+    valid: issues.length === 0,
+    issues,
+    hasRealTransientStates,
+    canRender: !hasStructuralRenderingIssue,
+    canClaimValidated: issues.length === 0 && Object.values(dataset.evidence).every(Boolean),
+  };
 }
 
 export async function sha256Hex(payload: ArrayBuffer): Promise<string> {

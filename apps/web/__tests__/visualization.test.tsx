@@ -43,8 +43,28 @@ describe("CFD contract and validation", () => {
     const dataset = parseCfdMetadata(makeDataset());
     const report = validateCfdDataset(dataset);
     expect(report.valid).toBe(true);
+    expect(report.canRender).toBe(true);
     expect(report.canClaimValidated).toBe(true);
     expect(Object.keys(dataset.evidence)).toHaveLength(8);
+  });
+
+  test("renders a structurally valid dataset without claiming G0-G5 validation", () => {
+    const structuralOnly = makeDataset();
+    structuralOnly.evidence = {
+      meshGeometryAndTopology: false,
+      fieldsAndUnits: false,
+      namedBoundaries: false,
+      solverProvenance: false,
+      solverResiduals: false,
+      referenceComparison: false,
+      immutableHashes: false,
+      calculatedTransientStates: false,
+    };
+    const loaded = loadCertifiedCfdDataset({ results: { cfd_dataset: structuralOnly } });
+    expect(loaded.report?.canRender).toBe(true);
+    expect(loaded.report?.canClaimValidated).toBe(false);
+    expect(loaded.buffers?.frames[0].points).toBeInstanceOf(Float32Array);
+    expect(loaded.buffers?.frames[0].cells).toBeInstanceOf(Uint32Array);
   });
 
   test("rejects a dataset with missing units and invalid topology", () => {

@@ -57,9 +57,9 @@ function normalizeFrame(frame: CfdFrame): CfdBufferFrame {
  */
 export function normalizeCfdDataset(dataset: CfdVolumeDataset): CfdBufferDataset {
   const report = validateCfdDataset(dataset);
-  if (!report.valid) {
+  if (!report.canRender) {
     const details = report.issues.map((item) => `${item.code}: ${item.message}`).join(" | ");
-    throw new Error(`CFD_DATASET_REJECTED: ${details}`);
+    throw new Error(`CFD_DATASET_REJECTED_FOR_RENDER: ${details}`);
   }
   return {
     contractVersion: dataset.contractVersion,
