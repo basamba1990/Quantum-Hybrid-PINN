@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile
 from supabase import Client, create_client
 
 from cfd_gate_service import evaluate_cfd_gates
@@ -399,6 +399,40 @@ async def import_cfd_dataset(
             "sidecar": _sha256(sidecar_bytes),
             "frames": {name: _sha256(payload) for name, payload in sorted(uploaded.items())},
         },
+    }
+
+
+@router.get("/project/{project_id}/latest")
+def get_latest_cfd_dataset_for_project(
+    project_id: str,
+    owner_id: str = Query(..., min_length=36, max_length=36),
+    _auth: None = Depends(require_cfd_import_auth),
+) -> Dict[str, Any]:
+    """Return the newest persisted CFD dataset for an owned project."""
+    _verify_project_owner(project_id, owner_id)
+    try:
+        response = (
+            _supabase()
+            .table("cfd_datasets")
+            .select("analysis_id,project_id,status,dataset,artifact_manifest,created_at")
+            .eq("project_id", project_id)
+            .eq("owner_id", owner_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Lecture du dernier dataset CFD échouée: {exc}") from exc
+    if not response.data:
+        raise HTTPException(status_code=404, detail="Aucun dataset CFD persistant pour ce projet.")
+    row = response.data[0]
+    return {
+        "analysisId": row["analysis_id"],
+        "projectId": row["project_id"],
+        "status": row["status"],
+        "dataset": row["dataset"],
+        "artifactManifest": row["artifact_manifest"],
+        "createdAt": row.get("created_at"),
     }
 
 

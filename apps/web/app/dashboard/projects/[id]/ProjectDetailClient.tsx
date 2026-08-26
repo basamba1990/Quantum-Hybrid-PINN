@@ -115,6 +115,32 @@ export default function ProjectDetailClient({ id, project }: any) {
         if (cfdError) console.error("Supabase CFD Dataset Error:", cfdError)
         console.log("Fetched Analyses Count:", analysisRows?.length || 0)
         let latestCfd: any | null = explicitCfd ?? cfdRows?.[0] ?? null
+        if (!requestedCfdAnalysisId && !explicitCfd && !latestCfd) {
+          // cfd_datasets intentionally has no browser SELECT policy. Use the
+          // authenticated Next.js proxy, which forwards the user identity to
+          // the FastAPI service and reads the immutable row server-side.
+          try {
+            const latestResponse = await fetch(`/api/cfd/project/${encodeURIComponent(id)}/latest`, {
+              credentials: 'include',
+              cache: 'no-store',
+            })
+            const latestPayload = await latestResponse.json().catch(() => null)
+            if (latestResponse.ok && latestPayload?.dataset && typeof latestPayload.analysisId === 'string') {
+              latestCfd = {
+                analysis_id: latestPayload.analysisId,
+                project_id: latestPayload.projectId ?? id,
+                created_at: latestPayload.createdAt ?? new Date().toISOString(),
+                status: latestPayload.status,
+                dataset: latestPayload.dataset,
+                artifact_manifest: latestPayload.artifactManifest,
+              }
+            } else if (latestResponse.status !== 404) {
+              console.warn('Latest persisted CFD dataset lookup failed:', latestPayload)
+            }
+          } catch (latestError) {
+            console.warn('Latest persisted CFD dataset proxy unavailable:', latestError)
+          }
+        }
         if (!requestedCfdAnalysisId && !explicitCfd && typeof latestCfd?.analysis_id === 'string') {
           // cfd_datasets stores the immutable manifest and identifiers; the
           // complete volumetric payload is read through the authenticated CFD
