@@ -32,6 +32,7 @@ const PlotlyChart = nextDynamic(
 export default function ProjectDetailClient({ id, project }: any) {
   const [latestAnalysis, setLatestAnalysis] = useState<any | null>(null)
   const [explicitCfdDataset, setExplicitCfdDataset] = useState<any | null>(null)
+  const [cfdAnalysisId, setCfdAnalysisId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [downloadTrigger, setDownloadTrigger] = useState(0)
@@ -64,10 +65,15 @@ export default function ProjectDetailClient({ id, project }: any) {
         setLoading(true)
         let explicitCfd: any | null = null
         setExplicitCfdDataset(null)
+        setCfdAnalysisId(null)
         if (requestedCfdAnalysisId) {
           const cfdResponse = await fetch(`/api/cfd/${encodeURIComponent(requestedCfdAnalysisId)}`, { credentials: 'include', cache: 'no-store' })
           const cfdPayload = await cfdResponse.json().catch(() => null)
           if (cfdResponse.ok && cfdPayload?.dataset) {
+            const importedCfdAnalysisId = typeof cfdPayload.analysisId === 'string'
+              ? cfdPayload.analysisId
+              : requestedCfdAnalysisId
+            setCfdAnalysisId(importedCfdAnalysisId)
             setExplicitCfdDataset(cfdPayload.dataset)
             explicitCfd = {
               analysis_id: cfdPayload.analysisId,
@@ -97,6 +103,9 @@ export default function ProjectDetailClient({ id, project }: any) {
         if (cfdError) console.error("Supabase CFD Dataset Error:", cfdError)
         console.log("Fetched Analyses Count:", analysisRows?.length || 0)
         const latestCfd = explicitCfd ?? cfdRows?.[0]
+        if (!requestedCfdAnalysisId && typeof latestCfd?.analysis_id === 'string') {
+          setCfdAnalysisId(latestCfd.analysis_id)
+        }
         if (!analysisRows?.length) {
           if (latestCfd?.dataset) {
             setLatestAnalysis({
@@ -286,7 +295,7 @@ export default function ProjectDetailClient({ id, project }: any) {
           </div>
 
           <div className="space-y-6">
-            <ScientificValidationWorkspace scenarioType={scenarioType} results={validationWorkspaceResults} loading={loading} analysisId={latestAnalysis?.analysis_id ?? latestAnalysis?.analysisId ?? latestAnalysis?.id ?? null} />
+            <ScientificValidationWorkspace scenarioType={scenarioType} results={validationWorkspaceResults} loading={loading} analysisId={cfdAnalysisId ?? latestAnalysis?.analysis_id ?? latestAnalysis?.analysisId ?? latestAnalysis?.id ?? null} />
             <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white px-2">Scientific Advanced Physics & Analytics</h2>
             <div className="bg-black border border-white/10 rounded-[40px] overflow-hidden shadow-2xl">
               <Tabs defaultValue="volumetric" className="w-full">
