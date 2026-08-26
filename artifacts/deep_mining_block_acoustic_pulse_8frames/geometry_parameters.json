@@ -1,0 +1,27 @@
+{
+  "classification": "REFERENCE_DESIGN",
+  "assetStatus": "ENGINEERING_CONCEPT",
+  "synthetic": true,
+  "realAsset": false,
+  "revision": "deep-mining-block-acoustic-rd1",
+  "units": "SI",
+  "geometry": {
+    "domain": "rectangular underground-panel control volume",
+    "length_m": 120.0,
+    "width_m": 30.0,
+    "height_m": 20.0,
+    "galleryCenter_m": [
+      0.0,
+      15.0,
+      10.0
+    ]
+  },
+  "event": {
+    "eventType": "ABSTRACT_PRESSURE_PULSE",
+    "sourceProvenance": "synthetic low-amplitude acoustic benchmark",
+    "arrivalTime_s": 0.0,
+    "peakOverpressure_Pa": 250.0,
+    "boundaryReflectionModel": "one-dimensional rigid-end acoustic reflection surrogate",
+    "solverProduced": false
+  }
+}
