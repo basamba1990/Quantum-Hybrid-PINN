@@ -5,6 +5,7 @@ export const CFD_CONTRACT_VERSION = "cfd-volume.v1" as const;
 const nonEmpty = z.string().trim().min(1);
 const sha256 = z.string().regex(/^[a-fA-F0-9]{64}$/, "SHA-256 attendu");
 const finiteNumber = z.number().finite();
+const nullableFiniteNumber = finiteNumber.nullable().optional();
 
 export const CfdFieldSchema = z.object({
   name: nonEmpty,
@@ -40,13 +41,18 @@ export const CfdProvenanceSchema = z.object({
   generatedAt: z.string().datetime({ offset: true }),
 });
 
+/**
+ * Les résidus peuvent être absents pour un artefact de rendu structurel.
+ * Une valeur nulle signifie explicitement « non calculé / non certifié » ;
+ * elle n’est jamais convertie en zéro ni en métrique synthétique.
+ */
 export const CfdResidualSchema = z.object({
-  mass: finiteNumber,
-  momentum: finiteNumber,
-  energy: finiteNumber,
-  norm: z.enum(["L1", "L2", "Linf"]),
-  computedBy: nonEmpty,
-  computedAt: z.string().datetime({ offset: true }),
+  mass: nullableFiniteNumber,
+  momentum: nullableFiniteNumber,
+  energy: nullableFiniteNumber,
+  norm: z.enum(["L1", "L2", "Linf"]).nullable().optional(),
+  computedBy: nonEmpty.nullable().optional(),
+  computedAt: z.string().datetime({ offset: true }).nullable().optional(),
 });
 
 export const CfdReferenceSchema = z.object({
@@ -82,7 +88,7 @@ export const CfdVolumeDatasetSchema = z.object({
   frames: z.array(CfdFrameSchema).min(1),
   boundarySets: z.array(CfdBoundarySetSchema).min(1),
   provenance: CfdProvenanceSchema,
-  residuals: CfdResidualSchema,
+  residuals: CfdResidualSchema.optional(),
   references: z.array(CfdReferenceSchema).min(1),
   evidence: CfdEvidenceSchema,
 });
@@ -123,7 +129,7 @@ export type CfdBufferDataset = {
   frames: CfdBufferFrame[];
   boundarySets: Map<string, CfdBoundarySet>;
   provenance: CfdVolumeDataset["provenance"];
-  residuals: CfdVolumeDataset["residuals"];
+  residuals?: CfdVolumeDataset["residuals"];
   references: CfdVolumeDataset["references"];
   evidence: CfdEvidence;
 };

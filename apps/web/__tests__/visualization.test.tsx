@@ -67,6 +67,28 @@ describe("CFD contract and validation", () => {
     expect(loaded.buffers?.frames[0].cells).toBeInstanceOf(Uint32Array);
   });
 
+  test("keeps null residuals as N/D while allowing structural rendering", () => {
+    const structuralOnly = {
+      ...makeDataset(),
+      residuals: {
+        mass: null,
+        momentum: null,
+        energy: null,
+        norm: null,
+        computedBy: "not-a-physical-solver",
+        computedAt: null,
+      },
+    };
+    const parsed = parseCfdMetadata(structuralOnly);
+    const report = validateCfdDataset(parsed);
+    expect(report.canRender).toBe(true);
+    expect(report.canClaimValidated).toBe(false);
+    expect(report.issues.some((item) => item.code === "RESIDUALS_INVALID")).toBe(true);
+    const loaded = loadCertifiedCfdDataset({ results: { cfd_dataset: structuralOnly } });
+    expect(loaded.buffers?.frames[0].cells).toBeInstanceOf(Uint32Array);
+    expect(loaded.report?.canClaimValidated).toBe(false);
+  });
+
   test("rejects a dataset with missing units and invalid topology", () => {
     const invalid = makeDataset();
     invalid.frames[0].fields[0].unit = "";

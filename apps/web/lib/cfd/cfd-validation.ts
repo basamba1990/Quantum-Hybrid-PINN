@@ -115,8 +115,9 @@ export function validateCfdDataset(dataset: CfdVolumeDataset): CfdValidationRepo
   if (!dataset.provenance.solver || !dataset.provenance.solverVersion || !dataset.provenance.sourceUri || !dataset.provenance.calculationId) {
     issues.push(issue("PROVENANCE_INVALID", "La provenance du calcul est incomplète."));
   }
-  if (!Number.isFinite(dataset.residuals.mass) || !Number.isFinite(dataset.residuals.momentum) || !Number.isFinite(dataset.residuals.energy)) {
-    issues.push(issue("RESIDUALS_INVALID", "Les résidus mass, momentum et energy doivent être calculés et finis."));
+  const residuals = dataset.residuals;
+  if (!residuals || !Number.isFinite(residuals.mass) || !Number.isFinite(residuals.momentum) || !Number.isFinite(residuals.energy) || !residuals.norm || !residuals.computedBy || !residuals.computedAt) {
+    issues.push(issue("RESIDUALS_INVALID", "Les résidus mass, momentum et energy sont absents ou non certifiés ; ils restent N/D."));
   }
   if (dataset.references.length === 0 || dataset.references.some((reference) => !reference.uri || !reference.comparisonHash)) {
     issues.push(issue("REFERENCE_INVALID", "Une comparaison de référence avec hash doit être persistée."));
