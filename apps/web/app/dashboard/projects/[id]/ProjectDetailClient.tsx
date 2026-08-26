@@ -114,7 +114,39 @@ export default function ProjectDetailClient({ id, project }: any) {
         if (anaError) console.error("Supabase Analyses Error:", anaError)
         if (cfdError) console.error("Supabase CFD Dataset Error:", cfdError)
         console.log("Fetched Analyses Count:", analysisRows?.length || 0)
-        const latestCfd = explicitCfd ?? cfdRows?.[0]
+        let latestCfd: any | null = explicitCfd ?? cfdRows?.[0] ?? null
+        if (!requestedCfdAnalysisId && !explicitCfd && typeof latestCfd?.analysis_id === 'string') {
+          // cfd_datasets stores the immutable manifest and identifiers; the
+          // complete volumetric payload is read through the authenticated CFD
+          // proxy so reopening a project does not depend on the URL query.
+          let persistedPayload: any = null
+          let persistedResponse: Response | null = null
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            persistedResponse = await fetch(`/api/cfd/${encodeURIComponent(latestCfd.analysis_id)}`, { credentials: 'include', cache: 'no-store' })
+            persistedPayload = await persistedResponse.json().catch(() => null)
+            if (persistedResponse.ok && persistedPayload?.dataset) break
+            if (persistedResponse.status !== 404 && persistedResponse.status !== 503) break
+            await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)))
+          }
+          if (persistedResponse?.ok && persistedPayload?.dataset) {
+            const persistedAnalysisId = typeof persistedPayload.analysisId === 'string'
+              ? persistedPayload.analysisId
+              : latestCfd.analysis_id
+            setCfdAnalysisId(persistedAnalysisId)
+            setExplicitCfdDataset(persistedPayload.dataset)
+            explicitCfd = {
+              ...latestCfd,
+              analysis_id: persistedAnalysisId,
+              project_id: typeof persistedPayload.projectId === 'string' ? persistedPayload.projectId : id,
+              status: persistedPayload.status,
+              dataset: persistedPayload.dataset,
+              artifact_manifest: persistedPayload.artifactManifest ?? latestCfd.artifact_manifest,
+            }
+            latestCfd = explicitCfd
+          } else {
+            console.warn('Persisted CFD dataset could not be hydrated:', persistedPayload)
+          }
+        }
         if (!requestedCfdAnalysisId && typeof latestCfd?.analysis_id === 'string') {
           setCfdAnalysisId(latestCfd.analysis_id)
         }
