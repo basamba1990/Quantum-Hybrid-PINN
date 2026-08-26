@@ -171,13 +171,13 @@ export default function ScientificValidationWorkspace({
     setGateLoading(true);
     fetch(`/api/cfd/${encodeURIComponent(analysisId)}/gates`, { cache: "no-store" })
       .then(async (response) => {
-        const payload = await response.json().catch(() => ({ error: "Réponse G0–G5 illisible." }));
-        if (!response.ok) throw new Error(payload.error || `Lecture G0–G5 échouée (${response.status}).`);
+        const payload = await response.json().catch(() => ({ error: "Unreadable G0–G5 response." }));
+        if (!response.ok) throw new Error(payload.error || `G0–G5 read failed (${response.status}).`);
         return payload as GateReport;
       })
       .then((payload) => { if (active) setGateReport(payload); })
       .catch((error: unknown) => {
-        if (active) setGateReport({ error: error instanceof Error ? error.message : "Lecture G0–G5 échouée." });
+        if (active) setGateReport({ error: error instanceof Error ? error.message : "G0–G5 read failed." });
       })
       .finally(() => { if (active) setGateLoading(false); });
     return () => { active = false; };
@@ -187,12 +187,12 @@ export default function ScientificValidationWorkspace({
   const scenarioLabel = getScenarioDisplayName(scenarioType);
   const status = useMemo(() => statusFor(results), [results]);
   const statusLabel = {
-    DRAFT: "BROUILLON",
-    READY_FOR_RUN: "PRÊT À CALCULER",
-    RUNNING: "EN COURS",
-    VALIDATION_FAILED: "VALIDATION ÉCHOUÉE",
-    VALIDATED: "VALIDÉ PAR LES MÉTRIQUES DISPONIBLES",
-    PUBLISHED: "PUBLIÉ",
+    DRAFT: "DRAFT",
+    READY_FOR_RUN: "READY FOR RUN",
+    RUNNING: "RUNNING",
+    VALIDATION_FAILED: "VALIDATION FAILED",
+    VALIDATED: "VALIDATED BY AVAILABLE METRICS",
+    PUBLISHED: "PUBLISHED",
   }[status];
   const statusClass =
     status === "VALIDATED"
@@ -211,10 +211,10 @@ export default function ScientificValidationWorkspace({
   const blockingIssues = isLH2
     ? LH2_SCENARIO_CONFIG.validation.blocking_issues
     : [
-        "Le contrat de cas spécifique doit être présent et immuable.",
-        "La géométrie CAO, le maillage volumique et leurs métriques qualité doivent être persistés.",
-        "Les champs PINN ou expérimentaux et leurs unités/provenances doivent être persistés.",
-        "Les contrôles G0–G5 complets ne sont pas déduits d’un score ou d’une couleur.",
+        "The scenario contract must be present and immutable.",
+        "The CAD geometry, volumetric mesh and mesh-quality metrics must be persisted.",
+        "PINN or experimental fields, units and provenance must be persisted.",
+        "Complete G0–G5 checks cannot be inferred from a score or a color.",
       ];
 
   return (
@@ -231,9 +231,7 @@ export default function ScientificValidationWorkspace({
             {isLH2 ? "LH2 Infrastructure Integrity" : scenarioLabel}
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
-            Pré-analyse physique, traçabilité des paramètres, résidus et limites
-            de validation. Les données absentes restent volontairement non
-            déterminées.
+            Physical pre-analysis, parameter traceability, residuals and validation limits. Missing data remains explicitly undetermined.
           </p>
         </div>
         <div
@@ -252,7 +250,7 @@ export default function ScientificValidationWorkspace({
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
             <Ruler className="h-4 w-4 text-cyan-400" />
-            Géométrie
+            Geometry
           </div>
           <p
             className={`mt-3 text-sm font-bold ${
@@ -262,26 +260,26 @@ export default function ScientificValidationWorkspace({
             }`}
           >
             {effectiveEvidence?.geometry_validated
-              ? "Certifiée (STEP AP242)"
-              : "À documenter"}
+              ? "Certified (STEP AP242)"
+              : "Documentation required"}
           </p>
           <p className="mt-1 text-xs text-slate-500">
             {results?.artifact_hashes?.step
               ? `Hash: ${results.artifact_hashes.step.substring(0, 8)}...`
-              : "Domaine, paroi, raccord et défaut de fuite"}
+              : "Domain, wall, connection and leak-defect evidence"}
           </p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
             <ShieldCheck className="h-4 w-4 text-cyan-400" />
-            Crédibilité
+            Credibility
           </div>
           <p className="mt-3 text-sm text-white">
             {typeof effectiveCredibility === "number"
               ? `${effectiveCredibility.toFixed(2)} / 100`
               : "N/D"}
           </p>
-          <p className="mt-1 text-xs text-slate-500">Aucun score par défaut</p>
+          <p className="mt-1 text-xs text-slate-500">No default score</p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
@@ -294,16 +292,16 @@ export default function ScientificValidationWorkspace({
             }`}
           >
             {status === "VALIDATED"
-              ? "G0-G5 Complète"
+              ? "Complete G0–G5"
               : `${
                   blockingIssues.length -
                   Object.values(effectiveEvidence || {}).filter(Boolean).length
-                } à lever`}
+                } remaining`}
           </p>
           <p className="mt-1 text-xs text-slate-500">
             {status === "VALIDATED"
-              ? "Nexus Scientifique Validé"
-              : "Verrouillage Séquentiel"}
+              ? "Scientific nexus validated"
+              : "Sequential lock"}
           </p>
         </div>
       </div>
@@ -311,11 +309,11 @@ export default function ScientificValidationWorkspace({
       <div className="mt-7 rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.03] p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-xs font-black uppercase tracking-widest text-white">Matrice de validation G0–G5</div>
-            <p className="mt-1 text-xs text-slate-500">Décision lue depuis le rapport serveur ; aucun état n’est généré par l’interface.</p>
+            <div className="text-xs font-black uppercase tracking-widest text-white">G0–G5 validation matrix</div>
+            <p className="mt-1 text-xs text-slate-500">Decision read from the server report; no state is generated by the interface.</p>
           </div>
           <span className="font-mono text-[10px] uppercase tracking-widest text-cyan-300">
-            {gateLoading ? "Lecture serveur…" : gateReport?.overallStatus || (analysisId ? "Non disponible" : "Analyse non sélectionnée")}
+            {gateLoading ? "Reading server report…" : gateReport?.overallStatus || (analysisId ? "Unavailable" : "No analysis selected")}
           </span>
         </div>
         {gateReport?.error ? (
@@ -329,16 +327,16 @@ export default function ScientificValidationWorkspace({
                   ? "border-red-500/40 bg-red-500/10 text-red-200"
                   : "border-slate-500/30 bg-slate-500/10 text-slate-300";
               return (
-                <div key={gate.gate} className={`min-h-[92px] rounded-xl border p-3 ${stateClass}`} title={gate.reasons.join(" ") || "Porte satisfaite"}>
+                <div key={gate.gate} className={`min-h-[92px] rounded-xl border p-3 ${stateClass}`} title={gate.reasons.join(" ") || "Gate satisfied"}>
                   <div className="text-lg font-black">{gate.gate}</div>
                   <div className="mt-1 text-[10px] font-bold uppercase tracking-wider">{gate.state}</div>
-                  <div className="mt-2 line-clamp-2 text-[10px] opacity-80">{gate.reasons[0] || "Preuves présentes"}</div>
+                  <div className="mt-2 line-clamp-2 text-[10px] opacity-80">{gate.reasons[0] || "Evidence present"}</div>
                 </div>
               );
             })}
           </div>
         ) : (
-          <p className="text-xs text-slate-500">Aucune matrice serveur disponible pour cette analyse.</p>
+          <p className="text-xs text-slate-500">No server validation matrix is available for this analysis.</p>
         )}
       </div>
 
@@ -346,7 +344,7 @@ export default function ScientificValidationWorkspace({
         <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
           <div className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-white">
             <Info className="h-4 w-4 text-cyan-400" />
-            Paramètres et provenance
+            Parameters and provenance
           </div>
           <div className="space-y-3">
             {isLH2 ? LH2_SCENARIO_CONFIG.parameters.map((parameter) => (
@@ -383,7 +381,7 @@ export default function ScientificValidationWorkspace({
               </div>
             )) : (
               <p className="text-sm leading-6 text-slate-400">
-                Les paramètres spécifiques de ce scénario doivent être lus depuis le contrat de cas et les résultats persistés. Aucune valeur par défaut n’est injectée par l’interface.
+                Scenario-specific parameters must be read from the case contract and persisted results. No default value is injected by the interface.
               </p>
             )}
           </div>
@@ -392,7 +390,7 @@ export default function ScientificValidationWorkspace({
         <div className="space-y-6">
           <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
             <div className="mb-4 text-xs font-black uppercase tracking-widest text-white">
-              Résidus réellement reçus
+              Received residuals
             </div>
             <div className="space-y-3">
               {["mass", "momentum", "energy"].map((key) => (
@@ -408,18 +406,17 @@ export default function ScientificValidationWorkspace({
               ))}
             </div>
             <p className="mt-4 text-xs leading-5 text-slate-500">
-              Les valeurs non présentes dans le résultat restent `N/D`; aucune
-              métrique n’est générée par l’interface.
+              Values absent from the result remain `N/D`; no metric is generated by the interface.
             </p>
           </div>
           <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5">
             <div className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-amber-200">
               <AlertTriangle className="h-4 w-4" />
-              Points bloquants
+              Blocking issues
             </div>
             {status === "VALIDATED" ? (
               <p className="text-xs leading-5 text-emerald-200">
-                Aucune preuve bloquante restante : les artefacts requis et les contrôles G0–G5 sont présents dans les résultats persistés.
+                No blocking evidence remains: required artifacts and G0–G5 checks are present in the persisted results.
               </p>
             ) : (
               <ul className="space-y-2 text-xs leading-5 text-amber-100/80">
@@ -434,7 +431,7 @@ export default function ScientificValidationWorkspace({
 
       <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
         <div className="mb-3 text-xs font-black uppercase tracking-widest text-white">
-          Sources de référence
+          Reference sources
         </div>
         <div className="flex flex-wrap gap-3">
           {(isLH2 ? LH2_SOURCES : []).map((source) => (
@@ -453,7 +450,7 @@ export default function ScientificValidationWorkspace({
       </div>
       {loading && (
         <p className="mt-4 text-xs font-bold uppercase tracking-widest text-cyan-400">
-          Lecture des résultats…
+          Reading results…
         </p>
       )}
     </section>
