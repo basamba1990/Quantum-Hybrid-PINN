@@ -20,7 +20,7 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
             {
               category: 'HYDRAULIQUE',
               items: [
-                { label: 'Chute de Pression', value: data.pressureDrop, unit: 'bar', color: 'text-blue-400' },
+                { label: 'Chute de Pressure', value: data.pressureDrop, unit: 'bar', color: 'text-blue-400' },
                 { label: 'Vitesse d\'écoulement', value: data.velocity, unit: 'm/s', color: 'text-cyan-400' },
                 { label: 'Turbulence (Re)', value: data.turbulence, unit: '%', color: 'text-purple-400' },
               ]
@@ -29,7 +29,7 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
               category: 'THERMIQUE & SÉCURITÉ',
               items: [
                 { label: 'Stabilité Thermale', value: data.thermalStability, unit: 'K', color: 'text-red-400' },
-                { label: 'Risque de Fuite', value: data.leakRisk, unit: '%', color: 'text-orange-400' },
+                { label: 'Leak Risk', value: data.leakRisk, unit: '%', color: 'text-orange-400' },
                 { label: 'Score Sécurité', value: data.safetyScore, unit: '/100', color: 'text-emerald-400' },
               ]
             }
@@ -45,7 +45,7 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
               category: 'ÉVAPORATION & PRESSION',
               items: [
                 { label: 'Taux d\'évaporation', value: data.boilOffRate, unit: '%/jour', color: 'text-blue-400' },
-                { label: 'Pression Interne', value: data.internalPressure, unit: 'bar', color: 'text-cyan-400' },
+                { label: 'Pressure Interne', value: data.internalPressure, unit: 'bar', color: 'text-cyan-400' },
                 { label: 'Vitesse Convection', value: data.convectionVelocity, unit: 'm/s', color: 'text-purple-400' },
               ]
             },
@@ -83,9 +83,9 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
             {
               category: 'DÉTECTION & PRÉDICTION',
               items: [
-                { label: 'Temps de Détection', value: data.detectionTime, unit: 's', color: 'text-blue-400' },
+                { label: 'Time de Détection', value: data.detectionTime, unit: 's', color: 'text-blue-400' },
                 { label: 'Précision Prédiction', value: data.predictionAccuracy, unit: '%', color: 'text-green-400' },
-                { label: 'Réduction Risque', value: data.riskReduction, unit: '%', color: 'text-emerald-400' },
+                { label: 'Risk Reduction', value: data.riskReduction, unit: '%', color: 'text-emerald-400' },
                 { label: 'Stabilité Opérationnelle', value: data.operationalStability, unit: '/100', color: 'text-cyan-400' },
               ]
             }
@@ -110,7 +110,7 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
       
       case 'MINING_INDUSTRIAL_SIM':
         return {
-          title: 'Simulation Minière - Ventilation & Sécurité',
+          title: 'Mining Simulation - Ventilation & Safety',
           icon: <Wind className="w-4 h-4" />,
           sections: [
             {
@@ -127,13 +127,13 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
       
       case 'ROCK_ELAST_STRESS':
         return {
-          title: 'Analyse de Contrainte Rocheuse - Deep Rock',
+          title: 'Rock Stress Analysis - Deep Rock',
           icon: <AlertTriangle className="w-4 h-4" />,
           sections: [
             {
               category: 'CONTRAINTE & ENDOMMAGEMENT',
               items: [
-                { label: 'Pression Lithostatique', value: data.lithostaticPressure, unit: 'MPa', color: 'text-blue-400' },
+                { label: 'Pressure Lithostatique', value: data.lithostaticPressure, unit: 'MPa', color: 'text-blue-400' },
                 { label: 'Contrainte Maximale', value: data.maxStress, unit: 'MPa', color: 'text-red-400' },
                 { label: 'Indice d\'Endommagement', value: data.damageIndex, unit: '0-1', color: 'text-orange-400' },
                 { label: 'Score de Stabilité', value: data.stabilityScore, unit: '/100', color: 'text-emerald-400' },
@@ -174,7 +174,7 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
             {
               category: 'THERMIQUE & ÉCOULEMENT',
               items: [
-                { label: 'Température Jonction', value: data.maxTemperature, unit: 'K', color: 'text-red-400' },
+                { label: 'Temperature Jonction', value: data.maxTemperature, unit: 'K', color: 'text-red-400' },
                 { label: 'Efficacité Dissipation', value: data.dissipationEfficiency, unit: '%', color: 'text-blue-400' },
                 { label: 'Flux Thermique', value: data.thermalFlux, unit: 'W/m²', color: 'text-orange-400' },
               ]
@@ -192,7 +192,7 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
       
       case 'DEEP_MINING_BLOCK':
         return {
-          title: 'Deep Mining Block - Analyse Géomécanique',
+          title: 'Deep Mining Block - Geomechanical Analysis',
           icon: <AlertTriangle className="w-4 h-4" />,
           sections: [
             {
@@ -200,14 +200,14 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
               items: [
                 { label: 'Contrainte Verticale', value: data.verticalStress, unit: 'MPa', color: 'text-blue-400' },
                 { label: 'Contrainte Hor. Major', value: data.horizontalStressMajor, unit: 'MPa', color: 'text-cyan-400' },
-                { label: 'Pression Pore', value: data.porePressure, unit: 'MPa', color: 'text-purple-400' },
+                { label: 'Pressure Pore', value: data.porePressure, unit: 'MPa', color: 'text-purple-400' },
               ]
             },
             {
               category: 'STABILITÉ & RUPTURE',
               items: [
                 { label: 'Stabilité Globale', value: data.stabilityScore, unit: '/100', color: 'text-emerald-400' },
-                { label: 'Risque Rockburst', value: data.rockburstRisk, unit: '', color: data.rockburstRisk === 'HIGH' ? 'text-red-400' : 'text-orange-400' },
+                { label: 'Rockburst Risk', value: data.rockburstRisk, unit: '', color: data.rockburstRisk === 'HIGH' ? 'text-red-400' : 'text-orange-400' },
                 { label: 'Dommage Max', value: data.maxDamage, unit: '0-1', color: 'text-orange-400' },
               ]
             }
@@ -264,7 +264,7 @@ export default function ScenarioMetricsPanel({ scenarioType, data = {} }: Scenar
       {Object.keys(data).length === 0 && (
         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4">
           <p className="text-yellow-400 text-sm flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" /> Aucune donnée disponible. Lancez une simulation pour voir les résultats.
+            <AlertTriangle className="w-4 h-4" /> No data available. Run a simulation to view results.
           </p>
         </div>
       )}

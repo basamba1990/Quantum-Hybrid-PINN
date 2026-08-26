@@ -26,7 +26,7 @@ interface ScientificProfileChartProps {
  */
 const ScientificProfileChart: React.FC<ScientificProfileChartProps> = ({
   data,
-  title = "Profil Spatial des Propriétés Physiques",
+  title = "Spatial Profile of Physical Properties",
   xVariable = 'x',
   variables = ['temperature', 'pressure', 'density', 'velocity_magnitude']
 }) => {
@@ -97,7 +97,7 @@ const ScientificProfileChart: React.FC<ScientificProfileChartProps> = ({
         </p>
       </div>
 
-      {/* Graphique Température & Pression */}
+      {/* Graphique Temperature & Pressure */}
       {(variables.includes('temperature') || variables.includes('pressure')) && (
         <div className="space-y-2">
           <h3 className="text-sm font-bold text-blue-400 uppercase tracking-tight">Thermodynamique</h3>
@@ -126,7 +126,7 @@ const ScientificProfileChart: React.FC<ScientificProfileChartProps> = ({
                   stroke="#ff6b6b" 
                   strokeWidth={2}
                   dot={false}
-                  name="Température (K)"
+                  name="Temperature (K)"
                 />
               )}
               {variables.includes('pressure') && (
@@ -136,7 +136,7 @@ const ScientificProfileChart: React.FC<ScientificProfileChartProps> = ({
                   stroke="#4ecdc4" 
                   strokeWidth={2}
                   dot={false}
-                  name="Pression (MPa)"
+                  name="Pressure (MPa)"
                 />
               )}
             </LineChart>
@@ -144,7 +144,7 @@ const ScientificProfileChart: React.FC<ScientificProfileChartProps> = ({
         </div>
       )}
 
-      {/* Graphique Densité & Vitesse */}
+      {/* Graphique Density & Vitesse */}
       {(variables.includes('density') || variables.includes('velocity_magnitude')) && (
         <div className="space-y-2">
           <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-tight">Cinématique</h3>
@@ -170,7 +170,7 @@ const ScientificProfileChart: React.FC<ScientificProfileChartProps> = ({
                 <Bar 
                   dataKey="density" 
                   fill="#95e1d3" 
-                  name="Densité (kg/m³)"
+                  name="Density (kg/m³)"
                   opacity={0.8}
                 />
               )}
@@ -194,7 +194,7 @@ const ScientificProfileChart: React.FC<ScientificProfileChartProps> = ({
             <div className="text-[10px] font-mono text-gray-500 uppercase tracking-widest mb-2">
               {key === 'temperature' && 'Temp. Moy.'}
               {key === 'pressure' && 'Press. Moy.'}
-              {key === 'density' && 'Densité Moy.'}
+              {key === 'density' && 'Density Moy.'}
               {key === 'velocity' && 'Vitesse Moy.'}
             </div>
             <div className="text-lg font-black text-white">

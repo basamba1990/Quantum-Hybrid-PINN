@@ -24,7 +24,7 @@ function UnavailablePanel({ message = 'Les conditions thermodynamiques n’ont p
   return (
     <div className="bg-[#0B1120]/60 backdrop-blur-xl border border-white/10 rounded-[32px] p-8 text-center">
       <Info className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-      <h3 className="text-xl font-black uppercase italic tracking-tighter text-gray-400">Analyse Sweet Spot indisponible</h3>
+      <h3 className="text-xl font-black uppercase italic tracking-tighter text-gray-400">Sweet Spot analysis unavailable</h3>
       <p className="text-gray-500 text-sm mt-2">{message}</p>
     </div>
   )
@@ -72,16 +72,16 @@ export default function SweetSpotAnalysisPanel({ data, loading }: SweetSpotAnaly
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400"><Target className="w-5 h-5" /></div>
           <div>
-            <h3 className="text-xl font-black uppercase italic tracking-tighter text-white">Analyse Sweet Spot industrielle</h3>
-            <p className="text-xs text-gray-400 font-mono">Résultats thermodynamiques persistés — unités selon provenance</p>
+            <h3 className="text-xl font-black uppercase italic tracking-tighter text-white">Industrial Sweet Spot Analysis</h3>
+            <p className="text-xs text-gray-400 font-mono">Results thermodynamiques persistés — unités selon provenance</p>
           </div>
         </div>
         <span className="px-4 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest">{certification ?? 'PROVENANCE À VÉRIFIER'}</span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard icon={<Gauge className="w-4 h-4 text-blue-400" />} label="Pression" value={pressureMPa === undefined ? 'N/D' : pressureMPa.toFixed(3)} unit="MPa" sub="Valeur persistée" color="blue" />
-        <MetricCard icon={<Thermometer className="w-4 h-4 text-red-400" />} label="Température" value={temperatureK === undefined ? 'N/D' : temperatureK.toFixed(3)} unit="K" sub="Valeur persistée" color="red" />
+        <MetricCard icon={<Gauge className="w-4 h-4 text-blue-400" />} label="Pressure" value={pressureMPa === undefined ? 'N/D' : pressureMPa.toFixed(3)} unit="MPa" sub="Valeur persistée" color="blue" />
+        <MetricCard icon={<Thermometer className="w-4 h-4 text-red-400" />} label="Temperature" value={temperatureK === undefined ? 'N/D' : temperatureK.toFixed(3)} unit="K" sub="Valeur persistée" color="red" />
         <MetricCard icon={<Droplets className="w-4 h-4 text-purple-400" />} label="Facteur Z" value={z === undefined ? 'N/D' : z.toFixed(5)} unit="" sub="Valeur persistée" color="purple" />
         <MetricCard icon={<Shield className="w-4 h-4 text-emerald-400" />} label="Score stabilité" value={stabilityPercent === undefined ? 'N/D' : stabilityPercent.toFixed(2)} unit="%" sub={riskLevel ?? 'Niveau non persisté'} color="emerald" />
       </div>

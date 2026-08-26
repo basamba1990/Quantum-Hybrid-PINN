@@ -42,9 +42,9 @@ export default function NewProjectPage() {
   const ensureCfdProject = async (): Promise<string> => {
     if (cfdProjectId) return cfdProjectId
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) throw new Error('Session expirée ou utilisateur non trouvé.')
+    if (authError || !user) throw new Error('Session expired or user not found.')
     const name = watch('name')?.trim()
-    if (!name) throw new Error('Renseignez l’identifiant du projet avant l’import CFD.')
+    if (!name) throw new Error('Enter the project identifier before importing CFD data.')
     const { data: project, error } = await supabase
       .from('projects')
       .insert({
@@ -56,7 +56,7 @@ export default function NewProjectPage() {
       })
       .select('id')
       .single()
-    if (error || !project?.id) throw new Error(`Création du projet CFD échouée : ${error?.message ?? 'identifiant absent'}`)
+    if (error || !project?.id) throw new Error(`CFD project creation failed: ${error?.message ?? 'missing identifier'}`)
     setCfdProjectId(project.id)
     return project.id
   }
@@ -68,7 +68,7 @@ export default function NewProjectPage() {
     try {
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       if (authError || !user) {
-        throw new Error("Session expirée ou utilisateur non trouvé. Veuillez vous reconnecter.")
+        throw new Error("Session expired or user not found. Please sign in again.")
       }
 
       let videoUrl = null
@@ -79,12 +79,12 @@ export default function NewProjectPage() {
         
         const validVideoTypes = ['video/mp4', 'video/webm', 'video/mpeg', 'video/quicktime']
         if (!validVideoTypes.includes(videoFile.type)) {
-          throw new Error('Format vidéo non supporté. Utilisez MP4, WebM ou MOV.')
+          throw new Error('Unsupported video format. Use MP4, WebM or MOV.')
         }
 
         const maxSize = 500 * 1024 * 1024
         if (videoFile.size > maxSize) {
-          throw new Error('La vidéo est trop volumineuse (max 500MB).')
+          throw new Error('The video is too large (maximum 500 MB).')
         }
 
         const fileName = `${user.id}/${Date.now()}_${videoFile.name}`
@@ -95,7 +95,7 @@ export default function NewProjectPage() {
 
         if (uploadError) {
           console.error('Video upload error:', uploadError)
-          throw new Error(`Erreur lors de l'upload vidéo: ${uploadError.message}`)
+          throw new Error(`Video upload failed: ${uploadError.message}`)
         }
 
         const { data: { publicUrl } } = supabase.storage
@@ -127,11 +127,11 @@ export default function NewProjectPage() {
           const fileName = `${user.id}/${Date.now()}_${formData.video?.[0].name}`
           await supabase.storage.from('videos').remove([fileName])
         }
-        throw new Error(`Erreur lors de la création : ${insertError.message}`)
+        throw new Error(`Project creation failed: ${insertError.message}`)
       }
 
       if (newProject) {
-        toast.success('Nexus de Simulation Initialisé 🚀')
+        toast.success('Simulation nexus initialized')
         
         // En mode industriel, nous déclenchons automatiquement l'analyse physique 
         // si une transcription ou des paramètres sont fournis
@@ -142,8 +142,8 @@ export default function NewProjectPage() {
             .insert({
               project_id: newProject.id,
               user_id: user.id,
-              title: `Analyse auto: ${formData.name}`,
-              description: `Analyse générée automatiquement pour le projet ${formData.name}`,
+              title: `Automatic analysis: ${formData.name}`,
+              description: `Automatically generated analysis for project ${formData.name}`,
               analysis_type: 'auto_pinn_v8',
               transcription: formData.transcription,
               status: 'pending',
@@ -153,7 +153,7 @@ export default function NewProjectPage() {
 
           if (analysisError) {
             console.error('Analysis creation error:', analysisError);
-            throw new Error(`Erreur lors de la création de l\'analyse: ${analysisError.message}`);
+            throw new Error(`Analysis creation failed: ${analysisError.message}`);
           }
 
           if (newAnalysis) {
@@ -168,14 +168,14 @@ export default function NewProjectPage() {
               body: JSON.stringify({
                 projectId: newProject.id,
                 analysisId: newAnalysis.id,
-                name: `Analyse auto: ${formData.name}`,
+                name: `Automatic analysis: ${formData.name}`,
                 transcription: formData.transcription,
                 userId: user.id,
                 predictions3d: jsonData?.analysis?.results?.predictions3d || null
               })
             }).catch(err => console.error("Auto-analysis trigger failed:", err));
             
-            toast.info('Analyse physique PINN lancée en arrière-plan...');
+            toast.info('PINN physics analysis started in the background...');
           } catch (err) {
             console.error("Failed to trigger auto-analysis:", err);
           }
@@ -206,18 +206,18 @@ export default function NewProjectPage() {
           href="/dashboard" 
           className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest"
         >
-          <ArrowLeft className="w-4 h-4" /> Retour au Nexus
+          <ArrowLeft className="w-4 h-4" /> Back to Nexus
         </Link>
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-blue-500 font-mono text-[10px] uppercase tracking-[0.3em] mb-2">
             <Atom className="w-4 h-4" /> 
-            <span>Initialisation de Simulation</span>
+            <span>Simulation Initialization</span>
           </div>
           <h1 className="text-5xl font-black tracking-tighter text-white">
-            Nouveau <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Projet PINN</span>
+            New <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">PINN Project</span>
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl leading-relaxed">
-            Configurez votre environnement de recherche hybride pour l'analyse Navier-Stokes et la diffusion thermique.
+            Configure your hybrid research environment for Navier–Stokes and thermal diffusion analysis.
           </p>
         </div>
       </div>
@@ -232,17 +232,17 @@ export default function NewProjectPage() {
               <div className="p-2.5 bg-blue-500/10 rounded-xl">
                 <Cpu className="w-5 h-5 text-blue-400" />
               </div>
-              <h2 className="text-xl font-bold text-white">Paramètres Noyau</h2>
+              <h2 className="text-xl font-bold text-white">Core Parameters</h2>
             </div>
 
             <div className="space-y-6">
               <div className="space-y-2">
                 <label htmlFor="name" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                  Identifiant du Projet *
+                  Project Identifier *
                 </label>
                 <input
                   id="name"
-                  {...register('name', { required: 'Le nom est requis' })}
+                  {...register('name', { required: 'Project name is required' })}
                   className="w-full border border-white/10 bg-white/5 rounded-2xl px-5 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all text-lg font-bold"
                   placeholder="Ex: H2-CYLINDER-V8-SIM"
                   required
@@ -251,13 +251,13 @@ export default function NewProjectPage() {
 
               <div className="space-y-2">
                 <label htmlFor="description" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                  Résumé Scientifique
+                  Scientific Summary
                 </label>
                 <textarea
                   id="description"
                   {...register('description')}
                   className="w-full border border-white/10 bg-white/5 rounded-2xl px-5 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all min-h-[120px] leading-relaxed"
-                  placeholder="Décrivez les objectifs physiques de cette simulation..."
+                  placeholder="Describe the physical objectives of this simulation..."
                   rows={4}
                 />
               </div>
@@ -269,13 +269,13 @@ export default function NewProjectPage() {
               <div className="p-2.5 bg-emerald-500/10 rounded-xl">
                 <FileText className="w-5 h-5 text-emerald-400" />
               </div>
-              <h2 className="text-xl font-bold text-white">Données Physiques</h2>
+              <h2 className="text-xl font-bold text-white">Physical Data</h2>
             </div>
 
             <div className="space-y-6">
               <div className="space-y-2">
                 <label htmlFor="json-import" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                  Importer Données JSON (Optionnel)
+                  Import JSON Data (Optional)
                 </label>
                 <div className="relative group">
                   <input
@@ -291,9 +291,9 @@ export default function NewProjectPage() {
                           try {
                             const data = JSON.parse(event.target?.result as string)
                             setJsonData(data)
-                            toast.success('Données JSON chargées avec succès')
+                            toast.success('JSON data loaded successfully')
                           } catch (err) {
-                            toast.error('Erreur: Format JSON invalide')
+                            toast.error('Error: invalid JSON format')
                           }
                         }
                         reader.readAsText(file)
@@ -306,8 +306,8 @@ export default function NewProjectPage() {
                     className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-white/10 rounded-[24px] bg-white/[0.02] group-hover:bg-white/5 group-hover:border-emerald-500/30 transition-all cursor-pointer p-4 text-center"
                   >
                     <FileText className="w-6 h-6 text-gray-600 group-hover:text-emerald-500 mb-2 transition-colors" />
-                    <span className="text-xs font-bold text-gray-400 group-hover:text-white transition-colors">Charger JSON</span>
-                    <span className="text-[9px] text-gray-600 mt-1 uppercase tracking-tighter">Données 3D PINN</span>
+                    <span className="text-xs font-bold text-gray-400 group-hover:text-white transition-colors">Load JSON</span>
+                    <span className="text-[9px] text-gray-600 mt-1 uppercase tracking-tighter">3D PINN data</span>
                     {jsonFile && (
                       <div className="mt-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
                         <p className="text-[9px] text-emerald-400 font-bold truncate max-w-[150px]">✓ {jsonFile.name}</p>
@@ -319,19 +319,19 @@ export default function NewProjectPage() {
 
               <div className="space-y-2">
                 <label htmlFor="transcription" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">
-                  Transcription ou Paramètres (Crucial pour PINN)
+                  Transcription or Parameters (Critical for PINN)
                 </label>
                 <textarea
                   id="transcription"
                   {...register('transcription')}
                   className="w-full border border-white/10 bg-white/5 rounded-2xl px-5 py-4 text-white font-mono text-sm placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all min-h-[160px] leading-relaxed"
-                  placeholder="Collez ici les données textuelles, transcriptions ou paramètres physiques à analyser par l'IA..."
+                  placeholder="Paste text data, transcripts or physical parameters to be analyzed by the AI..."
                   rows={6}
                 />
                 <div className="flex items-start gap-2 p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl mt-2">
                   <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-blue-400/80 leading-relaxed uppercase tracking-tight">
-                    Le moteur PINN V8 utilisera ce texte pour extraire les variables de pression, température et flux via GPT-4o.
+                    The PINN V8 engine will use this text to extract pressure, temperature and flux variables through GPT-4o.
                   </p>
                 </div>
               </div>
@@ -359,7 +359,7 @@ export default function NewProjectPage() {
               <div className="p-2.5 bg-purple-500/10 rounded-xl">
                 <Video className="w-5 h-5 text-purple-400" />
               </div>
-              <h2 className="text-xl font-bold text-white">Média Source</h2>
+              <h2 className="text-xl font-bold text-white">Source Media</h2>
             </div>
 
             <div className="space-y-4">
@@ -381,7 +381,7 @@ export default function NewProjectPage() {
                   className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-white/10 rounded-[24px] bg-white/[0.02] group-hover:bg-white/5 group-hover:border-blue-500/30 transition-all cursor-pointer p-6 text-center"
                 >
                   <Video className="w-8 h-8 text-gray-600 group-hover:text-blue-500 mb-4 transition-colors" />
-                  <span className="text-sm font-bold text-gray-400 group-hover:text-white transition-colors">Charger Vidéo Simulation</span>
+                  <span className="text-sm font-bold text-gray-400 group-hover:text-white transition-colors">Load Simulation Video</span>
                   <span className="text-[10px] text-gray-600 mt-2 uppercase tracking-tighter">MP4, WebM (Max 500MB)</span>
                   {videoFile && (
                     <div className="mt-4 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
@@ -416,12 +416,12 @@ export default function NewProjectPage() {
                 ) : loading ? (
                   <>
                     <div className="w-5 h-5 border-3 border-black/10 border-t-black rounded-full animate-spin" />
-                    Initialisation...
+                    Initializing...
                   </>
                 ) : (
                   <>
                     <Rocket className="w-6 h-6" />
-                    Démarrer Simulation
+                    Start Simulation
                   </>
                 )}
               </span>

@@ -135,7 +135,7 @@ export default function DashboardPage() {
         <div className="h-16 w-16 rounded-full border-t-2 border-b-2 border-blue-500 animate-spin"></div>
         <div className="absolute top-0 left-0 h-16 w-16 rounded-full border-r-2 border-l-2 border-emerald-500 animate-spin-slow"></div>
       </div>
-      <p className="text-blue-500 font-mono text-xs animate-pulse uppercase tracking-widest">Initialisation du Nexus Quantique...</p>
+      <p className="text-blue-500 font-mono text-xs animate-pulse uppercase tracking-widest">Initializing Quantum Nexus...</p>
     </div>
   )
 
@@ -150,13 +150,13 @@ export default function DashboardPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-blue-500 font-mono text-[10px] uppercase tracking-[0.3em]">
             <Atom className="w-3 h-3" /> 
-            <span>Centre de Commandement</span>
+            <span>Command Center</span>
           </div>
           <h1 className="text-5xl font-black tracking-tighter text-white">
-            Nexus <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Scientifique</span>
+            Nexus <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Scientific</span>
           </h1>
           <p className="text-gray-400 max-w-md text-sm leading-relaxed">
-            Supervision des simulations Quantum-Hybrid-FNO et orchestration des validations physiques en temps réel.
+            Supervise Quantum-Hybrid-FNO simulations and orchestrate real-time physical validation.
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-4">
@@ -172,7 +172,7 @@ export default function DashboardPage() {
             <button className="group relative px-8 py-4 bg-white text-black font-bold rounded-2xl overflow-hidden transition-all hover:scale-105 active:scale-95">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-emerald-500 opacity-0 group-hover:opacity-10 transition-opacity" />
               <span className="relative flex items-center gap-2">
-                <Plus className="w-5 h-5" /> Nouveau Projet
+                <Plus className="w-5 h-5" /> New Project
               </span>
             </button>
           </Link>
@@ -182,10 +182,10 @@ export default function DashboardPage() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { label: 'Projets Actifs', value: projects.length, icon: Layers, color: 'blue' },
-          { label: 'Analyses PINN', value: analysesCount, icon: Activity, color: 'emerald' },
-          { label: 'Score Moyen', value: avgScore > 0 ? `${avgScore.toFixed(1)}%` : '--', icon: ShieldCheck, color: 'purple' },
-          { label: 'Temps Calcul', value: avgComputeTime > 0 ? `${avgComputeTime.toFixed(2)}s` : '--', icon: Clock, color: 'orange' },
+          { label: 'Active Projects', value: projects.length, icon: Layers, color: 'blue' },
+          { label: 'PINN Analyses', value: analysesCount, icon: Activity, color: 'emerald' },
+          { label: 'Average Score', value: avgScore > 0 ? `${avgScore.toFixed(1)}%` : '--', icon: ShieldCheck, color: 'purple' },
+          { label: 'Compute Time', value: avgComputeTime > 0 ? `${avgComputeTime.toFixed(2)}s` : '--', icon: Clock, color: 'orange' },
         ].map((stat, i) => (
           <div key={i} className="relative group">
             <div className="absolute inset-0 bg-white/[0.02] border border-white/10 rounded-3xl transition-all group-hover:border-white/20" />
@@ -208,7 +208,7 @@ export default function DashboardPage() {
           <div className="relative flex-1 w-full group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 group-focus-within:text-blue-500 transition-colors" />
             <input 
-              placeholder="Filtrer les archives quantiques..." 
+              placeholder="Filter quantum archives..."
               className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -216,7 +216,7 @@ export default function DashboardPage() {
           </div>
           <button className="flex items-center gap-2 px-6 py-4 bg-white/5 border border-white/10 rounded-2xl text-gray-400 hover:text-white hover:bg-white/10 transition-all">
             <Filter className="w-4 h-4" />
-            <span className="text-sm font-bold">Paramètres de Vue</span>
+            <span className="text-sm font-bold">View Options</span>
           </button>
         </div>
 
@@ -224,11 +224,11 @@ export default function DashboardPage() {
           <div className="relative py-24 rounded-[40px] border-2 border-dashed border-white/5 flex flex-col items-center justify-center text-center overflow-hidden">
             <div className="absolute inset-0 bg-blue-500/5 animate-pulse" />
             <FlaskConical className="h-16 w-16 text-gray-700 mb-6 relative" />
-            <h3 className="text-2xl font-bold text-white relative">Aucune Donnée Détectée</h3>
-            <p className="text-gray-500 mt-2 max-w-xs relative">Votre nexus est vide. Initialisez un nouveau projet pour commencer la simulation.</p>
+            <h3 className="text-2xl font-bold text-white relative">No Data Detected</h3>
+            <p className="text-gray-500 mt-2 max-w-xs relative">Your nexus is empty. Initialize a new project to start the simulation.</p>
             <Link href="/dashboard/projects/new" className="mt-8 relative">
               <Button variant="outline" className="rounded-xl border-white/10 hover:bg-white/10">
-                Initialiser le Premier Projet
+                Initialize First Project
               </Button>
             </Link>
           </div>
@@ -260,11 +260,11 @@ export default function DashboardPage() {
                         {getScenarioDisplayName(project.scenario_type || project.category || project.name)}
                       </h3>
                       <p className="text-[10px] font-mono uppercase tracking-widest text-cyan-400/70 mb-2">
-                        Code : {inferScenarioTypeFromProject(project) || 'NON_CLASSÉ'}
+                        Code : {inferScenarioTypeFromProject(project) || 'UNCLASSIFIED'}
                       </p>
                       
                       <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed flex-1">
-                        {project.description || "Aucune description scientifique fournie pour ce module de simulation."}
+                        {project.description || "No scientific description was provided for this simulation module."}
                       </p>
                       
                       <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
@@ -273,8 +273,8 @@ export default function DashboardPage() {
 		                            {project.name && project.name.length > 0 ? project.name[0].toUpperCase() : 'P'}
 		                          </div>
 	                          <div className="text-[10px] font-mono text-gray-500">
-	                            <p className="uppercase tracking-widest">Date Init</p>
-	                            <p className="text-gray-300">{project.created_at ? new Date(project.created_at).toLocaleDateString() : 'Inconnue'}</p>
+	                            <p className="uppercase tracking-widest">Created</p>
+	                            <p className="text-gray-300">{project.created_at ? new Date(project.created_at).toLocaleDateString() : 'Unknown'}</p>
 	                          </div>
                         </div>
                         <div className="p-2 bg-white/5 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-all">
@@ -297,8 +297,8 @@ export default function DashboardPage() {
             <Users className="w-5 h-5 text-purple-400" />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Social Hub Scientifique</h2>
-            <p className="text-xs text-gray-500 font-mono uppercase tracking-widest">Collaboration & Partage de Connaissances</p>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Scientific Social Hub</h2>
+            <p className="text-xs text-gray-500 font-mono uppercase tracking-widest">Collaboration & Knowledge Sharing</p>
           </div>
         </div>
         <ScientificSocialHub />

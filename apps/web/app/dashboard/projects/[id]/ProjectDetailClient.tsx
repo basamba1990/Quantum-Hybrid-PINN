@@ -360,7 +360,7 @@ export default function ProjectDetailClient({ id, project }: any) {
       <main className="flex-1 overflow-y-auto p-6 md:p-10 space-y-10">
         <div className="flex justify-between items-center">
           <div className="space-y-2">
-            <Link href="/dashboard" className="flex items-center gap-2 text-gray-500 hover:text-white text-[9px] font-black uppercase tracking-[0.2em]"><ArrowLeft className="w-3 h-3" /> Retour</Link>
+            <Link href="/dashboard" className="flex items-center gap-2 text-gray-500 hover:text-white text-[9px] font-black uppercase tracking-[0.2em]"><ArrowLeft className="w-3 h-3" /> Back</Link>
             <h1 className="text-4xl md:text-5xl font-black uppercase italic tracking-tighter leading-none">{projectDisplayName}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -385,7 +385,7 @@ export default function ProjectDetailClient({ id, project }: any) {
                 <p className="text-sm text-red-200/70">
                   {leakAlertMode 
                     ? "Anomalie de pression locale détectée sur la ligne DN50. Perte d'intégrité structurelle imminente." 
-                    : "Les résidus de Navier-Stokes ont divergé. Certification G5 révoquée automatiquement."}
+                    : "Navier-Stokes residuals diverged. G5 certification automatically revoked."}
                 </p>
               </div>
             </div>

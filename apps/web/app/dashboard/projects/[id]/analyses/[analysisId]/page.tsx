@@ -51,7 +51,7 @@ export default function AnalysisDetailPage() {
             .maybeSingle()
 
           if (fetchError) throw fetchError
-          if (!data) throw new Error('Analyse non trouvée')
+          if (!data) throw new Error('Analysis not found')
 
           // 2. KELLY SENECAL V2.1.7: Fetch high-fidelity data from analysis_results
           const { data: resRows, error: resError } = await supabase
@@ -102,12 +102,12 @@ export default function AnalysisDetailPage() {
           
           setAnalysis({
             ...data,
-            title: data.name || data.title || 'Analyse sans titre',
+            title: data.name || data.title || 'Untitled analysis',
             credibility_score: Number(score) || 0,
             results: results || {}
           })
         } catch (err: any) {
-        setError(err.message || 'Erreur lors du chargement de l\'analyse')
+        setError(err.message || 'Failed to load the analysis')
       } finally {
         setLoading(false)
       }
@@ -133,10 +133,10 @@ export default function AnalysisDetailPage() {
     return (
       <div className="p-8 max-w-4xl mx-auto">
         <Link href={`/dashboard/projects/${projectId}/analyses`} className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6">
-          <ArrowLeft className="w-4 h-4" /> Retour aux analyses
+          <ArrowLeft className="w-4 h-4" /> Back to analyses
         </Link>
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <p className="text-red-700 font-medium">{error || 'Analyse non trouvée'}</p>
+          <p className="text-red-700 font-medium">{error || 'Analysis not found'}</p>
         </div>
       </div>
     )
@@ -183,7 +183,7 @@ export default function AnalysisDetailPage() {
       <div className="flex items-center justify-between">
         <div>
           <Link href={`/dashboard/projects/${projectId}/analyses`} className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4">
-            <ArrowLeft className="w-4 h-4" /> Retour aux analyses
+            <ArrowLeft className="w-4 h-4" /> Back to analyses
           </Link>
           <h1 className="text-4xl font-bold text-gray-900">{analysis.title}</h1>
           <p className="text-gray-600 mt-2">
@@ -200,11 +200,11 @@ export default function AnalysisDetailPage() {
         </div>
       </div>
 
-      {/* Vue CFD identique à la page Simulation CFD */}
+      {/* CFD view shared with the CFD Simulation page */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-black uppercase tracking-tight text-gray-900">Visualisation CFD</h2>
-          <span className="text-xs font-mono text-cyan-700">Maillage CFD connecté uniquement si l’artefact versionné est présent et validé</span>
+          <span className="text-xs font-mono text-cyan-700">CFD mesh connects only when the versioned artifact is present and validated</span>
         </div>
         <div className="h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-900/50">
           <CFDViewer dataset={certifiedCfd.buffers} className="min-h-[600px]" />

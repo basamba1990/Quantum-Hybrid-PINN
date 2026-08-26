@@ -74,7 +74,7 @@ const ResidualsReliabilityHeatmap: React.FC<Props> = ({
   if (!analysis) {
     return (
       <div className="w-full h-64 flex items-center justify-center bg-white/5 border border-white/10 rounded-[32px]">
-        <p className="text-gray-500 text-sm">Aucune donnée de résidus disponible</p>
+        <p className="text-gray-500 text-sm">No residual data available</p>
       </div>
     )
   }

@@ -64,7 +64,7 @@ export default function ScientificSocialHub({
     <div className="w-full bg-[#0a0a0a] border border-white/10 rounded-3xl p-6 text-white space-y-6">
       <div className="flex items-center justify-between border-b border-white/10 pb-4">
         <h3 className="text-lg font-black uppercase tracking-wider flex items-center gap-2">
-          <Users className="w-5 h-5 text-blue-400" /> Hub Social & Audit Scientifique
+          <Users className="w-5 h-5 text-blue-400" /> Social Hub & Scientific Audit
         </h3>
         <div className="flex gap-2">
           <button onClick={() => setActiveTab('comments')} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase transition-all ${activeTab === 'comments' ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400'}`}>Commentaires</button>
@@ -76,7 +76,7 @@ export default function ScientificSocialHub({
         <div className="space-y-4">
           <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
             {annotations.length === 0 ? (
-              <p className="text-xs text-gray-500 italic text-center py-4">Aucune annotation enregistrée. Partagez votre observation scientifique.</p>
+              <p className="text-xs text-gray-500 italic text-center py-4">No annotation recorded. Share your scientific observation.</p>
             ) : (
               annotations.map(ann => (
                 <div key={ann.id} className="p-3 bg-white/5 border border-white/5 rounded-xl space-y-1">
@@ -118,7 +118,7 @@ export default function ScientificSocialHub({
           </div>
           <div className="p-4 bg-black/40 border border-white/10 rounded-2xl text-xs text-gray-300 leading-relaxed">
             <p className="font-bold text-white mb-1">Règle Kelly Senecal & Zéro Hallucination :</p>
-            Toutes les métriques physiques et les scores de crédibilité affichés proviennent strictement des résidus calculés des équations de Navier-Stokes et de la conservation de l'énergie. Aucune valeur n'est simulée par défaut.
+            All displayed physical metrics and credibility scores come strictly from computed Navier-Stokes and energy-conservation residuals. No default value is simulated.
           </div>
         </div>
       )}

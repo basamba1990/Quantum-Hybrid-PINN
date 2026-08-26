@@ -21,7 +21,7 @@ interface HybridChartVisualizerProps {
 
 export default function HybridChartVisualizer({
   predictions,
-  title = 'Analyse Temporelle PINN V8',
+  title = 'PINN V8 Temporal Analysis',
 }: HybridChartVisualizerProps) {
   const [isMounted, setIsMounted] = useState(false)
   const [activeTab, setActiveTab] = useState('pressure')
@@ -54,13 +54,13 @@ export default function HybridChartVisualizer({
 
       const times = allPoints.map((p) => p.time)
       
-      // Pression (conversion Pa -> bar si nécessaire)
+      // Pressure (conversion Pa -> bar si nécessaire)
       const pressure = allPoints.map((p) => {
         const rawP = p.pressure ?? 0
         return rawP > 1000 ? rawP / 1e5 : rawP
       })
 
-      // Température (gestion des deux échelles : K brut et K converti)
+      // Temperature (gestion des deux échelles : K brut et K converti)
       const temperatureBrut = allPoints.map((p) => p.temperature ?? 0)
       const temperatureConverted = allPoints.map((p) => {
         const rawT = p.temperature ?? 0
@@ -78,7 +78,7 @@ export default function HybridChartVisualizer({
         return Math.sqrt(u ** 2 + v ** 2 + w ** 2)
       })
 
-      // Densité
+      // Density
       const density = allPoints.map((p) => p.density ?? 1.0)
 
       return {
@@ -98,7 +98,7 @@ export default function HybridChartVisualizer({
   if (!isMounted || !predictions || predictions.length === 0 || !chartData) {
     return (
       <div className="h-[300px] w-full flex items-center justify-center bg-slate-50 rounded-lg text-slate-400 border border-dashed">
-        Données de prédiction insuffisantes pour afficher les courbes
+        Insufficient prediction data to display curves
       </div>
     )
   }
@@ -109,13 +109,13 @@ export default function HybridChartVisualizer({
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="pressure">Pression</TabsTrigger>
-          <TabsTrigger value="temperature">Température</TabsTrigger>
+          <TabsTrigger value="pressure">Pressure</TabsTrigger>
+          <TabsTrigger value="temperature">Temperature</TabsTrigger>
           <TabsTrigger value="velocity">Vitesse</TabsTrigger>
-          <TabsTrigger value="density">Densité</TabsTrigger>
+          <TabsTrigger value="density">Density</TabsTrigger>
         </TabsList>
 
-        {/* Pression */}
+        {/* Pressure */}
         <TabsContent value="pressure" className="h-[400px] w-full">
           <Plot
             data={[
@@ -124,7 +124,7 @@ export default function HybridChartVisualizer({
                 y: chartData.pressure,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'Pression',
+                name: 'Pressure',
                 line: { color: '#4f46e5', width: 3, shape: 'spline' },
                 fill: 'tozeroy',
                 fillcolor: 'rgba(79, 70, 229, 0.05)',
@@ -148,7 +148,7 @@ export default function HybridChartVisualizer({
           />
         </TabsContent>
 
-        {/* Température */}
+        {/* Temperature */}
         <TabsContent value="temperature" className="h-[400px] w-full">
           <Plot
             data={[
@@ -157,16 +157,16 @@ export default function HybridChartVisualizer({
                 y: chartData.temperature,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'Température',
+                name: 'Temperature',
                 line: { color: '#dc2626', width: 3, shape: 'spline' },
                 fill: 'tozeroy',
                 fillcolor: 'rgba(220, 38, 38, 0.1)',
               },
             ]}
             layout={{
-              title: `${title} – Température (K)`,
-              xaxis: { title: 'Temps (s)', zeroline: false },
-              yaxis: { title: 'Température (K)', zeroline: false },
+              title: `${title} – Temperature (K)`,
+              xaxis: { title: 'Time (s)', zeroline: false },
+              yaxis: { title: 'Temperature (K)', zeroline: false },
               hovermode: 'x unified',
               margin: { l: 60, r: 40, b: 60, t: 60 },
               autosize: true,
@@ -204,7 +204,7 @@ export default function HybridChartVisualizer({
             ]}
             layout={{
               title: `${title} – Magnitude de Vitesse (m/s)`,
-              xaxis: { title: 'Temps (s)', zeroline: false },
+              xaxis: { title: 'Time (s)', zeroline: false },
               yaxis: { title: 'Vitesse (m/s)', zeroline: false },
               hovermode: 'x unified',
               margin: { l: 60, r: 40, b: 60, t: 60 },
@@ -216,7 +216,7 @@ export default function HybridChartVisualizer({
           />
         </TabsContent>
 
-        {/* Densité */}
+        {/* Density */}
         <TabsContent value="density" className="h-[400px] w-full">
           <Plot
             data={[
@@ -225,16 +225,16 @@ export default function HybridChartVisualizer({
                 y: chartData.density,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'Densité',
+                name: 'Density',
                 line: { color: '#f59e0b', width: 3, shape: 'spline' },
                 fill: 'tozeroy',
                 fillcolor: 'rgba(245, 158, 11, 0.1)',
               },
             ]}
             layout={{
-              title: `${title} – Densité (kg/m³)`,
-              xaxis: { title: 'Temps (s)', zeroline: false },
-              yaxis: { title: 'Densité (kg/m³)', zeroline: false },
+              title: `${title} – Density (kg/m³)`,
+              xaxis: { title: 'Time (s)', zeroline: false },
+              yaxis: { title: 'Density (kg/m³)', zeroline: false },
               hovermode: 'x unified',
               margin: { l: 60, r: 40, b: 60, t: 60 },
               autosize: true,

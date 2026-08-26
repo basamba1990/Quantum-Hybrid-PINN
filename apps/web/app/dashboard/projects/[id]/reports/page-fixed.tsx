@@ -62,7 +62,7 @@ export default function ReportsPage() {
 
       if (storageError && storageError.message !== 'Not found') {
         console.error('Storage deletion error:', storageError)
-        toast.error(`Erreur lors de la suppression du fichier: ${storageError.message}`)
+        toast.error(`Failed to delete file: ${storageError.message}`)
         setDeleting(null)
         return
       }
@@ -75,7 +75,7 @@ export default function ReportsPage() {
 
       if (dbError) {
         console.error('DB deletion error:', dbError)
-        toast.error(`Erreur lors de la suppression de l'enregistrement: ${dbError.message}`)
+        toast.error(`Failed to delete record: ${dbError.message}`)
         setDeleting(null)
         return
       }
@@ -157,7 +157,7 @@ export default function ReportsPage() {
 
       if (insertError) {
         console.error('Insert error:', insertError)
-        toast.error(`Erreur lors de la sauvegarde: ${insertError.message}`)
+        toast.error(`Save failed: ${insertError.message}`)
         // Nettoyer le fichier uploadé en cas d'erreur
         await supabase.storage.from('reports').remove([fileName])
         setUploading(false)
@@ -193,7 +193,7 @@ export default function ReportsPage() {
             href={`/dashboard/projects/${projectId}`} 
             className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest"
           >
-            <ArrowLeft className="w-4 h-4" /> Retour au Projet
+            <ArrowLeft className="w-4 h-4" /> Back to Project
           </Link>
           <div className="space-y-1">
             <h1 className="text-4xl font-black tracking-tighter text-white flex items-center gap-3">
@@ -237,7 +237,7 @@ export default function ReportsPage() {
                     id="name"
                     {...register('name', { required: true })}
                     className="w-full border border-white/10 bg-white/5 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                    placeholder="Ex: Analyse Thermique H2-S1"
+                    placeholder="e.g. H2-S1 Thermal Analysis"
                     required
                   />
                 </div>
@@ -305,7 +305,7 @@ export default function ReportsPage() {
             <div className="flex items-start gap-3">
               <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0" />
               <div>
-                <p className="text-xs font-bold text-emerald-400 uppercase tracking-tight">Vérification de Sécurité</p>
+                <p className="text-xs font-bold text-emerald-400 uppercase tracking-tight">Safety Verification</p>
                 <p className="text-[10px] text-emerald-500/70 mt-1 leading-relaxed">
                   Tous les fichiers sont scannés et stockés de manière sécurisée dans le bucket Supabase avec chiffrement au repos.
                 </p>
@@ -379,7 +379,7 @@ export default function ReportsPage() {
                         className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold text-white transition-all"
                       >
                         <Download className="w-4 h-4" />
-                        Télécharger
+                        Download
                       </a>
                       {/* ✅ FIX: Bouton suppression opérationnel */}
                       <button 

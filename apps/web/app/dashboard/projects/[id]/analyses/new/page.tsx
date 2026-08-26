@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { ArrowLeft, Zap, AlertCircle, CheckCircle2, Cpu, Gauge } from 'lucide-react'
 import Link from 'next/link'
 
-// Scénarios disponibles avec descriptions - V8.5 Industrial
+// Available scenarios with descriptions - V8.5 Industrial
 const SCENARIOS = [
   {
     id: 'H2_PIPELINE',
@@ -34,14 +34,14 @@ const SCENARIOS = [
   {
     id: 'CRYOGENIC_TRANSPORT',
     name: 'Transport Cryogénique',
-    description: 'Simulation des pertes thermiques lors du transport de LH₂ ou GNL',
+    description: 'Simulation of thermal losses during LH₂ or LNG transport',
     icon: '🚚',
     color: 'from-purple-600 to-pink-600'
   },
   {
     id: 'PIPELINE_SAFETY',
-    name: 'Sécurité Pipeline',
-    description: 'Analyse de détection et prédiction de ruptures avec capteurs distribués',
+    name: 'Pipeline Safety',
+    description: 'Break detection and prediction analysis with distributed sensors',
     icon: '🛡️',
     color: 'from-orange-600 to-red-600'
   },
@@ -62,21 +62,21 @@ const SCENARIOS = [
   {
     id: 'ROCK_ELAST_STRESS',
     name: 'Géomécanique Rocheuse',
-    description: 'Analyse des contraintes élastiques et endommagement de roches en profondeur',
+    description: 'Analysis of elastic stress and deep-rock damage',
     icon: '🪨',
     color: 'from-amber-600 to-yellow-600'
   },
   {
     id: 'FPGA_HEATSINK',
     name: 'FPGA Heatsink',
-    description: 'Transfert de chaleur conjugué dans un dissipateur thermique FPGA. Flux thermique 600 W/cm². Simulation Navier-Stokes 3D.',
+    description: 'Conjugate heat transfer in an FPGA heat sink. Heat flux 600 W/cm². 3D Navier-Stokes simulation.',
     icon: '🔥',
     color: 'from-red-600 to-orange-600'
   },
   {
     id: 'DEEP_MINING_BLOCK',
     name: 'Deep Mining Block',
-    description: 'Analyse géomécanique de bloc rocheux en mine profonde. Contraintes lithostatiques, critère de rupture Mohr-Coulomb.',
+    description: 'Geomechanical analysis of a deep-mine rock block. Lithostatic stresses and Mohr-Coulomb failure criterion.',
     icon: '⛰️',
     color: 'from-stone-600 to-amber-800'
   }
@@ -101,7 +101,7 @@ export default function NewAnalysisPage() {
     setErrorMsg(null)
     
     try {
-      // 1. Vérifier la session
+      // 1. Check session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session) {
         throw new Error("Session expirée. Veuillez vous reconnecter.")
@@ -129,13 +129,13 @@ export default function NewAnalysisPage() {
           user_id: project.user_id,
           status: 'pending',
           analysis_type: 'physics_verification',
-          transcription: project.transcription || "Simulation industrielle standard"
+          transcription: project.transcription || "Standard industrial simulation"
         })
         .select()
         .single()
 
       if (insertError) {
-        throw new Error(`Erreur lors de la création de l'analyse : ${insertError.message}`)
+        throw new Error(`Failed to create the analysis : ${insertError.message}`)
       }
 
       // 4. Lancement asynchrone de la simulation
@@ -226,7 +226,7 @@ export default function NewAnalysisPage() {
         })
       }).catch(e => console.warn("Edge function error:", e));
 
-      toast.success('Analyse lancée avec succès 🚀')
+      toast.success('Analysis started successfully 🚀')
       
       // Redirection immédiate
       router.push(`/dashboard/projects/${projectId}/analyses`)
@@ -234,8 +234,8 @@ export default function NewAnalysisPage() {
       
     } catch (err: any) {
       console.error('Analysis execution error:', err)
-      setErrorMsg(err.message || 'Erreur inconnue')
-      toast.error(err.message || 'Erreur inconnue')
+      setErrorMsg(err.message || 'Unknown error')
+      toast.error(err.message || 'Unknown error')
     } finally {
       setLoading(false)
     }
@@ -252,15 +252,15 @@ export default function NewAnalysisPage() {
           href={`/dashboard/projects/${projectId}`}
           className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors text-xs font-bold uppercase tracking-widest"
         >
-          <ArrowLeft className="w-4 h-4" /> Retour au projet
+          <ArrowLeft className="w-4 h-4" /> Back to project
         </Link>
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-blue-500 font-mono text-[10px] uppercase tracking-[0.3em] mb-2">
             <Zap className="w-4 h-4" /> 
-            <span>Nouvelle Analyse Physique</span>
+            <span>New Physical Analysis</span>
           </div>
           <h1 className="text-5xl font-black tracking-tighter text-white">
-            Lancez une <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Simulation</span>
+            Start a <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Simulation</span>
           </h1>
           <p className="text-gray-400 text-lg max-w-2xl leading-relaxed">
             Sélectionnez un scénario industriel et configurez les paramètres physiques réalistes pour l'analyse PINN.
@@ -272,7 +272,7 @@ export default function NewAnalysisPage() {
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <Gauge className="w-5 h-5 text-blue-500" />
-          Scénario Industriel
+          Industrial Scenario
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {SCENARIOS.map((scenario) => (
@@ -310,12 +310,12 @@ export default function NewAnalysisPage() {
           </label>
           <input
             {...register('name', { required: 'Le nom est requis' })}
-            placeholder={`Analyse ${selectedScenario} - Validation Industrielle`}
+            placeholder={`Analyse ${selectedScenario} - Industrial Validation`}
             className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
           />
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <Cpu className="w-4 h-4" />
-            <span>Scénario actif : <strong className="text-blue-400">{selectedScenario}</strong></span>
+            <span>Active scenario: <strong className="text-blue-400">{selectedScenario}</strong></span>
           </div>
         </div>
 
@@ -340,7 +340,7 @@ export default function NewAnalysisPage() {
               Initialisation...
             </span>
           ) : (
-            '🚀 Lancer la Simulation PINN'
+            '🚀 Start PINN Simulation'
           )}
         </button>
       </form>

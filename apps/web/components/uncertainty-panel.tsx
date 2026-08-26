@@ -38,7 +38,7 @@ export function UncertaintyPanel({ data, threshold = 0.1 }: UncertaintyPanelProp
           <h3 className={`text-lg font-bold ${
             isAcceptable ? 'text-emerald-400' : 'text-amber-400'
           }`}>
-            Analyse des Incertitudes
+            Uncertainty Analysis
           </h3>
           <div className="mt-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -66,13 +66,13 @@ export function UncertaintyPanel({ data, threshold = 0.1 }: UncertaintyPanelProp
                 <p className="text-xs font-mono text-gray-400 uppercase">Détails par Composante</p>
                 {data.temperature && (
                   <div className="flex justify-between text-xs text-gray-300">
-                    <span>Température</span>
+                    <span>Temperature</span>
                     <span className="font-mono">±{(data.temperature * 100).toFixed(1)}%</span>
                   </div>
                 )}
                 {data.pressure && (
                   <div className="flex justify-between text-xs text-gray-300">
-                    <span>Pression</span>
+                    <span>Pressure</span>
                     <span className="font-mono">±{(data.pressure * 100).toFixed(1)}%</span>
                   </div>
                 )}

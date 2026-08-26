@@ -49,7 +49,7 @@ export default function SweetSpotAnalysisEnhanced({ data, loading = false, onRef
               <div className="absolute inset-0 rounded-full border-2 border-purple-500/10 border-r-purple-500 animate-spin" style={{ animationDirection: 'reverse' }} />
             </div>
             <div className="space-y-2">
-              <p className="text-cyan-400 font-mono text-sm font-bold uppercase tracking-widest">Analyse en cours...</p>
+              <p className="text-cyan-400 font-mono text-sm font-bold uppercase tracking-widest">Analysis in progress...</p>
               <p className="text-gray-500 text-xs">Calcul Peng-Robinson EoS + Grille de stabilité</p>
             </div>
           </div>
@@ -64,7 +64,7 @@ export default function SweetSpotAnalysisEnhanced({ data, loading = false, onRef
         <div className="flex items-center gap-4">
           <Info className="w-6 h-6 text-blue-400 shrink-0" />
           <div>
-            <p className="text-white font-bold">Aucune donnée disponible</p>
+            <p className="text-white font-bold">No data available</p>
             <p className="text-gray-400 text-sm">Lancez une simulation pour générer l'analyse du Sweet Spot</p>
           </div>
         </div>
@@ -141,7 +141,7 @@ export default function SweetSpotAnalysisEnhanced({ data, loading = false, onRef
             <div className="glass-premium rounded-2xl p-4 border-subtle-glow hover:border-neon-cyan transition-all duration-300">
               <div className="flex items-center gap-2 mb-3">
                 <Thermometer className="w-4 h-4 text-red-400" />
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Température</span>
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Temperature</span>
               </div>
               <p className="text-2xl font-black text-white font-mono">
                 {data.sweet_spot.temperature.toFixed(1)}<span className="text-sm ml-1 text-red-400">K</span>
@@ -155,7 +155,7 @@ export default function SweetSpotAnalysisEnhanced({ data, loading = false, onRef
             <div className="glass-premium rounded-2xl p-4 border-subtle-glow hover:border-neon-cyan transition-all duration-300">
               <div className="flex items-center gap-2 mb-3">
                 <Gauge className="w-4 h-4 text-blue-400" />
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Pression</span>
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Pressure</span>
               </div>
               <p className="text-2xl font-black text-white font-mono">
                 {(data.sweet_spot.pressure / 1e6).toFixed(2)}<span className="text-sm ml-1 text-blue-400">MPa</span>
@@ -169,7 +169,7 @@ export default function SweetSpotAnalysisEnhanced({ data, loading = false, onRef
             <div className="glass-premium rounded-2xl p-4 border-subtle-glow hover:border-neon-cyan transition-all duration-300">
               <div className="flex items-center gap-2 mb-3">
                 <Droplets className="w-4 h-4 text-cyan-400" />
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Densité</span>
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Density</span>
               </div>
               <p className="text-2xl font-black text-white font-mono">
                 {data.sweet_spot.density.toFixed(2)}<span className="text-sm ml-1 text-cyan-400">kg/m³</span>

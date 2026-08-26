@@ -83,7 +83,7 @@ export default function AssistantPage() {
         timestamp: new Date().toISOString()
       }
       setMessages(prev => [...prev, errorMsg])
-      toast.error('Erreur lors du traitement de votre demande')
+      toast.error('Failed to process your request')
     } finally {
       setIsLoading(false)
     }
@@ -119,7 +119,7 @@ export default function AssistantPage() {
         .insert({
           project_id: context.projectId,
           user_id: user.id,
-          title: `Analyse Assistant - ${new Date().toLocaleString()}`,
+          title: `Assistant Analysis - ${new Date().toLocaleString()}`,
           status: 'pending',
           analysis_type: 'physics_verification',
           transcription: projectData.transcription
@@ -179,13 +179,13 @@ export default function AssistantPage() {
         timestamp: new Date().toISOString()
       }
       setMessages(prev => [...prev, assistantMsg])
-      toast.success('Analyse physique complétée')
+      toast.success('Physical analysis completed')
 
     } catch (error) {
       console.error('Physics analysis error:', error)
       const errorMsg: Message = {
         role: 'assistant',
-        content: `Erreur lors de l'analyse physique: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        content: `Physical analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date().toISOString()
       }
       setMessages(prev => [...prev, errorMsg])
@@ -246,7 +246,7 @@ export default function AssistantPage() {
   const generatePhysicsResponse = (analysisData: any, userQuery: string): string => {
     const { credibilityScore, anomalies, isPhysicallyCoherent, extractedData } = analysisData
 
-    let response = `Analyse physique complétée.\n\n`
+    let response = `Physical analysis completed.\n\n`
     response += `**Score de crédibilité:** ${credibilityScore}/100\n`
     response += `**Cohérence physique:** ${isPhysicallyCoherent ? '✓ Valide' : '✗ Anomalies détectées'}\n\n`
 

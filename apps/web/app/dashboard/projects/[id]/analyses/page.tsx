@@ -19,7 +19,7 @@ export default function AnalysesPage() {
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Analyses du projet</h1>
+        <h1 className="text-2xl font-bold">Project analyses</h1>
         <ExportButton
           data={analyses}
           filename={`analyses_projet_${projectId}`}
@@ -37,7 +37,7 @@ export default function AnalysesPage() {
       </div>
 
       {analyses.length === 0 ? (
-        <p>Aucune analyse.</p>
+        <p>No analyses.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
@@ -45,7 +45,7 @@ export default function AnalysesPage() {
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Nom</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Statut</th>
-                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Score de Crédibilité</th>
+                <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Credibility Score</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
                 <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Action</th>
               </tr>

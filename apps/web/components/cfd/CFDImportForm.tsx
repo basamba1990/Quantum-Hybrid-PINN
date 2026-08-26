@@ -50,7 +50,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       file => !file.name.toLowerCase().endsWith('.vtu') || file.size === 0 || file.size > MAX_FILE_BYTES,
     )
     if (invalid) {
-      setError(`Fichier VTU refusé : ${invalid.name}. Extension .vtu et taille maximale de 50 MiB requises.`)
+      setError(`VTU file rejected: ${invalid.name}. A .vtu extension and a maximum size of 50 MiB are required.`)
       setVtuFiles([])
       return
     }
@@ -63,7 +63,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
     const file = event.target.files?.[0] ?? null
     if (!file) return
     if (!file.name.toLowerCase().endsWith('.json') || file.size === 0 || file.size > MAX_FILE_BYTES) {
-      setError('Sidecar refusé : fichier JSON non vide de 50 MiB maximum requis.')
+      setError('Sidecar rejected: a non-empty JSON file of 50 MiB maximum is required.')
       setSidecar(null)
       return
     }
@@ -76,15 +76,15 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
     setError(null)
     setResult(null)
     if (!caseId.trim()) {
-      setError('Renseignez d’abord l’identifiant du projet/scénario.')
+      setError('Enter the project or scenario identifier first.')
       return
     }
     if (!vtuFiles.length || !sidecar) {
-      setError('Sélectionnez au moins une frame VTU et son sidecar JSON.')
+      setError('Select at least one VTU frame and its JSON sidecar.')
       return
     }
     if (totalBytes > MAX_FILE_BYTES) {
-      setError('La taille totale de l’upload dépasse 50 MiB.')
+      setError('The total upload size exceeds 50 MiB.')
       return
     }
 
@@ -93,14 +93,14 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
     try {
       ensuredProjectId = ensuredProjectId ?? await onBeforeImport?.()
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Impossible de créer le projet avant l’import CFD.'
+      const message = caught instanceof Error ? caught.message : 'Unable to create the project before CFD import.'
       setError(message)
       toast.error(message)
       setBusy(false)
       return
     }
     if (!ensuredProjectId) {
-      setError('Le projet doit être créé avant la persistance du dataset CFD.')
+      setError('The project must be created before the CFD dataset can be persisted.')
       setBusy(false)
       return
     }
@@ -118,7 +118,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       })
       const payload = await response.json() as CfdImportResponse
       if (!response.ok) {
-        throw new Error(payload.error || payload.detail || `Import refusé (HTTP ${response.status}).`)
+        throw new Error(payload.error || payload.detail || `Import rejected (HTTP ${response.status}).`)
       }
       const normalizedPayload: CfdImportResponse = {
         ...payload,
@@ -128,9 +128,9 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       }
       setResult(normalizedPayload)
       onImported?.(normalizedPayload)
-      toast.success(`Dataset importé : ${normalizedPayload.analysisId ?? 'identifiant indisponible'}`)
+      toast.success(`Dataset imported: ${normalizedPayload.analysisId ?? 'identifier unavailable'}`)
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Échec de l’import CFD.'
+      const message = caught instanceof Error ? caught.message : 'CFD import failed.'
       setError(message)
       toast.error(message)
     } finally {
@@ -139,14 +139,14 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
   }
 
   return (
-    <div role="form" aria-label="Importer un artefact CFD" className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+    <div role="form" aria-label="Import a CFD artifact" className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
       <div className="flex items-start gap-3">
         <UploadCloud className="mt-0.5 h-5 w-5 text-cyan-300" />
         <div>
-          <h2 className="font-semibold text-white">Importer un artefact CFD</h2>
+          <h2 className="font-semibold text-white">Import a CFD artifact</h2>
           <p className="mt-1 text-xs leading-5 text-slate-400">
-            Le serveur calcule les SHA-256, lit la connectivité et refuse toute unité ou preuve absente.
-            L’import ne crée jamais une certification scientifique.
+            The server computes SHA-256 hashes, reads cell connectivity and rejects missing units or evidence.
+            Import never creates scientific certification.
           </p>
         </div>
       </div>
@@ -154,27 +154,27 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       <label className="block text-sm text-slate-300">
         Frames VTU
         <input className="mt-2 block w-full text-sm text-slate-300" type="file" accept=".vtu" multiple onChange={selectVtu} disabled={busy} />
-        <span className="mt-1 block text-xs text-slate-500">{vtuFiles.length ? `${vtuFiles.length} frame(s) sélectionnée(s)` : 'Même topologie exigée pour toutes les frames'}</span>
+        <span className="mt-1 block text-xs text-slate-500">{vtuFiles.length ? `${vtuFiles.length} frame(s) selected` : 'The same topology is required for every frame'}</span>
       </label>
 
       <label className="block text-sm text-slate-300">
-        Sidecar du contrat
+        Contract sidecar
         <input className="mt-2 block w-full text-sm text-slate-300" type="file" accept="application/json,.json" onChange={selectSidecar} disabled={busy} />
-        <span className="mt-1 block text-xs text-slate-500">Le sidecar doit déclarer les hashes exacts de chaque frame.</span>
+        <span className="mt-1 block text-xs text-slate-500">The sidecar must declare the exact hash of every frame.</span>
       </label>
 
       <div className="flex items-start gap-2 border border-amber-400/20 bg-amber-400/5 p-3 text-xs leading-5 text-amber-100">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>Un dataset synthétique reste `STRUCTURAL_TEST_UNVALIDATED`, même si son maillage est lisible.</span>
+        <span>A synthetic dataset remains `STRUCTURAL_TEST_UNVALIDATED`, even when its mesh is readable.</span>
       </div>
 
       <button type="button" onClick={() => void submit()} disabled={busy || !caseId.trim() || !vtuFiles.length || !sidecar} className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-40">
         <UploadCloud className="h-4 w-4" />
-        {busy ? 'Vérification et persistance…' : 'Importer et vérifier'}
+        {busy ? 'Verifying and persisting…' : 'Import and verify'}
       </button>
 
       {error && <div role="alert" className="flex items-start gap-2 border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-100"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
-      {result && <div className="space-y-1 border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-100"><div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4" />Import confirmé — statut {result.status}</div><div>Analysis ID : <code>{result.analysisId}</code></div><div>Mesh revision : <code>{result.meshRevision}</code></div><div>{result.pointCount} points · {result.cellCount} cellules · {result.frameCount} frame(s)</div></div>}
+      {result && <div className="space-y-1 border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-100"><div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4" />Import confirmed — status {result.status}</div><div>Analysis ID : <code>{result.analysisId}</code></div><div>Mesh revision : <code>{result.meshRevision}</code></div><div>{result.pointCount} points · ${result.cellCount} cells · ${result.frameCount} frame(s)</div></div>}
     </div>
   )
 }

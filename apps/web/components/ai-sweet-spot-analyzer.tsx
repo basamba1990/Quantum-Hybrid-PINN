@@ -40,14 +40,14 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
     setLoading(true)
 
     try {
-      // Valider le JSON
+      // Validate JSON
       JSON.parse(jsonInput)
 
       if (onAnalyze) {
         const analysisResult = await onAnalyze(jsonInput)
         setResult(analysisResult)
       } else {
-        // Analyse locale de démonstration
+        // Local demonstration analysis
         const data = JSON.parse(jsonInput)
         const mockResult: AnalysisResult = {
           sweetSpotDetected: true,
@@ -59,16 +59,16 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
           },
           risks: [],
           recommendations: [
-            'Maintenir la température entre 290 K et 310 K',
-            'Pression optimale: 70 MPa',
-            'Éviter les variations rapides de pression'
+            'Keep the temperature between 290 K and 310 K',
+            'Optimal pressure: 70 MPa',
+            'Avoid rapid pressure variations'
           ],
-          summary: 'Le Sweet Spot a été identifié avec une confiance de 92%. La zone de stabilité est bien définie.'
+          summary: 'The sweet spot was identified with 92% confidence. The stability zone is well defined.'
         }
         setResult(mockResult)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l\'analyse')
+      setError(err instanceof Error ? err.message : 'Analysis failed')
     } finally {
       setLoading(false)
     }
@@ -103,7 +103,7 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
         </div>
         <div>
           <h2 className="text-2xl font-black text-white tracking-tight">AI SWEET SPOT ANALYZER</h2>
-          <p className="text-xs text-gray-400 font-mono uppercase tracking-widest mt-1">Détection Automatique IA | Analyse Thermodynamique</p>
+          <p className="text-xs text-gray-400 font-mono uppercase tracking-widest mt-1">AI Automatic Detection | Thermodynamic Analysis</p>
         </div>
       </div>
 
@@ -113,7 +113,7 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
           {/* Input Section */}
           <div className="space-y-3">
             <label className="block text-sm font-bold text-white uppercase tracking-wider">
-              Données JSON de Résultats
+              JSON Result Data
             </label>
             <Textarea
               value={jsonInput}
@@ -138,12 +138,12 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
-                <span className="font-bold text-white uppercase tracking-wider">Analyse en cours...</span>
+                <span className="font-bold text-white uppercase tracking-wider">Analysis in progress...</span>
               </>
             ) : (
               <>
                 <Zap className="w-5 h-5 text-cyan-400" />
-                <span className="font-bold text-white uppercase tracking-wider">Analyser avec IA</span>
+                <span className="font-bold text-white uppercase tracking-wider">Analyze with AI</span>
               </>
             )}
           </button>
@@ -165,7 +165,7 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
                   )}
                   <div className="flex-1">
                     <p className={`font-bold text-lg mb-2 ${result.sweetSpotDetected ? 'text-emerald-300' : 'text-orange-300'}`}>
-                      {result.sweetSpotDetected ? '✓ SWEET SPOT DÉTECTÉ' : '⚠ SWEET SPOT NON DÉTECTÉ'}
+                      {result.sweetSpotDetected ? '✓ SWEET SPOT DETECTED' : '⚠ SWEET SPOT NOT DETECTED'}
                     </p>
                     <p className="text-sm text-gray-300 leading-relaxed">
                       {result.summary}
@@ -180,7 +180,7 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
                         />
                       </div>
                       <span className="text-xs font-mono text-gray-400">
-                        Confiance: {(result.confidence * 100).toFixed(0)}%
+                        Confidence: {(result.confidence * 100).toFixed(0)}%
                       </span>
                     </div>
                   </div>
@@ -191,23 +191,23 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
               <div className="glass-premium rounded-2xl p-6 border-subtle-glow">
                 <h3 className="font-bold text-white uppercase tracking-tight mb-4 flex items-center gap-2">
                   <Target className="w-5 h-5 text-cyan-400" />
-                  Zone de Stabilité Optimale
+                  Optimal Stability Zone
                 </h3>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Température</p>
+                    <p className="text-xs text-gray-400 uppercase tracking-wider">Temperature</p>
                     <p className="text-lg font-mono text-red-400 font-bold">
                       {result.zone.temperatureRange[0].toFixed(1)} - {result.zone.temperatureRange[1].toFixed(1)} K
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Pression</p>
+                    <p className="text-xs text-gray-400 uppercase tracking-wider">Pressure</p>
                     <p className="text-lg font-mono text-blue-400 font-bold">
                       {result.zone.pressureRange[0].toFixed(1)} - {result.zone.pressureRange[1].toFixed(1)} MPa
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-xs text-gray-400 uppercase tracking-wider">Densité</p>
+                    <p className="text-xs text-gray-400 uppercase tracking-wider">Density</p>
                     <p className="text-lg font-mono text-cyan-400 font-bold">
                       {result.zone.densityRange[0].toFixed(1)} - {result.zone.densityRange[1].toFixed(1)} kg/m³
                     </p>
@@ -220,7 +220,7 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
                 <div className="glass-premium rounded-2xl p-6 border-subtle-glow">
                   <h3 className="font-bold text-white uppercase tracking-tight mb-4 flex items-center gap-2">
                     <Lightbulb className="w-5 h-5 text-yellow-400" />
-                    Recommandations IA
+                    AI Recommendations
                   </h3>
                   <ul className="space-y-3">
                     {result.recommendations.map((rec, idx) => (
@@ -238,7 +238,7 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
                 <div className="glass-premium rounded-2xl p-6 border border-orange-500/20 bg-orange-500/5">
                   <h3 className="font-bold text-orange-300 uppercase tracking-tight mb-4 flex items-center gap-2">
                     <AlertCircle className="w-5 h-5" />
-                    Risques Détectés
+                    Detected Risks
                   </h3>
                   <ul className="space-y-2">
                     {result.risks.map((risk, idx) => (
@@ -259,7 +259,7 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
                 >
                   <Copy className="w-4 h-4 text-cyan-400" />
                   <span className="text-sm font-bold text-white uppercase tracking-wider">
-                    {copied ? 'Copié !' : 'Copier'}
+                    {copied ? 'Copied!' : 'Copy'}
                   </span>
                 </button>
                 <button
@@ -267,7 +267,7 @@ export default function AISweetSpotAnalyzer({ onAnalyze, initialData = '' }: AIA
                   className="flex-1 glass-premium rounded-xl py-3 px-4 border-subtle-glow hover:border-neon-cyan transition-all duration-300 flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4 text-cyan-400" />
-                  <span className="text-sm font-bold text-white uppercase tracking-wider">Télécharger</span>
+                  <span className="text-sm font-bold text-white uppercase tracking-wider">Download</span>
                 </button>
               </div>
             </div>

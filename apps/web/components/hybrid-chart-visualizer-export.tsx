@@ -68,7 +68,7 @@ const HybridChartVisualizerExport: React.FC<Props> = ({
       alert("Export PNG 'Industrial-Gold' réussi. Image haute résolution générée.");
     } catch (err) {
       console.error('Export PNG failed:', err)
-      alert("Erreur lors de l'export PNG. Vérifiez les permissions de votre navigateur.");
+      alert("PNG export failed. Check your browser permissions.");
     }
   }
 
@@ -118,7 +118,7 @@ const HybridChartVisualizerExport: React.FC<Props> = ({
       
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(14);
-      pdf.text(`Rapport d'Analyse Scientifique : ${title}`, 15, 30);
+      pdf.text(`Scientific Analysis Report : ${title}`, 15, 30);
       pdf.setFontSize(10);
       pdf.text(`Généré le : ${new Date().toLocaleString()}`, 15, 38);
       
@@ -136,14 +136,14 @@ const HybridChartVisualizerExport: React.FC<Props> = ({
       alert("Rapport PDF 'Industrial-Gold' généré avec succès.");
     } catch (err) {
       console.error('Export PDF failed:', err)
-      alert("Erreur lors de la génération du PDF. Vérifiez les ressources chargées.");
+      alert("PDF generation failed. Check the loaded resources.");
     }
   }
 
   if (!data.length) {
     return (
       <div className="w-full h-96 bg-slate-950 p-6 rounded-[32px] border border-white/5 flex items-center justify-center">
-        <p className="text-gray-500 text-sm">Aucune donnée disponible pour les graphiques 2D</p>
+        <p className="text-gray-500 text-sm">No data available for 2D charts</p>
       </div>
     )
   }

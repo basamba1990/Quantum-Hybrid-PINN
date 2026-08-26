@@ -54,7 +54,7 @@ export default function VerificationBadge({
           bgColor: 'bg-blue-50',
           borderColor: 'border-blue-200',
           label: 'Vérification en cours...',
-          description: 'Analyse des paramètres physiques',
+          description: 'Physical parameter analysis',
         }
       default:
         return {

@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { ArrowLeft, Zap, AlertCircle, CheckCircle2, Cpu, Gauge } from 'lucide-react'
 import Link from 'next/link'
 
-// Scénarios disponibles avec descriptions
+// Available scenarios with descriptions
 const SCENARIOS = [
   {
     id: 'H2_PIPELINE',
@@ -34,14 +34,14 @@ const SCENARIOS = [
   {
     id: 'CRYOGENIC_TRANSPORT',
     name: 'Transport Cryogénique',
-    description: 'Simulation des pertes thermiques lors du transport de LH₂ ou GNL',
+    description: 'Simulation of thermal losses during LH₂ or LNG transport',
     icon: '🚚',
     color: 'from-purple-600 to-pink-600'
   },
   {
     id: 'PIPELINE_SAFETY',
-    name: 'Sécurité Pipeline',
-    description: 'Analyse de détection et prédiction de ruptures avec capteurs distribués',
+    name: 'Pipeline Safety',
+    description: 'Break detection and prediction analysis with distributed sensors',
     icon: '🛡️',
     color: 'from-orange-600 to-red-600'
   },
@@ -62,21 +62,21 @@ const SCENARIOS = [
   {
     id: 'ROCK_ELAST_STRESS',
     name: 'Géomécanique Rocheuse',
-    description: 'Analyse des contraintes élastiques et endommagement de roches en profondeur',
+    description: 'Analysis of elastic stress and deep-rock damage',
     icon: '🪨',
     color: 'from-amber-600 to-yellow-600'
   },
   {
     id: 'FPGA_HEATSINK',
     name: 'FPGA Heatsink',
-    description: 'Transfert de chaleur conjugué dans un dissipateur thermique FPGA. Flux thermique 600 W/cm². Simulation Navier-Stokes 3D.',
+    description: 'Conjugate heat transfer in an FPGA heat sink. Heat flux 600 W/cm². 3D Navier-Stokes simulation.',
     icon: '🔥',
     color: 'from-red-600 to-orange-600'
   },
   {
     id: 'DEEP_MINING_BLOCK',
     name: 'Deep Mining Block',
-    description: 'Analyse géomécanique de bloc rocheux en mine profonde. Contraintes lithostatiques, critère de rupture Mohr-Coulomb.',
+    description: 'Geomechanical analysis of a deep-mine rock block. Lithostatic stresses and Mohr-Coulomb failure criterion.',
     icon: '⛰️',
     color: 'from-stone-600 to-amber-800'
   }
@@ -108,7 +108,7 @@ export default function NewAnalysisPageV2() {
     setErrorMsg(null)
     
     try {
-      // 1. Vérifier la session
+      // 1. Check session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session) {
         throw new Error("Session expirée. Veuillez vous reconnecter.")
@@ -136,13 +136,13 @@ export default function NewAnalysisPageV2() {
           user_id: project.user_id,
           status: 'pending',
           analysis_type: 'physics_verification',
-          transcription: project.transcription || `Scénario: ${formData.scenario}`
+          transcription: project.transcription || `Scenario: ${formData.scenario}`
         })
         .select()
         .single()
 
       if (insertError) {
-        throw new Error(`Erreur lors de la création de l'analyse : ${insertError.message}`)
+        throw new Error(`Failed to create the analysis : ${insertError.message}`)
       }
 
       // 4. Lancement asynchrone de la simulation
@@ -226,8 +226,8 @@ export default function NewAnalysisPageV2() {
       
     } catch (err: any) {
       console.error('Analysis execution error:', err)
-      setErrorMsg(err.message || 'Erreur inconnue')
-      toast.error(err.message || 'Erreur inconnue')
+      setErrorMsg(err.message || 'Unknown error')
+      toast.error(err.message || 'Unknown error')
     } finally {
       setLoading(false)
     }
@@ -240,7 +240,7 @@ export default function NewAnalysisPageV2() {
         {/* En-tête avec retour */}
         <div className="flex items-center justify-between">
           <Link href={`/dashboard/projects/${projectId}`} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Retour au projet
+            <ArrowLeft className="w-4 h-4" /> Back to project
           </Link>
           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -253,7 +253,7 @@ export default function NewAnalysisPageV2() {
           <div className="flex items-center gap-3">
             <Cpu className="w-8 h-8 text-blue-500" />
             <h1 className="text-5xl font-black tracking-tighter text-white">
-              Nouvelle Analyse Scientifique
+              New Scientific Analysis
             </h1>
           </div>
           <p className="text-gray-400 text-lg">Sélectionnez un scénario industriel et lancez la simulation PINN hybride pour valider la cohérence physique.</p>
@@ -265,7 +265,7 @@ export default function NewAnalysisPageV2() {
           <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 space-y-4">
             <div className="flex items-center gap-3 mb-6">
               <Gauge className="w-5 h-5 text-blue-500" />
-              <h2 className="text-xl font-bold text-white">Configuration de l'Analyse</h2>
+              <h2 className="text-xl font-bold text-white">Analysis Configuration</h2>
             </div>
             
             <div>
@@ -293,7 +293,7 @@ export default function NewAnalysisPageV2() {
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <Zap className="w-5 h-5 text-emerald-500" />
-              <h2 className="text-xl font-bold text-white">Sélectionnez un Scénario Industriel</h2>
+              <h2 className="text-xl font-bold text-white">Select an Industrial Scenario</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -378,12 +378,12 @@ export default function NewAnalysisPageV2() {
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Lancement...
+                  Starting...
                 </>
               ) : (
                 <>
                   <Zap className="w-5 h-5" />
-                  Lancer l'Analyse Réelle
+                  Start Real Analysis
                 </>
               )}
             </button>
@@ -392,10 +392,10 @@ export default function NewAnalysisPageV2() {
 
         {/* Pied de page informatif */}
         <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 space-y-3">
-          <h3 className="font-semibold text-white text-sm">À propos des scénarios</h3>
+          <h3 className="font-semibold text-white text-sm">About the scenarios</h3>
           <p className="text-xs text-gray-400">
-            Chaque scénario utilise des équations physiques réalistes validées par des standards industriels (Ansys, Autodesk). 
-            Les résultats incluent des analyses de convergence PINN, des métriques de cohérence physique et des scores de crédibilité.
+            Each scenario uses realistic physical equations validated against documented industrial standards.
+            Results include PINN convergence analyses, physical-consistency metrics, and credibility scores.
           </p>
         </div>
       </div>

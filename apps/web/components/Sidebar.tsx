@@ -22,26 +22,26 @@ import { toast } from 'sonner'
 import type { User } from '@supabase/supabase-js'
 
 const menuItems = [
-  // Section Principale
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', section: 'PRINCIPAL' },
-  { icon: FlaskConical, label: 'Simulation CFD', href: '/dashboard/simulations', section: 'PRINCIPAL' },
-  { icon: Zap, label: 'Physics', href: '/dashboard/benchmarks', section: 'PRINCIPAL' },
-  { icon: BarChart3, label: 'Analysis', href: '/dashboard/sweet-spot-analysis', section: 'PRINCIPAL' },
-  { icon: Settings, label: 'Settings', href: '/dashboard/settings', section: 'PRINCIPAL' },
+  // Main section
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', section: 'MAIN' },
+  { icon: FlaskConical, label: 'CFD Simulation', href: '/dashboard/simulations', section: 'MAIN' },
+  { icon: Zap, label: 'Physics', href: '/dashboard/benchmarks', section: 'MAIN' },
+  { icon: BarChart3, label: 'Analysis', href: '/dashboard/sweet-spot-analysis', section: 'MAIN' },
+  { icon: Settings, label: 'Settings', href: '/dashboard/settings', section: 'MAIN' },
   
-  // Section Secondaire
-  { icon: MessageSquare, label: 'Assistant IA', href: '/dashboard/assistant', section: 'OUTILS' },
-  { icon: FileText, label: 'Média', href: '/dashboard/media', section: 'OUTILS' },
-  { icon: Users, label: 'Social Hub', href: '/dashboard/social-hub', section: 'OUTILS' },
-  { icon: ShieldCheck, label: 'Audits', href: '/dashboard/audits', section: 'OUTILS' },
-  { icon: Lightbulb, label: 'Améliorations', href: '/dashboard/improvements', section: 'OUTILS' },
+  // Secondary section
+  { icon: MessageSquare, label: 'AI Assistant', href: '/dashboard/assistant', section: 'TOOLS' },
+  { icon: FileText, label: 'Media', href: '/dashboard/media', section: 'TOOLS' },
+  { icon: Users, label: 'Social Hub', href: '/dashboard/social-hub', section: 'TOOLS' },
+  { icon: ShieldCheck, label: 'Audits', href: '/dashboard/audits', section: 'TOOLS' },
+  { icon: Lightbulb, label: 'Improvements', href: '/dashboard/improvements', section: 'TOOLS' },
 ]
 
 interface MenuItem {
   icon: React.ComponentType<{ className?: string }>
   label: string
   href: string
-  section: 'PRINCIPAL' | 'OUTILS'
+  section: 'MAIN' | 'TOOLS'
 }
 
 interface SidebarProps {
@@ -57,15 +57,15 @@ export function Sidebar({ user }: SidebarProps) {
     try {
       const { error } = await supabase.auth.signOut()
       if (error) {
-        toast.error('Erreur lors de la déconnexion')
+        toast.error('Sign-out failed')
         return
       }
-      toast.success('Déconnecté avec succès')
+      toast.success('Signed out successfully')
       router.push('/auth/login')
       router.refresh()
     } catch (error) {
       console.error('Logout error:', error)
-      toast.error('Une erreur s\'est produite')
+      toast.error('An unexpected error occurred')
     }
   }
 
@@ -92,14 +92,14 @@ export function Sidebar({ user }: SidebarProps) {
       </div>
       
       <nav className="flex-1 px-4 space-y-6 mt-4 relative overflow-y-auto">
-        {/* Section Principale */}
+        {/* Main section */}
         <div>
           <div className="text-[10px] font-mono text-cyan-500 uppercase tracking-widest px-4 mb-3 font-bold flex items-center gap-2">
             <Zap className="w-3 h-3" />
-            Navigation Principale
+            Main navigation
           </div>
           <div className="space-y-2">
-            {menuItems.filter(item => item.section === 'PRINCIPAL').map((item) => {
+            {menuItems.filter(item => item.section === 'MAIN').map((item) => {
               const isActive = pathname === item.href
               return (
                 <Link
@@ -130,14 +130,14 @@ export function Sidebar({ user }: SidebarProps) {
           </div>
         </div>
 
-        {/* Section Outils */}
+        {/* Tools section */}
         <div>
           <div className="text-[10px] font-mono text-purple-500 uppercase tracking-widest px-4 mb-3 font-bold flex items-center gap-2">
             <Settings className="w-3 h-3" />
-            Outils & Utilitaires
+            Tools & Utilities
           </div>
           <div className="space-y-2">
-            {menuItems.filter(item => item.section === 'OUTILS').map((item) => {
+            {menuItems.filter(item => item.section === 'TOOLS').map((item) => {
               const isActive = pathname === item.href
               return (
                 <Link
@@ -188,7 +188,7 @@ export function Sidebar({ user }: SidebarProps) {
           className="flex items-center gap-3 px-4 py-3 w-full text-gray-400 hover:text-red-400 transition-all duration-300 rounded-xl hover:bg-red-500/10 group"
         >
           <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-bold text-sm">Déconnexion Système</span>
+          <span className="font-bold text-sm">Sign out</span>
         </button>
       </div>
     </div>

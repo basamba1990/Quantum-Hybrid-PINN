@@ -89,7 +89,7 @@ export default function ScientificAdvancedPhysicsEnhanced({
           </div>
           <div>
             <h2 className="text-2xl font-black text-white tracking-tight">SCIENTIFIC ADVANCED PHYSICS</h2>
-            <p className="text-xs text-gray-400 font-mono uppercase tracking-widest mt-1">Simulation Peng-Robinson | Hydrodynamique Avancée</p>
+            <p className="text-xs text-gray-400 font-mono uppercase tracking-widest mt-1">Peng-Robinson Simulation | Advanced Hydrodynamics</p>
           </div>
         </div>
         <button
@@ -114,7 +114,7 @@ export default function ScientificAdvancedPhysicsEnhanced({
                     : 'text-gray-400 hover:text-gray-300'
                 }`}
               >
-                {tab === 'parameters' ? '⚙️ Paramètres' : '📊 Résultats'}
+                {tab === 'parameters' ? '⚙️ Paramètres' : '📊 Results'}
               </button>
             ))}
           </div>
@@ -128,7 +128,7 @@ export default function ScientificAdvancedPhysicsEnhanced({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Thermometer className="w-5 h-5 text-red-400" />
-                      <label className="font-bold text-white uppercase tracking-tight">Température</label>
+                      <label className="font-bold text-white uppercase tracking-tight">Temperature</label>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-black text-red-400 font-mono">{params.temperature.toFixed(2)}</p>
@@ -154,7 +154,7 @@ export default function ScientificAdvancedPhysicsEnhanced({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Gauge className="w-5 h-5 text-blue-400" />
-                      <label className="font-bold text-white uppercase tracking-tight">Pression</label>
+                      <label className="font-bold text-white uppercase tracking-tight">Pressure</label>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-black text-blue-400 font-mono">{params.pressure.toFixed(2)}</p>
@@ -258,7 +258,7 @@ export default function ScientificAdvancedPhysicsEnhanced({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Lightbulb className="w-5 h-5 text-yellow-400" />
-                      <label className="font-bold text-white uppercase tracking-tight">Densité</label>
+                      <label className="font-bold text-white uppercase tracking-tight">Density</label>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-black text-yellow-400 font-mono">{params.density.toFixed(3)}</p>
@@ -288,7 +288,7 @@ export default function ScientificAdvancedPhysicsEnhanced({
                   >
                     <Play className={`w-5 h-5 text-cyan-400 ${loading ? 'animate-spin' : ''}`} />
                     <span className="font-bold text-white uppercase tracking-wider">
-                      {loading ? 'Simulation...' : 'Lancer Simulation'}
+                      {loading ? 'Simulation...' : 'Run Simulation'}
                     </span>
                   </button>
                   <button
@@ -336,7 +336,7 @@ export default function ScientificAdvancedPhysicsEnhanced({
 
                       {/* Pressure Drop */}
                       <div className="glass-premium rounded-2xl p-6 border-subtle-glow">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Chute de Pression</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Chute de Pressure</p>
                         <p className="text-3xl font-black text-orange-400 font-mono">{results.pressureDrop.toFixed(2)}</p>
                         <p className="text-xs text-gray-500 mt-2">kPa</p>
                       </div>
@@ -354,7 +354,7 @@ export default function ScientificAdvancedPhysicsEnhanced({
                       <div className="flex items-start gap-4">
                         <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0 mt-1" />
                         <div>
-                          <p className="font-bold text-emerald-300 mb-2">✓ Simulation Valide</p>
+                          <p className="font-bold text-emerald-300 mb-2">✓ Valid Simulation</p>
                           <p className="text-sm text-gray-300">
                             Les paramètres sont dans les limites acceptables. Le régime d'écoulement est {results.flowRegime.toLowerCase()}.
                           </p>

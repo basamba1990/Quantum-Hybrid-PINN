@@ -24,7 +24,7 @@ export default function NewAnalysisPage() {
     setErrorMsg(null)
     
     try {
-      // 1. Vérifier la session
+      // 1. Check session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session) {
         throw new Error("Session expirée. Veuillez vous reconnecter.")
@@ -52,13 +52,13 @@ export default function NewAnalysisPage() {
           user_id: project.user_id,
           status: 'pending',
           analysis_type: 'physics_verification',
-          transcription: project.transcription || "Simulation industrielle standard"
+          transcription: project.transcription || "Standard industrial simulation"
         })
         .select()
         .single()
 
       if (insertError) {
-        throw new Error(`Erreur lors de la création de l'analyse : ${insertError.message}`)
+        throw new Error(`Failed to create the analysis : ${insertError.message}`)
       }
 
       // 4. Lancement asynchrone de la simulation
@@ -125,7 +125,7 @@ export default function NewAnalysisPage() {
         })
       }).catch(e => console.warn("Edge function error:", e));
 
-      toast.success('Analyse lancée avec succès 🚀')
+      toast.success('Analysis started successfully 🚀')
       
       // Redirection immédiate
       router.push(`/dashboard/projects/${projectId}/analyses`)
@@ -133,8 +133,8 @@ export default function NewAnalysisPage() {
       
     } catch (err: any) {
       console.error('Analysis execution error:', err)
-      setErrorMsg(err.message || 'Erreur inconnue')
-      toast.error(err.message || 'Erreur inconnue')
+      setErrorMsg(err.message || 'Unknown error')
+      toast.error(err.message || 'Unknown error')
     } finally {
       setLoading(false)
     }
@@ -144,7 +144,7 @@ export default function NewAnalysisPage() {
     <div className="p-8 max-w-2xl mx-auto">
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-          Nouvelle Analyse Scientifique
+          New Scientific Analysis
         </h1>
         <p className="text-gray-400">Lancez le moteur PINN V8 pour valider la cohérence physique de vos données.</p>
       </div>
@@ -153,7 +153,7 @@ export default function NewAnalysisPage() {
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-            Configuration de l'Analyse
+            Analysis Configuration
           </h2>
           
           <div className="space-y-4">
@@ -199,7 +199,7 @@ export default function NewAnalysisPage() {
             disabled={loading}
             className="flex-1 bg-gradient-to-r from-blue-600 to-emerald-600 text-white px-4 py-3 rounded-xl hover:from-blue-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold shadow-lg shadow-blue-900/20"
           >
-            {loading ? 'Lancement...' : 'Lancer l\'Analyse Réelle'}
+            {loading ? 'Starting...' : 'Lancer l\'Analyse Réelle'}
           </button>
         </div>
       </form>

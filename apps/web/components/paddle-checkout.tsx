@@ -104,7 +104,7 @@ export function PaddleCheckout({
       window.Paddle.Checkout.open(checkoutConfig)
     } catch (error) {
       console.error('Paddle checkout error:', error)
-      alert('Erreur de paiement : ' + (error instanceof Error ? error.message : String(error)))
+      alert('Payment error: ' + (error instanceof Error ? error.message : String(error)))
       onError?.(error instanceof Error ? error : new Error('Unknown error'))
     }
   }

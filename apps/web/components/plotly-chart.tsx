@@ -31,7 +31,7 @@ const asArray = (value: unknown): unknown[] => Array.isArray(value) ? value : []
 
 const unavailable = (message: string) => (
   <div className="min-h-[360px] flex flex-col items-center justify-center text-center border border-dashed border-white/10 rounded-2xl px-6">
-    <p className="text-sm font-black uppercase tracking-widest text-amber-300">Données insuffisantes</p>
+    <p className="text-sm font-black uppercase tracking-widest text-amber-300">Insufficient data</p>
     <p className="mt-3 max-w-xl text-xs leading-5 text-slate-400">{message}</p>
   </div>
 )
@@ -202,15 +202,15 @@ export default function PlotlyChart({ type, data, scenarioType, divId, downloadT
     <div className="w-full relative" id={containerId}>
       <Plot
         data={[
-          hasTemperature && { x: chartRows.map((row) => row.x), y: chartRows.map((row) => row.temperature ?? null), type: 'scatter', mode: 'lines+markers', name: 'Température (unité persistée)', line: { color: '#3b82f6', width: 2 }, marker: { size: 3 }, connectgaps: false },
-          hasPressure && { x: chartRows.map((row) => row.x), y: chartRows.map((row) => row.pressure ?? null), type: 'scatter', mode: 'lines+markers', name: 'Pression (unité persistée)', yaxis: 'y2', line: { color: '#a855f7', width: 2 }, marker: { size: 3 }, connectgaps: false },
+          hasTemperature && { x: chartRows.map((row) => row.x), y: chartRows.map((row) => row.temperature ?? null), type: 'scatter', mode: 'lines+markers', name: 'Temperature (unité persistée)', line: { color: '#3b82f6', width: 2 }, marker: { size: 3 }, connectgaps: false },
+          hasPressure && { x: chartRows.map((row) => row.x), y: chartRows.map((row) => row.pressure ?? null), type: 'scatter', mode: 'lines+markers', name: 'Pressure (unité persistée)', yaxis: 'y2', line: { color: '#a855f7', width: 2 }, marker: { size: 3 }, connectgaps: false },
         ].filter(Boolean) as any}
         layout={{
           autosize: true, height: 400, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
           margin: { l: 70, r: 70, t: 30, b: 60 },
           xaxis: { title: 'Coordonnée persistée (m ou unité du champ)', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } },
-          yaxis: { title: 'Température — unité persistée', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } },
-          yaxis2: { title: 'Pression — unité persistée', overlaying: 'y', side: 'right', tickfont: { color: '#94a3b8' } },
+          yaxis: { title: 'Temperature — unité persistée', gridcolor: 'rgba(255,255,255,0.05)', tickfont: { color: '#94a3b8' } },
+          yaxis2: { title: 'Pressure — unité persistée', overlaying: 'y', side: 'right', tickfont: { color: '#94a3b8' } },
           legend: { orientation: 'h', y: -0.2, font: { color: '#fff' } },
         }}
         config={{ responsive: true, displayModeBar: false, displaylogo: false }}

@@ -19,11 +19,11 @@ interface ExportButtonsImprovedProps {
 /**
  * TRULY-INDUSTRIAL EXPORT ENGINE
  * 
- * CORRECTIONS APPLIQUÉES :
- * 1. PNG : utilise html2canvas sur containerRef (capture tout le composant)
- * 2. PDF : utilise html2canvas + jsPDF (standard industriel)
- * 3. Fallback WebGL : extrait le canvas DOM depuis renderer.domElement
- * 4. preserveDrawingBuffer : force true pour capturer le frame WebGL
+ * APPLIED CORRECTIONS :
+ * 1. PNG : uses html2canvas on containerRef (captures the full component)
+ * 2. PDF : uses html2canvas + jsPDF (industrial workflow)
+ * 3. WebGL fallback: extracts the DOM canvas from renderer.domElement
+ * 4. preserveDrawingBuffer: forced on to capture the WebGL frame
  */
 export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
   containerRef,
@@ -82,7 +82,7 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
    * CORRECTION : utilise renderer.domElement avec preserveDrawingBuffer
    */
   const exportToPNG = async () => {
-    handleExportStart('Export PNG en cours...')
+    handleExportStart('Exporting PNG...')
     try {
       const canvas = getCanvasElement()
 
@@ -103,7 +103,7 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
         const dataUrl = exportCanvas.toDataURL('image/png')
         if (dataUrl === 'data:,') {
           // Canvas vide — fallback sur html2canvas
-          console.warn('WebGL canvas vide, fallback html2canvas')
+          console.warn('Empty WebGL canvas; using html2canvas fallback')
           await fallbackHtml2CanvasPNG()
           return
         }
@@ -114,14 +114,14 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
-        setExportStatus('PNG exporté avec succès')
+        setExportStatus('PNG exported successfully')
       } else {
         // Fallback sur html2canvas
         await fallbackHtml2CanvasPNG()
       }
     } catch (err) {
       console.error('Export PNG failed:', err)
-      setExportStatus('Erreur export PNG')
+      setExportStatus('PNG export failed')
       // Dernier recours : html2canvas
       try {
         await fallbackHtml2CanvasPNG()
@@ -158,12 +158,12 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    setExportStatus('PNG exporté (html2canvas)')
+    setExportStatus('PNG exported (html2canvas)')
   }
 
   // Export JSON (fonctionne déjà — pas de changement)
   const exportToJSON = () => {
-    handleExportStart('Export JSON...')
+    handleExportStart('Exporting JSON...')
     try {
       const data = jsonData || {
         title: fileName,
@@ -179,10 +179,10 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      setExportStatus('JSON exporté avec succès')
+      setExportStatus('JSON exported successfully')
     } catch (err) {
       console.error('Export JSON failed:', err)
-      setExportStatus('Erreur export JSON')
+      setExportStatus('JSON export failed')
     } finally {
       setTimeout(() => handleExportEnd(), 2000)
     }
@@ -194,7 +194,7 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
    * car le canvas WebGL peut être vide sans preserveDrawingBuffer
    */
   const exportToPDF = async () => {
-    handleExportStart('Génération PDF...')
+    handleExportStart('Generating PDF...')
     try {
       if (!containerRef.current) {
         console.error('No container for PDF export')
@@ -215,7 +215,7 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
 
       const imgData = canvas.toDataURL('image/png', 1.0)
 
-      // Déterminer l'orientation
+      // Determine orientation
       const isWide = canvas.width > canvas.height
       const { jsPDF } = await import('jspdf')
       const pdf = new jsPDF({
@@ -224,7 +224,7 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
         format: 'a4'
       })
 
-      // Calculer les dimensions pour tenir sur A4
+      // Calculate dimensions to fit A4
       const pageWidth = pdf.internal.pageSize.getWidth() - 20
       const pageHeight = pdf.internal.pageSize.getHeight() - 20
       const imgRatio = canvas.width / canvas.height
@@ -234,22 +234,22 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
       let imgHeight: number
 
       if (imgRatio > pageRatio) {
-        // Image plus large — limiter par la largeur
+        // Wider image — constrain by width
         imgWidth = pageWidth
         imgHeight = pageWidth / imgRatio
       } else {
-        // Image plus haute — limiter par la hauteur
+        // Taller image — constrain by height
         imgHeight = pageHeight
         imgWidth = pageHeight * imgRatio
       }
 
-      // Centrer sur la page
+      // Center on page
       const xOffset = (pdf.internal.pageSize.getWidth() - imgWidth) / 2
       const yOffset = (pdf.internal.pageSize.getHeight() - imgHeight) / 2
 
       pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight)
 
-      // Métadonnées industrielles
+      // Industrial metadata
       pdf.setProperties({
         title: `Quantum Hybrid PINN — ${fileName}`,
         subject: 'Scientific Industrial Visualization — Kelly Senecal Standard',
@@ -259,10 +259,10 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
       })
 
       pdf.save(`${fileName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.pdf`)
-      setExportStatus('PDF exporté avec succès')
+      setExportStatus('PDF exported successfully')
     } catch (err) {
       console.error('Export PDF failed:', err)
-      setExportStatus('Erreur export PDF')
+      setExportStatus('PDF export failed')
     } finally {
       setTimeout(() => handleExportEnd(), 2000)
     }

@@ -50,7 +50,7 @@ export default function ProjectAnalysisPage({ params }: { params: Promise<{ id: 
     <Suspense fallback={
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#0a0a0a] space-y-4">
         <div className="h-16 w-16 rounded-full border-2 border-blue-500/20 border-t-blue-500 animate-spin" />
-        <p className="text-xs font-mono text-blue-500 uppercase tracking-widest animate-pulse">Initialisation du Module d'Analyse...</p>
+        <p className="text-xs font-mono text-blue-500 uppercase tracking-widest animate-pulse">Initializing Analysis Module...</p>
       </div>
     }>
       <AnalysisContent id={id} />
@@ -144,7 +144,7 @@ function AnalysisContent({ id }: { id: string }) {
         }
       } catch (error) {
         console.error('Error fetching project:', error)
-        toast.error('Erreur lors du chargement du projet')
+        toast.error('Failed to load project')
       } finally {
         setLoading(false)
       }
@@ -190,7 +190,7 @@ function AnalysisContent({ id }: { id: string }) {
       
       // Score section
       doc.setFontSize(16)
-      doc.text('Évaluation de la Crédibilité Physique', 20, 95)
+      doc.text('Physical Credibility Evaluation', 20, 95)
       
       const score = auditData.credibilityScore || 0
       if (score >= 80) doc.setTextColor(16, 185, 129)
@@ -220,7 +220,7 @@ function AnalysisContent({ id }: { id: string }) {
           y += 10
         })
       } else {
-        doc.text('Aucune anomalie critique détectée par le moteur PINN.', 25, 155)
+        doc.text('No critical anomaly detected by the PINN engine.', 25, 155)
       }
       
       // Extracted data table
@@ -255,7 +255,7 @@ function AnalysisContent({ id }: { id: string }) {
       toast.success('Rapport industriel généré et téléchargé avec succès')
     } catch (error) {
       console.error('PDF Generation error:', error)
-      toast.error('Erreur lors de la génération du PDF : ' + (error instanceof Error ? error.message : 'Erreur inconnue'))
+      toast.error('Erreur lors de la génération du PDF : ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setDownloading(false)
     }
@@ -268,7 +268,7 @@ function AnalysisContent({ id }: { id: string }) {
           <div className="absolute inset-0 rounded-full border-2 border-blue-500/20" />
           <div className="absolute inset-0 rounded-full border-t-2 border-blue-500 animate-spin" />
         </div>
-        <p className="text-xs font-mono text-blue-500 uppercase tracking-widest animate-pulse">Initialisation du Module d'Analyse...</p>
+        <p className="text-xs font-mono text-blue-500 uppercase tracking-widest animate-pulse">Initializing Analysis Module...</p>
       </div>
     )
   }
@@ -286,7 +286,7 @@ function AnalysisContent({ id }: { id: string }) {
             className="text-gray-400 hover:text-white hover:bg-white/5 rounded-xl"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour au Projet
+            Back to Project
           </Button>
           
           {auditData && (
@@ -310,19 +310,19 @@ function AnalysisContent({ id }: { id: string }) {
                 <span>Quantum Analysis Core</span>
               </div>
               <h1 className="text-4xl font-black tracking-tighter">{project.name}</h1>
-              <p className="text-gray-400 text-sm leading-relaxed">{project.description || 'Aucune description fournie.'}</p>
+              <p className="text-gray-400 text-sm leading-relaxed">{project.description || 'No description provided.'}</p>
             </div>
 
             <Card className="bg-white/5 border-white/10 rounded-3xl overflow-hidden">
               <CardHeader className="border-b border-white/5 pb-6">
                 <CardTitle className="flex items-center gap-3 text-lg">
                   <Activity className="w-5 h-5 text-blue-500" />
-                  Contrôle de Simulation
+                  Simulation Control
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">
-                  Lancez une nouvelle analyse physique basée sur les derniers paramètres industriels extraits.
+                  Start a nouvelle analyse physique basée sur les derniers paramètres industriels extraits.
                 </p>
                 <Button
                   onClick={handlePhysicsCheck}
@@ -338,7 +338,7 @@ function AnalysisContent({ id }: { id: string }) {
                   ) : (
                     <>
                       <Play className="w-4 h-4 mr-2" />
-                      Lancer l'Analyse Auto
+                      Run Automated Analysis
                     </>
                   )}
                 </Button>
@@ -357,7 +357,7 @@ function AnalysisContent({ id }: { id: string }) {
                 <div className="bg-white/[0.02] border border-white/10 rounded-[32px] p-8">
                   <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                     <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                    Validation de Crédibilité
+                    Credibility Validation
                   </h2>
                   <VerificationBadge
                     status={verificationStatus}
@@ -380,9 +380,9 @@ function AnalysisContent({ id }: { id: string }) {
                 <div className="p-6 bg-blue-500/10 rounded-full mb-6">
                   <Activity className="w-12 h-12 text-blue-500/50" />
                 </div>
-                <h3 className="text-2xl font-bold text-gray-400">En Attente de Simulation</h3>
+                <h3 className="text-2xl font-bold text-gray-400">Awaiting Simulation</h3>
                 <p className="text-gray-600 mt-4 max-w-sm">
-                  Aucune donnée d'analyse n'est actuellement disponible pour ce projet. Lancez l'analyse automatique pour générer les résultats physiques.
+                  No analysis data is currently available for this project. Run the automated analysis to generate physical results.
                 </p>
               </div>
             )}

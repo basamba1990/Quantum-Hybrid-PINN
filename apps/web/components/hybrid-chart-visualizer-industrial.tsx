@@ -34,7 +34,7 @@ interface HybridChartVisualizerIndustrialProps {
  */
 export default function HybridChartVisualizerIndustrial({
   predictions,
-  title = 'Analyse Temporelle PINN V8 - Production',
+  title = 'PINN V8 Temporal Analysis - Production',
   showAnnotations = true,
   showStatistics = true,
 }: HybridChartVisualizerIndustrialProps) {
@@ -63,14 +63,14 @@ export default function HybridChartVisualizerIndustrial({
             // Extraction des données temporelles
       const times = validPoints.map((p, idx) => p.time ?? (idx * 0.1))
       
-      // Pression (Pa -> bar)
+      // Pressure (Pa -> bar)
       const pressure = validPoints.map((p) => {
         const rawP = p.pressure ?? 0
         // Si c'est déjà en bar (valeur faible), on garde, sinon on convertit
         return rawP < 1000 ? rawP : rawP / 1e5
       })
 
-      // Température (K)
+      // Temperature (K)
       const temperature = validPoints.map((p) => p.temperature ?? 293.15)
 
       // Vitesse (magnitude)
@@ -82,7 +82,7 @@ export default function HybridChartVisualizerIndustrial({
         return Math.sqrt(u ** 2 + v ** 2 + w ** 2)
       })
 
-      // Densité
+      // Density
       const density = validPoints.map((p) => p.density ?? 1.0)
 
       // Calcul des statistiques
@@ -157,7 +157,7 @@ export default function HybridChartVisualizerIndustrial({
   if (!isMounted || !predictions || predictions.length === 0 || !chartData) {
     return (
       <div className="h-[300px] w-full flex items-center justify-center bg-slate-900 rounded-lg text-slate-400 border border-slate-700">
-        Données de prédiction insuffisantes pour afficher les courbes industrielles
+        Insufficient prediction data to display industrial curves
       </div>
     )
   }
@@ -175,7 +175,7 @@ export default function HybridChartVisualizerIndustrial({
       showgrid: true,
       linecolor: '#1e293b',
       linewidth: 2,
-      title: { text: 'Temps (s)', font: { color: '#94a3b8' } }
+      title: { text: 'Time (s)', font: { color: '#94a3b8' } }
     },
     yaxis: {
       zeroline: false,
@@ -199,13 +199,13 @@ export default function HybridChartVisualizerIndustrial({
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 mb-8 bg-slate-900 border border-slate-800 p-1">
-          <TabsTrigger value="pressure" className="text-slate-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Pression</TabsTrigger>
-          <TabsTrigger value="temperature" className="text-slate-300 data-[state=active]:bg-red-600 data-[state=active]:text-white">Température</TabsTrigger>
+          <TabsTrigger value="pressure" className="text-slate-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white">Pressure</TabsTrigger>
+          <TabsTrigger value="temperature" className="text-slate-300 data-[state=active]:bg-red-600 data-[state=active]:text-white">Temperature</TabsTrigger>
           <TabsTrigger value="velocity" className="text-slate-300 data-[state=active]:bg-green-600 data-[state=active]:text-white">Vitesse</TabsTrigger>
-          <TabsTrigger value="density" className="text-slate-300 data-[state=active]:bg-amber-600 data-[state=active]:text-white">Densité</TabsTrigger>
+          <TabsTrigger value="density" className="text-slate-300 data-[state=active]:bg-amber-600 data-[state=active]:text-white">Density</TabsTrigger>
         </TabsList>
 
-        {/* Pression */}
+        {/* Pressure */}
         <TabsContent value="pressure" className="h-[500px] w-full">
           <Plot
             data={[
@@ -214,24 +214,24 @@ export default function HybridChartVisualizerIndustrial({
                 y: chartData.pressure,
                 type: 'scatter',
                 mode: 'lines+markers',
-                name: 'Pression',
+                name: 'Pressure',
                 line: { color: '#3b82f6', width: 3 },
                 marker: { size: 6, color: '#3b82f6', opacity: 0.7 },
                 fill: 'tozeroy',
                 fillcolor: 'rgba(59, 130, 246, 0.15)',
-                hovertemplate: '<b>Temps:</b> %{x:.2f}s<br><b>Pression:</b> %{y:.2f} bar<extra></extra>',
+                hovertemplate: '<b>Time:</b> %{x:.2f}s<br><b>Pressure:</b> %{y:.2f} bar<extra></extra>',
               },
             ]}
             layout={{
               ...industrialLayout,
-              title: { text: `${title} – Pression (bar)`, font: { size: 16, color: '#ffffff' } },
+              title: { text: `${title} – Pressure (bar)`, font: { size: 16, color: '#ffffff' } },
                   xaxis: {
       zeroline: false,
       gridcolor: 'rgba(100, 116, 139, 0.1)',
       showgrid: true,
       linecolor: '#1e293b',
       linewidth: 2,
-      title: { text: 'Temps (s)', font: { color: '#94a3b8' } }
+      title: { text: 'Time (s)', font: { color: '#94a3b8' } }
     },
     yaxis: {
       zeroline: false,
@@ -241,7 +241,7 @@ export default function HybridChartVisualizerIndustrial({
       linewidth: 2,
       title: { font: { color: '#94a3b8' } }
     },
-              annotations: generateAnnotations(chartData.pressure, statistics.pressureStd * 2, 'Anomalie Pression'),
+              annotations: generateAnnotations(chartData.pressure, statistics.pressureStd * 2, 'Anomalie Pressure'),
             }}
             config={{ responsive: true, displayModeBar: true, toImageButtonOptions: { format: 'png', filename: 'pressure_analysis' } }}
             style={{ width: '100%', height: '100%' }}
@@ -249,7 +249,7 @@ export default function HybridChartVisualizerIndustrial({
           />
         </TabsContent>
 
-        {/* Température */}
+        {/* Temperature */}
         <TabsContent value="temperature" className="h-[500px] w-full">
           <Plot
             data={[
@@ -258,24 +258,24 @@ export default function HybridChartVisualizerIndustrial({
                 y: chartData.temperature,
                 type: 'scatter',
                 mode: 'lines+markers',
-                name: 'Température',
+                name: 'Temperature',
                 line: { color: '#ef4444', width: 3 },
                 marker: { size: 6, color: '#ef4444', opacity: 0.7 },
                 fill: 'tozeroy',
                 fillcolor: 'rgba(239, 68, 68, 0.15)',
-                hovertemplate: '<b>Temps:</b> %{x:.2f}s<br><b>Température:</b> %{y:.2f} K<extra></extra>',
+                hovertemplate: '<b>Time:</b> %{x:.2f}s<br><b>Temperature:</b> %{y:.2f} K<extra></extra>',
               },
             ]}
             layout={{
               ...industrialLayout,
-              title: { text: `${title} – Température (K)`, font: { size: 16, color: '#ffffff' } },
+              title: { text: `${title} – Temperature (K)`, font: { size: 16, color: '#ffffff' } },
                   xaxis: {
       zeroline: false,
       gridcolor: 'rgba(100, 116, 139, 0.1)',
       showgrid: true,
       linecolor: '#1e293b',
       linewidth: 2,
-      title: { text: 'Temps (s)', font: { color: '#94a3b8' } }
+      title: { text: 'Time (s)', font: { color: '#94a3b8' } }
     },
     yaxis: {
       zeroline: false,
@@ -322,7 +322,7 @@ export default function HybridChartVisualizerIndustrial({
                 marker: { size: 6, color: '#22c55e', opacity: 0.7 },
                 fill: 'tozeroy',
                 fillcolor: 'rgba(34, 197, 94, 0.15)',
-                hovertemplate: '<b>Temps:</b> %{x:.2f}s<br><b>Vitesse:</b> %{y:.3f} m/s<extra></extra>',
+                hovertemplate: '<b>Time:</b> %{x:.2f}s<br><b>Vitesse:</b> %{y:.3f} m/s<extra></extra>',
               },
             ]}
             layout={{
@@ -334,7 +334,7 @@ export default function HybridChartVisualizerIndustrial({
       showgrid: true,
       linecolor: '#1e293b',
       linewidth: 2,
-      title: { text: 'Temps (s)', font: { color: '#94a3b8' } }
+      title: { text: 'Time (s)', font: { color: '#94a3b8' } }
     },
     yaxis: {
       zeroline: false,
@@ -352,7 +352,7 @@ export default function HybridChartVisualizerIndustrial({
           />
         </TabsContent>
 
-        {/* Densité */}
+        {/* Density */}
         <TabsContent value="density" className="h-[500px] w-full">
           <Plot
             data={[
@@ -361,24 +361,24 @@ export default function HybridChartVisualizerIndustrial({
                 y: chartData.density,
                 type: 'scatter',
                 mode: 'lines+markers',
-                name: 'Densité',
+                name: 'Density',
                 line: { color: '#f59e0b', width: 3 },
                 marker: { size: 6, color: '#f59e0b', opacity: 0.7 },
                 fill: 'tozeroy',
                 fillcolor: 'rgba(245, 158, 11, 0.15)',
-                hovertemplate: '<b>Temps:</b> %{x:.2f}s<br><b>Densité:</b> %{y:.2f} kg/m³<extra></extra>',
+                hovertemplate: '<b>Time:</b> %{x:.2f}s<br><b>Density:</b> %{y:.2f} kg/m³<extra></extra>',
               },
             ]}
             layout={{
               ...industrialLayout,
-              title: { text: `${title} – Densité (kg/m³)`, font: { size: 16, color: '#ffffff' } },
+              title: { text: `${title} – Density (kg/m³)`, font: { size: 16, color: '#ffffff' } },
                   xaxis: {
       zeroline: false,
       gridcolor: 'rgba(100, 116, 139, 0.1)',
       showgrid: true,
       linecolor: '#1e293b',
       linewidth: 2,
-      title: { text: 'Temps (s)', font: { color: '#94a3b8' } }
+      title: { text: 'Time (s)', font: { color: '#94a3b8' } }
     },
     yaxis: {
       zeroline: false,
@@ -388,7 +388,7 @@ export default function HybridChartVisualizerIndustrial({
       linewidth: 2,
       title: { font: { color: '#94a3b8' } }
     },
-              annotations: generateAnnotations(chartData.density, statistics.densityStd * 2, 'Anomalie Densité'),
+              annotations: generateAnnotations(chartData.density, statistics.densityStd * 2, 'Anomalie Density'),
             }}
             config={{ responsive: true, displayModeBar: true, toImageButtonOptions: { format: 'png', filename: 'density_analysis' } }}
             style={{ width: '100%', height: '100%' }}
@@ -401,12 +401,12 @@ export default function HybridChartVisualizerIndustrial({
       {showStatistics && (
         <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
-            <p className="text-xs text-slate-500 uppercase font-black mb-2">Pression Moy.</p>
+            <p className="text-xs text-slate-500 uppercase font-black mb-2">Pressure Moy.</p>
             <p className="text-lg font-black text-blue-400">{statistics.pressureAvg.toFixed(2)} bar</p>
             <p className="text-xs text-slate-600 mt-1">σ: {statistics.pressureStd.toFixed(2)}</p>
           </div>
           <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
-            <p className="text-xs text-slate-500 uppercase font-black mb-2">Température Moy.</p>
+            <p className="text-xs text-slate-500 uppercase font-black mb-2">Temperature Moy.</p>
             <p className="text-lg font-black text-red-400">{statistics.temperatureAvg.toFixed(2)} K</p>
             <p className="text-xs text-slate-600 mt-1">σ: {statistics.temperatureStd.toFixed(2)}</p>
           </div>
@@ -416,7 +416,7 @@ export default function HybridChartVisualizerIndustrial({
             <p className="text-xs text-slate-600 mt-1">σ: {statistics.velocityStd.toFixed(3)}</p>
           </div>
           <div className="bg-slate-900 p-4 rounded-lg border border-slate-800">
-            <p className="text-xs text-slate-500 uppercase font-black mb-2">Densité Moy.</p>
+            <p className="text-xs text-slate-500 uppercase font-black mb-2">Density Moy.</p>
             <p className="text-lg font-black text-amber-400">{statistics.densityAvg.toFixed(2)} kg/m³</p>
             <p className="text-xs text-slate-600 mt-1">σ: {statistics.densityStd.toFixed(2)}</p>
           </div>

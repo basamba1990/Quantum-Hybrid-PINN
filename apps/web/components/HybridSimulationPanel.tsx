@@ -51,12 +51,12 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
   const [modeAParams, setModeAParams] = useState({
     wallTemperature_K: '',
     outletPressure_Pa: '',
-    phase: 'inconnue',
-    geometry: 'inconnue',
-    defectType: 'inconnue',
+    phase: 'unknown',
+    geometry: 'unknown',
+    defectType: 'unknown',
     defectDimensions_m: '',
     defectPosition_m: '',
-    sourceDescription: 'NASA NTRS 20140002987 Figure 5; digitalisation approximative'
+    sourceDescription: 'NASA NTRS 20140002987 Figure 5; approximate digitization'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +124,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
 
       const analysisData = {
         project_id: projectId,
-        name: `Analyse Industrielle - ${jobData.name}`,
+        name: `Industrial Analysis - ${jobData.name}`,
         title: `Simulation ${currentScenario.name}`,
         status: 'completed',
         credibility_score: score,
@@ -161,19 +161,19 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     try {
       const text = await file.text();
       const lines = text.split(/\r?\n/).filter(Boolean);
-      if (lines.length < 2) throw new Error('Le CSV doit contenir un en-tête et au moins une ligne.');
+      if (lines.length < 2) throw new Error('The CSV must contain a header and at least one data row.');
       const header = lines[0].split(',').map(v => v.trim());
       const timeIndex = header.indexOf('time_s');
       const pressureIndex = header.indexOf('inlet_pressure_Pa_approx');
       if (timeIndex < 0 || pressureIndex < 0) {
-        throw new Error('Colonnes requises absentes : time_s et inlet_pressure_Pa_approx.');
+        throw new Error('Required columns are missing: time_s and inlet_pressure_Pa_approx.');
       }
       const series = lines.slice(1).map((line, index) => {
         const cols = line.split(',');
         const time_s = Number(cols[timeIndex]);
         const pressure_Pa = Number(cols[pressureIndex]);
         if (!Number.isFinite(time_s) || !Number.isFinite(pressure_Pa) || pressure_Pa <= 0) {
-          throw new Error(`Ligne CSV invalide à la ligne ${index + 2}.`);
+          throw new Error(`Invalid CSV row at line ${index + 2}.`);
         }
         return { time_s, pressure_Pa };
       }).slice(0, 5000);
@@ -185,7 +185,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     } catch (err: any) {
       setModeASeries([]);
       setModeAFileName(null);
-      setError(err.message || 'CSV Mode A invalide');
+      setError(err.message || 'Invalid Mode A CSV');
     }
   };
 
@@ -193,14 +193,14 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
     setLoading(true);
     setError(null);
     try {
-      if (!projectId) throw new Error('Sélectionnez un projet avant de lancer une simulation.');
-      if (modeA && modeASeries.length === 0) throw new Error('Importez une série CSV NASA avant de lancer le Mode A.');
+      if (!projectId) throw new Error('Select a project before starting a simulation.');
+      if (modeA && modeASeries.length === 0) throw new Error('Import a NASA CSV series before starting Mode A.');
       if (modeA && (!modeAParams.wallTemperature_K || !modeAParams.outletPressure_Pa)) {
-        throw new Error('La température de paroi et la pression aval sont obligatoires pour le Mode A.');
+        throw new Error('Wall temperature and outlet pressure are required for Mode A.');
       }
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Session Supabase absente.');
+      if (!user) throw new Error('Supabase session is missing.');
 
       const scenarioInputs = {
         ...config.scenarioInputs,
@@ -224,13 +224,13 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         project_id: projectId,
         user_id: user.id,
         name: `${modeA ? 'Mode A NASA' : 'Simulation'} - ${config.jobName}`,
-        title: modeA ? 'LH2 chilldown — NASA Figure 5 (digitalisation approximative)' : config.jobName,
+        title: modeA ? 'LH2 chilldown — NASA Figure 5 (approximate digitization)' : config.jobName,
         status: 'pending',
         analysis_type: modeA ? 'lh2_mode_a' : 'physics_verification',
         scenario_type: scenarioType,
         results: { mode: modeA ? 'A_DEMONSTRATION' : 'STANDARD', source: modeAParams.sourceDescription }
       }]).select('id').single();
-      if (analysisError || !analysis) throw new Error(`Impossible de créer l’analyse : ${analysisError?.message || 'identifiant absent'}`);
+      if (analysisError || !analysis) throw new Error(`Unable to create the analysis: ${analysisError?.message || 'missing identifier'}`);
       pendingAnalysisIdRef.current = analysis.id;
 
       const response = await fetch('/api/hybrid/run-simulation', {
@@ -248,7 +248,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Erreur serveur');
+      if (!response.ok) throw new Error(data.error || 'Server error');
       setSelectedJob({ jobId: data.job_id, name: config.jobName, status: 'running', createdAt: new Date().toISOString() });
       await supabase.from('analyses').update({ status: 'processing', results: { job_id: data.job_id, mode: modeA ? 'A_DEMONSTRATION' : 'STANDARD' } }).eq('id', analysis.id);
       startPollingForJob(data.job_id);
@@ -266,12 +266,12 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
       <Card className="lg:col-span-1 bg-slate-900/40 border-white/5 text-white rounded-3xl overflow-hidden backdrop-blur-md">
         <CardHeader className="bg-blue-600/10 border-b border-white/5">
           <CardTitle className="flex items-center gap-3 text-lg font-black tracking-tighter">
-            <Zap className="w-5 h-5 text-blue-400" /> SETUP INDUSTRIEL
+            <Zap className="w-5 h-5 text-blue-400" /> INDUSTRIAL SETUP
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase text-gray-500">Scénario de Production</Label>
+            <Label className="text-[10px] font-black uppercase text-gray-500">Production Scenario</Label>
             <Select value={scenarioType} onValueChange={(val: ScenarioType) => setScenarioType(val)}>
               <SelectTrigger className="bg-black/40 border-white/10 rounded-xl h-12">
                 <SelectValue />
@@ -285,7 +285,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
           </div>
 
           <div className="space-y-4 pt-4 border-t border-white/5">
-            <p className="text-[10px] font-black uppercase text-blue-500 tracking-widest">Paramètres Physiques</p>
+            <p className="text-[10px] font-black uppercase text-blue-500 tracking-widest">Physical Parameters</p>
             {currentScenario.inputs.map(input => (
               <div key={input.name} className="space-y-2">
                 <Label className="text-[11px] font-bold text-gray-400 flex justify-between">
@@ -331,7 +331,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase text-amber-400 tracking-widest">Mode A — Benchmark NASA</p>
-                <p className="text-[10px] text-gray-500">Démonstration transitoire avec incertitude de digitalisation</p>
+                <p className="text-[10px] text-gray-500">Transient demonstration with digitization uncertainty</p>
               </div>
               <button type="button" onClick={() => { setModeA(!modeA); if (!modeA) setScenarioType('LH2_INFRASTRUCTURE_INTEGRITY'); }} className={`px-3 py-2 rounded-lg text-[10px] font-black ${modeA ? 'bg-amber-500 text-black' : 'bg-white/10 text-gray-400'}`}>
                 {modeA ? 'MODE A ACTIF' : 'ACTIVER MODE A'}
@@ -340,15 +340,15 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
             {modeA && <div className="space-y-3">
               <label className="flex items-center gap-2 p-3 rounded-xl border border-dashed border-amber-500/40 bg-amber-500/5 cursor-pointer">
                 <Upload className="w-4 h-4 text-amber-400" />
-                <span className="text-xs text-gray-300">Importer CSV NASA</span>
+                <span className="text-xs text-gray-300">Import NASA CSV</span>
                 <input type="file" accept=".csv,text/csv" onChange={handleModeAFile} className="hidden" />
                 <span className="ml-auto text-[10px] text-amber-300 truncate max-w-[130px]">{modeAFileName || 'Aucun fichier'}</span>
               </label>
-              {modeASeries.length > 0 && <p className="text-[10px] text-emerald-400"><FileText className="inline w-3 h-3 mr-1" />{modeASeries.length} points pression–temps validés (Pa, s)</p>}
+              {modeASeries.length > 0 && <p className="text-[10px] text-emerald-400"><FileText className="inline w-3 h-3 mr-1" />{modeASeries.length} validated pressure–time points (Pa, s)</p>}
               <div className="grid grid-cols-2 gap-3">
                 <div><Label className="text-[10px] text-gray-400">Température paroi (K)</Label><Input type="number" value={modeAParams.wallTemperature_K} onChange={e => setModeAParams({...modeAParams, wallTemperature_K: e.target.value})} placeholder="Obligatoire" className="bg-black/40 border-white/10" /></div>
                 <div><Label className="text-[10px] text-gray-400">Pression aval (Pa)</Label><Input type="number" value={modeAParams.outletPressure_Pa} onChange={e => setModeAParams({...modeAParams, outletPressure_Pa: e.target.value})} placeholder="Obligatoire" className="bg-black/40 border-white/10" /></div>
-                <div><Label className="text-[10px] text-gray-400">Phase</Label><Select value={modeAParams.phase} onValueChange={v => setModeAParams({...modeAParams, phase: v})}><SelectTrigger className="bg-black/40 border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-slate-900 text-white"><SelectItem value="liquide">Liquide</SelectItem><SelectItem value="vapeur">Vapeur</SelectItem><SelectItem value="diphasique">Diphasique</SelectItem><SelectItem value="inconnue">Inconnue</SelectItem></SelectContent></Select></div>
+                <div><Label className="text-[10px] text-gray-400">Phase</Label><Select value={modeAParams.phase} onValueChange={v => setModeAParams({...modeAParams, phase: v})}><SelectTrigger className="bg-black/40 border-white/10"><SelectValue /></SelectTrigger><SelectContent className="bg-slate-900 text-white"><SelectItem value="liquide">Liquide</SelectItem><SelectItem value="vapeur">Vapeur</SelectItem><SelectItem value="diphasique">Diphasique</SelectItem><SelectItem value="unknown">Inconnue</SelectItem></SelectContent></Select></div>
                 <div><Label className="text-[10px] text-gray-400">Géométrie</Label><Input value={modeAParams.geometry} onChange={e => setModeAParams({...modeAParams, geometry: e.target.value})} placeholder="conduite, réservoir..." className="bg-black/40 border-white/10" /></div>
                 <div><Label className="text-[10px] text-gray-400">Type défaut</Label><Input value={modeAParams.defectType} onChange={e => setModeAParams({...modeAParams, defectType: e.target.value})} placeholder="trou, fissure..." className="bg-black/40 border-white/10" /></div>
                 <div><Label className="text-[10px] text-gray-400">Dimensions défaut (m)</Label><Input value={modeAParams.defectDimensions_m} onChange={e => setModeAParams({...modeAParams, defectDimensions_m: e.target.value})} placeholder="Non renseigné" className="bg-black/40 border-white/10" /></div>
@@ -374,7 +374,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
         <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 p-8 bg-white/[0.02]">
           <div>
             <CardTitle className="text-3xl font-black tracking-tighter">OPÉRATIONS LIVE</CardTitle>
-            <CardDescription className="text-gray-500 font-mono text-[10px] uppercase tracking-widest mt-1">Moteur PINN v8.5 // Synchronisation Données Réelles</CardDescription>
+            <CardDescription className="text-gray-500 font-mono text-[10px] uppercase tracking-widest mt-1">Moteur PINN v8.5 // Real Data Synchronization</CardDescription>
           </div>
           {selectedJob && (
             <div className="flex items-center gap-4">
@@ -418,7 +418,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
                 <div className="xl:col-span-2 bg-blue-600/5 border border-blue-500/10 rounded-3xl p-6 flex flex-col justify-between">
                   <div className="flex justify-between items-start mb-8">
                     <div>
-                      <h4 className="text-lg font-black text-white">Crédibilité de Simulation</h4>
+                      <h4 className="text-lg font-black text-white">Simulation Credibility</h4>
                       <p className="text-xs text-gray-500">Basé sur les résidus Navier-Stokes réels</p>
                     </div>
                     <div className="text-right">
@@ -444,7 +444,7 @@ export function HybridSimulationPanel({ projectId }: { projectId?: string }) {
 
                 <div className="bg-white/5 border border-white/10 rounded-3xl p-6 space-y-6">
                   <h4 className="text-xs font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-emerald-500" /> Analyse de Risque
+                    <Shield className="w-4 h-4 text-emerald-500" /> Risk Analysis
                   </h4>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">

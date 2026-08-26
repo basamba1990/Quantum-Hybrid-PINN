@@ -16,7 +16,7 @@ interface AuditTrailProps {
   title?: string
 }
 
-export function AuditTrail({ entries, title = 'Traçabilité Audit' }: AuditTrailProps) {
+export function AuditTrail({ entries, title = 'Audit Traceability' }: AuditTrailProps) {
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
       <div className="flex items-center gap-2">
@@ -26,7 +26,7 @@ export function AuditTrail({ entries, title = 'Traçabilité Audit' }: AuditTrai
 
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {entries.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-4">Aucune entrée audit</p>
+          <p className="text-sm text-gray-500 text-center py-4">No audit entries</p>
         ) : (
           entries.map((entry, idx) => (
             <div
@@ -70,7 +70,7 @@ export function AuditTrail({ entries, title = 'Traçabilité Audit' }: AuditTrai
       </div>
 
       <div className="pt-4 border-t border-white/10 text-xs text-gray-500">
-        <p>Total: {entries.length} événement{entries.length > 1 ? 's' : ''}</p>
+        <p>Total: {entries.length} event{entries.length > 1 ? 's' : ''}</p>
       </div>
     </div>
   )

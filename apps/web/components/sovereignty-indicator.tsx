@@ -89,7 +89,7 @@ export default function SovereigntyIndicator({
           <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
             <div className="text-indigo-100 text-sm mb-1">Région</div>
             <div className="text-xl font-bold">🌍 Afrique</div>
-            <div className="text-xs text-indigo-200 mt-2">Données Sécurisées</div>
+            <div className="text-xs text-indigo-200 mt-2">Secured Data</div>
           </div>
 
           <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
@@ -99,7 +99,7 @@ export default function SovereigntyIndicator({
             </div>
             <div className="text-xs text-indigo-200 mt-2">
               {score.overallSovereigntyIndex >= 70
-                ? 'Données Protégées'
+                ? 'Protected Data'
                 : 'Risques Identifiés'}
             </div>
           </div>
@@ -110,7 +110,7 @@ export default function SovereigntyIndicator({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <ScoreCard
           icon={<Lock className="w-5 h-5" />}
-          label="Sécurité des Données"
+          label="Data Security"
           value={score.dataSecurityScore}
           description="Chiffrement, conformité RGPD, hébergement sécurisé"
         />

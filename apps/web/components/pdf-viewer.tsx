@@ -51,7 +51,7 @@ export default function PDFViewer({ url }: PDFViewerProps) {
           onLoadSuccess={onDocumentLoadSuccess}
           onError={onDocumentLoadError}
           loading={<div className="text-blue-400 animate-pulse">Chargement du document scientifique...</div>}
-          error={<div className="text-red-400 p-4 text-center">Erreur lors du chargement du PDF. Veuillez réessayer.</div>}
+          error={<div className="text-red-400 p-4 text-center">PDF loading failed. Please try again.</div>}
         >
           {isMounted && (
             <Page 
