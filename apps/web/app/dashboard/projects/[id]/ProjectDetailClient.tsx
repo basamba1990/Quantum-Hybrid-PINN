@@ -1,8 +1,9 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import Link from 'next/link'
 import nextDynamic from 'next/dynamic'
 import { 
@@ -37,6 +38,7 @@ export default function ProjectDetailClient({ id, project }: any) {
   const [deleting, setDeleting] = useState(false)
   const [downloadTrigger, setDownloadTrigger] = useState(0)
   const supabase = useMemo(() => createClient(), [])
+  const router = useRouter()
   const searchParams = useSearchParams()
   const requestedCfdAnalysisId = searchParams.get('cfdAnalysisId')
 
@@ -67,23 +69,33 @@ export default function ProjectDetailClient({ id, project }: any) {
         setExplicitCfdDataset(null)
         setCfdAnalysisId(null)
         if (requestedCfdAnalysisId) {
-          const cfdResponse = await fetch(`/api/cfd/${encodeURIComponent(requestedCfdAnalysisId)}`, { credentials: 'include', cache: 'no-store' })
-          const cfdPayload = await cfdResponse.json().catch(() => null)
-          if (cfdResponse.ok && cfdPayload?.dataset) {
+          let cfdPayload: any = null
+          let cfdResponse: Response | null = null
+          // Après un import, la page peut être redirigée avant que la lecture
+          // répliquée ne soit disponible. On retente uniquement une absence
+          // transitoire ; aucune donnée n’est fabriquée côté client.
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            cfdResponse = await fetch(`/api/cfd/${encodeURIComponent(requestedCfdAnalysisId)}`, { credentials: 'include', cache: 'no-store' })
+            cfdPayload = await cfdResponse.json().catch(() => null)
+            if (cfdResponse.ok && cfdPayload?.dataset) break
+            if (cfdResponse.status !== 404 && cfdResponse.status !== 503) break
+            await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)))
+          }
+          if (cfdResponse?.ok && cfdPayload?.dataset) {
             const importedCfdAnalysisId = typeof cfdPayload.analysisId === 'string'
               ? cfdPayload.analysisId
               : requestedCfdAnalysisId
             setCfdAnalysisId(importedCfdAnalysisId)
             setExplicitCfdDataset(cfdPayload.dataset)
             explicitCfd = {
-              analysis_id: cfdPayload.analysisId,
-              project_id: id,
+              analysis_id: importedCfdAnalysisId,
+              project_id: typeof cfdPayload.projectId === 'string' ? cfdPayload.projectId : id,
               created_at: new Date().toISOString(),
               status: cfdPayload.status,
               dataset: cfdPayload.dataset,
               artifact_manifest: cfdPayload.artifactManifest,
             }
-          } else if (cfdResponse.status !== 404) {
+          } else if (cfdResponse && cfdResponse.status !== 404) {
             console.warn('CFD dataset explicit loading failed:', cfdPayload)
           }
         }
@@ -202,6 +214,34 @@ export default function ProjectDetailClient({ id, project }: any) {
     fetchData()
   }, [id, supabase, requestedCfdAnalysisId])
 
+  const handleDeleteProject = async () => {
+    if (!window.confirm('Supprimer définitivement ce projet et ses analyses persistées ?')) return
+    setDeleting(true)
+    try {
+      const { error: cfdError } = await supabase.from('cfd_datasets').delete().eq('project_id', id)
+      if (cfdError) throw new Error(`Suppression des datasets CFD refusée : ${cfdError.message}`)
+      const { data: analyses, error: analysisReadError } = await supabase.from('analyses').select('id').eq('project_id', id)
+      if (analysisReadError) throw new Error(`Lecture des analyses impossible : ${analysisReadError.message}`)
+      const analysisIds = (analyses ?? []).map((row: { id: string }) => row.id)
+      if (analysisIds.length) {
+        const { error: resultsError } = await supabase.from('analysis_results').delete().in('analysis_id', analysisIds)
+        if (resultsError) throw new Error(`Suppression des résultats refusée : ${resultsError.message}`)
+        const { error: analysesError } = await supabase.from('analyses').delete().in('id', analysisIds)
+        if (analysesError) throw new Error(`Suppression des analyses refusée : ${analysesError.message}`)
+      }
+      const { error: projectError } = await supabase.from('projects').delete().eq('id', id)
+      if (projectError) throw new Error(`Suppression du projet refusée : ${projectError.message}`)
+      toast.success('Projet supprimé')
+      router.push('/dashboard')
+      router.refresh()
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : 'Suppression du projet impossible.'
+      toast.error(message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const results = latestAnalysis?.results || {}
   const scenarioType = resolveVisualizationScenario([latestAnalysis?.scenario_type, project?.scenario_type, project?.category, project?.name])
   const certifiedCfd = useMemo(() => explicitCfdDataset
@@ -270,6 +310,9 @@ export default function ProjectDetailClient({ id, project }: any) {
               <Download className="w-4 h-4" /> Export Graphiques 300 DPI
             </button>
             <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase italic tracking-tighter shadow-2xl shadow-blue-900/40"><Zap className="w-4 h-4 fill-white mr-2 inline" /> New Analysis</button>
+            <button type="button" onClick={() => void handleDeleteProject()} disabled={deleting} className="px-5 py-3 bg-red-600/90 hover:bg-red-500 disabled:opacity-50 text-white rounded-2xl font-black uppercase italic tracking-tighter shadow-xl flex items-center gap-2" aria-label="Supprimer le projet">
+              <Trash2 className="w-4 h-4" /> {deleting ? 'Suppression…' : 'Supprimer'}
+            </button>
           </div>
         </div>
 

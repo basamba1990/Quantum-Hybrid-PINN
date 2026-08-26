@@ -7,8 +7,11 @@ import { toast } from 'sonner'
 
 export type CfdImportResponse = {
   analysisId?: string
+  analysis_id?: string
   datasetId?: string
+  dataset_id?: string
   projectId?: string
+  project_id?: string
   meshRevision?: string
   pointCount?: number
   cellCount?: number
@@ -117,9 +120,15 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       if (!response.ok) {
         throw new Error(payload.error || payload.detail || `Import refusé (HTTP ${response.status}).`)
       }
-      setResult(payload)
-      onImported?.(payload)
-      toast.success(`Dataset importé : ${payload.analysisId ?? 'identifiant indisponible'}`)
+      const normalizedPayload: CfdImportResponse = {
+        ...payload,
+        analysisId: payload.analysisId ?? payload.analysis_id,
+        datasetId: payload.datasetId ?? payload.dataset_id,
+        projectId: payload.projectId ?? payload.project_id,
+      }
+      setResult(normalizedPayload)
+      onImported?.(normalizedPayload)
+      toast.success(`Dataset importé : ${normalizedPayload.analysisId ?? 'identifiant indisponible'}`)
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : 'Échec de l’import CFD.'
       setError(message)
