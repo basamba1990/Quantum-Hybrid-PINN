@@ -9,6 +9,7 @@ appel si ce secret n'est pas configuré ou si le Bearer token est incorrect.
 """
 from __future__ import annotations
 
+import gzip
 import hashlib
 import io
 import json
@@ -292,6 +293,56 @@ def _verify_project_owner(project_id: str, owner_id: str) -> None:
         raise HTTPException(status_code=404, detail="Projet absent ou non accessible par l’utilisateur connecté.")
 
 
+def _dataset_summary(dataset: Dict[str, Any]) -> Dict[str, Any]:
+    """Keep DB metadata small; the exact contract lives as a compressed Storage object."""
+    summary = {key: value for key, value in dataset.items() if key != "frames"}
+    summary["frames"] = [
+        {
+            "frameId": frame.get("frameId"),
+            "time": frame.get("time"),
+            "pointCount": len(frame.get("points", [])) // 3,
+            "cellCount": len(frame.get("cellTypes", [])),
+            "fieldNames": [field.get("name") for field in frame.get("fields", [])],
+        }
+        for frame in dataset.get("frames", [])
+    ]
+    summary["frameCount"] = len(summary["frames"])
+    return summary
+
+
+def _dataset_blob(dataset: Dict[str, Any]) -> bytes:
+    raw = json.dumps(dataset, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    return gzip.compress(raw, compresslevel=6, mtime=0)
+
+
+def _storage_bytes(client: Client, bucket: str, path: str, label: str) -> bytes:
+    content = client.storage.from_(bucket).download(path)
+    if not isinstance(content, bytes):
+        content = getattr(content, "content", None) or getattr(content, "data", None)
+    if not isinstance(content, bytes):
+        raise RuntimeError(f"Réponse Storage non binaire pour {label}.")
+    return content
+
+
+def _load_dataset(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Load the exact contract from Storage, with legacy DB JSON fallback."""
+    manifest = row.get("artifact_manifest") or {}
+    path = manifest.get("datasetPath")
+    if not path:
+        return row.get("dataset") or {}
+    bucket = str(manifest.get("bucket") or os.getenv("CFD_ARTIFACT_BUCKET", "cfd-artifacts")).strip()
+    try:
+        blob = _storage_bytes(_supabase(), bucket, path, "dataset contract")
+        if manifest.get("datasetEncoding") == "gzip+json":
+            blob = gzip.decompress(blob)
+        dataset = json.loads(blob.decode("utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Lecture du contrat CFD depuis Storage échouée: {exc}") from exc
+    if not isinstance(dataset, dict):
+        raise HTTPException(status_code=502, detail="Contrat CFD Storage invalide: objet JSON attendu.")
+    return dataset
+
+
 def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_bytes: bytes, case_id: str, project_id: str, owner_id: str) -> str:
     analysis_id = str(uuid.uuid4())
     dataset_id = str(uuid.uuid4())
@@ -304,6 +355,9 @@ def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_b
         "sidecarSha256": _sha256(sidecar_bytes),
         "frames": [{"file": name, "sha256": _sha256(payload), "bytes": len(payload)} for name, payload in sorted(files.items())],
     }
+    dataset_blob = _dataset_blob(dataset)
+    if len(dataset_blob) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"Contrat CFD compressé trop volumineux ({len(dataset_blob)} octets; limite {MAX_UPLOAD_BYTES}).")
     client = _supabase()
     bucket = os.getenv("CFD_ARTIFACT_BUCKET", "cfd-artifacts").strip()
     if not bucket:
@@ -318,9 +372,15 @@ def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_b
             artifact_path = f"{storage_prefix}/{name}"
             client.storage.from_(bucket).upload(artifact_path, payload, {"content-type": "application/xml", "upsert": "false"})
             uploaded_paths.append(artifact_path)
+        dataset_path = f"{storage_prefix}/dataset.json.gz"
+        client.storage.from_(bucket).upload(dataset_path, dataset_blob, {"content-type": "application/json", "upsert": "false"})
+        uploaded_paths.append(dataset_path)
         artifact_manifest["bucket"] = bucket
         artifact_manifest["storagePrefix"] = storage_prefix
         artifact_manifest["paths"] = uploaded_paths
+        artifact_manifest["datasetPath"] = dataset_path
+        artifact_manifest["datasetEncoding"] = "gzip+json"
+        artifact_manifest["datasetBytes"] = len(dataset_blob)
     except Exception as exc:
         if uploaded_paths:
             try:
@@ -336,7 +396,7 @@ def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_b
         "owner_id": owner_id,
         "status": status,
         "mesh_revision": dataset["meshRevision"],
-        "dataset": dataset,
+        "dataset": _dataset_summary(dataset),
         "artifact_manifest": artifact_manifest,
         "created_at": _utc_now(),
     }
@@ -455,18 +515,10 @@ async def import_cfd_dataset_from_storage(
 
     client = _supabase()
     try:
-        sidecar_bytes = client.storage.from_(bucket).download(sidecar_path)
-        if not isinstance(sidecar_bytes, bytes):
-            sidecar_bytes = getattr(sidecar_bytes, "content", None) or getattr(sidecar_bytes, "data", None)
-        if not isinstance(sidecar_bytes, bytes):
-            raise RuntimeError("Réponse sidecar Storage non binaire.")
+        sidecar_bytes = _storage_bytes(client, bucket, sidecar_path, "sidecar")
         uploaded: Dict[str, bytes] = {}
         for name, path in frame_specs:
-            content = client.storage.from_(bucket).download(path)
-            if not isinstance(content, bytes):
-                content = getattr(content, "content", None) or getattr(content, "data", None)
-            if not isinstance(content, bytes):
-                raise RuntimeError(f"Réponse Storage non binaire pour {name}.")
+            content = _storage_bytes(client, bucket, path, name)
             if len(content) > MAX_UPLOAD_BYTES:
                 raise HTTPException(status_code=413, detail=f"VTU {name} dépasse la limite CFD_IMPORT_MAX_BYTES ({MAX_UPLOAD_BYTES} octets).")
             uploaded[name] = content
@@ -487,7 +539,14 @@ async def import_cfd_dataset_from_storage(
     descriptors = metadata.get("fieldDescriptors", {})
     parsed = [_parse_vtu(uploaded[name], name, descriptors) for name in [spec["file"] for spec in metadata["frames"]]]
     dataset = _build_dataset(metadata, parsed)
-    analysis_id = _persist_dataset(dataset, uploaded, sidecar_bytes, case_id, project_id, owner_id)
+    session_paths = [sidecar_path, *[path for _, path in frame_specs]]
+    try:
+        analysis_id = _persist_dataset(dataset, uploaded, sidecar_bytes, case_id, project_id, owner_id)
+    finally:
+        try:
+            client.storage.from_(bucket).remove(session_paths)
+        except Exception:
+            pass
     return {
         "analysisId": analysis_id,
         "datasetId": analysis_id,
@@ -534,7 +593,7 @@ def get_latest_cfd_dataset_for_project(
         "analysisId": row["analysis_id"],
         "projectId": row["project_id"],
         "status": row["status"],
-        "dataset": row["dataset"],
+        "dataset": _load_dataset(row),
         "artifactManifest": row["artifact_manifest"],
         "createdAt": row.get("created_at"),
     }
@@ -564,4 +623,4 @@ def get_cfd_dataset(analysis_id: str, _auth: None = Depends(require_cfd_import_a
     if not response.data:
         raise HTTPException(status_code=404, detail="Dataset CFD absent.")
     row = response.data[0]
-    return {"analysisId": analysis_id, "status": row["status"], "dataset": row["dataset"], "artifactManifest": row["artifact_manifest"]}
+    return {"analysisId": analysis_id, "status": row["status"], "dataset": _load_dataset(row), "artifactManifest": row["artifact_manifest"]}
