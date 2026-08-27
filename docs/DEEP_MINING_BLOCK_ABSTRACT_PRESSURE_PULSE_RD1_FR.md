@@ -8,17 +8,17 @@ Le sidecar utilise :
 
 | Champ | Valeur |
 |---|---|
-| `eventType` | `ABSTRACT_PRESSURE_PULSE` |
-| `sourceProvenance` | Synthetic low-amplitude acoustic benchmark |
+| `eventType` | `PUBLIC_OVERPRESSURE_BENCHMARK` |
+| `sourceProvenance` | NIOSH public document used for context only; no measured trace copied |
 | `arrivalTime` | `0 s` |
-| `peakOverpressure` | `250 Pa` |
+| `peakOverpressure` | `250 Pa` bounded synthetic reference, not measured |
 | `boundaryReflectionModel` | One-dimensional rigid-end acoustic reflection surrogate |
 | `solverProduced` | `false` |
 | Statut scientifique | `UNVALIDATED` |
 
 ## Modèle de propagation
 
-Le champ de surpression est un pulse gaussien abstrait se déplaçant dans la direction longitudinale :
+Le champ de surpression est un pulse gaussien synthétique servant de benchmark de surpression publique se déplaçant dans la direction longitudinale :
 
 \[
 \Delta p_i(x,t)=\Delta p_{max}
@@ -66,7 +66,7 @@ Ces ensembles ne constituent pas un plan de ventilation réel. Pour un calcul in
 
 Le contrat refuse conceptuellement toute revendication de certification en maintenant `solverProduced=false`, des résidus `mass`, `momentum` et `energy` à `null`, et les preuves de solveur à `false`. Le kit ne contient volontairement aucun champ nommé `explosiveChargeMass`, `detonationEnergy`, `charge_mass` ou `initiationProcedure`.
 
-Le rendu d’une onde visible ne prouve pas que l’onde est physiquement prédictive. Une preuve G0–G5 exigerait une sortie de solveur identifié, une équation d’état et un modèle compressible appropriés, une étude de convergence maillage/temps, des comparaisons de référence et, pour un cas réel, une validation de sécurité indépendante.
+La référence publique est utilisée uniquement pour le contexte terminologique et la provenance ; aucune valeur mesurée n’est recopiée dans le kit. Le rendu d’une onde visible ne prouve pas que l’onde est physiquement prédictive. Une preuve G0–G5 exigerait une sortie de solveur identifié, une équation d’état et un modèle compressible appropriés, une étude de convergence maillage/temps, des comparaisons de référence et, pour un cas réel, une validation de sécurité indépendante.
 
 ## Références de contexte
 

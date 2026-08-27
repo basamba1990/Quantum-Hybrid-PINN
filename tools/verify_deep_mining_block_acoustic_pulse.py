@@ -9,7 +9,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1] / 'artifacts' / 'deep_mining_block_acoustic_pulse_8frames'
 sidecar = json.loads((ROOT / 'sidecar.json').read_text(encoding='utf-8'))
 assert sidecar['contractVersion'] == 'cfd-volume.v1'
-assert sidecar['eventType'] == 'ABSTRACT_PRESSURE_PULSE'
+assert sidecar['eventType'] == 'PUBLIC_OVERPRESSURE_BENCHMARK'
 assert sidecar['solverProduced'] is False
 assert sidecar['synthetic'] is True and sidecar['realAsset'] is False
 assert sidecar['peakOverpressure'] == 250.0
@@ -45,4 +45,4 @@ peak_by_frame = [float(np.max(data['pressure'])) for _, data in frames]
 assert max(peak_by_frame) > min(peak_by_frame)
 wavefront_by_frame = [float(np.mean(data['wavefront_indicator'])) for _, data in frames]
 assert max(wavefront_by_frame) > min(wavefront_by_frame)
-print(json.dumps({'status': 'PASS', 'frames': len(frames), 'points': sidecar['pointCount'], 'cells': sidecar['cellCount'], 'peakOverpressurePa': sidecar['peakOverpressure'], 'pressureRangeMPa': [min(peak_by_frame), max(peak_by_frame)], 'wavefrontMeanRange': [min(wavefront_by_frame), max(wavefront_by_frame)], 'eventType': sidecar['eventType'], 'certificationAllowed': False}, indent=2))
+print(json.dumps({'status': 'PASS', 'frames': len(frames), 'points': sidecar['pointCount'], 'cells': sidecar['cellCount'], 'peakOverpressurePa': sidecar['peakOverpressure'], 'pressureRangeMPa': [min(peak_by_frame), max(peak_by_frame)], 'wavefrontMeanRange': [min(wavefront_by_frame), max(wavefront_by_frame)], 'eventType': sidecar['eventType'], 'sourceProvenance': sidecar['sourceProvenance'], 'peakOverpressureStatus': sidecar['peakOverpressureStatus'], 'uncertainty': sidecar['uncertainty'], 'certificationAllowed': False}, indent=2))

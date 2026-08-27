@@ -155,7 +155,7 @@ def main() -> None:
         'revision': 'deep-mining-block-acoustic-rd1',
         'units': 'SI',
         'geometry': {'domain': 'rectangular underground-panel control volume', 'length_m': LX, 'width_m': LY, 'height_m': LZ, 'galleryCenter_m': [0.0, LY / 2.0, LZ / 2.0]},
-        'event': {'eventType': 'ABSTRACT_PRESSURE_PULSE', 'sourceProvenance': 'synthetic low-amplitude acoustic benchmark', 'arrivalTime_s': 0.0, 'peakOverpressure_Pa': PEAK_OVERPRESSURE_PA, 'boundaryReflectionModel': 'one-dimensional rigid-end acoustic reflection surrogate', 'solverProduced': False},
+        'event': {'eventType': 'PUBLIC_OVERPRESSURE_BENCHMARK', 'sourceProvenance': {'document': 'NIOSH public explosion-pressure design context', 'uri': 'https://stacks.cdc.gov/view/cdc/161327', 'datasetRevision': 'public-context-v1', 'measuredValueUsed': False}, 'arrivalTime_s': 0.0, 'arrivalTimeDefinition': 'pulse reference plane at x=12 m; not a field measurement', 'peakOverpressure_Pa': PEAK_OVERPRESSURE_PA, 'peakOverpressureStatus': 'bounded_synthetic_reference_not_measured', 'uncertainty': {'peakOverpressureRelative': 0.20, 'arrivalTime_s': 0.01, 'interpretation': 'synthetic parameter uncertainty, not measurement confidence'}, 'boundaryReflectionModel': 'one-dimensional rigid-end acoustic reflection surrogate', 'solverProduced': False},
     }
     (OUT / 'geometry_parameters.json').write_text(json.dumps(geometry, indent=2) + '\n', encoding='utf-8')
     sidecar = {
@@ -170,9 +170,12 @@ def main() -> None:
         'synthetic': True,
         'realAsset': False,
         'solverProduced': False,
-        'eventType': 'ABSTRACT_PRESSURE_PULSE',
-        'sourceProvenance': 'synthetic low-amplitude acoustic benchmark; no explosive charge or initiation model',
+        'eventType': 'PUBLIC_OVERPRESSURE_BENCHMARK',
+        'sourceProvenance': {'document': 'NIOSH public explosion-pressure design context', 'uri': 'https://stacks.cdc.gov/view/cdc/161327', 'datasetRevision': 'public-context-v1', 'scope': 'context for overpressure/reflection terminology only', 'measuredValueUsed': False, 'noExplosiveChargeParameters': True},
         'arrivalTime': 0.0,
+        'arrivalTimeDefinition': 'reference plane at x=12 m; not a field measurement',
+        'peakOverpressureStatus': 'bounded_synthetic_reference_not_measured',
+        'uncertainty': {'peakOverpressureRelative': 0.20, 'arrivalTime_s': 0.01, 'interpretation': 'synthetic parameter uncertainty, not measurement confidence'},
         'peakOverpressure': PEAK_OVERPRESSURE_PA,
         'boundaryReflectionModel': 'one-dimensional rigid-end acoustic reflection surrogate',
         'fieldDescriptors': {
@@ -199,10 +202,10 @@ def main() -> None:
         ],
         'evidence': {'meshGeometryAndTopology': True, 'fieldsAndUnits': True, 'namedBoundaries': True, 'solverProvenance': False, 'solverResiduals': False, 'referenceComparison': False, 'immutableHashes': True, 'calculatedTransientStates': False},
         'frames': frame_entries,
-        'caseDefinition': {'scenario': 'DEEP_MINING_BLOCK_ABSTRACT_PRESSURE_PULSE', 'eventType': 'ABSTRACT_PRESSURE_PULSE', 'waveModel': 'low-amplitude compressible acoustic pulse with surrogate rigid-end reflection', 'timeUnit': 's', 'frameCount': len(FRAME_TIMES_S), 'safetyNote': 'Not an explosion model; no charge, detonation energy, initiation, or blast design parameters are present.'},
+        'caseDefinition': {'scenario': 'DEEP_MINING_BLOCK_PUBLIC_OVERPRESSURE_BENCHMARK', 'eventType': 'PUBLIC_OVERPRESSURE_BENCHMARK', 'waveModel': 'low-amplitude compressible acoustic pulse with surrogate rigid-end reflection', 'timeUnit': 's', 'frameCount': len(FRAME_TIMES_S), 'safetyNote': 'Not an explosion model; no charge, detonation energy, initiation, or blast design parameters are present.'},
     }
     (OUT / 'sidecar.json').write_text(json.dumps(sidecar, indent=2) + '\n', encoding='utf-8')
-    (OUT / 'README.md').write_text('''# deep_mining_block acoustic pulse RD1\n\nThis is a **synthetic, non-operational, low-amplitude acoustic benchmark** for testing volumetric CFD rendering, time animation, pressure-front transport and boundary reflection handling. It is not an explosion model, mine asset, blast design, detonation simulation or safety certification.\n\nThe archive contains eight VTU frames with shared tetrahedral connectivity and the fields `temperature` (K), `pressure` (MPa), `velocity` (m/s), `gas_concentration` (ppm), `leak_indicator` (1), `wavefront_indicator` (1), and `region_id` (cell integer).\n\nThe sidecar declares `eventType: ABSTRACT_PRESSURE_PULSE`, provenance, arrival time, peak overpressure and a surrogate reflection model. Residuals are explicitly null and the correct scientific status is `UNVALIDATED`. No explosive-charge, detonation-energy or initiation parameters are included.\n''', encoding='utf-8')
+    (OUT / 'README.md').write_text('''# deep_mining_block acoustic pulse RD1\n\nThis is a **synthetic, non-operational, low-amplitude public-overpressure benchmark** for testing volumetric CFD rendering, time animation, pressure-front transport and boundary reflection handling. It is not an explosion model, mine asset, blast design, detonation simulation or safety certification. The cited public document provides context only; no measured pressure trace is copied into this kit.\n\nThe archive contains eight VTU frames with shared tetrahedral connectivity and the fields `temperature` (K), `pressure` (MPa), `velocity` (m/s), `gas_concentration` (ppm), `leak_indicator` (1), `wavefront_indicator` (1), and `region_id` (cell integer).\n\nThe sidecar declares `eventType: PUBLIC_OVERPRESSURE_BENCHMARK`, provenance, arrival time, a bounded synthetic reference overpressure and a surrogate reflection model. Residuals are explicitly null and the correct scientific status is `UNVALIDATED`. No explosive-charge, detonation-energy or initiation parameters are included.\n''', encoding='utf-8')
     if ZIP.exists():
         ZIP.unlink()
     with zipfile.ZipFile(ZIP, 'w', compression=zipfile.ZIP_DEFLATED) as archive:

@@ -10,9 +10,23 @@
   "synthetic": true,
   "realAsset": false,
   "solverProduced": false,
-  "eventType": "ABSTRACT_PRESSURE_PULSE",
-  "sourceProvenance": "synthetic low-amplitude acoustic benchmark; no explosive charge or initiation model",
+  "eventType": "PUBLIC_OVERPRESSURE_BENCHMARK",
+  "sourceProvenance": {
+    "document": "NIOSH public explosion-pressure design context",
+    "uri": "https://stacks.cdc.gov/view/cdc/161327",
+    "datasetRevision": "public-context-v1",
+    "scope": "context for overpressure/reflection terminology only",
+    "measuredValueUsed": false,
+    "noExplosiveChargeParameters": true
+  },
   "arrivalTime": 0.0,
+  "arrivalTimeDefinition": "reference plane at x=12 m; not a field measurement",
+  "peakOverpressureStatus": "bounded_synthetic_reference_not_measured",
+  "uncertainty": {
+    "peakOverpressureRelative": 0.2,
+    "arrivalTime_s": 0.01,
+    "interpretation": "synthetic parameter uncertainty, not measurement confidence"
+  },
   "peakOverpressure": 250.0,
   "boundaryReflectionModel": "one-dimensional rigid-end acoustic reflection surrogate",
   "fieldDescriptors": {
@@ -2117,9 +2131,9 @@
     "solver": "synthetic-reference-generator",
     "solverVersion": "deep-mining-acoustic-rd1",
     "sourceUri": "urn:quantum-hybrid-pinn:reference-design:deep-mining-block-acoustic-rd1",
-    "sourceHash": "55344549ef16836549b3a8c5dc1f2b5562bdd8517bbff1922ab57b445c88098a",
+    "sourceHash": "ef4919baf007a7d9b6b631f9185bddddc53671bb03aa96ff078286b16bdcc5d3",
     "calculationId": "abstract-pressure-pulse-not-a-solver-run",
-    "generatedAt": "2026-08-26T23:48:01.535926+00:00"
+    "generatedAt": "2026-08-27T00:00:18.634220+00:00"
   },
   "residuals": {
     "mass": null,
@@ -2220,8 +2234,8 @@
     }
   ],
   "caseDefinition": {
-    "scenario": "DEEP_MINING_BLOCK_ABSTRACT_PRESSURE_PULSE",
-    "eventType": "ABSTRACT_PRESSURE_PULSE",
+    "scenario": "DEEP_MINING_BLOCK_PUBLIC_OVERPRESSURE_BENCHMARK",
+    "eventType": "PUBLIC_OVERPRESSURE_BENCHMARK",
     "waveModel": "low-amplitude compressible acoustic pulse with surrogate rigid-end reflection",
     "timeUnit": "s",
     "frameCount": 8,

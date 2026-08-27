@@ -17,10 +17,22 @@
     ]
   },
   "event": {
-    "eventType": "ABSTRACT_PRESSURE_PULSE",
-    "sourceProvenance": "synthetic low-amplitude acoustic benchmark",
+    "eventType": "PUBLIC_OVERPRESSURE_BENCHMARK",
+    "sourceProvenance": {
+      "document": "NIOSH public explosion-pressure design context",
+      "uri": "https://stacks.cdc.gov/view/cdc/161327",
+      "datasetRevision": "public-context-v1",
+      "measuredValueUsed": false
+    },
     "arrivalTime_s": 0.0,
+    "arrivalTimeDefinition": "pulse reference plane at x=12 m; not a field measurement",
     "peakOverpressure_Pa": 250.0,
+    "peakOverpressureStatus": "bounded_synthetic_reference_not_measured",
+    "uncertainty": {
+      "peakOverpressureRelative": 0.2,
+      "arrivalTime_s": 0.01,
+      "interpretation": "synthetic parameter uncertainty, not measurement confidence"
+    },
     "boundaryReflectionModel": "one-dimensional rigid-end acoustic reflection surrogate",
     "solverProduced": false
   }
