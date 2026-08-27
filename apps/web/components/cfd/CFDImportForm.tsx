@@ -32,7 +32,7 @@ type Props = {
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024
 
-type SignedUpload = { role: 'frame' | 'sidecar'; name: string; path: string; token: string; size: number }
+type SignedUpload = { role: 'frame' | 'sidecar'; name: string; path: string; signedUrl: string; token: string; size: number }
 type UploadSession = { sessionId: string; bucket: string; uploads: SignedUpload[] }
 
 async function responsePayload(response: Response): Promise<CfdImportResponse & { error?: string; detail?: string }> {
@@ -126,8 +126,6 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       }
 
       const framesByName = new Map(vtuFiles.map(file => [file.name, file]))
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      if (!supabaseUrl) throw new Error('Supabase public URL is missing.')
       for (const upload of sessionPayload.uploads) {
         const file = upload.role === 'sidecar' ? sidecar : framesByName.get(upload.name)
         if (!file) throw new Error(`Signed upload response references an unknown file: ${upload.name}`)
@@ -137,7 +135,8 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
         const timeout = window.setTimeout(() => controller.abort(), 120_000)
         let uploadResponse: Response
         try {
-          uploadResponse = await fetch(`${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/upload/sign/${upload.path}?token=${encodeURIComponent(upload.token)}`, {
+          if (!upload.signedUrl) throw new Error(`Signed upload response is missing its canonical URL for ${upload.name}`)
+          uploadResponse = await fetch(upload.signedUrl, {
             method: 'PUT',
             headers: { 'content-type': contentType, 'cache-control': '3600', 'x-upsert': 'false' },
             body: uploadBody,

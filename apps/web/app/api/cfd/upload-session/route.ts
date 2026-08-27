@@ -71,13 +71,13 @@ export async function POST(request: NextRequest) {
   const sessionId = crypto.randomUUID()
   const prefix = `${user.id}/${caseId}/${sessionId}`
   const specs = [...files, sidecar]
-  const uploads: Array<{ role: 'frame' | 'sidecar'; name: string; path: string; token: string; size: number }> = []
+  const uploads: Array<{ role: 'frame' | 'sidecar'; name: string; path: string; signedUrl: string; token: string; size: number }> = []
   for (const file of specs) {
     const role = file === sidecar ? 'sidecar' : 'frame'
     const path = `${prefix}/${file.name}`
     const { data, error } = await admin.storage.from(BUCKET).createSignedUploadUrl(path, { upsert: false })
-    if (error || !data?.token) return jsonError(`Signature d’upload impossible pour ${file.name}: ${error?.message ?? 'réponse incomplète'}`, 502)
-    uploads.push({ role, name: file.name, path: data.path, token: data.token, size: file.size })
+    if (error || !data?.token || !data.signedUrl) return jsonError(`Signature d’upload impossible pour ${file.name}: ${error?.message ?? 'réponse incomplète'}`, 502)
+    uploads.push({ role, name: file.name, path: data.path, signedUrl: data.signedUrl, token: data.token, size: file.size })
   }
 
   return NextResponse.json({ sessionId, bucket: BUCKET, projectId, caseId, uploads }, { status: 201 })
