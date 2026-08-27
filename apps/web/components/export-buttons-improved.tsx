@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Download, Image as ImageIcon, FileJson } from 'lucide-react'
+import { Download, Image as ImageIcon, FileJson, Video } from 'lucide-react'
 import html2canvas from 'html2canvas'
 
 interface ExportButtonsImprovedProps {
@@ -13,6 +13,8 @@ interface ExportButtonsImprovedProps {
   showPDF?: boolean
   showPNG?: boolean
   showJSON?: boolean
+  showAnimation?: boolean
+  onExportAnimation?: () => Promise<void> | void
   jsonData?: any
 }
 
@@ -34,6 +36,8 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
   showPDF = true,
   showPNG = true,
   showJSON = true,
+  showAnimation = false,
+  onExportAnimation,
   jsonData
 }) => {
   const [exporting, setExporting] = useState(false)
@@ -295,6 +299,18 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
           </button>
         )}
         
+        {showAnimation && onExportAnimation && (
+          <button
+            onClick={onExportAnimation}
+            disabled={exporting}
+            className="px-3 py-2 rounded-lg text-[9px] font-black uppercase bg-cyan-600/20 text-cyan-300 hover:bg-cyan-600/40 transition-all flex items-center gap-1 border border-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+            title="Export transient animation as WebM"
+          >
+            <Video className="w-3 h-3" />
+            WEBM
+          </button>
+        )}
+
         {showPDF && (
           <button
             onClick={exportToPDF}

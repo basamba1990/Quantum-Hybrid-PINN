@@ -38,6 +38,47 @@ export default function CFDViewer({ dataset, className }: CFDViewerProps) {
   const scalarField = fieldName ? frame?.pointData.get(fieldName) ?? frame?.cellData.get(fieldName) : undefined;
   const times = useMemo(() => dataset?.frames.map((item) => item.time) ?? [], [dataset]);
   const canAnimate = Boolean(report?.canRender && report.hasRealTransientStates && dataset && dataset.frames.length > 1);
+  const exportAnimation = async () => {
+    if (!dataset || !canAnimate || !canvasRef.current || typeof MediaRecorder === "undefined") return;
+    const canvas = canvasRef.current;
+    if (typeof canvas.captureStream !== "function") return;
+    const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]
+      .find((candidate) => MediaRecorder.isTypeSupported(candidate));
+    if (!mimeType) return;
+    const stream = canvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, { mimeType });
+    const chunks: Blob[] = [];
+    const stopped = new Promise<Blob>((resolve, reject) => {
+      recorder.ondataavailable = (event) => { if (event.data.size > 0) chunks.push(event.data); };
+      recorder.onerror = () => reject(new Error("WebM recording failed"));
+      recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
+    });
+    const first = times[0] ?? 0;
+    const last = times[times.length - 1] ?? first;
+    const durationMs = Math.max(2000, Math.min(30000, (last - first) * 1000));
+    setPlaying(false);
+    setTime(first);
+    recorder.start();
+    await new Promise<void>((resolve) => {
+      const startedAt = performance.now();
+      const advance = (now: number) => {
+        const progress = Math.min((now - startedAt) / durationMs, 1);
+        setTime(first + (last - first) * progress);
+        if (progress < 1) requestAnimationFrame(advance);
+        else window.setTimeout(resolve, 120);
+      };
+      requestAnimationFrame(advance);
+    });
+    recorder.stop();
+    const blob = await stopped;
+    stream.getTracks().forEach((track) => track.stop());
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `cfd-${dataset.meshRevision.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.webm`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
   const exportMetadata = useMemo(() => dataset ? {
     contract: "cfd-volume.v1",
     meshRevision: dataset.meshRevision,
@@ -126,7 +167,7 @@ export default function CFDViewer({ dataset, className }: CFDViewerProps) {
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
             <div className="text-[10px] text-slate-500">Evidence status: {report.canClaimValidated ? "complete" : "incomplete; no certification claimed"}</div>
             <div className="flex flex-wrap gap-2">
-              <ExportButtonsImproved containerRef={containerRef} canvasRef={canvasRef} fileName={`cfd-${dataset.meshRevision}`} jsonData={exportMetadata} showPDF showPNG showJSON />
+              <ExportButtonsImproved containerRef={containerRef} canvasRef={canvasRef} fileName={`cfd-${dataset.meshRevision}`} jsonData={exportMetadata} showPDF showPNG showJSON showAnimation={canAnimate} onExportAnimation={exportAnimation} />
               <button type="button" onClick={exportFieldCsv} disabled={!scalarField} className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-300 disabled:cursor-not-allowed disabled:opacity-40">CSV field</button>
             </div>
           </div>
