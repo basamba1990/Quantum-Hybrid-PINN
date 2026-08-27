@@ -131,7 +131,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
         const file = upload.role === 'sidecar' ? sidecar : framesByName.get(upload.name)
         if (!file) throw new Error(`Signed upload response references an unknown file: ${upload.name}`)
         const contentType = upload.role === 'sidecar' ? 'application/json' : 'application/xml'
-        const uploadBody = file.type === contentType ? file : file.slice(0, file.size, contentType)
+        const uploadBody = await file.arrayBuffer()
         const { error: uploadError } = await browserSupabase.storage
           .from(sessionPayload.bucket)
           .uploadToSignedUrl(upload.path, upload.token, uploadBody, {
