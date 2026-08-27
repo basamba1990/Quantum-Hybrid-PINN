@@ -130,10 +130,12 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       for (const upload of sessionPayload.uploads) {
         const file = upload.role === 'sidecar' ? sidecar : framesByName.get(upload.name)
         if (!file) throw new Error(`Signed upload response references an unknown file: ${upload.name}`)
+        const contentType = upload.role === 'sidecar' ? 'application/json' : 'application/xml'
+        const uploadBody = file.type === contentType ? file : file.slice(0, file.size, contentType)
         const { error: uploadError } = await browserSupabase.storage
           .from(sessionPayload.bucket)
-          .uploadToSignedUrl(upload.path, upload.token, file, {
-            contentType: upload.role === 'sidecar' ? 'application/json' : 'application/xml',
+          .uploadToSignedUrl(upload.path, upload.token, uploadBody, {
+            contentType,
             upsert: false,
           })
         if (uploadError) throw new Error(`Direct Storage upload failed for ${upload.name}: ${uploadError.message}`)
