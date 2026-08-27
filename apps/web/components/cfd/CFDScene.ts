@@ -19,7 +19,7 @@ export function createCfdScene(canvas: HTMLCanvasElement, initialFrame: CfdBuffe
   scene.background = new THREE.Color(0x08111f);
   const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / Math.max(canvas.clientHeight, 1), 0.001, 100000);
   camera.position.set(1, 1, 1);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   scene.add(new THREE.AmbientLight(0xffffff, 1.5));
@@ -51,6 +51,7 @@ export function createCfdScene(canvas: HTMLCanvasElement, initialFrame: CfdBuffe
     fitCamera(mesh);
   };
   setFrame(initialFrame, fieldName, isoValue);
+  renderer.render(scene, camera);
   const resize = () => { const width = canvas.clientWidth; const height = Math.max(canvas.clientHeight, 1); renderer.setSize(width, height, false); camera.aspect = width / height; camera.updateProjectionMatrix(); };
   const observer = new ResizeObserver(resize);
   observer.observe(canvas);

@@ -90,7 +90,9 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
     try {
       const canvas = getCanvasElement()
 
-      if (canvas) {
+      if (canvas && canvas.width > 0 && canvas.height > 0) {
+        // Laisser le navigateur terminer le frame WebGL avant la lecture.
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         // Méthode directe : capturer le canvas WebGL
         // Note : nécessite preserveDrawingBuffer: true dans le renderer
         const exportCanvas = document.createElement('canvas')
@@ -103,9 +105,14 @@ export const ExportButtonsImproved: React.FC<ExportButtonsImprovedProps> = ({
         }
         ctx.drawImage(canvas, 0, 0)
 
-        // Vérifier que l'image n'est pas vide
+        // Vérifier que l’image n’est pas vide ou entièrement transparente.
+        const pixels = ctx.getImageData(0, 0, exportCanvas.width, exportCanvas.height).data;
+        let hasVisiblePixel = false;
+        for (let index = 3; index < pixels.length; index += 4) {
+          if (pixels[index] > 0) { hasVisiblePixel = true; break; }
+        }
         const dataUrl = exportCanvas.toDataURL('image/png')
-        if (dataUrl === 'data:,') {
+        if (dataUrl === 'data:,' || !hasVisiblePixel) {
           // Canvas vide — fallback sur html2canvas
           console.warn('Empty WebGL canvas; using html2canvas fallback')
           await fallbackHtml2CanvasPNG()
