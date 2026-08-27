@@ -9,6 +9,7 @@ appel si ce secret n'est pas configuré ou si le Bearer token est incorrect.
 """
 from __future__ import annotations
 
+import asyncio
 import gzip
 import hashlib
 import io
@@ -35,7 +36,9 @@ except ImportError as exc:  # pragma: no cover - configuration error
 router = APIRouter(prefix="/v2/cfd", tags=["cfd-import"])
 
 MAX_UPLOAD_BYTES = int(os.getenv("CFD_IMPORT_MAX_BYTES", str(50 * 1024 * 1024)))
+MAX_TOTAL_UPLOAD_BYTES = int(os.getenv("CFD_IMPORT_MAX_TOTAL_BYTES", str(40 * 1024 * 1024)))
 MAX_FILES_PER_IMPORT = int(os.getenv("CFD_IMPORT_MAX_FILES", "32"))
+_IMPORT_LOCK = asyncio.Lock()
 _ALLOWED_VTU = {".vtu"}
 _VTK_CELL_TYPES = {
     "vertex": 1,
@@ -72,6 +75,16 @@ def _auth_token(authorization: str | None) -> None:
 
 def require_cfd_import_auth(authorization: str | None = Header(default=None)) -> None:
     _auth_token(authorization)
+
+
+async def require_import_slot() -> None:
+    if _IMPORT_LOCK.locked():
+        raise HTTPException(status_code=429, detail="Un import CFD volumineux est déjà en cours; réessayez après sa fin.")
+    await _IMPORT_LOCK.acquire()
+    try:
+        yield
+    finally:
+        _IMPORT_LOCK.release()
 
 
 async def _read_limited(upload: UploadFile, label: str) -> bytes:
@@ -421,11 +434,15 @@ async def import_cfd_dataset(
     project_id: str = Form(..., min_length=1, max_length=160),
     owner_id: str = Form(..., min_length=1, max_length=160),
     _auth: None = Depends(require_cfd_import_auth),
+    _slot: None = Depends(require_import_slot),
 ) -> Dict[str, Any]:
     if not vtu_files or len(vtu_files) > MAX_FILES_PER_IMPORT:
         raise HTTPException(status_code=400, detail=f"Nombre de VTU invalide; maximum {MAX_FILES_PER_IMPORT}.")
     sidecar_name = _validate_filename(sidecar.filename, {".json"}, "sidecar")
     sidecar_bytes = await _read_limited(sidecar, "Sidecar")
+    total_upload_bytes = len(sidecar_bytes)
+    if total_upload_bytes > MAX_TOTAL_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"Import CFD trop volumineux; limite totale {MAX_TOTAL_UPLOAD_BYTES} octets.")
     try:
         metadata = json.loads(sidecar_bytes.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -438,6 +455,9 @@ async def import_cfd_dataset(
         if name in uploaded:
             raise HTTPException(status_code=409, detail=f"Frame dupliquée: {name}.")
         uploaded[name] = await _read_limited(upload, f"VTU {name}")
+        total_upload_bytes += len(uploaded[name])
+        if total_upload_bytes > MAX_TOTAL_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail=f"Import CFD trop volumineux; limite totale {MAX_TOTAL_UPLOAD_BYTES} octets.")
     _verify_sidecar(metadata, uploaded)
     descriptors = metadata.get("fieldDescriptors", {})
     parsed = [_parse_vtu(uploaded[name], name, descriptors) for name in [spec["file"] for spec in metadata["frames"]]]
@@ -466,6 +486,7 @@ async def import_cfd_dataset(
 async def import_cfd_dataset_from_storage(
     payload: Dict[str, Any],
     _auth: None = Depends(require_cfd_import_auth),
+    _slot: None = Depends(require_import_slot),
 ) -> Dict[str, Any]:
     """Import verified VTU files that were uploaded directly to private Storage.
 
@@ -516,12 +537,18 @@ async def import_cfd_dataset_from_storage(
     client = _supabase()
     try:
         sidecar_bytes = _storage_bytes(client, bucket, sidecar_path, "sidecar")
+        total_upload_bytes = len(sidecar_bytes)
+        if total_upload_bytes > MAX_TOTAL_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail=f"Import CFD trop volumineux; limite totale {MAX_TOTAL_UPLOAD_BYTES} octets.")
         uploaded: Dict[str, bytes] = {}
         for name, path in frame_specs:
             content = _storage_bytes(client, bucket, path, name)
             if len(content) > MAX_UPLOAD_BYTES:
                 raise HTTPException(status_code=413, detail=f"VTU {name} dépasse la limite CFD_IMPORT_MAX_BYTES ({MAX_UPLOAD_BYTES} octets).")
             uploaded[name] = content
+            total_upload_bytes += len(content)
+            if total_upload_bytes > MAX_TOTAL_UPLOAD_BYTES:
+                raise HTTPException(status_code=413, detail=f"Import CFD trop volumineux; limite totale {MAX_TOTAL_UPLOAD_BYTES} octets.")
     except HTTPException:
         raise
     except Exception as exc:
