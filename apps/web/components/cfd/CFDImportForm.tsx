@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { UploadCloud, ShieldCheck, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { createClient } from '@/lib/supabase/client'
 
 export type CfdImportResponse = {
   analysisId?: string
@@ -31,17 +32,24 @@ type Props = {
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024
 
+type SignedUpload = { role: 'frame' | 'sidecar'; name: string; path: string; token: string; size: number }
+type UploadSession = { sessionId: string; bucket: string; uploads: SignedUpload[] }
+
+async function responsePayload(response: Response): Promise<CfdImportResponse & { error?: string; detail?: string }> {
+  const text = await response.text()
+  try {
+    return JSON.parse(text) as CfdImportResponse & { error?: string; detail?: string }
+  } catch {
+    return { error: `The server returned a non-JSON response (HTTP ${response.status}).` }
+  }
+}
+
 export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }: Props) {
   const [vtuFiles, setVtuFiles] = useState<File[]>([])
   const [sidecar, setSidecar] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<CfdImportResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  const totalBytes = useMemo(
-    () => vtuFiles.reduce((sum, file) => sum + file.size, 0) + (sidecar?.size ?? 0),
-    [vtuFiles, sidecar],
-  )
 
   function selectVtu(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? [])
@@ -83,11 +91,6 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       setError('Select at least one VTU frame and its JSON sidecar.')
       return
     }
-    if (totalBytes > MAX_FILE_BYTES) {
-      setError('The total upload size exceeds 50 MiB.')
-      return
-    }
-
     setBusy(true)
     let ensuredProjectId = projectId
     try {
@@ -105,18 +108,51 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       return
     }
 
-    const formData = new FormData()
-    for (const file of vtuFiles) formData.append('vtu_files', file, file.name)
-    formData.append('sidecar', sidecar, sidecar.name)
-    formData.append('case_id', caseId)
-    formData.append('project_id', ensuredProjectId)
     try {
-      const response = await fetch('/api/cfd/import', {
+      const sessionResponse = await fetch('/api/cfd/upload-session', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({
+          caseId,
+          projectId: ensuredProjectId,
+          files: vtuFiles.map(file => ({ name: file.name, size: file.size, contentType: file.type || 'application/xml' })),
+          sidecar: { name: sidecar.name, size: sidecar.size, contentType: sidecar.type || 'application/json' },
+        }),
       })
-      const payload = await response.json() as CfdImportResponse
+      const sessionPayload = await responsePayload(sessionResponse) as UploadSession & { error?: string; detail?: string }
+      if (!sessionResponse.ok || !sessionPayload.sessionId || !Array.isArray(sessionPayload.uploads)) {
+        throw new Error(sessionPayload.error || sessionPayload.detail || `Upload session rejected (HTTP ${sessionResponse.status}).`)
+      }
+
+      const browserSupabase = createClient()
+      const framesByName = new Map(vtuFiles.map(file => [file.name, file]))
+      for (const upload of sessionPayload.uploads) {
+        const file = upload.role === 'sidecar' ? sidecar : framesByName.get(upload.name)
+        if (!file) throw new Error(`Signed upload response references an unknown file: ${upload.name}`)
+        const { error: uploadError } = await browserSupabase.storage
+          .from(sessionPayload.bucket)
+          .uploadToSignedUrl(upload.path, upload.token, file, {
+            contentType: upload.role === 'sidecar' ? 'application/json' : 'application/xml',
+            upsert: false,
+          })
+        if (uploadError) throw new Error(`Direct Storage upload failed for ${upload.name}: ${uploadError.message}`)
+      }
+
+      const response = await fetch('/api/cfd/import-storage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          caseId,
+          projectId: ensuredProjectId,
+          sessionId: sessionPayload.sessionId,
+          bucket: sessionPayload.bucket,
+          files: sessionPayload.uploads.filter(upload => upload.role === 'frame').map(({ name, path, size }) => ({ name, path, size })),
+          sidecar: sessionPayload.uploads.find(upload => upload.role === 'sidecar'),
+        }),
+      })
+      const payload = await responsePayload(response)
       if (!response.ok) {
         throw new Error(payload.error || payload.detail || `Import rejected (HTTP ${response.status}).`)
       }
@@ -174,7 +210,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
       </button>
 
       {error && <div role="alert" className="flex items-start gap-2 border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-100"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
-      {result && <div className="space-y-1 border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-100"><div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4" />Import confirmed — status {result.status}</div><div>Analysis ID : <code>{result.analysisId}</code></div><div>Mesh revision : <code>{result.meshRevision}</code></div><div>{result.pointCount} points · ${result.cellCount} cells · ${result.frameCount} frame(s)</div></div>}
+      {result && <div className="space-y-1 border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-100"><div className="flex items-center gap-2 font-semibold"><CheckCircle2 className="h-4 w-4" />Import confirmed — status {result.status}</div><div>Analysis ID : <code>{result.analysisId}</code></div><div>Mesh revision : <code>{result.meshRevision}</code></div><div>{result.pointCount} points · {result.cellCount} cells · {result.frameCount} frame(s)</div></div>}
     </div>
   )
 }

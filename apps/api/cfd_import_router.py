@@ -402,6 +402,110 @@ async def import_cfd_dataset(
     }
 
 
+@router.post("/import-from-storage", status_code=201)
+async def import_cfd_dataset_from_storage(
+    payload: Dict[str, Any],
+    _auth: None = Depends(require_cfd_import_auth),
+) -> Dict[str, Any]:
+    """Import verified VTU files that were uploaded directly to private Storage.
+
+    This path keeps large multipart bodies out of Vercel. The browser receives
+    short-lived signed upload URLs from the Next.js server, uploads each object
+    directly to Supabase Storage, and this endpoint downloads the exact bytes
+    server-side before applying the same hash, topology, field and provenance
+    checks as the multipart endpoint.
+    """
+    bucket = str(payload.get("bucket", "")).strip()
+    expected_bucket = os.getenv("CFD_ARTIFACT_BUCKET", "cfd-artifacts").strip()
+    if not bucket or bucket != expected_bucket:
+        raise HTTPException(status_code=400, detail="Bucket CFD invalide.")
+    case_id = str(payload.get("case_id", "")).strip()
+    project_id = str(payload.get("project_id", "")).strip()
+    owner_id = str(payload.get("owner_id", "")).strip()
+    session_id = str(payload.get("session_id", "")).strip()
+    if not case_id or len(case_id) > 160 or "/" in case_id or "\\" in case_id:
+        raise HTTPException(status_code=422, detail="case_id invalide pour le stockage.")
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", session_id):
+        raise HTTPException(status_code=422, detail="session_id doit être un UUID valide.")
+    _verify_project_owner(project_id, owner_id)
+
+    raw_files = payload.get("files")
+    raw_sidecar = payload.get("sidecar")
+    if not isinstance(raw_files, list) or not raw_files or not isinstance(raw_sidecar, dict):
+        raise HTTPException(status_code=400, detail="files[] et sidecar sont obligatoires.")
+    if len(raw_files) > MAX_FILES_PER_IMPORT:
+        raise HTTPException(status_code=400, detail=f"Nombre de VTU invalide; maximum {MAX_FILES_PER_IMPORT}.")
+
+    def storage_spec(value: Any, extension: str) -> tuple[str, str]:
+        if not isinstance(value, dict):
+            raise HTTPException(status_code=422, detail="Descripteur de stockage invalide.")
+        name = _validate_filename(value.get("name"), {extension}, "fichier Storage")
+        path = value.get("path")
+        if not isinstance(path, str) or not path:
+            raise HTTPException(status_code=422, detail=f"Chemin Storage absent pour {name}.")
+        prefix = f"{owner_id}/{case_id}/{session_id}/"
+        if path != f"{prefix}{name}":
+            raise HTTPException(status_code=422, detail=f"Chemin Storage hors session pour {name}.")
+        return name, path
+
+    frame_specs = [storage_spec(value, ".vtu") for value in raw_files]
+    sidecar_name, sidecar_path = storage_spec(raw_sidecar, ".json")
+    if len({name for name, _ in frame_specs}) != len(frame_specs):
+        raise HTTPException(status_code=409, detail="Frame dupliquée dans la session Storage.")
+
+    client = _supabase()
+    try:
+        sidecar_bytes = client.storage.from_(bucket).download(sidecar_path)
+        if not isinstance(sidecar_bytes, bytes):
+            sidecar_bytes = getattr(sidecar_bytes, "content", None) or getattr(sidecar_bytes, "data", None)
+        if not isinstance(sidecar_bytes, bytes):
+            raise RuntimeError("Réponse sidecar Storage non binaire.")
+        uploaded: Dict[str, bytes] = {}
+        for name, path in frame_specs:
+            content = client.storage.from_(bucket).download(path)
+            if not isinstance(content, bytes):
+                content = getattr(content, "content", None) or getattr(content, "data", None)
+            if not isinstance(content, bytes):
+                raise RuntimeError(f"Réponse Storage non binaire pour {name}.")
+            if len(content) > MAX_UPLOAD_BYTES:
+                raise HTTPException(status_code=413, detail=f"VTU {name} dépasse la limite CFD_IMPORT_MAX_BYTES ({MAX_UPLOAD_BYTES} octets).")
+            uploaded[name] = content
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Téléchargement des artefacts Storage échoué: {exc}") from exc
+
+    if len(sidecar_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"Sidecar dépasse la limite CFD_IMPORT_MAX_BYTES ({MAX_UPLOAD_BYTES} octets).")
+    try:
+        metadata = json.loads(sidecar_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=422, detail=f"Sidecar JSON invalide: {exc}") from exc
+    if not isinstance(metadata, dict):
+        raise HTTPException(status_code=422, detail="Sidecar JSON: objet attendu.")
+    _verify_sidecar(metadata, uploaded)
+    descriptors = metadata.get("fieldDescriptors", {})
+    parsed = [_parse_vtu(uploaded[name], name, descriptors) for name in [spec["file"] for spec in metadata["frames"]]]
+    dataset = _build_dataset(metadata, parsed)
+    analysis_id = _persist_dataset(dataset, uploaded, sidecar_bytes, case_id, project_id, owner_id)
+    return {
+        "analysisId": analysis_id,
+        "datasetId": analysis_id,
+        "contractVersion": dataset["contractVersion"],
+        "meshRevision": dataset["meshRevision"],
+        "pointCount": dataset["pointCount"],
+        "cellCount": dataset["cellCount"],
+        "frameCount": len(dataset["frames"]),
+        "status": "STRUCTURAL_TEST_UNVALIDATED" if str(metadata.get("classification", "")).startswith("SYNTHETIC") else "UNVALIDATED",
+        "projectId": project_id,
+        "sidecar": sidecar_name,
+        "artifactHashes": {
+            "sidecar": _sha256(sidecar_bytes),
+            "frames": {name: _sha256(content) for name, content in sorted(uploaded.items())},
+        },
+    }
+
+
 @router.get("/project/{project_id}/latest")
 def get_latest_cfd_dataset_for_project(
     project_id: str,
