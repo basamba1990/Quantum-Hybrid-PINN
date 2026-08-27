@@ -1,4 +1,4 @@
-import type { CfdBufferDataset, CfdFrame, CfdVolumeDataset } from "./cfd-contract";
+import type { CfdBufferDataset, CfdBufferField, CfdBufferFrame, CfdFrame, CfdVolumeDataset } from "./cfd-contract";
 
 export type CfdValidationCode =
   | "CONTRACT_INVALID"
@@ -141,6 +141,23 @@ export function validateCfdDataset(dataset: CfdVolumeDataset): CfdValidationRepo
   };
 }
 
+function hasMeasuredBufferTransientDifference(frames: readonly CfdBufferFrame[]): boolean {
+  if (frames.length < 2) return false;
+  const first = frames[0];
+  const firstFields = new Map<string, CfdBufferField>();
+  for (const field of [...first.pointData.values(), ...first.cellData.values()]) {
+    firstFields.set(`${field.association}:${field.name}`, field);
+  }
+  return frames.slice(1).some((frame) => {
+    const pointsChanged = frame.points.length === first.points.length && frame.points.some((value, index) => Math.abs(value - first.points[index]) > 1e-12);
+    const fieldsChanged = [...frame.pointData.values(), ...frame.cellData.values()].some((field) => {
+      const baseline = firstFields.get(`${field.association}:${field.name}`);
+      return Boolean(baseline && baseline.components === field.components && baseline.values.length === field.values.length && field.values.some((value, index) => Math.abs(value - baseline.values[index]) > 1e-12));
+    });
+    return pointsChanged || fieldsChanged;
+  });
+}
+
 export function validateCfdBufferDataset(dataset: CfdBufferDataset): CfdValidationReport {
   const issues: CfdValidationIssue[] = [];
   if (!dataset.meshRevision.trim() || !dataset.coordinateSystem.trim() || !dataset.lengthUnit.trim()) issues.push(issue("CONTRACT_INVALID", "Le contrat de buffers ne possède pas de révision, repère ou unité de longueur."));
@@ -151,7 +168,7 @@ export function validateCfdBufferDataset(dataset: CfdBufferDataset): CfdValidati
     if (frame.cellTypes.length !== dataset.cellCount || frame.cells.some((value) => value >= dataset.pointCount)) issues.push(issue("CELL_TOPOLOGY_INVALID", "La connectivité ou les types de cellules sont invalides.", `frames[${index}]`));
     for (const field of [...frame.pointData.values(), ...frame.cellData.values()]) if (!field.unit.trim() || field.values.some((value) => !Number.isFinite(value))) issues.push(issue("FIELD_ASSOCIATION_INVALID", `Le champ ${field.name} possède des valeurs ou une unité invalides.`));
   }
-  const hasRealTransientStates = dataset.frames.length > 1 && dataset.frames.slice(1).every((frame, index) => frame.time > dataset.frames[index].time) && dataset.frames.slice(1).some((frame) => frame.points.some((value, index) => Math.abs(value - dataset.frames[0].points[index]) > 1e-12));
+  const hasRealTransientStates = dataset.frames.length > 1 && dataset.frames.slice(1).every((frame, index) => frame.time > dataset.frames[index].time) && hasMeasuredBufferTransientDifference(dataset.frames);
   if (!hasRealTransientStates) issues.push(issue("TIME_SERIES_INVALID", "Aucun état transitoire spatialement différent n’est disponible."));
   const hasStructuralRenderingIssue = issues.some((item) => [
     "CONTRACT_INVALID",

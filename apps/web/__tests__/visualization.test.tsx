@@ -96,6 +96,15 @@ describe("CFD contract and validation", () => {
     expect(() => parseCfdMetadata(invalid)).toThrow();
   });
 
+  test("enables buffer playback when fields change on a fixed mesh", () => {
+    const fixedMeshDataset = makeDataset();
+    fixedMeshDataset.frames[1].points = [...fixedMeshDataset.frames[0].points];
+    const buffers = normalizeCfdDataset(parseCfdMetadata(fixedMeshDataset));
+    const report = validateCfdBufferDataset(buffers);
+    expect(report.hasRealTransientStates).toBe(true);
+    expect(report.canRender).toBe(true);
+  });
+
   test("rejects identical transient frames instead of enabling animation", () => {
     const staticDataset = makeDataset();
     staticDataset.frames[1].points = [...staticDataset.frames[0].points];
