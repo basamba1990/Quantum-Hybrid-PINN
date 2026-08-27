@@ -125,20 +125,34 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
         throw new Error(sessionPayload.error || sessionPayload.detail || `Upload session rejected (HTTP ${sessionResponse.status}).`)
       }
 
-      const browserSupabase = createClient()
       const framesByName = new Map(vtuFiles.map(file => [file.name, file]))
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      if (!supabaseUrl) throw new Error('Supabase public URL is missing.')
       for (const upload of sessionPayload.uploads) {
         const file = upload.role === 'sidecar' ? sidecar : framesByName.get(upload.name)
         if (!file) throw new Error(`Signed upload response references an unknown file: ${upload.name}`)
         const contentType = upload.role === 'sidecar' ? 'application/json' : 'application/xml'
         const uploadBody = await file.arrayBuffer()
-        const { error: uploadError } = await browserSupabase.storage
-          .from(sessionPayload.bucket)
-          .uploadToSignedUrl(upload.path, upload.token, uploadBody, {
-            contentType,
-            upsert: false,
+        const controller = new AbortController()
+        const timeout = window.setTimeout(() => controller.abort(), 120_000)
+        let uploadResponse: Response
+        try {
+          uploadResponse = await fetch(`${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/upload/sign/${upload.path}?token=${encodeURIComponent(upload.token)}`, {
+            method: 'PUT',
+            headers: { 'content-type': contentType, 'cache-control': '3600', 'x-upsert': 'false' },
+            body: uploadBody,
+            signal: controller.signal,
           })
-        if (uploadError) throw new Error(`Direct Storage upload failed for ${upload.name}: ${uploadError.message}`)
+        } catch (caught) {
+          if (caught instanceof DOMException && caught.name === 'AbortError') throw new Error(`Direct Storage upload timed out for ${upload.name}.`)
+          throw caught
+        } finally {
+          window.clearTimeout(timeout)
+        }
+        if (!uploadResponse.ok) {
+          const detail = (await uploadResponse.text()).slice(0, 300)
+          throw new Error(`Direct Storage upload failed for ${upload.name} (HTTP ${uploadResponse.status}): ${detail}`)
+        }
       }
 
       const response = await fetch('/api/cfd/import-storage', {
