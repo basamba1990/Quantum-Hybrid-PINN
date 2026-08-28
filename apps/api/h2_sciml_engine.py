@@ -280,55 +280,49 @@ class TransientPINNLoss(nn.Module):
         return torch.exp(A - B / (T + 1e-6) - C * torch.log(T + 1e-6))
 
     def pointwise_terms(self, model: torch.nn.Module, t: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
-        coordinates = [v.requires_grad_(True) for v in (t, x, y, z)]
-        t, x, y, z = coordinates
+        """Retourne le contrat complet partagé par Autograd et les bridges.
+
+        Le modèle doit produire ``[rho, u, v, w, p, T]`` (ou un tuple de
+        tenseurs équivalent). Toute primitive ou dérivée consommée par une
+        réduction est exposée explicitement dans le dictionnaire retourné.
+        """
+        t, x, y, z = [value.detach().clone().requires_grad_(True) for value in (t, x, y, z)]
         outputs = model(torch.cat([t, x, y, z], dim=-1))
-        
-        # Mapping des sorties : [rho, u, v, w, p, T, R]
-        rho = outputs[:, 0:1]
-        u = outputs[:, 1:2]
-        p = outputs[:, 4:5]
-        temperature = outputs[:, 5:6]
-        
-        # Dérivées premières
-        drho_dt, drho_dx = self._grad(rho, t), self._grad(rho, x)
-        du_dt, du_dx = self._grad(u, t), self._grad(u, x)
-        dp_dx = self._grad(p, x)
-        dT_dt, dT_dx = self._grad(temperature, t), self._grad(temperature, x)
-        
-        # Dérivées secondes
-        d2u_dx2 = self._grad(du_dx, x)
-        d2T_dx2 = self._grad(dT_dx, x)
-        
-        # Résidus Navier-Stokes
-        mass = drho_dt + u * drho_dx + rho * du_dx
-        momentum = rho * (du_dt + u * du_dx) + dp_dx - self.mu * d2u_dx2
-        energy = rho * self.cp * (dT_dt + u * dT_dx) - self.k_thermal * d2T_dx2
-        
-        res_dict = {
-            "mass": mass, "momentum": momentum, "energy": energy
-        }
-        
-        # --- COUPLAGE RAYLEIGH-PLESSET (Boil-off) ---
-        if outputs.shape[-1] >= 7:
-            R = outputs[:, 6:7]
-            dR_dt = self._grad(R, t)
+        if isinstance(outputs, (tuple, list)):
+            outputs = torch.cat([output.reshape(output.shape[0], -1) for output in outputs], dim=-1)
+        if outputs.ndim != 2 or outputs.shape[1] < 6:
+            raise ValueError("Le modèle PINN-T doit retourner au moins [rho, u, v, w, p, T].")
+
+        rho, u, v, w, p, temperature = [outputs[:, i:i + 1] for i in range(6)]
+        fields = {"rho": rho, "u": u, "v": v, "w": w, "p": p, "T": temperature}
+        derivatives = {}
+        for name, field in fields.items():
+            derivatives[f"d{name}_dt"] = self._grad(field, t)
+            derivatives[f"d{name}_dx"] = self._grad(field, x)
+            derivatives[f"d{name}_dy"] = self._grad(field, y)
+            derivatives[f"d{name}_dz"] = self._grad(field, z)
+
+        div_u = derivatives["du_dx"] + derivatives["dv_dy"] + derivatives["dw_dz"]
+        mass = derivatives["drho_dt"] + u * derivatives["drho_dx"] + v * derivatives["drho_dy"] + w * derivatives["drho_dz"] + rho * div_u
+        momentum_x = rho * (derivatives["du_dt"] + u * derivatives["du_dx"] + v * derivatives["du_dy"] + w * derivatives["du_dz"]) + derivatives["dp_dx"]
+        momentum_y = rho * (derivatives["dv_dt"] + u * derivatives["dv_dx"] + v * derivatives["dv_dy"] + w * derivatives["dv_dz"]) + derivatives["dp_dy"]
+        momentum_z = rho * (derivatives["dw_dt"] + u * derivatives["dw_dx"] + v * derivatives["dw_dy"] + w * derivatives["dw_dz"]) + derivatives["dp_dz"]
+        energy = rho * self.cp * (derivatives["dT_dt"] + u * derivatives["dT_dx"] + v * derivatives["dT_dy"] + w * derivatives["dT_dz"])
+        energy = energy - self.k_thermal * (self._grad(derivatives["dT_dx"], x) + self._grad(derivatives["dT_dy"], y) + self._grad(derivatives["dT_dz"], z))
+        terms = {**fields, **derivatives,
+                 "d2u_dx2": self._grad(derivatives["du_dx"], x),
+                 "d2T_dx2": self._grad(derivatives["dT_dx"], x),
+                 "mass": mass, "momentum_x": momentum_x, "momentum_y": momentum_y,
+                 "momentum_z": momentum_z, "momentum": momentum_x, "energy": energy}
+
+        if outputs.shape[1] >= 7:
+            radius = outputs[:, 6:7]
+            dR_dt = self._grad(radius, t)
             d2R_dt2 = self._grad(dR_dt, t)
-            
-            # Paramètres physiques LH2
-            sigma = 0.0019 # N/m (Tension superficielle LH2 à 20K)
-            nu_liq = 1.3e-7 # m²/s (Viscosité cinématique)
-            rho_liq = 70.8 # kg/m³
-            
+            sigma, nu_liq, rho_liq = 0.0019, 1.3e-7, 70.8
             p_sat = self.compute_saturation_pressure(temperature)
-            
-            # Équation de Rayleigh-Plesset : R*R'' + 1.5*(R')² + 4*nu*R'/R + 2*sigma/(rho*R) = (P_sat - P)/rho
-            rp_residual = R * d2R_dt2 + 1.5 * (dR_dt**2) + (4 * nu_liq / (R + 1e-9)) * dR_dt + \
-                          (2 * sigma / (rho_liq * R + 1e-9)) - (p_sat - p) / rho_liq
-            
-            res_dict["rayleigh_plesset"] = rp_residual
-            
-        return res_dict
+            terms["rayleigh_plesset"] = radius * d2R_dt2 + 1.5 * dR_dt.square() + (4 * nu_liq / (radius + 1e-9)) * dR_dt + (2 * sigma / (rho_liq * radius + 1e-9)) - (p_sat - p) / rho_liq
+        return terms
 
     def forward(self, model: torch.nn.Module, t: torch.Tensor, x: torch.Tensor, y: torch.Tensor, z: torch.Tensor):
         terms = self.pointwise_terms(model, t, x, y, z)
@@ -624,7 +618,7 @@ class SciMLEngine:
             cp=float(properties["cp"]),
         )
         terms = loss.pointwise_terms(model, t, x, y, z)
-        if self.fortran_bridge is not None:
+        if self.fortran_bridge is not None and hasattr(self.fortran_bridge, "compute_transient_residuals"):
             n = terms["rho"].shape[0]
             constant = lambda value: np.full(n, float(value), dtype=np.float64)
             residuals = self.fortran_bridge.compute_transient_residuals(
@@ -646,7 +640,7 @@ class SciMLEngine:
             method = "autograd_derivatives+fortran_openmp_reduction"
         else:
             residuals = {name: float(torch.mean(terms[name].square()).detach().cpu()) for name in ("mass", "momentum", "energy")}
-            method = "autograd_only_fortran_unavailable"
+            method = "autograd_only_fortran_transient_bridge_unavailable"
         return {"residuals": residuals, "method": method, "properties": properties}
 
     @staticmethod

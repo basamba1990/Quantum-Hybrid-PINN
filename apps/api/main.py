@@ -311,7 +311,7 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                 rho, u, v, w, T = current_model_v8.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
                 p = get_eos(current_model_v8.fluid_type, rho, T)
                 
-            history.append({"iteration": i, "time": sim_t, "credibility_score": 95.0})
+            history.append({"iteration": i, "time": sim_t, "source": "pinn_inference_without_solver_evidence"})
             
         # 2. Échantillonnage spatial haute densité (Truly-Industrial Volume Plein)
         # On utilise une grille structurée pour garantir la continuité volumétrique
@@ -351,22 +351,33 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                     "velocity_magnitude": float(torch.sqrt(u_s[i]**2 + v_s[i]**2 + w_s[i]**2).item())
                 })
 
-        # Calcul dynamique du score de crédibilité basé sur les résidus (Zéro Hallucination V8)
-        avg_res = history[-1]["credibility_score"] / 100.0 if history else 0.95 + np.random.uniform(0, 0.045)
-        
+        # Cette route n'exécute aucun solveur et ne possède donc aucune preuve de résidu.
+        # L'absence de preuve reste explicitement N/D : elle ne doit jamais être remplacée
+        # par un score, zéro ou une petite valeur synthétique.
+        unavailable_residuals = {
+            "mass": None,
+            "momentum": None,
+            "energy": None,
+            "status": "UNAVAILABLE",
+            "computedBy": None,
+            "computedAt": None,
+        }
         final_result = {
             "status": "completed",
-            "credibility_score": clean_float(avg_res * 100, 95.0 + np.random.uniform(0, 4.5)),
+            "validation_status": "EXPERIMENTAL_UNVALIDATED",
+            "source": "pinn_inference_without_solver_evidence",
+            "credibility_score": None,
             "predictions3d": clean_json(predictions_list),
             "residual_history": clean_json(history),
             "pinn_predictions": clean_json(predictions_list),
             "velocityFieldU": clean_json([p["velocity_u"] for p in predictions_list]),
             "velocityFieldV": clean_json([p["velocity_v"] for p in predictions_list]),
             "pressureField": clean_json([p["pressure"] for p in predictions_list]),
-            "viscosityField": clean_json([p["temperature"] for p in predictions_list]),
-            "continuityResidual": clean_float(1e-6 * (1.0 - avg_res + 1e-9)),
-            "momentumResidual": clean_float(1e-6 * (1.0 - avg_res + 1e-9)),
-            "energyResidual": clean_float(1e-6 * (1.0 - avg_res + 1e-9)),
+            "viscosityField": None,
+            "residuals": unavailable_residuals,
+            "continuityResidual": None,
+            "momentumResidual": None,
+            "energyResidual": None,
             "scenario_type": request.scenario_type or "H2_PIPELINE",
             "scenario_inputs": clean_json(request.scenario_inputs or {}),
             "updated_at": datetime.utcnow().isoformat()
@@ -413,7 +424,7 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                     "user_id": request.user_id if (hasattr(request, 'user_id') and request.user_id) else None,
                     "extracted_parameters": request.scenario_inputs or {},
                     "pinn_predictions": final_result.get("pinn_predictions", []),
-                    "credibility_score": final_result.get("credibility_score", 95.0 + np.random.uniform(0, 4.5)),
+                    "credibility_score": final_result.get("credibility_score"),
                     "anomalies": [],
                     "context": final_result.get("scenario_type", "H2_PIPELINE").lower(),
                     "created_at": datetime.utcnow().isoformat()
