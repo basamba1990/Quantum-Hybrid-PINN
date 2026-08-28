@@ -636,8 +636,16 @@ def get_cfd_gates(analysis_id: str, _auth: None = Depends(require_cfd_import_aut
     if not response.data:
         raise HTTPException(status_code=404, detail="Dataset CFD absent.")
     row = response.data[0]
-    report = evaluate_cfd_gates(row.get("dataset") or {}, row.get("artifact_manifest") or {})
-    report.update({"analysisId": analysis_id, "persistedStatus": row.get("status")})
+    full_dataset = _load_dataset(row)
+    artifact_manifest = row.get("artifact_manifest") or {}
+    report = evaluate_cfd_gates(full_dataset, artifact_manifest)
+    report.update({
+        "analysisId": analysis_id,
+        "persistedStatus": row.get("status"),
+        "evaluationSource": "persisted_storage_contract" if artifact_manifest.get("datasetPath") else "persisted_dataset_column",
+        "datasetPath": artifact_manifest.get("datasetPath"),
+        "summaryUsedForGateEvaluation": not bool(artifact_manifest.get("datasetPath")),
+    })
     return report
 
 

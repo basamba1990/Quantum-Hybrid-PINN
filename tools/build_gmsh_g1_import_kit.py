@@ -79,6 +79,7 @@ def main() -> None:
         "evidence": {"meshGeometryAndTopology": True, "fieldsAndUnits": True, "namedBoundaries": True, "solverProvenance": False, "solverResiduals": False, "referenceComparison": False, "immutableHashes": True, "calculatedTransientStates": False},
         "topologyEvidence": {
             "closedDomain": True,
+            "proofType": "CLOSED_VOLUME_BOUNDARY_CHECK",
             "method": "Gmsh OpenCASCADE boundary-curve incidence check",
             "tool": "Gmsh",
             "toolVersion": "4.15.2",

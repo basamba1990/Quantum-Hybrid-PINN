@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List
+import re
 
 
 GATE_NAMES = {
@@ -46,6 +47,66 @@ def _mapping(value: Any) -> Dict[str, Any]:
 
 def _finite_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and value == value and value not in (float("inf"), float("-inf"))
+
+
+def _sha256_text(value: Any) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-fA-F]{64}", value) is not None
+
+
+def _boundary_indices_are_valid(dataset: Dict[str, Any]) -> tuple[bool, List[str], Dict[str, Any]]:
+    boundaries = dataset.get("boundarySets")
+    reasons: List[str] = []
+    evidence: Dict[str, Any] = {"sets": []}
+    if not isinstance(boundaries, list) or not boundaries:
+        return False, ["Named boundaries with non-empty assignments are missing."], evidence
+    point_count = dataset.get("pointCount")
+    cell_count = dataset.get("cellCount")
+    valid = True
+    for boundary in boundaries:
+        if not isinstance(boundary, dict):
+            valid = False
+            reasons.append("Boundary entry is not an object.")
+            continue
+        name = str(boundary.get("name", "")).strip()
+        association = boundary.get("association")
+        index_space = boundary.get("indexSpace")
+        indices = boundary.get("indices")
+        expected_space = {"point": "point-index-space-v1", "cell": "cell-index-space-v1"}.get(association)
+        evidence["sets"].append({"name": name, "association": association, "indexSpace": index_space, "count": len(indices) if isinstance(indices, list) else 0})
+        if not name or association not in ("point", "cell") or index_space != expected_space or not isinstance(indices, list) or not indices:
+            valid = False
+            reasons.append(f"Boundary {name or '<unnamed>'} has an invalid declared index space.")
+            continue
+        limit = point_count if association == "point" else cell_count
+        if not isinstance(limit, int) or any(not isinstance(index, int) or isinstance(index, bool) or index < 0 or index >= limit for index in indices):
+            valid = False
+            reasons.append(f"Boundary {name} contains an index outside its declared {association} space.")
+        if len(set(indices)) != len(indices):
+            valid = False
+            reasons.append(f"Boundary {name} contains duplicate indices.")
+    return valid, reasons, evidence
+
+
+def _verify_topology_evidence(dataset: Dict[str, Any]) -> tuple[bool, List[str], Dict[str, Any]]:
+    topology = _mapping(dataset.get("topologyEvidence"))
+    provenance = _mapping(dataset.get("provenance"))
+    references = dataset.get("references")
+    reasons: List[str] = []
+    evidence = {"closedDomain": topology.get("closedDomain"), "tool": topology.get("tool"), "toolVersion": topology.get("toolVersion"), "proofType": topology.get("proofType"), "meshSha256": topology.get("meshSha256"), "reportSha256": topology.get("reportSha256"), "limitations": topology.get("limitations"), "hashConsistency": False}
+    for key in ("tool", "toolVersion", "proofType", "meshSha256", "reportSha256", "limitations"):
+        if not isinstance(topology.get(key), str) or not topology[key].strip():
+            reasons.append(f"Topology evidence field missing: {key}.")
+    if topology.get("closedDomain") is not True:
+        reasons.append("Explicit closed-domain proof is absent or false.")
+    if topology.get("proofType") not in ("CLOSED_VOLUME_BOUNDARY_CHECK", "VOLUMETRIC_TOPOLOGY_REPORT"):
+        reasons.append("Topology proof type is not an accepted volumetric closure proof.")
+    if not _sha256_text(topology.get("meshSha256")) or topology.get("meshSha256") != provenance.get("sourceHash"):
+        reasons.append("Topology meshSha256 does not match the declared source artifact hash.")
+    reference_hashes = [item.get("comparisonHash") for item in references if isinstance(item, dict)] if isinstance(references, list) else []
+    if not _sha256_text(topology.get("reportSha256")) or topology.get("reportSha256") not in reference_hashes:
+        reasons.append("Topology reportSha256 has no matching persisted reference hash.")
+    evidence["hashConsistency"] = topology.get("meshSha256") == provenance.get("sourceHash") and topology.get("reportSha256") in reference_hashes
+    return not reasons, reasons, evidence
 
 
 def _valid_artifact_manifest(manifest: Any) -> bool:
@@ -117,14 +178,14 @@ def evaluate_cfd_gates(dataset: Dict[str, Any], artifact_manifest: Dict[str, Any
 
     boundaries = dataset.get("boundarySets")
     g1_reasons: List[str] = []
-    g1_evidence = {"namedBoundaryCount": len(boundaries) if isinstance(boundaries, list) else 0, "topologyStructurallyValid": _topology_is_structurally_valid(dataset)}
-    if not isinstance(boundaries, list) or not boundaries or any(not isinstance(item, dict) or not str(item.get("name", "")).strip() or not item.get("indices") for item in boundaries):
-        g1_reasons.append("Named boundaries with non-empty assignments are missing.")
-    if not g1_evidence["topologyStructurallyValid"]:
+    structural_valid = _topology_is_structurally_valid(dataset)
+    boundary_valid, boundary_reasons, boundary_evidence = _boundary_indices_are_valid(dataset)
+    proof_valid, proof_reasons, proof_evidence = _verify_topology_evidence(dataset)
+    g1_evidence = {"namedBoundaryCount": len(boundaries) if isinstance(boundaries, list) else 0, "topologyStructurallyValid": structural_valid, "boundaryIndexSpaceVerified": boundary_valid, "boundaryIndexSpace": boundary_evidence, "topologyProofVerified": proof_valid, "topologyProof": proof_evidence, "decision": "G1_EVIDENCE_GENERATED_NOT_CERTIFIED", "limitations": ["Structural topology evidence does not establish solver execution or experimental validation.", "Hashes are cross-checked against persisted provenance and reference evidence."]}
+    if not structural_valid:
         g1_reasons.append("Volume connectivity is structurally invalid.")
-    # cfd-volume.v1 does not contain a CAD closure report; do not claim closure from arrays.
-    if not isinstance(dataset.get("topologyEvidence"), dict) or dataset["topologyEvidence"].get("closedDomain") is not True:
-        g1_reasons.append("No explicit solver/CAD closure evidence is persisted.")
+    g1_reasons.extend(boundary_reasons)
+    g1_reasons.extend(proof_reasons)
     gates.append(_gate("G1", "PASS" if not g1_reasons else "BLOCKED", g1_reasons, g1_evidence))
 
     if not gates[-1]["satisfied"]:
