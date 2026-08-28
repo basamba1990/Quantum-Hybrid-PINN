@@ -141,6 +141,53 @@ export type CfdLoadSource = {
   payloadHash?: string;
 };
 
+const LEGACY_EVIDENCE_MAP: Record<string, keyof CfdEvidence> = {
+  geometry: "meshGeometryAndTopology",
+  mesh: "meshGeometryAndTopology",
+  solver: "solverProvenance",
+  residuals: "solverResiduals",
+  comparison: "referenceComparison",
+};
+
+/**
+ * Translate only unambiguous legacy labels. Missing canonical evidence is an
+ * error; this function never invents provenance, hashes, comparisons or residuals.
+ */
+export function adaptCfdMetadata(input: unknown): unknown {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input;
+  const source = input as Record<string, unknown>;
+  const boundarySets = source.boundarySets;
+  if (Array.isArray(boundarySets) && boundarySets.some((item) => {
+    if (!item || typeof item !== "object") return false;
+    return (item as Record<string, unknown>).association === "boundary_face";
+  })) {
+    throw new Error("CFD contract rejected: boundary_face association is ambiguous; use cell or point indices.");
+  }
+  const evidence = source.evidence;
+  if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) {
+    throw new Error("CFD contract rejected: canonical evidence object is missing.");
+  }
+  const evidenceRecord = evidence as Record<string, unknown>;
+  const canonicalKeys = Object.keys(CfdEvidenceSchema.shape);
+  const hasCanonical = canonicalKeys.every((key) => Object.prototype.hasOwnProperty.call(evidenceRecord, key));
+  if (hasCanonical) return input;
+  const translated: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(evidenceRecord)) {
+    const target = LEGACY_EVIDENCE_MAP[key];
+    if (!target) continue;
+    if (target === "meshGeometryAndTopology" && Object.prototype.hasOwnProperty.call(translated, target)) {
+      if (translated[target] !== value) throw new Error("CFD contract rejected: legacy geometry/mesh evidence conflicts.");
+      continue;
+    }
+    translated[target] = value;
+  }
+  const missing = canonicalKeys.filter((key) => !Object.prototype.hasOwnProperty.call(translated, key));
+  if (missing.length > 0) {
+    throw new Error(`CFD contract rejected: missing canonical evidence: ${missing.join(", ")}`);
+  }
+  return { ...source, evidence: translated };
+}
+
 export function parseCfdMetadata(input: unknown): CfdVolumeDataset {
-  return CfdVolumeDatasetSchema.parse(input);
+  return CfdVolumeDatasetSchema.parse(adaptCfdMetadata(input));
 }

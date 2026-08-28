@@ -48,6 +48,18 @@ describe("CFD contract and validation", () => {
     expect(Object.keys(dataset.evidence)).toHaveLength(8);
   });
 
+  test("rejects legacy evidence when canonical criteria are missing", () => {
+    const legacy = makeDataset();
+    legacy.evidence = { geometry: true, mesh: true, solver: false, residuals: false, comparison: false } as never;
+    expect(() => parseCfdMetadata(legacy)).toThrow(/missing canonical evidence/);
+  });
+
+  test("rejects ambiguous boundary_face associations instead of translating them", () => {
+    const legacy = makeDataset();
+    legacy.boundarySets = [{ name: "wall", association: "boundary_face", indices: [0, 1] }] as never;
+    expect(() => parseCfdMetadata(legacy)).toThrow(/boundary_face association is ambiguous/);
+  });
+
   test("renders a structurally valid dataset without claiming G0-G5 validation", () => {
     const structuralOnly = makeDataset();
     structuralOnly.evidence = {
