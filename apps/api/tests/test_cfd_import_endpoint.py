@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parents[1]))
 from cfd_import_router import router
 
 
-ROOT = Path('/tmp/cfdkit/artifacts/synthetic_lh2_vtu')
+ROOT = Path(__file__).resolve().parents[3] / 'artifacts' / 'synthetic_lh2_vtu'
 
 
 def make_client() -> TestClient:
