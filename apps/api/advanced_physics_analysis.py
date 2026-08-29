@@ -339,23 +339,32 @@ class AdvancedPhysicsAnalysis:
         reynolds_stress_results = self.compute_reynolds_stress_tensor(us, vs, ws)
         derived_data.update(reynolds_stress_results)
 
-        # 4. Résidus PDE (placeholder, actual calculation requires PINN model access)
-        # This would typically involve re-evaluating the PDE loss functions at these points
-        # For now, we'll return a dummy value or rely on pre-computed residuals if available in predictions3d
+        # 4. Résidus PDE : absence de preuve explicite = UNAVAILABLE.
+        # Cette analyse dérivée n'a pas accès au modèle PINN et ne doit donc
+        # jamais fabriquer un résidu à partir d'un tirage aléatoire ou d'un zéro.
         derived_data["pde_residuals"] = {
-            "continuity": float(np.mean(np.random.rand(len(predictions3d)) * 1e-5)),
-            "momentum": float(np.mean(np.random.rand(len(predictions3d)) * 1e-4)),
-            "energy": float(np.mean(np.random.rand(len(predictions3d)) * 1e-5)),
+            "continuity": None,
+            "momentum": None,
+            "energy": None,
+            "status": "UNAVAILABLE",
+            "computed_by": None,
         }
-        if 'residuals' in predictions3d[0] and predictions3d[0]['residuals'] is not None:
-            # If residuals are already part of predictions3d, use them
-            # This assumes residuals are stored per point, e.g., {'continuity': val, 'momentum': val}
-            avg_continuity_res = np.mean([p['residuals'].get('continuity', 0) for p in predictions3d if p.get('residuals')])
-            avg_momentum_res = np.mean([p['residuals'].get('momentum', 0) for p in predictions3d if p.get('residuals')])
+        residual_points = [
+            p.get("residuals") for p in predictions3d
+            if isinstance(p.get("residuals"), dict)
+        ]
+        if residual_points:
+            def _mean_finite(key):
+                values = [r.get(key) for r in residual_points]
+                values = [float(v) for v in values if isinstance(v, (int, float)) and np.isfinite(v)]
+                return float(np.mean(values)) if values else None
+
             derived_data["pde_residuals"] = {
-                "continuity": float(avg_continuity_res),
-                "momentum": float(avg_momentum_res),
-                "energy": derived_data["pde_residuals"]["energy"], # Keep dummy if not available
+                "continuity": _mean_finite("continuity"),
+                "momentum": _mean_finite("momentum"),
+                "energy": _mean_finite("energy"),
+                "status": "COMPUTED_FROM_PERSISTED_POINTWISE_EVIDENCE",
+                "computed_by": "persisted_predictions3d.residuals",
             }
 
         # 5. Profil couche limite (requires specific wall-normal profile)

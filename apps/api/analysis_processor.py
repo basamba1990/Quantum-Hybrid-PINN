@@ -158,7 +158,10 @@ class AnalysisProcessor:
             job["progress"] = 100
             
             logger.info(f"[{job_id}] Analysis completed successfully")
-            logger.info(f"[{job_id}] Credibility Score: {credibility_score:.2%}")
+            if credibility_score is None:
+                logger.info(f"[{job_id}] Credibility Score: UNAVAILABLE (evidence incomplete)")
+            else:
+                logger.info(f"[{job_id}] Credibility Score: {credibility_score:.2%}")
             
             # Update Supabase with results
             await self._update_supabase_analysis(
@@ -354,25 +357,21 @@ class AnalysisProcessor:
             scenario_outputs = pinn_results.get("scenario_outputs", {})
             return SCENARIO_3D_GENERATORS[scenario_type](physics_params, scenario_outputs)
 
-        # Fallback generic generator
-        predictions = []
-        N_points = 2500 
-        
-        # ... (generic sampling logic)
-        # For the sake of brevity and robustness, we ensure at least 2500 points
-        for i in range(N_points):
-            predictions.append({
-                'x': np.random.uniform(0, 1),
-                'y': np.random.uniform(0, 1),
-                'z': np.random.uniform(0, 1),
-                'pressure': 80.0,
-                'temperature': 300.0,
-                'velocity_magnitude': 1.0
-            })
-        return predictions
+        # Aucun générateur générique synthétique ne doit alimenter un résultat
+        # présenté comme une analyse. Un champ 3D exige une géométrie, un maillage
+        # et des sorties de solveur ou de modèle persistées et attribuables.
+        logger.warning(
+            "No authorized 3D evidence available for scenario=%s; returning an empty field",
+            scenario_type,
+        )
+        return []
 
-    async def _calculate_credibility_score(self, validation: Dict[str, Any], pinn_results: Dict[str, Any]) -> float:
-        """Calculate overall credibility score"""
+    async def _calculate_credibility_score(self, validation: Dict[str, Any], pinn_results: Dict[str, Any]) -> Optional[float]:
+        """Calculate a score only from attributable evidence; otherwise return None."""
+        required_evidence = ("evidence_manifest", "solver_report", "comparison_reference")
+        if not all(pinn_results.get(key) for key in required_evidence):
+            return None
+
         score = 0.0
         
         # Convergence score (40%)
