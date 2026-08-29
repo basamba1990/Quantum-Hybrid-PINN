@@ -1,3 +1,9 @@
 __pycache__/
 *.pyc
 node_modules/
+
+# Evidence-grade pilot artifacts: keep raw/derived CFD data outside Git
+pilot_case/artifacts/
+pilot_case/capsule/
+pilot_case/runs/
+pilot_case/reports/

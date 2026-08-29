@@ -1,0 +1,21 @@
+{
+  "dataset_name": "High-Fidelity Simulation Aerodynamics Dataset of NACA 0012 and 0021 Airfoils",
+  "catalog_url": "https://data.nlr.gov/submissions/311",
+  "archive_url": "https://data.nlr.gov/system/files/311/1768508676-NACA0012.zip",
+  "doi": "10.7799/3014033",
+  "catalog_version": 1,
+  "catalog_last_updated": "2026-03-12",
+  "selected_subset": "NACA0012/aoa_5/iddes-sou-234-143-96-v2.dat",
+  "reference_files": [
+    "NACA0012/exp_data/cl_exp_data_sheldahl.txt",
+    "NACA0012/exp_data/cd_exp_data_sheldahl.txt"
+  ],
+  "reported_solver": "Nalu-Wind",
+  "reported_method": "IDDES hybrid RANS/LES",
+  "license_status": "REVIEW_REQUIRED_BEFORE_REDISTRIBUTION",
+  "license_note": "The catalog exposes a View License link. Confirm the exact license terms before redistributing the archive or derived data.",
+  "local_archive_sha256": "0e1a5456ace00e1df4ebfdabce2a59beb6f87d09a77023c7fe5a02c43d7a95d4",
+  "retrieved_at_utc": "2026-08-29",
+  "retrieval_method": "HTTPS direct download; SHA-256 computed locally",
+  "citation": "Bidadi, Shreyas, Ganesh Vijayakumar, Ashesh Sharma, and Michael Sprague. 2026. High-Fidelity Simulation Aerodynamics Dataset of NACA 0012 and 0021 Airfoils. NLR Data Catalog. DOI: 10.7799/3014033."
+}

@@ -1,27 +1,86 @@
 {
   "schema": "quantum-pilot-manifest.v1",
+  "schema_version": "pilot-manifest.v1",
   "case_id": "PILOT-001",
   "run_id": "RUN-001",
-  "status": "TEMPLATE_NOT_EXECUTED",
+  "case_revision": "public-naca0012-v1",
+  "status": "PUBLIC_BENCHMARK_PROVENANCE_ONLY",
   "protocol_version": "1.0.0",
   "import_contract": "cfd-volume.v1",
-  "code_commit": "PENDING_RUN_COMMIT_AFTER_PARTNER_APPROVAL",
+  "classification": "PUBLIC_BENCHMARK_NOT_PARTNER_DATA",
+  "code_commit": "PENDING_PINN_RUN_COMMIT",
   "authorization": {
-    "status": "REQUIRED_BEFORE_IMPORT",
-    "document": "protocol/authorization.md"
+    "status": "NOT_APPLICABLE_PUBLIC_SOURCE",
+    "document": "NOT_APPLICABLE_PUBLIC_SOURCE"
+  },
+  "partner_approval": {
+    "status": "NOT_APPLICABLE_PUBLIC_SOURCE",
+    "industrial_partner": false
   },
   "reproducibility": {
-    "seed": 20260829,
+    "seed": "PENDING_PINN_RUN_SEED",
     "determinism_policy": "same_inputs_same_version_same_seed_same_decision",
-    "container_digest": "PENDING_RUN_CONTAINER_DIGEST",
-    "environment_lock": "capsule/environment.lock.txt"
+    "container_digest": "PENDING_PINN_RUN_CONTAINER_DIGEST",
+    "environment_lock": "PENDING_PINN_RUN_ENVIRONMENT_LOCK"
   },
-  "artifacts": [],
+  "benchmark": {
+    "name": "High-Fidelity Simulation Aerodynamics Dataset of NACA 0012 and 0021 Airfoils",
+    "subset": "NACA0012/aoa_5",
+    "source_catalog_url": "https://data.nlr.gov/submissions/311",
+    "source_archive_url": "https://data.nlr.gov/system/files/311/1768508676-NACA0012.zip",
+    "source_version": "NLR Data Catalog resource version 1",
+    "source_last_updated": "2026-03-12",
+    "doi": "10.7799/3014033",
+    "license_status": "LICENSE_PAGE_MUST_BE_REVIEWED_BEFORE_REDISTRIBUTION",
+    "solver": "Nalu-Wind",
+    "reference_type": "PUBLIC_CFD_ARCHIVE_AND_EXPERIMENTAL_POLARS"
+  },
+  "protocol": {
+    "document": "protocol_PILOT-001.md",
+    "version": "public-benchmark-draft-1.0",
+    "approval_status": "INTERNAL_DRAFT",
+    "execution_scope": "PROVENANCE_AND_STRUCTURAL_VERIFICATION_ONLY"
+  },
+  "artifacts": [
+    {
+      "id": "naca0012_archive",
+      "role": "input_source_archive",
+      "path": "artifacts/input_raw/NACA0012.zip",
+      "sha256": "0e1a5456ace00e1df4ebfdabce2a59beb6f87d09a77023c7fe5a02c43d7a95d4",
+      "bytes": 15657902,
+      "source_url": "https://data.nlr.gov/system/files/311/1768508676-NACA0012.zip",
+      "provenance_status": "HASHED_LOCAL_COPY",
+      "redistribution_status": "DO_NOT_REDISTRIBUTE_UNTIL_LICENSE_REVIEW"
+    }
+  ],
   "outputs": [],
+  "metrics": {
+    "status": "UNAVAILABLE",
+    "reason": "No PINN run and no independently generated comparison output has been executed in this capsule."
+  },
+  "gates": {
+    "G0": "NOT_REACHED",
+    "G1": "STRUCTURAL_TEST_UNVALIDATED",
+    "G2": "NOT_REACHED",
+    "G3": "NOT_REACHED",
+    "G4": "NOT_REACHED",
+    "G5": "NOT_REACHED"
+  },
   "decision": {
-    "status": "NOT_RUN",
+    "status": "INCONCLUSIVE",
     "blocking_gate": "G0",
-    "basis": "template_only"
+    "basis": "provenance_and_hash_verification_only"
+  },
+  "publication": {
+    "allowed_claim": "PUBLIC_PROVENANCE_AND_HASH_VERIFICATION_ONLY",
+    "forbidden_claims": [
+      "industrial validation",
+      "certification",
+      "partner approval",
+      "PINN accuracy",
+      "solver replacement",
+      "validated G0-G5 result"
+    ]
   },
   "secrets_policy": "No passwords, API keys, tokens or private keys are permitted in this manifest."
 }
