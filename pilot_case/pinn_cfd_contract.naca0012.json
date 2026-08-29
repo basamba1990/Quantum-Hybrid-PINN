@@ -5,6 +5,8 @@
   "coordinate_system": "cartesian-2d-embedded-z0",
   "length_unit": "m",
   "time_unit": "s",
+  "gamma": 1.4,
+  "gas_constant_j_kg_k": 287.05,
   "model_type": "torchscript",
   "model_input": ["time", "x", "y", "z"],
   "model_output_names": ["rho", "u", "v", "w", "T"],

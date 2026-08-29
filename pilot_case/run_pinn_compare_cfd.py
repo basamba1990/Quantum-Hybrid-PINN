@@ -33,7 +33,9 @@ def metrics(pred: np.ndarray, ref: np.ndarray) -> dict:
 def main() -> int:
     ap=argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--checkpoint', type=Path, required=True)
-    ap.add_argument('--flow-vtu', type=Path, required=True)
+    source_group=ap.add_mutually_exclusive_group(required=True)
+    source_group.add_argument('--flow-vtu', type=Path)
+    source_group.add_argument('--flow-csv', type=Path)
     ap.add_argument('--contract', type=Path, required=True)
     ap.add_argument('--time', type=float, required=True)
     ap.add_argument('--output', type=Path, required=True)
@@ -50,23 +52,30 @@ def main() -> int:
         raise ValueError('model_output_names must be exactly [rho,u,v,w,T]')
     if contract['coordinate_system'] != 'cartesian-2d-embedded-z0' or contract['length_unit'] != 'm':
         raise ValueError('unsupported or undeclared coordinate contract')
-    if not args.checkpoint.is_file() or not args.flow_vtu.is_file():
-        raise FileNotFoundError('checkpoint or CFD VTU is missing')
+    source=args.flow_csv or args.flow_vtu
+    if not source.is_file(): raise FileNotFoundError(f'CFD reference input is missing: {source}')
     try:
-        import meshio
         import torch
     except ImportError as exc:
         raise RuntimeError(f'required dependency unavailable: {exc}') from exc
-    mesh=meshio.read(args.flow_vtu)
-    pts=np.asarray(mesh.points, dtype=np.float32)
-    if pts.ndim != 2 or pts.shape[1] < 2 or not np.isfinite(pts[:,:3]).all():
-        raise ValueError('invalid CFD coordinates')
-    pd=mesh.point_data
     mapping=contract['reference_field_mapping']
-    for field in ('Density','Momentum'):
-        if field not in pd: raise ValueError(f'CFD field missing: {field}')
-    rho_ref=np.asarray(pd['Density']).reshape(-1)
-    mom=np.asarray(pd['Momentum'])
+    if args.flow_csv:
+        from read_su2_restart_csv import read_restart_csv
+        gamma=float(contract.get('gamma', 1.4)); gas_constant=float(contract.get('gas_constant_j_kg_k', 287.05))
+        pts, pd=read_restart_csv(source, gamma, gas_constant)
+        rho_ref=np.asarray(pd['Density']).reshape(-1)
+        mom=np.asarray(pd['Momentum'])
+    else:
+        from read_required_vtu import read_required_point_data
+        mesh=read_required_point_data(source, {'Density','Momentum'})
+        pts=np.asarray(mesh.points, dtype=np.float32)
+        if pts.ndim != 2 or pts.shape[1] < 2 or not np.isfinite(pts[:,:3]).all():
+            raise ValueError('invalid CFD coordinates')
+        pd=mesh.point_data
+        for field in ('Density','Momentum'):
+            if field not in pd: raise ValueError(f'CFD field missing: {field}')
+        rho_ref=np.asarray(pd['Density']).reshape(-1)
+        mom=np.asarray(pd['Momentum'])
     if mom.ndim != 2 or mom.shape[1] < 2 or len(rho_ref)!=len(pts) or len(mom)!=len(pts):
         raise ValueError('incompatible CFD density/momentum arrays')
     if not np.isfinite(rho_ref).all() or not np.isfinite(mom).all() or np.any(rho_ref <= 0):
@@ -92,7 +101,7 @@ def main() -> int:
       'status':'COMPARISON_COMPLETED',
       'case_id':contract['case_id'],
       'checkpoint':{'path':args.checkpoint.name,'sha256':sha256(args.checkpoint),'bytes':args.checkpoint.stat().st_size},
-      'reference':{'path':args.flow_vtu.name,'sha256':sha256(args.flow_vtu),'bytes':args.flow_vtu.stat().st_size,'field_mapping':mapping,'velocity_derivation':'Momentum / Density'},
+      'reference':{'path':source.name,'sha256':sha256(source),'bytes':source.stat().st_size,'field_mapping':mapping,'velocity_derivation':'Momentum / Density'},
       'contract_sha256':sha256(args.contract),
       'seed':args.seed,'time':args.time,'point_count':len(pts),
       'metrics':{'u':metrics(pred[:,1],ref_u),'v':metrics(pred[:,2],ref_v)},

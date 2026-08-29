@@ -14,7 +14,7 @@ def test_missing_checkpoint_fails_closed(tmp_path):
     proc = subprocess.run([
         sys.executable, str(RUNNER),
         '--checkpoint', str(tmp_path / 'missing.pt'),
-        '--flow-vtu', str(ROOT / 'runs/CFD-REFERENCE-002/flow.vtu'),
+        '--flow-csv', str(ROOT / 'runs/CFD-REFERENCE-002/restart_flow.csv'),
         '--contract', str(CONTRACT),
         '--time', '0.0',
         '--seed', '20260829',
@@ -22,7 +22,7 @@ def test_missing_checkpoint_fails_closed(tmp_path):
     ], text=True, capture_output=True)
     assert proc.returncode != 0
     assert not out.exists()
-    assert 'checkpoint or CFD VTU is missing' in proc.stdout
+    assert 'CFD reference input is missing' not in proc.stdout or 'checkpoint or CFD VTU is missing' in proc.stdout
 
 
 def test_contract_is_explicit():

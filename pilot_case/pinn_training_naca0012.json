@@ -1,0 +1,43 @@
+{
+  "schema": "pinn-training-config.v1",
+  "case_id": "PILOT-001",
+  "training_id": "PINN-TRAIN-001",
+  "status": "BASELINE_CFD_ANCHORED_NOT_INDEPENDENT",
+  "input": {
+    "flow_csv": "runs/CFD-REFERENCE-002/restart_flow.csv",
+    "coordinate_system": "cartesian-2d-embedded-z0",
+    "length_unit": "m",
+    "time_value_s": 0.0
+  },
+  "physics": {
+    "equations": "steady_compressible_euler_residual_proxy",
+    "gamma": 1.4,
+    "gas_constant_j_kg_k": 287.05,
+    "reference_density_kg_m3": 1.225,
+    "reference_temperature_k": 288.15,
+    "reference_viscosity_pa_s": 1.8e-5,
+    "parameter_source_status": "EXPLICIT_BASELINE_VALUES_REQUIRE_PROTOCOL_APPROVAL"
+  },
+  "model": {
+    "input_names": ["time", "x", "y", "z"],
+    "output_names": ["rho", "u", "v", "w", "T"],
+    "hidden_layers": [64, 64, 64, 64],
+    "activation": "tanh"
+  },
+  "optimization": {
+    "seed": 20260829,
+    "epochs": 2000,
+    "learning_rate": 0.001,
+    "data_weight": 1.0,
+    "physics_weight": 0.1,
+    "batch_size": 2048,
+    "log_every": 100,
+    "device": "cpu"
+  },
+  "outputs": {
+    "torchscript_checkpoint": "runs/PINN-TRAIN-001/pinn_naca0012.pt",
+    "metadata": "runs/PINN-TRAIN-001/training_metadata.json",
+    "history": "runs/PINN-TRAIN-001/training_history.jsonl"
+  },
+  "independence_notice": "This baseline uses CFD fields as training anchors. Its comparison against the same CFD run is not an independent validation."
+}

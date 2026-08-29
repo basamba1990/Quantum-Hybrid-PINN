@@ -4,11 +4,11 @@
   "case_id": "PILOT-001",
   "run_id": "RUN-002",
   "case_revision": "public-naca0012-v1",
-  "status": "CFD_REFERENCE_RUN_CONVERGED_NOT_PHYSICALLY_ACCEPTED",
+  "status": "PINN_CFD_COMPARISON_COMPLETED_NOT_VALIDATED",
   "protocol_version": "1.0.0",
   "import_contract": "cfd-volume.v1",
   "classification": "PUBLIC_BENCHMARK_NOT_PARTNER_DATA",
-  "code_commit": "PENDING_PINN_RUN_COMMIT",
+  "code_commit": "WORKTREE_UNCOMMITTED_AT_PINN_TRAINING_RUN",
   "authorization": {
     "status": "NOT_APPLICABLE_PUBLIC_SOURCE",
     "document": "NOT_APPLICABLE_PUBLIC_SOURCE"
@@ -39,7 +39,7 @@
     "document": "protocol_PILOT-001.md",
     "version": "public-benchmark-draft-1.0",
     "approval_status": "INTERNAL_DRAFT",
-    "execution_scope": "INDEPENDENT_CFD_RUN_CONVERGED_NOT_PINN_VALIDATED"
+    "execution_scope": "CFD_AND_CFD_ANCHORED_PINN_RUN_RECORDED_NOT_INDEPENDENT"
   },
   "artifacts": [
     {
@@ -195,27 +195,84 @@
       "sha256": "28055633bbb04e2a7de9c33dacc2e658df3fe1dda92affd675749355e5d1e0db",
       "bytes": 751,
       "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "pinn_naca0012",
+      "role": "output",
+      "path": "runs/PINN-TRAIN-001/pinn_naca0012.pt",
+      "sha256": "d5cb46f0c7550389810d04ee90e7caa2c3267c9628767c1ffce51f53466b53c9",
+      "bytes": 63027,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "training_metadata",
+      "role": "output",
+      "path": "runs/PINN-TRAIN-001/training_metadata.json",
+      "sha256": "b092f1177986c0de82ef7c857debc2444496ea32c7862337afdef0950092da62",
+      "bytes": 848,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "training_history",
+      "role": "output",
+      "path": "runs/PINN-TRAIN-001/training_history.jsonl",
+      "sha256": "b9dddd366bb97f12a671fde177377a21113825a85b5d7d350cb6e9bf0b1bc387",
+      "bytes": 2297,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "comparison",
+      "role": "output",
+      "path": "runs/PINN-COMPARISON-001/comparison.json",
+      "sha256": "131420ac5610bb162b95d5c0c148dcece0814552c8000ec0415f8343ca21f716",
+      "bytes": 1417,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "comparison",
+      "role": "output",
+      "path": "runs/PINN-COMPARISON-002/comparison.json",
+      "sha256": "131420ac5610bb162b95d5c0c148dcece0814552c8000ec0415f8343ca21f716",
+      "bytes": 1417,
+      "provenance_status": "HASHED_LOCAL_COPY"
     }
   ],
   "metrics": {
-    "status": "UNAVAILABLE",
-    "reason": "No PINN run and no independently generated comparison output has been executed in this capsule."
+    "status": "AVAILABLE_CFD_ANCHORED_BASELINE",
+    "independence": "NOT_INDEPENDENT_CFD_FIELD_USED_AS_TRAINING_ANCHOR",
+    "comparison_output": "runs/PINN-COMPARISON-001/comparison.json",
+    "fields": {
+      "u": {
+        "l1_mean": 4.6338958740234375,
+        "l2_rmse": 7.316342353820801,
+        "max_abs": 66.3913345336914,
+        "relative_l2": 0.10995224863290787
+      },
+      "v": {
+        "l1_mean": 1.1405317783355713,
+        "l2_rmse": 2.1169068813323975,
+        "max_abs": 13.076986312866211,
+        "relative_l2": 0.3508252799510956
+      }
+    },
+    "basis": "observed_from_same_CFD_restart_used_as_training_anchor",
+    "acceptance_status": "PENDING_APPROVED_TOLERANCES"
   },
   "gates": {
     "G0": "NOT_REACHED",
     "G1": "STRUCTURAL_TEST_UNVALIDATED",
     "G2": "CFD_RESIDUAL_CONVERGED",
-    "G3": "REFERENCE_RUN_RECORDED",
+    "G3": "CFD_AND_PINN_RUN_RECORDED_NOT_INDEPENDENT",
     "G4": "RESIDUALS_RECORDED_CONVERGED_NOT_PHYSICALLY_ACCEPTED",
-    "G5": "NOT_REACHED"
+    "G5": "COMPARISON_RECORDED_NOT_ACCEPTED"
   },
   "decision": {
     "status": "INCONCLUSIVE",
     "blocking_gate": "G0",
-    "basis": "solver_converged_numerically_but_no_pinn_comparison_and_physical_acceptance_is_pending"
+    "basis": "CFD_FIELDS_USED_AS_TRAINING_ANCHOR; COMPARISON_IS_NOT_INDEPENDENT; APPROVED_TOLERANCES_AND_PHYSICAL_ACCEPTANCE_ARE_PENDING"
   },
   "publication": {
-    "allowed_claim": "PUBLIC_PROVENANCE_AND_CONVERGED_NUMERICAL_CFD_RUN_RECORDED_NOT_VALIDATED",
+    "allowed_claim": "PUBLIC_PROVENANCE_CONVERGED_CFD_AND_CFD_ANCHORED_PINN_BASELINE_RECORDED_NOT_INDEPENDENTLY_VALIDATED",
     "forbidden_claims": [
       "industrial validation",
       "certification",
