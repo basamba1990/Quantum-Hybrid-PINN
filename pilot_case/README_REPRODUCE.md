@@ -1,6 +1,6 @@
 # PILOT-001 — Template de capsule evidence-grade
 
-Ce dossier est un **template non exécuté**. Il ne contient aucune donnée partenaire et ne constitue pas une validation CFD/PINN. Il doit être copié dans un espace de travail privé puis complété uniquement avec des données dont le droit d’usage est documenté.
+Ce dossier est un **template non exécuté**. Il ne contient aucune donnée partenaire et ne constitue pas une validation CFD/PINN. Les valeurs `PENDING_*` sont intentionnelles et bloquantes. Le dossier doit être copié dans un espace de travail privé puis complété uniquement avec des données dont le droit d’usage est documenté.
 
 ## Structure recommandée
 
@@ -28,7 +28,7 @@ Les répertoires de données ne sont pas préremplis dans Git. Les données indu
 2. Déposer les fichiers originaux dans `input_raw/` en lecture seule et enregistrer leur provenance et leur autorisation.
 3. Produire un sidecar conforme à `cfd-volume.v1`; vérifier les unités, dimensions, champs, frontières et index.
 4. Calculer les SHA-256 des originaux et des fichiers normalisés. Ne jamais modifier un fichier après son hash sans créer une nouvelle révision.
-5. Remplacer les valeurs `REPLACE_WITH_*` de `MANIFEST.json` par le commit, le digest d’environnement, les artefacts et leurs hashes.
+5. Tant que l’approbation partenaire manque, conserver les valeurs `PENDING_*` du manifeste. Après approbation, remplacer ces statuts par le commit du run, le digest d’environnement, les artefacts et leurs hashes réels.
 6. Exécuter l’import puis le run `RUN-001`. Conserver les logs, la configuration, la seed, les résidus et les sorties.
 7. Calculer les métriques uniquement contre la référence indépendante gelée avant le run.
 8. Évaluer G0–G5. Une preuve manquante produit `INCONCLUSIVE`; elle ne produit jamais zéro ou une valeur par défaut.

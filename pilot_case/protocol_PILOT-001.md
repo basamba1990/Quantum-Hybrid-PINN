@@ -79,7 +79,7 @@ Avant l’import, le partenaire approuve le cas, la licence, le protocole, les m
 
 | Rôle | Nom | Date | Approbation |
 |---|---|---|---|
-| Propriétaire des données | À compléter | À compléter | À compléter |
-| Responsable technique partenaire | À compléter | À compléter | À compléter |
-| Opérateur Quantum Hybrid PINN | À compléter | À compléter | À compléter |
-| Vérificateur indépendant | À compléter | À compléter | À compléter |
+| Propriétaire des données | PENDING_PARTNER_APPROVAL | PENDING | PENDING |
+| Responsable technique partenaire | PENDING_PARTNER_APPROVAL | PENDING | PENDING |
+| Opérateur Quantum Hybrid PINN | À désigner | PENDING | PENDING |
+| Vérificateur indépendant | À désigner | PENDING | PENDING |

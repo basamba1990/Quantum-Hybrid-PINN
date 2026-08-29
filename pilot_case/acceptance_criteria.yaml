@@ -14,27 +14,27 @@ metrics:
   - id: pressure_l2_relative
     field: pressure
     definition: ||p_pinn - p_reference||_2 / ||p_reference||_2
-    tolerance: TO_BE_APPROVED
+    tolerance: PENDING_PARTNER_APPROVAL
   - id: velocity_l2_relative
     field: velocity
     definition: ||u_pinn - u_reference||_2 / ||u_reference||_2
-    tolerance: TO_BE_APPROVED
+    tolerance: PENDING_PARTNER_APPROVAL
   - id: pressure_max_absolute
     field: pressure
     definition: max(abs(p_pinn - p_reference))
-    tolerance: TO_BE_APPROVED
+    tolerance: PENDING_PARTNER_APPROVAL
   - id: mass_balance_relative
     field: mass_flux
     definition: abs(inlet_flux - outlet_flux) / max(abs(inlet_flux), abs(outlet_flux))
-    tolerance: TO_BE_APPROVED
+    tolerance: PENDING_PARTNER_APPROVAL
   - id: residual_mass_l2
     field: mass_residual
     definition: sqrt(mean(R_mass^2))
-    tolerance: TO_BE_APPROVED
+    tolerance: PENDING_PARTNER_APPROVAL
   - id: residual_momentum_l2
     field: momentum_residual
     definition: sqrt(mean(R_momentum^2))
-    tolerance: TO_BE_APPROVED
+    tolerance: PENDING_PARTNER_APPROVAL
 
  gates:
   G0:

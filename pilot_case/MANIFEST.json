@@ -5,7 +5,7 @@
   "status": "TEMPLATE_NOT_EXECUTED",
   "protocol_version": "1.0.0",
   "import_contract": "cfd-volume.v1",
-  "code_commit": "REPLACE_WITH_GIT_SHA",
+  "code_commit": "PENDING_RUN_COMMIT_AFTER_PARTNER_APPROVAL",
   "authorization": {
     "status": "REQUIRED_BEFORE_IMPORT",
     "document": "protocol/authorization.md"
@@ -13,7 +13,7 @@
   "reproducibility": {
     "seed": 20260829,
     "determinism_policy": "same_inputs_same_version_same_seed_same_decision",
-    "container_digest": "REPLACE_WITH_CONTAINER_DIGEST",
+    "container_digest": "PENDING_RUN_CONTAINER_DIGEST",
     "environment_lock": "capsule/environment.lock.txt"
   },
   "artifacts": [],
