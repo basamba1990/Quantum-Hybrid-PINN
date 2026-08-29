@@ -1,0 +1,44 @@
+{
+  "case_id": "PILOT-001",
+  "calculation_id": "CFD-REFERENCE-001",
+  "status": "REQUIRES_REAL_SOLVER_AND_FORMAT_ADAPTER",
+  "solver": {
+    "name": "PENDING_INDEPENDENT_SOLVER_SELECTION",
+    "executable": "CFD_SOLVER_NOT_INSTALLED",
+    "command": ["CFD_SOLVER_NOT_INSTALLED", "<solver_case_configuration>"]
+  },
+  "mesh": {
+    "path": "artifacts/input_raw/naca0012_aoa5_analytic.vtu",
+    "format": "VTK_VTU_ASCII",
+    "sha256": "1dfc9c2ca969c45fa9bf4c1d75c74cd9e6d286dc948597821bb617ab86fb743a",
+    "note": "A solver-specific adapter is required; this VTU is not itself an OpenFOAM or SU2 case."
+  },
+  "outputs": [
+    {
+      "path": "artifacts/output/solver_fields.vtu",
+      "role": "solver_field_output"
+    },
+    {
+      "path": "artifacts/output/force_history.dat",
+      "role": "solver_force_history"
+    }
+  ],
+  "physics": {
+    "status": "PENDING_EXPLICIT_CASE_CONFIGURATION",
+    "angle_of_attack_deg": null,
+    "freestream_velocity_m_s": null,
+    "density_kg_m3": null,
+    "dynamic_viscosity_pa_s": null,
+    "turbulence_model": null,
+    "boundary_conditions": null
+  },
+  "acceptance": {
+    "status": "PENDING_PROTOCOL_APPROVAL",
+    "residual_parser": null,
+    "force_reference": "https://data.nlr.gov/submissions/311"
+  },
+  "environment": {
+    "runtime_lock": null,
+    "container_digest": null
+  }
+}
