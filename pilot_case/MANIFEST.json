@@ -51,6 +51,22 @@
       "source_url": "https://data.nlr.gov/system/files/311/1768508676-NACA0012.zip",
       "provenance_status": "HASHED_LOCAL_COPY",
       "redistribution_status": "DO_NOT_REDISTRIBUTE_UNTIL_LICENSE_REVIEW"
+    },
+    {
+      "id": "naca0012_aoa5_analytic",
+      "role": "input",
+      "path": "artifacts/input_raw/naca0012_aoa5_analytic.vtu",
+      "sha256": "1dfc9c2ca969c45fa9bf4c1d75c74cd9e6d286dc948597821bb617ab86fb743a",
+      "bytes": 352942,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "naca0012_aoa5_analytic.mesh",
+      "role": "input",
+      "path": "artifacts/input_raw/naca0012_aoa5_analytic.mesh.json",
+      "sha256": "862b1ab83d3e9c547b5c9fc562db18306e43b45f3ad207018984b6bab4968f54",
+      "bytes": 5195,
+      "provenance_status": "HASHED_LOCAL_COPY"
     }
   ],
   "outputs": [],
