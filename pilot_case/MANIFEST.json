@@ -2,9 +2,9 @@
   "schema": "quantum-pilot-manifest.v1",
   "schema_version": "pilot-manifest.v1",
   "case_id": "PILOT-001",
-  "run_id": "RUN-001",
+  "run_id": "RUN-002",
   "case_revision": "public-naca0012-v1",
-  "status": "CFD_REFERENCE_RUN_NOT_CONVERGED",
+  "status": "CFD_REFERENCE_RUN_CONVERGED_NOT_PHYSICALLY_ACCEPTED",
   "protocol_version": "1.0.0",
   "import_contract": "cfd-volume.v1",
   "classification": "PUBLIC_BENCHMARK_NOT_PARTNER_DATA",
@@ -39,7 +39,7 @@
     "document": "protocol_PILOT-001.md",
     "version": "public-benchmark-draft-1.0",
     "approval_status": "INTERNAL_DRAFT",
-    "execution_scope": "INDEPENDENT_CFD_RUN_RECORDED_NOT_CONVERGED"
+    "execution_scope": "INDEPENDENT_CFD_RUN_CONVERGED_NOT_PINN_VALIDATED"
   },
   "artifacts": [
     {
@@ -124,6 +124,77 @@
       "sha256": "cb3246ea8e1407aecd269c80433df5c1d4da68415f0ef2c0088dd8e0cc4c00a3",
       "bytes": 20286,
       "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "history",
+      "role": "output",
+      "path": "runs/CFD-REFERENCE-002/history.csv",
+      "sha256": "56f6e6af36eefe2ea723e1283eb26f01b27ebb03baebbadab5cee99abf8971e6",
+      "bytes": 152456,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "flow",
+      "role": "output",
+      "path": "runs/CFD-REFERENCE-002/flow.vtu",
+      "sha256": "69451fd45d5f8f01ca02a2fa749f4660fc0cddfcf9a217e4a5255a61127c6be1",
+      "bytes": 309500,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "surface_flow",
+      "role": "output",
+      "path": "runs/CFD-REFERENCE-002/surface_flow.csv",
+      "sha256": "718a325ca1bc96abcc26b3f18303b699a1571f2e4709b3a3c9bda05005c4addb",
+      "bytes": 18255,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "solver_stdout",
+      "role": "output",
+      "path": "runs/CFD-REFERENCE-002/solver_stdout.log",
+      "sha256": "0426686c988706b4a5ab45c2cf08d0052d46e977cce20c55e63d375a4a4efa69",
+      "bytes": 62979,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "naca0012_euler",
+      "role": "output",
+      "path": "runs/CFD-REFERENCE-002/naca0012_euler.cfg",
+      "sha256": "315a49b411089309eabb717efe7ab49db1c0c33cea23d7cce656808e4128e833",
+      "bytes": 1380,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "solver_residuals",
+      "role": "output",
+      "path": "runs/CFD-REFERENCE-002/solver_residuals.jsonl",
+      "sha256": "250aa4b0901371de6491ab41b87b34c4a04466921a88063958c765ed87179e4a",
+      "bytes": 50467,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "solver_residual_evidence",
+      "role": "solver_residuals",
+      "path": "runs/CFD-REFERENCE-002/residual_evidence.json",
+      "sha256": "16629927782f3973904b1ceeed99840fbc4bd005cbffa7ad0c85aa83d2f8b81b",
+      "bytes": 70953
+    },
+    {
+      "id": "residual_evidence",
+      "role": "output",
+      "path": "runs/CFD-REFERENCE-002/residual_evidence.json",
+      "sha256": "16629927782f3973904b1ceeed99840fbc4bd005cbffa7ad0c85aa83d2f8b81b",
+      "bytes": 70953,
+      "provenance_status": "HASHED_LOCAL_COPY"
+    },
+    {
+      "id": "mesh_diagnostic",
+      "role": "output",
+      "path": "runs/CFD-REFERENCE-002/mesh_diagnostic.json",
+      "sha256": "28055633bbb04e2a7de9c33dacc2e658df3fe1dda92affd675749355e5d1e0db",
+      "bytes": 751,
+      "provenance_status": "HASHED_LOCAL_COPY"
     }
   ],
   "metrics": {
@@ -133,18 +204,18 @@
   "gates": {
     "G0": "NOT_REACHED",
     "G1": "STRUCTURAL_TEST_UNVALIDATED",
-    "G2": "BLOCKED_CFD_NOT_CONVERGED",
+    "G2": "CFD_RESIDUAL_CONVERGED",
     "G3": "REFERENCE_RUN_RECORDED",
-    "G4": "RESIDUALS_RECORDED_NOT_ACCEPTED",
+    "G4": "RESIDUALS_RECORDED_CONVERGED_NOT_PHYSICALLY_ACCEPTED",
     "G5": "NOT_REACHED"
   },
   "decision": {
     "status": "INCONCLUSIVE",
     "blocking_gate": "G0",
-    "basis": "solver_reached_iteration_limit_without_convergence_and_no_pinn_comparison"
+    "basis": "solver_converged_numerically_but_no_pinn_comparison_and_physical_acceptance_is_pending"
   },
   "publication": {
-    "allowed_claim": "PUBLIC_PROVENANCE_AND_NON_CONVERGED_CFD_RUN_RECORDED",
+    "allowed_claim": "PUBLIC_PROVENANCE_AND_CONVERGED_NUMERICAL_CFD_RUN_RECORDED_NOT_VALIDATED",
     "forbidden_claims": [
       "industrial validation",
       "certification",
@@ -158,14 +229,14 @@
   "residuals": {
     "status": "AVAILABLE",
     "norm": "solver_declared_l2",
-    "mass": 0.011459808542718353,
-    "momentum": 3.102568325408609,
-    "energy": 3265.504473134912,
+    "mass": 9.939191149759465e-09,
+    "momentum": 2.985669158800892e-05,
+    "energy": 0.0029447167114481326,
     "computedBy": "SU2_CFD 8.5.0",
-    "calculationId": "CFD-REFERENCE-001",
-    "sourceLogSha256": "cb3246ea8e1407aecd269c80433df5c1d4da68415f0ef2c0088dd8e0cc4c00a3",
-    "evidenceSha256": "d7649bcf7e2ecf283606eb4e998e312ff746675145f50418d9c1fcd21b3a0a97",
-    "computedAt": "2026-08-29T14:13:59.431493Z"
+    "calculationId": "CFD-REFERENCE-002",
+    "sourceLogSha256": "250aa4b0901371de6491ab41b87b34c4a04466921a88063958c765ed87179e4a",
+    "evidenceSha256": "16629927782f3973904b1ceeed99840fbc4bd005cbffa7ad0c85aa83d2f8b81b",
+    "computedAt": "2026-08-29T21:30:35.027196Z"
   },
   "evidence": {
     "solver_residuals": true

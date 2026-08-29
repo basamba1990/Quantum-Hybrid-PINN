@@ -60,7 +60,8 @@ def main() -> int:
     lines.append(f"NMARK= {len(marker_nodes)}")
     for name, indices in marker_nodes.items():
         lines.append(f"MARKER_TAG= {name}")
-        edges = [(indices[i], indices[(i + 1) % len(indices)]) for i in range(len(indices))]
+        ordered = list(reversed(indices)) if name == "wall" else indices
+        edges = [(ordered[i], ordered[(i + 1) % len(ordered)]) for i in range(len(ordered))]
         lines.append(f"MARKER_ELEMS= {len(edges)}")
         lines.extend(f"3 {a} {b}" for a, b in edges)
     args.output.write_text("\n".join(lines) + "\n", encoding="utf-8")
