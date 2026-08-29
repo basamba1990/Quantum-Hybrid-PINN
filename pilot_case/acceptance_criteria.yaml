@@ -1,0 +1,66 @@
+schema: quantum-pilot-acceptance.v1
+case_id: PILOT-001
+status: DRAFT_REQUIRES_PARTNER_APPROVAL
+scope: one_authorized_non_safety_critical_cfd_case
+
+rules:
+  missing_evidence: INCONCLUSIVE
+  fabricated_or_default_metric: FAIL
+  synthetic_demo_data_as_reference: FAIL
+  validation_requires_all_gates: true
+  tolerance_source: protocol_approved_before_run
+
+metrics:
+  - id: pressure_l2_relative
+    field: pressure
+    definition: ||p_pinn - p_reference||_2 / ||p_reference||_2
+    tolerance: TO_BE_APPROVED
+  - id: velocity_l2_relative
+    field: velocity
+    definition: ||u_pinn - u_reference||_2 / ||u_reference||_2
+    tolerance: TO_BE_APPROVED
+  - id: pressure_max_absolute
+    field: pressure
+    definition: max(abs(p_pinn - p_reference))
+    tolerance: TO_BE_APPROVED
+  - id: mass_balance_relative
+    field: mass_flux
+    definition: abs(inlet_flux - outlet_flux) / max(abs(inlet_flux), abs(outlet_flux))
+    tolerance: TO_BE_APPROVED
+  - id: residual_mass_l2
+    field: mass_residual
+    definition: sqrt(mean(R_mass^2))
+    tolerance: TO_BE_APPROVED
+  - id: residual_momentum_l2
+    field: momentum_residual
+    definition: sqrt(mean(R_momentum^2))
+    tolerance: TO_BE_APPROVED
+
+ gates:
+  G0:
+    requirement: authorization_and_protocol_approved
+  G1:
+    requirement: cfd_volume_contract_and_topology_coherent
+    decision_if_structural_only: G1_EVIDENCE_GENERATED_NOT_CERTIFIED
+  G2:
+    requirement: mesh_boundary_conditions_and_units_documented
+  G3:
+    requirement: run_manifest_environment_seed_and_logs_persisted
+  G4:
+    requirement: residuals_and_conservation_computed_from_real_evidence
+  G5:
+    requirement: independent_comparison_meets_all_approved_tolerances
+
+success:
+  status: PASS
+  conditions:
+    - all_gates_pass
+    - no_metric_is_missing
+    - no_fabricated_or_default_metric
+    - reproduction_has_same_gate_decision
+
+failure:
+  statuses:
+    - FAIL
+    - INCONCLUSIVE
+  reporting: failure_first_with_blocking_gate_and_missing_evidence

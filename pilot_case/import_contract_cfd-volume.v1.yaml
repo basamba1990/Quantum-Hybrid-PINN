@@ -1,0 +1,68 @@
+schema: cfd-volume.v1
+case_id: PILOT-001
+status: DRAFT_REQUIRES_PARTNER_APPROVAL
+
+required_artifacts:
+  - id: geometry
+    formats: [step, stp, brep, iges, igs, stl, obj]
+    required: false
+    note: required when the case is geometry-backed; otherwise mesh provenance must be complete
+  - id: mesh
+    formats: [vtu, vtk, cgns, msh, h5, hdf5]
+    required: true
+  - id: sidecar
+    format: json
+    required: true
+  - id: solver_reference
+    formats: [zip, tar, gz, json, csv, vtu, vtk]
+    required: true
+  - id: solver_logs
+    formats: [txt, log, json]
+    required: true
+
+sidecar_required_fields:
+  - contractVersion
+  - caseId
+  - units
+  - dimensions
+  - pointCount
+  - cellCount
+  - fields
+  - boundaries
+  - source
+  - authorization
+
+validation:
+  hash_algorithm: SHA-256
+  reject_hash_mismatch: true
+  reject_missing_hash: true
+  reject_unknown_units: true
+  reject_out_of_range_indices: true
+  reject_incoherent_topology: true
+  reject_secret_material: true
+  reject_synthetic_reference: true
+  preserve_raw_files: true
+  raw_files_read_only: true
+
+field_requirements:
+  coordinate_fields: [x, y, z]
+  optional_fields: [time, pressure, temperature, density, velocity_u, velocity_v, velocity_w]
+  every_field_requires: [name, dtype, unit, location, finite_values]
+
+boundary_requirements:
+  every_boundary_requires: [name, face_indices, boundary_condition, units]
+  indices_must_reference_existing_faces: true
+
+provenance_requirements:
+  source_owner: required
+  license_or_authorization: required
+  acquisition_timestamp: required
+  original_filename: required
+  original_sha256: required
+  processing_history: required
+
+status_semantics:
+  structural_only: G1_EVIDENCE_GENERATED_NOT_CERTIFIED
+  missing_evidence: INCONCLUSIVE
+  invalid_input: FAIL
+  never_infer_validation_from_rendering: true
