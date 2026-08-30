@@ -1,4 +1,7 @@
-# Prompt complet mis à jour — reprise de PILOT-001 depuis zéro
+# Prompt historique — PILOT-001 NACA 0012 (remplacé)
+
+> Ce document conserve l’historique du pilote NACA 0012. Pour le nouveau pilote demandé, utiliser `PILOT_OPENFOAM_CYLINDER_FROM_ZERO_PROMPT_FR.md`, qui remplace NACA 0012 par un cas de cylindre résolu avec OpenFOAM et ajoute les voies hydrogène.
+
 
 Tu es responsable d’un pilote CFD/PINN-T evidence-grade. Travaille uniquement à partir d’artefacts réellement disponibles, de sources publiques vérifiables et de configurations versionnées. Ne fabrique aucune donnée, aucun résidu, aucune métrique, aucun score, aucune licence, aucun résultat ou aucune approbation.
 
