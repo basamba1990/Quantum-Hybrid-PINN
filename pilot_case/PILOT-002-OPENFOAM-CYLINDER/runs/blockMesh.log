@@ -1,0 +1,120 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  13
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+Build  : 13-18870c24d21c
+Exec   : blockMesh
+Date   : Aug 30 2026
+Time   : 12:18:07
+Host   : "db71298c03d4"
+PID    : 10811
+I/O    : uncollated
+Case   : /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/runs/OPENFOAM-CYLINDER-001
+nProcs : 1
+sigFpe : Enabling floating point exception trapping (FOAM_SIGFPE).
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 10)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+Reading "blockMeshDict"
+
+Creating block mesh from
+    "system/blockMeshDict"
+Creating new library in "dynamicCode/_68abbfbbc189387e6e22302e26efca444553c43b/platforms/linux64GccDPInt32Opt/lib/libcodeStream_68abbfbbc189387e6e22302e26efca444553c43b.so"
+"/opt/openfoam13/etc/codeTemplates/dynamicCode/codeStreamTemplate.C" "/home/ubuntu/Quantum-Hybrid-PINN/pilot_case/runs/OPENFOAM-CYLINDER-001/dynamicCode/_68abbfbbc189387e6e22302e26efca444553c43b/codeStreamTemplate.C"
+Invoking "wmake -s libso /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/runs/OPENFOAM-CYLINDER-001/dynamicCode/_68abbfbbc189387e6e22302e26efca444553c43b"
+wmake libso /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/runs/OPENFOAM-CYLINDER-001/dynamicCode/_68abbfbbc189387e6e22302e26efca444553c43b
+    ln: ./lnInclude
+    wmkdep: codeStreamTemplate.C
+    Ctoo: codeStreamTemplate.C
+    ld: /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/runs/OPENFOAM-CYLINDER-001/dynamicCode/_68abbfbbc189387e6e22302e26efca444553c43b/../platforms/linux64GccDPInt32Opt/lib/libcodeStream_68abbfbbc189387e6e22302e26efca444553c43b.so
+Creating block edges
+No non-planar block faces defined
+Creating topology blocks
+Creating topology patches
+
+Creating block mesh topology
+
+Basic statistics
+    Number of internal faces : 12
+    Number of boundary faces : 36
+    Number of defined boundary faces : 36
+    Number of undefined boundary faces : 0
+
+Checking topology
+Creating block offsets
+Creating merge list .
+
+Creating polyMesh from blockMesh
+Creating patches
+Creating cells
+Creating points with scale 1
+    Block 0 cell size :
+        i : 0.0500001
+        j : 0.0392598 .. 0.0392598 0.0431858 .. 0.0431858 0.0392598 .. 0.0392598 0.0431858 .. 0.0431858 
+        k : 1
+    Block 1 cell size :
+        i : 0.05
+        j : 0.0392598 .. 0.0392598 0.0431858 .. 0.0431858 0.0392598 .. 0.0392598 0.0431858 .. 0.0431858 
+        k : 1
+    Block 2 cell size :
+        i : 0.05 0.0501556 0.05 0.0501556 
+        j : 0.0785196 .. 0.0785196 0.0781266 .. 0.0772272 0.0785196 .. 0.0785196 0.0781266 .. 0.0772272 
+        k : 1
+    Block 3 cell size :
+        i : 0.0646447 .. 0.0646446
+        j : 0.0646447 .. 0.0646446
+        k : 1
+    Block 4 cell size :
+        i : 0.0785196 .. 0.0785196 0.0781266 .. 0.0772272 0.0785196 .. 0.0785196 0.0781266 .. 0.0772272 
+        j : 0.05 0.0501556 .. 0.0501556 0.05 0.0501556 .. 0.0501556 
+        k : 1
+    Block 5 cell size :
+        i : 0.0500001
+        j : 0.0785196 .. 0.0785196 0.0745937 .. 0.0745937 0.0785196 .. 0.0785196 0.0745937 .. 0.0745937 
+        k : 1
+    Block 6 cell size :
+        i : 0.05
+        j : 0.0785196 .. 0.0785196 0.0745937 .. 0.0745937 0.0785196 .. 0.0785196 0.0745937 .. 0.0745937 
+        k : 1
+    Block 7 cell size :
+        i : 0.05 .. 0.05 0.0501556 .. 0.0501556 0.05 0.0501556 .. 0.0501556 
+        j : 0.0707107 .. 0.0707107 0.0710983 .. 0.0701088 0.0707107 .. 0.0707107 0.0710983 .. 0.0701088 
+        k : 1
+    Block 8 cell size :
+        i : 0.0646446 .. 0.0646447
+        j : 0.0646447 .. 0.0646446
+        k : 1
+    Block 9 cell size :
+        i : 0.0785196 .. 0.0785196 0.0772272 .. 0.0781266 0.0785196 .. 0.0785196 0.0772272 .. 0.0781266 
+        j : 0.0646447 .. 0.0646446 0.0619831 0.0646447 .. 0.0646446 0.0619831 
+        k : 1
+
+No patch pairs to merge
+
+Writing polyMesh
+----------------
+Mesh Information
+----------------
+  boundingBox: (-2 0 -0.5) (2 2 0.5)
+  nPoints: 4222
+  nCells: 2000
+  nFaces: 8110
+  nInternalFaces: 3890
+----------------
+Patches
+----------------
+  patch 0 (start: 3890 size: 60) name: down
+  patch 1 (start: 3950 size: 30) name: right
+  patch 2 (start: 3980 size: 60) name: up
+  patch 3 (start: 4040 size: 30) name: left
+  patch 4 (start: 4070 size: 40) name: cylinder
+  patch 5 (start: 4110 size: 4000) name: defaultFaces
+
+End
+

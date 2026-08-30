@@ -1,0 +1,36 @@
+{
+  "schema": "quantum-pilot-manifest.v1",
+  "case_id": "PILOT-001",
+  "protocol_version": "evidence-grade-v1",
+  "run_id": "PENDING_SU2_AOA5_AOA17_RUN",
+  "case_revision": "SU2-NACA0012-AOA5-TRAIN-AOA17-EVAL-v1",
+  "status": "INCONCLUSIVE",
+  "solver": {"name": "SU2", "version": "8.5.0", "executable": "SU2_CFD", "availability": "UNAVAILABLE_IN_CURRENT_ENVIRONMENT"},
+  "geometry": {"profile": "NACA0012", "dimension": "2D", "source": "analytic_generator_and_public_benchmark_PENDING_VERIFICATION"},
+  "protocol": {
+    "training_condition": {"parameter": "AoA", "value_deg": 5.0},
+    "evaluation_condition": {"parameter": "AoA", "value_deg": 17.0},
+    "evaluation_is_hidden_during_training": true,
+    "random_row_shuffle": false,
+    "shared_file_hashes": false,
+    "tolerances_frozen_before_run": false,
+    "status": "READY_TO_EXECUTE_NOT_EXECUTED"
+  },
+  "config": {
+    "training": "config/aoa5_train_reference.cfg",
+    "evaluation": "config/aoa17_evaluation.cfg",
+    "independent_reference": "config/independent_reference_template.cfg"
+  },
+  "artifacts": [],
+  "outputs": [],
+  "metrics": {"status": "PENDING_REAL_SU2_OUTPUTS", "fields": {}, "tolerances": "PENDING_APPROVAL"},
+  "gates": {
+    "G0": "INCONCLUSIVE_MISSING_FROZEN_TOLERANCES_AND_SOURCE_LICENSE_RECORD",
+    "G1": "INCONCLUSIVE_MISSING_VERIFIED_NACA0012_MESH",
+    "G2": "INCONCLUSIVE_SU2_EXECUTABLE_UNAVAILABLE",
+    "G3": "INCONCLUSIVE_NO_PINN_AOA5_AOA17_RUN",
+    "G4": "INCONCLUSIVE_NO_REAL_RESIDUALS_OR_METRICS",
+    "G5": "INCONCLUSIVE_NO_SECOND_REPRODUCTION"
+  },
+  "decision": "INCONCLUSIVE"
+}

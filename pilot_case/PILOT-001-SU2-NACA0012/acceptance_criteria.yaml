@@ -1,0 +1,33 @@
+schema: quantum-pilot-acceptance.v1
+pilot_id: PILOT-001
+solver: SU2
+case: NACA0012
+status: DRAFT_REQUIRES_TOLERANCE_APPROVAL
+split:
+  train:
+    parameter: AoA_deg
+    value: 5.0
+  evaluation:
+    parameter: AoA_deg
+    value: 17.0
+    hidden_during_training: true
+rules:
+  no_row_shuffle: true
+  no_shared_file_hashes: true
+  normalization_fit_on_train_only: true
+  no_evaluation_access_during_training: true
+  missing_evidence: INCONCLUSIVE
+  fabricated_metric: FAIL
+metrics:
+  velocity_l2_relative: PENDING_APPROVAL
+  pressure_l2_relative: PENDING_APPROVAL
+  lift_coefficient_absolute_error: PENDING_APPROVAL
+  drag_coefficient_absolute_error: PENDING_APPROVAL
+gates:
+  G0: source_license_protocol_and_tolerances_approved
+  G1: naca0012_mesh_and_boundary_contract_verified
+  G2: SU2_run_converged_with_real_logs
+  G3: PINN_trained_on_AoA5_only_and_evaluated_on_AoA17_only
+  G4: metrics_and_residuals_derived_from_real_outputs
+  G5: second_clean_reproduction_has_same_decision
+decision_values: [PASS, FAIL, INCONCLUSIVE]

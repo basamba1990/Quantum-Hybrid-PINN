@@ -1,0 +1,6 @@
+run_id=OPENFOAM-CYLINDER-001
+openfoam_prefix=/opt/openfoam13
+tutorial=/opt/openfoam13/tutorials/potentialFoam/cylinder
+started_utc=2026-08-30T12:18:07Z
+status=PASS
+completed_utc=2026-08-30T12:18:08Z
