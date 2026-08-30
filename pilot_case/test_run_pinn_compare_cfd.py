@@ -22,7 +22,7 @@ def test_missing_checkpoint_fails_closed(tmp_path):
     ], text=True, capture_output=True)
     assert proc.returncode != 0
     assert not out.exists()
-    assert 'CFD reference input is missing' not in proc.stdout or 'checkpoint or CFD VTU is missing' in proc.stdout
+    assert 'CFD reference input is missing' in proc.stdout
 
 
 def test_contract_is_explicit():

@@ -2,300 +2,76 @@
   "schema": "quantum-pilot-manifest.v1",
   "schema_version": "pilot-manifest.v1",
   "case_id": "PILOT-001",
-  "run_id": "RUN-002",
-  "case_revision": "public-naca0012-v1",
-  "status": "PINN_CFD_COMPARISON_COMPLETED_NOT_VALIDATED",
+  "run_id": "PENDING_NACA0012_RUN",
+  "case_revision": "naca0012-template-v2",
+  "status": "TEMPLATE_NOT_EXECUTED",
   "protocol_version": "1.0.0",
   "import_contract": "cfd-volume.v1",
-  "classification": "PUBLIC_BENCHMARK_NOT_PARTNER_DATA",
-  "code_commit": "WORKTREE_UNCOMMITTED_AT_PINN_TRAINING_RUN",
+  "classification": "PUBLIC_BENCHMARK_PENDING_SOURCE_VERIFICATION",
+  "code_commit": "PENDING_EXECUTION_COMMIT",
   "authorization": {
-    "status": "NOT_APPLICABLE_PUBLIC_SOURCE",
-    "document": "NOT_APPLICABLE_PUBLIC_SOURCE"
+    "status": "PENDING_SOURCE_LICENSE_REVIEW",
+    "document": "PENDING"
   },
   "partner_approval": {
     "status": "NOT_APPLICABLE_PUBLIC_SOURCE",
     "industrial_partner": false
   },
   "reproducibility": {
-    "seed": "PENDING_PINN_RUN_SEED",
+    "seed": "PENDING_NACA0012_RUN_SEED",
     "determinism_policy": "same_inputs_same_version_same_seed_same_decision",
-    "container_digest": "PENDING_PINN_RUN_CONTAINER_DIGEST",
-    "environment_lock": "PENDING_PINN_RUN_ENVIRONMENT_LOCK"
+    "container_digest": "PENDING_NACA0012_CONTAINER_DIGEST",
+    "environment_lock": "PENDING_NACA0012_ENVIRONMENT_LOCK"
   },
   "benchmark": {
-    "name": "High-Fidelity Simulation Aerodynamics Dataset of NACA 0012 and 0021 Airfoils",
-    "subset": "NACA0012/aoa_5",
+    "name": "NACA 0012 public benchmark",
+    "subset": "PENDING_SOURCE_SUBSET",
     "source_catalog_url": "https://data.nlr.gov/submissions/311",
     "source_archive_url": "https://data.nlr.gov/system/files/311/1768508676-NACA0012.zip",
-    "source_version": "NLR Data Catalog resource version 1",
-    "source_last_updated": "2026-03-12",
+    "source_version": "PENDING_VERIFICATION",
+    "source_last_updated": "PENDING_VERIFICATION",
     "doi": "10.7799/3014033",
-    "license_status": "LICENSE_PAGE_MUST_BE_REVIEWED_BEFORE_REDISTRIBUTION",
-    "solver": "Nalu-Wind",
-    "reference_type": "PUBLIC_CFD_ARCHIVE_AND_EXPERIMENTAL_POLARS"
+    "license_status": "PENDING_LICENSE_REVIEW",
+    "solver": "PENDING_VERIFICATION",
+    "reference_type": "PENDING_VERIFICATION"
   },
   "protocol": {
     "document": "protocol_PILOT-001.md",
     "version": "public-benchmark-draft-1.0",
     "approval_status": "INTERNAL_DRAFT",
-    "execution_scope": "CFD_AND_CFD_ANCHORED_PINN_RUN_RECORDED_NOT_INDEPENDENT"
+    "execution_scope": "NOT_EXECUTED"
   },
-  "artifacts": [
-    {
-      "id": "naca0012_archive",
-      "role": "input_source_archive",
-      "path": "artifacts/input_raw/NACA0012.zip",
-      "sha256": "0e1a5456ace00e1df4ebfdabce2a59beb6f87d09a77023c7fe5a02c43d7a95d4",
-      "bytes": 15657902,
-      "source_url": "https://data.nlr.gov/system/files/311/1768508676-NACA0012.zip",
-      "provenance_status": "HASHED_LOCAL_COPY",
-      "redistribution_status": "DO_NOT_REDISTRIBUTE_UNTIL_LICENSE_REVIEW"
-    },
-    {
-      "id": "naca0012_aoa5_analytic",
-      "role": "input",
-      "path": "artifacts/input_raw/naca0012_aoa5_analytic.vtu",
-      "sha256": "1dfc9c2ca969c45fa9bf4c1d75c74cd9e6d286dc948597821bb617ab86fb743a",
-      "bytes": 352942,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "naca0012_aoa5_analytic.mesh",
-      "role": "input",
-      "path": "artifacts/input_raw/naca0012_aoa5_analytic.mesh.json",
-      "sha256": "862b1ab83d3e9c547b5c9fc562db18306e43b45f3ad207018984b6bab4968f54",
-      "bytes": 5195,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    }
-  ],
-  "outputs": [
-    {
-      "id": "solver_residual_evidence",
-      "role": "solver_residuals",
-      "path": "runs/CFD-REFERENCE-001/residual_evidence.json",
-      "sha256": "d7649bcf7e2ecf283606eb4e998e312ff746675145f50418d9c1fcd21b3a0a97",
-      "bytes": 29381
-    },
-    {
-      "id": "history",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-001/history.csv",
-      "sha256": "b55695b1005876dde92e5dce9c80951cfd106b871ad6761079742df7afc065b7",
-      "bytes": 64923,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "flow",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-001/flow.vtu",
-      "sha256": "1e97f4280bc6a00ac6e2f99ace4fb44c6c2d3fde42fe4f0f30771260b6456f53",
-      "bytes": 309500,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "surface_flow",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-001/surface_flow.csv",
-      "sha256": "40d96acaedfdac3d0e4ceb2063989739429c3f5b63a5413783438e6dc7f0a7cc",
-      "bytes": 18255,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "solver_stdout",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-001/solver_stdout.log",
-      "sha256": "fa4ba1511549342d5bc7e7ec3a46dd9d27b711ae38e4ef2fe975aff388fbe985",
-      "bytes": 32873,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "naca0012_euler",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-001/naca0012_euler.cfg",
-      "sha256": "ec7cc7ca993a6c88b5932435839cb07d845ec25671638200a613b9d7a19d27bc",
-      "bytes": 1337,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "solver_residuals",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-001/solver_residuals.jsonl",
-      "sha256": "cb3246ea8e1407aecd269c80433df5c1d4da68415f0ef2c0088dd8e0cc4c00a3",
-      "bytes": 20286,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "history",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-002/history.csv",
-      "sha256": "56f6e6af36eefe2ea723e1283eb26f01b27ebb03baebbadab5cee99abf8971e6",
-      "bytes": 152456,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "flow",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-002/flow.vtu",
-      "sha256": "69451fd45d5f8f01ca02a2fa749f4660fc0cddfcf9a217e4a5255a61127c6be1",
-      "bytes": 309500,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "surface_flow",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-002/surface_flow.csv",
-      "sha256": "718a325ca1bc96abcc26b3f18303b699a1571f2e4709b3a3c9bda05005c4addb",
-      "bytes": 18255,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "solver_stdout",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-002/solver_stdout.log",
-      "sha256": "0426686c988706b4a5ab45c2cf08d0052d46e977cce20c55e63d375a4a4efa69",
-      "bytes": 62979,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "naca0012_euler",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-002/naca0012_euler.cfg",
-      "sha256": "315a49b411089309eabb717efe7ab49db1c0c33cea23d7cce656808e4128e833",
-      "bytes": 1380,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "solver_residuals",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-002/solver_residuals.jsonl",
-      "sha256": "250aa4b0901371de6491ab41b87b34c4a04466921a88063958c765ed87179e4a",
-      "bytes": 50467,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "solver_residual_evidence",
-      "role": "solver_residuals",
-      "path": "runs/CFD-REFERENCE-002/residual_evidence.json",
-      "sha256": "16629927782f3973904b1ceeed99840fbc4bd005cbffa7ad0c85aa83d2f8b81b",
-      "bytes": 70953
-    },
-    {
-      "id": "residual_evidence",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-002/residual_evidence.json",
-      "sha256": "16629927782f3973904b1ceeed99840fbc4bd005cbffa7ad0c85aa83d2f8b81b",
-      "bytes": 70953,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "mesh_diagnostic",
-      "role": "output",
-      "path": "runs/CFD-REFERENCE-002/mesh_diagnostic.json",
-      "sha256": "28055633bbb04e2a7de9c33dacc2e658df3fe1dda92affd675749355e5d1e0db",
-      "bytes": 751,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "pinn_naca0012",
-      "role": "output",
-      "path": "runs/PINN-TRAIN-001/pinn_naca0012.pt",
-      "sha256": "d5cb46f0c7550389810d04ee90e7caa2c3267c9628767c1ffce51f53466b53c9",
-      "bytes": 63027,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "training_metadata",
-      "role": "output",
-      "path": "runs/PINN-TRAIN-001/training_metadata.json",
-      "sha256": "b092f1177986c0de82ef7c857debc2444496ea32c7862337afdef0950092da62",
-      "bytes": 848,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "training_history",
-      "role": "output",
-      "path": "runs/PINN-TRAIN-001/training_history.jsonl",
-      "sha256": "b9dddd366bb97f12a671fde177377a21113825a85b5d7d350cb6e9bf0b1bc387",
-      "bytes": 2297,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "comparison",
-      "role": "output",
-      "path": "runs/PINN-COMPARISON-001/comparison.json",
-      "sha256": "131420ac5610bb162b95d5c0c148dcece0814552c8000ec0415f8343ca21f716",
-      "bytes": 1417,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    },
-    {
-      "id": "comparison",
-      "role": "output",
-      "path": "runs/PINN-COMPARISON-002/comparison.json",
-      "sha256": "131420ac5610bb162b95d5c0c148dcece0814552c8000ec0415f8343ca21f716",
-      "bytes": 1417,
-      "provenance_status": "HASHED_LOCAL_COPY"
-    }
+  "artifacts": [],
+  "outputs": [],
+  "planned_artifacts": [
+    "source_record.json",
+    "license_record.json",
+    "geometry_manifest.json",
+    "mesh_manifest.json",
+    "openfoam_case_manifest.json",
+    "boundary_patch_map.json",
+    "field_unit_map.json",
+    "train_manifest.json",
+    "evaluation_manifest.json",
+    "model_contract.json",
+    "metrics.json",
+    "runtime_manifest.json",
+    "hashes.sha256",
+    "reproduction_report.md"
   ],
   "metrics": {
-    "status": "AVAILABLE_CFD_ANCHORED_BASELINE",
-    "independence": "NOT_INDEPENDENT_CFD_FIELD_USED_AS_TRAINING_ANCHOR",
-    "comparison_output": "runs/PINN-COMPARISON-001/comparison.json",
-    "fields": {
-      "u": {
-        "l1_mean": 4.6338958740234375,
-        "l2_rmse": 7.316342353820801,
-        "max_abs": 66.3913345336914,
-        "relative_l2": 0.10995224863290787
-      },
-      "v": {
-        "l1_mean": 1.1405317783355713,
-        "l2_rmse": 2.1169068813323975,
-        "max_abs": 13.076986312866211,
-        "relative_l2": 0.3508252799510956
-      }
-    },
-    "basis": "observed_from_same_CFD_restart_used_as_training_anchor",
-    "acceptance_status": "PENDING_APPROVED_TOLERANCES"
+    "status": "PENDING_EXECUTION",
+    "independence": "PENDING_SPLIT_DECLARATION",
+    "acceptance_status": "PENDING_APPROVED_TOLERANCES",
+    "fields": {}
   },
   "gates": {
-    "G0": "NOT_REACHED",
-    "G1": "STRUCTURAL_TEST_UNVALIDATED",
-    "G2": "CFD_RESIDUAL_CONVERGED",
-    "G3": "CFD_AND_PINN_RUN_RECORDED_NOT_INDEPENDENT",
-    "G4": "RESIDUALS_RECORDED_CONVERGED_NOT_PHYSICALLY_ACCEPTED",
-    "G5": "COMPARISON_RECORDED_NOT_ACCEPTED"
+    "G0": "PENDING_PROTOCOL_SOURCE_LICENSE_AND_TOLERANCES",
+    "G1": "PENDING_GEOMETRY_MESH_PATCHES_AND_UNITS",
+    "G2": "PENDING_SOLVER_RUN_AND_PHYSICAL_COHERENCE",
+    "G3": "PENDING_TRAIN_EVALUATION_LEAKAGE_AUDIT",
+    "G4": "PENDING_RESIDUALS_FIELDS_BALANCES_AND_METRICS",
+    "G5": "PENDING_SECOND_REPRODUCTION"
   },
-  "decision": {
-    "status": "INCONCLUSIVE",
-    "blocking_gate": "G0",
-    "basis": "CFD_FIELDS_USED_AS_TRAINING_ANCHOR; COMPARISON_IS_NOT_INDEPENDENT; APPROVED_TOLERANCES_AND_PHYSICAL_ACCEPTANCE_ARE_PENDING"
-  },
-  "publication": {
-    "allowed_claim": "PUBLIC_PROVENANCE_CONVERGED_CFD_AND_CFD_ANCHORED_PINN_BASELINE_RECORDED_NOT_INDEPENDENTLY_VALIDATED",
-    "forbidden_claims": [
-      "industrial validation",
-      "certification",
-      "partner approval",
-      "PINN accuracy",
-      "solver replacement",
-      "validated G0-G5 result"
-    ]
-  },
-  "secrets_policy": "No passwords, API keys, tokens or private keys are permitted in this manifest.",
-  "residuals": {
-    "status": "AVAILABLE",
-    "norm": "solver_declared_l2",
-    "mass": 9.939191149759465e-09,
-    "momentum": 2.985669158800892e-05,
-    "energy": 0.0029447167114481326,
-    "computedBy": "SU2_CFD 8.5.0",
-    "calculationId": "CFD-REFERENCE-002",
-    "sourceLogSha256": "250aa4b0901371de6491ab41b87b34c4a04466921a88063958c765ed87179e4a",
-    "evidenceSha256": "16629927782f3973904b1ceeed99840fbc4bd005cbffa7ad0c85aa83d2f8b81b",
-    "computedAt": "2026-08-29T21:30:35.027196Z"
-  },
-  "evidence": {
-    "solver_residuals": true
-  }
+  "decision": "INCONCLUSIVE_UNTIL_EXECUTED_WITH_REAL_ARTIFACTS"
 }
