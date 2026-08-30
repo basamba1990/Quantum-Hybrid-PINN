@@ -7,3 +7,6 @@ pilot_case/artifacts/
 pilot_case/capsule/
 pilot_case/runs/
 pilot_case/reports/
+
+# Local deployment secrets (never commit)
+apps/web/.env.local
