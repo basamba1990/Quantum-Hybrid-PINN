@@ -7,7 +7,7 @@ set -Eeuo pipefail
 RUN_DIR="${1:-pilot_case/runs/OPENFOAM-CYLINDER-001}"
 OPENFOAM_VERSION="${OPENFOAM_VERSION:-13}"
 PREFIX="${OPENFOAM_PREFIX:-/opt/openfoam${OPENFOAM_VERSION}}"
-TUTORIAL="${OPENFOAM_TUTORIAL:-${PREFIX}/tutorials/basic/potentialFoam/cylinder}"
+TUTORIAL="${OPENFOAM_TUTORIAL:-${PREFIX}/tutorials/potentialFoam/cylinder}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUN_DIR="$(python3 -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "${RUN_DIR}")"
 
@@ -15,8 +15,14 @@ if [[ ! -f "${PREFIX}/etc/bashrc" ]]; then
   echo "FAIL: OpenFOAM non installé: ${PREFIX}/etc/bashrc" >&2
   exit 2
 fi
+set +e
+set +u
 # shellcheck disable=SC1090
 source "${PREFIX}/etc/bashrc"
+source_rc=$?
+set -u
+set -e
+[[ "${source_rc}" -eq 0 || -n "${WM_PROJECT_DIR:-}" ]] || { echo "FAIL: chargement du bashrc OpenFOAM échoué" >&2; exit 2; }
 for cmd in blockMesh checkMesh potentialFoam; do
   command -v "${cmd}" >/dev/null || { echo "FAIL: commande absente: ${cmd}" >&2; exit 2; }
 done

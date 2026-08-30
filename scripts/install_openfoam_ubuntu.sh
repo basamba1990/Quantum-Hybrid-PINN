@@ -70,8 +70,16 @@ key_url=${REPO_KEY_URL}
 EOF
 
 # Le shell courant doit être relancé ou la configuration sourcée manuellement.
+# Le bashrc OpenFOAM peut sonder des variables propres à Zsh ; ne pas appliquer
+# nounset pendant son chargement dans un shell Bash strict.
+set +e
+set +u
 # shellcheck disable=SC1090
 source "${PREFIX}/etc/bashrc"
+source_rc=$?
+set -u
+set -e
+[[ "${source_rc}" -eq 0 || -n "${WM_PROJECT_DIR:-}" ]] || fail "chargement du bashrc OpenFOAM échoué"
 for command_name in blockMesh checkMesh potentialFoam; do
   command -v "${command_name}" >/dev/null 2>&1 \
     || fail "utilitaire absent après installation: ${command_name}"
