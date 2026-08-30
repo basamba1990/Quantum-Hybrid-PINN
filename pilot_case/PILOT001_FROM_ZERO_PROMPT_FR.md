@@ -236,3 +236,138 @@ final report
 ```
 
 Aucun secret et aucune donnée non autorisée ne doivent apparaître dans ces livrables.
+
+
+# Extension multi-solveurs et domaine hydrogène — version opérationnelle
+
+## 8. Architecture multi-solveurs obligatoire
+
+Le pilote doit être solver-neutral. Implémente trois adaptateurs indépendants, sans supposer que leurs résultats sont interchangeables :
+
+1. **Adaptateur SU2** pour le cas NACA 0012 existant et les cas compressibles/aérodynamiques compatibles.
+2. **Adaptateur OpenFOAM** pour un cas reproductible de validation de chaîne, en commençant par le tutoriel officiel « flow around a cylinder ». Le tutoriel OpenFOAM est une référence de mise en œuvre, pas une preuve industrielle ni une preuve hydrogène [8].
+3. **Adaptateur d’import CFD** pour un cas externe fourni par l’utilisateur ou téléchargé depuis une source publique autorisée. Il doit accepter un manifeste d’import, un format de maillage déclaré, les champs, les unités, les marqueurs, la version du solveur et les hashes. Il doit refuser tout artefact dont la provenance, la licence ou l’intégrité sont inconnues.
+
+Chaque adaptateur doit produire le même schéma d’évidence :
+
+```text
+solver_name
+solver_version
+case_id
+geometry_hash
+mesh_hash
+configuration_hash
+boundary_map
+field_map
+units
+runtime_metadata
+convergence_marker
+residual_history
+surface_or_volume_outputs
+force_or_flux_outputs_when_defined
+artifact_hashes
+```
+
+Ne jamais concaténer des champs de solveurs différents sans documenter l’interpolation, la transformation de repère, la conservation éventuelle et l’erreur introduite. Un import réussi n’est pas une validation physique.
+
+## 9. Cas OpenFOAM de référence — cylindre
+
+Créer un cas OpenFOAM isolé nommé `OPENFOAM-CYLINDER-001` à partir du tutoriel officiel réellement récupéré et dont la version exacte est enregistrée. Figer : version OpenFOAM, commit ou archive du tutoriel, solveur, maillage, dimensions, viscosité, vitesse d’entrée, nombre de Reynolds, pas de temps, durée simulée, critères de convergence, schéma numérique et noms des patches.
+
+Le pipeline doit :
+
+```text
+récupérer la source autorisée
+calculer le SHA-256 de chaque fichier d’entrée
+exécuter blockMesh ou le générateur déclaré
+vérifier checkMesh et conserver sa sortie
+exécuter le solveur OpenFOAM sans masquer les erreurs
+exiger un marqueur de fin et des résidus enregistrés
+extraire les champs et coefficients réellement produits
+calculer les métriques à partir des sorties
+rejouer dans un répertoire propre
+comparer les manifests et les hashes
+```
+
+Le cas cylindre sert d’abord à tester l’adaptateur, la provenance, les résidus, l’import et la reproductibilité. Il ne doit pas être présenté comme un benchmark hydrogène ou comme une preuve de transfert vers un réservoir.
+
+## 10. Deux voies hydrogène à distinguer
+
+### Voie H1 — Réservoir poreux de stockage souterrain d’hydrogène
+
+La voie recommandée pour un pilote industriel ciblé est un benchmark de stockage souterrain d’hydrogène dans un milieu poreux, avec géométrie de réservoir, porosité, perméabilité, propriétés des fluides, conditions initiales, puits et calendrier d’injection/soutirage. Le benchmark UHS de TU Clausthal et les jeux de données publics associés sont des pistes à examiner, pas une autorisation automatique d’usage ou de publication [9] [10].
+
+Cette voie n’est pas un simple cas OpenFOAM « cylindre ». Elle peut relever d’un solveur d’écoulement en milieu poreux, d’un simulateur de réservoir ou d’un couplage thermo-hydraulique. Le prompt doit d’abord vérifier que le solveur, les équations et les données disponibles correspondent réellement au phénomène étudié. Si aucun import OpenFOAM valide n’est fourni, ne pas prétendre qu’OpenFOAM a exécuté le benchmark.
+
+Les variables minimales à gouverner sont : pression, saturation ou fraction de phase, température si le modèle est thermo-hydraulique, débit de puits, composition, porosité, perméabilité, propriétés de l’hydrogène, conditions initiales et frontières. Les propriétés thermophysiques doivent être sourcées dans une base vérifiable telle que NIST et enregistrées avec la corrélation, la plage de validité, les unités et la version [6] [7].
+
+### Voie H2 — Écoulement autour d’un obstacle dans une conduite ou un volume contenant de l’hydrogène
+
+La voie H2 est un cas CFD plus proche d’OpenFOAM : cylindre ou obstacle dans une conduite, avec hydrogène gazeux ou mélange explicitement défini. Elle doit préciser le régime, la pression, la température, la composition, le modèle d’équation d’état, la turbulence ou laminarité, les conditions aux limites et les règles de sécurité. Le cas cylindre officiel OpenFOAM peut servir de test logiciel, puis être reparamétré uniquement si les propriétés et le modèle physique de l’hydrogène sont justifiés par des sources et un protocole approuvé.
+
+Un cas hydrogène ne peut pas être déduit du tutoriel air/eau par simple remplacement du nom du fluide. Toute modification de densité, viscosité, compressibilité, équation d’état, diffusivité, transfert thermique, réaction ou modèle multiphasique crée une nouvelle configuration et une nouvelle preuve.
+
+## 11. Sélection et décision du prochain cas
+
+Avant tout téléchargement ou calcul, créer une table de sélection :
+
+| Candidat | Phénomène | Source publique | Licence vérifiée | Solveur adapté | Données de référence | Décision |
+|---|---|---|---|---|---|---|
+| OpenFOAM cylinder | Écoulement externe de contrôle | Tutoriel officiel | À vérifier dans l’archive utilisée | OpenFOAM | Résultats de référence du protocole | Test adaptateur |
+| UHS porous reservoir | Stockage souterrain H2 | Benchmark ou dataset public | À vérifier avant usage | Simulateur réservoir adapté | Pression, saturation, puits, bilans | Candidat pilote |
+| H2 cylinder/pipe | Écoulement H2 autour d’un obstacle | Source partenaire ou cas construit autorisé | À vérifier | OpenFOAM ou autre solveur validé | Champs, flux, pertes de charge | Candidat secondaire |
+
+Ne choisir un cas que si la colonne « licence vérifiée », la définition des variables et la référence de comparaison sont documentées. En l’absence de ces éléments, décision `INCONCLUSIVE` et arrêt de l’exécution.
+
+## 12. PINN-T multi-cas sans fuite
+
+Le dataset d’entraînement et le dataset d’évaluation doivent être séparés par condition physique ou scénario, jamais par simple mélange de points. Pour H1, séparer par scénario d’injection/soutirage, paramètres de réservoir ou période temporelle ; pour H2, séparer par Reynolds, pression, température, composition ou débit selon le protocole approuvé.
+
+Le processus PINN doit enregistrer les équations, les unités, les constantes, les normalisations, les pondérations de pertes, les variables observées, les points de collocation, la seed, l’architecture et la version logicielle. La normalisation ne doit utiliser que l’ensemble d’entraînement. Le processus doit échouer si le manifeste d’évaluation est ouvert pendant l’entraînement.
+
+## 13. Garde-fous physiques hydrogène
+
+Le pipeline doit refuser toute revendication de validation si une conservation pertinente n’est pas testée. Selon le cas, vérifier au minimum les bilans de masse, les flux aux frontières, les unités, la positivité des grandeurs physiques, la cohérence pression–température–densité, la conservation énergétique si la température est résolue et les bornes de validité des propriétés utilisées.
+
+Pour les cas à haute pression, ne pas imposer une loi de gaz parfait sans justification. Sélectionner l’équation d’état et les propriétés à partir d’une source documentée ; conserver la référence, la corrélation, les unités et l’intervalle d’application. Les données NIST fournissent des propriétés thermophysiques de référence, mais leur présence sur le site ne valide pas un modèle particulier ni un cas industriel [6] [7].
+
+## 14. Livrables additionnels multi-solveurs
+
+Ajouter au manifeste :
+
+```text
+solver_adapter_manifest.json
+openfoam_case_manifest.json
+import_contract_cfd.v2.yaml
+hydrogen_property_record.json
+geometry_and_mesh_contract.json
+boundary_patch_map.json
+field_unit_map.json
+cross_solver_comparison.json
+safety_and_scope_statement.md
+```
+
+Le rapport final doit séparer quatre niveaux :
+
+```text
+A. test de chaîne logicielle
+B. reproduction numérique d’un cas public
+C. comparaison quantitative à une référence indépendante
+D. pertinence industrielle ou hydrogène
+```
+
+Une réussite du niveau A ne permet pas de revendiquer B, C ou D. Une réussite du niveau C sur un cylindre ne permet pas de revendiquer la validité d’un réservoir souterrain d’hydrogène.
+
+## 15. Règle de publication LinkedIn
+
+Ne publier un résultat hydrogène que si le cas exécuté, le solveur, la licence, les entrées, les sorties, les hashes, les métriques, les tolérances, la seconde reproduction et la décision G0–G5 sont présents. Sinon, publier uniquement l’état du travail et le blocage exact.
+
+Formulation autorisée avant validation : « Nous avons construit et instrumenté une chaîne reproductible pour comparer plusieurs solveurs et gouverner des cas CFD/PINN-T. Le cas hydrogène est en phase de sélection et aucune validation industrielle n’est revendiquée. »
+
+## Références additionnelles
+
+[6]: https://webbook.nist.gov/chemistry/fluid/ "NIST Chemistry WebBook — Thermophysical Properties of Fluid Systems"
+[7]: https://webbook.nist.gov/cgi/cbook.cgi?ID=1333-74-0 "NIST Chemistry WebBook — Hydrogen"
+[8]: https://www.openfoam.com/documentation/tutorial-guide/2-incompressible-flow/2.2-flow-around-a-cylinder "OpenFOAM official tutorial — Flow around a cylinder"
+[9]: https://www.ite.tu-clausthal.de/en/research/subsurface-energy-and-gas-storage/uhs-benchmark-study "TU Clausthal — UHS Benchmark Study"
+[10]: https://zenodo.org/records/14029514 "Zenodo — Dataset for Underground Hydrogen Storage Simulations"

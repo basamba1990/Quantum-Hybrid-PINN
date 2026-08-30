@@ -4,6 +4,40 @@
 
 PILOT-001 is a public NACA 0012 demonstrator executed in a local, reproducible development environment. It is **not an industrial validation, certification, partner-approved pilot, or independent PINN validation**.
 
+The four figures below are embedded from the recorded CFD and PINN artifacts. They support traceability but do not replace the underlying files, logs, hashes, or acceptance gates.
+
+## Geometry and dimensionality
+
+The CFD mesh used by `CFD-REFERENCE-002` is explicitly **two-dimensional**: its SU2 header contains `NDIME= 2`. The repository contains no verified three-dimensional CAD, STL, OBJ, 3-D volume mesh, or 3-D CFD run for this pilot. Therefore this report does not claim or display a 3-D geometry. The available geometric artifact is the analytic NACA 0012 2-D mesh at `pilot_case/runs/CFD-REFERENCE-002/naca0012_aoa5_analytic.su2`.
+
+A 3-D geometry may only be added after a real 3-D source, license, mesh, boundary naming, solver setup, execution log, outputs, and hashes have been recorded. It must not be fabricated from this 2-D case.
+
+## Visual evidence
+
+### Figure 1 — SU2 residual history
+
+![SU2 residual history](visualizations/su2_residual_history.png)
+
+Generated from the recorded SU2 history using the solver’s `Inner_Iter` field. The run contains 471 recorded rows and ends at iteration 470.
+
+### Figure 2 — SU2 force coefficients
+
+![SU2 force coefficients](visualizations/su2_force_coefficients.png)
+
+The final recorded values are `CL = 0.1112694269` and `CD = -0.169298946`. The negative drag remains physically suspicious and blocks physical acceptance of the CFD reference.
+
+### Figure 3 — PINN training history
+
+![PINN training history](visualizations/pinn_training_history.png)
+
+This figure shows the recorded total and physics losses over 2,000 epochs. Loss reduction alone does not establish independent field accuracy.
+
+### Figure 4 — Same-CFD anchored comparison
+
+![PINN relative errors](visualizations/pinn_cfd_relative_errors.png)
+
+The observed relative L2 errors are approximately `0.1099522486` for `u` and `0.3508252800` for `v`. The comparison is explicitly **same-CFD anchored**: the CFD field used for training also served as the reference. These are reproducible comparison metrics, not held-out validation accuracy.
+
 The evidence currently obtained is:
 
 | Evidence item | Observed status |
@@ -121,7 +155,7 @@ A valid success claim requires pre-declared tolerances, a physically accepted CF
 
 ## Publication restriction
 
-The following claims are not supported: industrial validation, certification, partner approval, independent PINN accuracy, solver replacement, general aerodynamic superiority or successful G0–G5 validation.
+The following claims are not supported: industrial validation, certification, partner approval, independent PINN accuracy, solver replacement, general aerodynamic superiority, 3-D validation, hydrogen-reservoir validation, or successful G0–G5 validation.
 
 ## References
 

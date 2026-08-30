@@ -2,7 +2,13 @@
 
 **Evidence-grade CFD/PINN-T validation starts with stating exactly what has been demonstrated.**
 
-For PILOT-001, we built a public NACA 0012 demonstrator around a traceable evidence chain:
+For PILOT-001, we built a public NACA 0012 demonstrator around a traceable evidence chain. The full English report and the four evidence figures are available in the repository under `pilot_case/`:
+
+- [English evidence-grade report](PILOT-001_FINAL_REPORT_EN.md)
+- [SU2 residual history](visualizations/su2_residual_history.png)
+- [SU2 force coefficients](visualizations/su2_force_coefficients.png)
+- [PINN training history](visualizations/pinn_training_history.png)
+- [Same-CFD anchored relative errors](visualizations/pinn_cfd_relative_errors.png)
 
 - a public source archive with recorded provenance and SHA-256 integrity;
 - a deterministic analytic mesh with structural diagnostics;
@@ -24,7 +30,7 @@ INCONCLUSIVE
 
 The next experiment is precise: train only on the `AoA 5°` condition, evaluate only on the held-out `AoA 17°` condition, freeze the acceptance criteria beforehand, reproduce the run in a clean environment, and publish only the resulting metrics and hashes.
 
-The objective is not to claim general superiority or automatic certification. It is to make every claim traceable to an artifact, a version, a calculation and a decision.
+The objective is not to claim general superiority, automatic certification, 3-D validation, or hydrogen-reservoir validation. The recorded mesh is explicitly 2-D; no verified 3-D geometry or 3-D CFD run exists for this pilot. It is to make every claim traceable to an artifact, a version, a calculation and a decision.
 
 #CFD #PINN #ScientificComputing #Reproducibility #AIEngineering #ModelValidation #AIgovernance
 
