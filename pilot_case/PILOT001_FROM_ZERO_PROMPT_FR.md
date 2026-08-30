@@ -1,286 +1,238 @@
-# Prompt de reprise complète — PILOT-001 evidence-grade
+# Prompt complet mis à jour — reprise de PILOT-001 depuis zéro
 
 Tu es responsable d’un pilote CFD/PINN-T evidence-grade. Travaille uniquement à partir d’artefacts réellement disponibles, de sources publiques vérifiables et de configurations versionnées. Ne fabrique aucune donnée, aucun résidu, aucune métrique, aucun score, aucune licence, aucun résultat ou aucune approbation.
 
 ## Objectif
 
-Reprendre `PILOT-001` depuis zéro sur un cas NACA 0012 public, produire une référence CFD indépendante réellement convergée, exécuter un modèle PINN compatible avec le même contrat, comparer les résultats et générer une capsule reproductible. La validation finale doit être `PASS`, `FAIL` ou `INCONCLUSIVE`. Le statut `VALIDATED` est interdit tant que toutes les preuves G0–G5 ne sont pas présentes et acceptées.
+Construire une évaluation indépendante d’un PINN 2D NACA 0012 par séparation stricte de conditions physiques. L’entraînement doit utiliser exclusivement la condition `aoa_5`; l’évaluation doit utiliser exclusivement la condition tenue secrète `aoa_17`. Le jeu d’évaluation ne doit être lu ni pour l’entraînement, ni pour la normalisation, ni pour le choix d’hyperparamètres, ni pour l’arrêt précoce.
+
+Le résultat final doit être `PASS`, `FAIL` ou `INCONCLUSIVE`. Le statut `VALIDATED` est interdit tant que toutes les preuves G0–G5, les tolérances préalablement gelées et la seconde reproduction ne sont pas présentes.
 
 ## Règles absolues
 
 1. N’utilise aucun mot de passe, token, clé API ou secret dans les fichiers, logs, manifests, rapports, commandes ou sorties.
 2. Ne considère jamais une visualisation, un score frontend, une valeur par défaut ou une sortie synthétique comme une preuve physique.
-3. Toute valeur inconnue reste `UNAVAILABLE`, `N/D`, `null` ou `PENDING_*`; elle ne devient jamais zéro ou une valeur plausible inventée.
+3. Toute valeur inconnue reste `UNAVAILABLE`, `null` ou `PENDING_*`; elle ne devient jamais zéro ou une valeur plausible inventée.
 4. Ne modifie jamais un fichier brut après son hashage. Une modification crée une nouvelle révision.
-5. Ne déclare pas une convergence parce que le processus retourne le code 0. Exige une preuve textuelle explicite du critère de convergence dans le log.
-6. Ne compare pas deux cas qui n’ont pas les mêmes géométrie, unités, conditions, modèle physique, convention de signe et définition des coefficients.
-7. Si une étape est impossible, arrête l’étape, écris la cause exacte et conserve le statut `INCONCLUSIVE`.
+5. N’appelle pas un run convergé uniquement parce que le processus retourne le code 0. Exige un marqueur textuel explicite de convergence dans le log.
+6. N’utilise pas le même champ CFD pour entraîner et évaluer le modèle si tu veux appeler le résultat indépendant.
+7. Ne mélange pas les lignes d’une même condition pour simuler une séparation indépendante.
+8. Si le dataset ne contient pas deux conditions physiques vérifiables, arrête avec `INCONCLUSIVE`.
+9. Si le checkpoint, le contrat, la référence ou les tolérances manquent, arrête avec un blocage explicite.
+10. Ne déclare jamais `VALIDATED` si la comparaison est CFD-anchored, si le CFD est physiquement suspect ou si la reproduction diverge.
 
-## Phase 0 — état initial et source
+## État factuel connu
 
-1. Cloner ou ouvrir le dépôt sans afficher de secrets.
-2. Enregistrer le commit Git, l’environnement Python, le système, le solveur et leurs versions.
-3. Identifier la source publique exacte, son URL, son DOI ou identifiant, sa version et sa licence.
-4. Télécharger uniquement les artefacts autorisés.
-5. Calculer et enregistrer leur SHA-256 et leur taille.
-6. Vérifier que l’archive contient réellement un maillage, des champs ou uniquement des forces et moments. Ne jamais appeler une série de forces un maillage.
-
-## Phase 1 — protocole avant calcul
-
-Créer et faire approuver un protocole qui fixe avant tout run :
-
-- géométrie et révision ;
-- dimension et système de coordonnées ;
-- unité de longueur ;
-- maillage et frontières ;
-- solveur et version ;
-- équations et modèle physique ;
-- pression, température, densité, viscosité, Mach, Reynolds et angle d’attaque ;
-- convention de signe ;
-- champs comparés ;
-- méthode d’interpolation ;
-- métriques et tolérances ;
-- critères de convergence ;
-- règles `PASS`, `FAIL`, `INCONCLUSIVE` ;
-- règles de conservation, stockage, accès et révocation des données.
-
-Sans approbation ou sans protocole gelé, G0 reste bloquée.
-
-## Phase 2 — maillage
-
-Si un maillage public compatible n’existe pas, générer un maillage analytique uniquement avec un script déterministe. Tous les paramètres doivent être obligatoires et venir d’un fichier de configuration. Produire :
+Le dépôt contient :
 
 ```text
-geometry source
-mesh file
-mesh sidecar
-mesh generator version
-boundary sets
-coordinate system
-units
-point and cell counts
-cell type
-mesh SHA-256
+public NACA 0012 archive from the NLR Data Catalog
+analytic NACA 0012 mesh and SU2 conversion
+SU2 CFD run CFD-REFERENCE-002 with numerical convergence marker
+TorchScript baseline PINN-TRAIN-001
+same-CFD-field comparison PINN-COMPARISON-001/002
+condition split tool
 ```
 
-Vérifier :
+Le baseline actuel a été entraîné sur le même champ CFD que celui de la comparaison. Il est donc `CFD_ANCHORED_BASELINE_NOT_INDEPENDENT`. Ne le réutilise pas comme preuve held-out.
+
+## Phase 0 — Source et licence
+
+Identifier l’URL, le DOI ou l’identifiant public, la date de récupération, la licence et le hash de l’archive. Vérifier les conditions effectivement présentes dans l’archive. Ne pas redistribuer l’archive si la licence ne l’autorise pas.
+
+## Phase 1 — Split sans fuite
+
+Utiliser le script versionné :
+
+```bash
+python3 pilot_case/split_naca0012_by_condition.py \
+  --dataset-root <private_dataset_root>/NACA0012 \
+  --train-condition aoa_5 \
+  --eval-condition aoa_17 \
+  --output-root <private_output>/PILOT-001-condition-split \
+  --source-archive <private_archive>/NACA0012.zip
+```
+
+Le script doit vérifier et enregistrer :
 
 ```text
-no missing points
-no missing cells
-no unsupported cell type
-no zero-area cell
-no inverted cell
-all points planar when case is 2D
-wall marker exists
-farfield marker exists
-marker orientation is physically consistent
+train condition = aoa_5
+evaluation condition = aoa_17
+no shared relative paths
+no shared file hashes
+random shuffle = false
+source archive hash
+per-file hashes
+split hash
 ```
 
-Une réussite structurelle donne uniquement `STRUCTURAL_PASS`; elle ne donne jamais une validation CFD.
+Le split déjà préparé contenait 9 fichiers d’entraînement et 9 fichiers d’évaluation, avec le hash `ca9d6e9c2edcaf426241b82c10ebccd02ea9c2be595226db692a3761eabda7c0`. Recalcule ce résultat si les entrées changent.
 
-## Phase 3 — solveur indépendant
+## Phase 2 — Cas CFD indépendant par condition
 
-Sélectionner un solveur réel installé. Vérifier le binaire avec sa commande de version ou son aide. Créer un adaptateur de maillage vers le format natif du solveur. L’adaptateur doit préserver les points, cellules, frontières, unités et la provenance.
+Pour chaque condition, utiliser une configuration CFD explicite et séparée. Les paramètres doivent inclure géométrie, maillage, unités, Mach, angle d’attaque, température, pression, modèle physique, frontières, convergence et convention de signe.
 
-Créer une configuration de solveur entièrement versionnée. Interdire les valeurs cachées. Le runner doit :
-
-1. vérifier le hash du maillage ;
-2. refuser les liens symboliques et les chemins sortants ;
-3. refuser les sorties préexistantes ;
-4. exécuter le binaire réel sans interpolation shell dangereuse ;
-5. capturer stdout et stderr ;
-6. exiger les fichiers de sortie déclarés ;
-7. calculer leurs hashes ;
-8. refuser un statut convergé sans marqueur de convergence explicite.
-
-Le run CFD indépendant doit produire au minimum :
+Produire pour `aoa_5` et `aoa_17` :
 
 ```text
 solver configuration
 solver version
 mesh hash
 solver log
-convergence history
-volume field output
-surface output
-force or coefficient history
-residual evidence
+explicit convergence marker
+residual history
+volume fields
+surface fields
+force history
 reference manifest
 ```
 
-## Phase 4 — résidus et forces
+Un coefficient aérodynamique anormal, comme un drag négatif non expliqué, bloque l’acceptation physique même si le solveur converge numériquement.
 
-Parser uniquement un format déclaré. Pour SU2, lire l’en-tête réel de `history.csv`; ne jamais supposer les positions des colonnes. Vérifier :
+## Phase 3 — Entraînement PINN sans accès à l’évaluation
+
+Utiliser uniquement le split `train`. Le processus d’entraînement ne doit ouvrir aucun fichier du split `evaluation`.
+
+Le modèle doit respecter :
 
 ```text
-all required residual columns exist
-iterations strictly increase
-values are finite
-logarithmic residual transform is declared
-original history hash is recorded
-final residuals are observed
-CL/CD sign convention is recorded
+input:  time, x, y, z
+output: rho, u, v, w, T
 ```
 
-Conserver les valeurs originales et les valeurs transformées. Une convergence numérique ne vaut pas une acceptation physique. Examiner les valeurs anormales, notamment un coefficient de traînée négatif, avant toute comparaison.
+Les équations, constantes thermodynamiques, unités, seed, réseau, learning rate, nombre d’époques et méthode de normalisation doivent provenir d’une configuration versionnée. Toute normalisation doit être calculée uniquement sur le train.
 
-## Phase 5 — PINN compatible
-
-Avant le run PINN, démontrer la compatibilité entre :
+Exporter :
 
 ```text
-mesh dimension
-input coordinates
-boundary representation
-physical parameters
-model input contract
-model output contract
-PDE residual equations
-checkpoint hash
-runtime version
+TorchScript checkpoint
+training configuration
+training history
+runtime metadata
+checkpoint SHA-256
 ```
 
-Un modèle 3D `rho,u,v,w,T` ne doit pas être présenté comme un modèle 2D `u,v,p` sans adaptateur et justification vérifiables. Si le checkpoint ou le contrat manque, arrêter avec `PINN_RUN_UNAVAILABLE`.
+## Phase 4 — Évaluation strictement held-out
 
-Calculer les résidus par autodifférentiation ou méthode explicitement documentée. Ne jamais générer de champ ou de résidu de remplacement. Persister :
+Après la fin de l’entraînement, charger le checkpoint et seulement ensuite ouvrir les artefacts `evaluation`. Calculer les prédictions sur `aoa_17` sans mise à jour des poids.
+
+Persister :
 
 ```text
+evaluation input hashes
 prediction fields
-PDE residuals
+PDE residuals if physically defined
 boundary residuals
-conservation residuals
-sampling points
+field mapping
+point count
 units
-aggregation method
 metrics
+output hashes
 ```
 
-## Phase 6 — comparaison indépendante
-
-Comparer uniquement des grandeurs alignées. Enregistrer :
+Calculer au minimum, par champ :
 
 ```text
-reference file hash
-PINN output hash
-mapping/interpolation method
-common points
-excluded points
-units
-L1 error
-L2 error
-maximum error
-relative error
+mean L1
+L2 RMSE
+maximum absolute error
+relative L2
 integrated quantities
-mass/energy balance
-uncertainty and exclusions
+conservation error when applicable
 ```
 
-Les tolérances doivent provenir du protocole approuvé et être figées avant l’observation des résultats.
+Les tolérances doivent être approuvées et figées avant le run. Une métrique calculée sans tolérance approuvée ne suffit pas pour `PASS`.
 
-## Phase 7 — gates G0–G5
+## Phase 5 — Comparaison et indépendance
 
-Évaluer les gates séquentiellement :
+Vérifier que :
 
 ```text
-G0 authorization, source, protocol and acceptance criteria
-G1 geometry, mesh, topology, units and boundaries
-G2 independent CFD setup and numerical quality
-G3 reproducible solver and PINN execution provenance
-G4 residuals, balances and field evidence
-G5 independent comparison and approved tolerances
+training files ∩ evaluation files = empty
+training hashes ∩ evaluation hashes = empty
+training process never opened evaluation files
+evaluation condition differs physically from training condition
+checkpoint was created after training only
 ```
 
-Chaque gate doit contenir : statut, preuve, hash, opérateur, date et motif de blocage éventuel. Toute preuve manquante est un blocage explicite.
+Le rapport doit distinguer :
 
-## Phase 8 — double reproduction
+```text
+same-case CFD-anchored baseline
+condition-held-out evaluation
+independent physical validation
+```
 
-Créer un environnement propre. Rejouer sans modifier les entrées :
+Ne jamais appeler le premier élément une validation indépendante.
+
+## Phase 6 — Reproduction
+
+Créer un environnement propre et rejouer séparément l’entraînement et l’évaluation avec :
 
 ```text
 same source hashes
-same mesh hash
-same solver version
+same split hash
 same code commit
-same checkpoint hash
-same configuration hash
+same configs
 same seed
-same environment digest
+same runtime digest
 ```
 
-Comparer les outputs et les décisions. Si le bit-à-bit n’est pas garanti, utiliser uniquement une tolérance documentée avant le run. Conserver le rapport de reproduction et ses hashes.
+Comparer les hashes ou appliquer une tolérance explicitement fixée avant l’expérience. Une divergence de décision rend le résultat `INCONCLUSIVE`.
 
-## Phase 9 — manifeste et capsule
+## Phase 7 — Manifeste et gates G0–G5
 
 Le manifeste doit relier :
 
 ```text
-protocol -> source -> normalized inputs -> mesh -> solver run -> PINN run -> residuals -> comparison -> gates -> report
+source → split → train inputs → train run → checkpoint → held-out inputs → evaluation → metrics → reproduction → decision
 ```
 
-La capsule ne doit contenir aucun secret et doit être lisible hors application :
+Évaluer :
 
 ```text
-MANIFEST.json
-protocol/
-provenance/
-config/
-input_hashes.sha256
-output_hashes.sha256
-environment.lock.txt
-container.digest
-logs/
-residuals/
-metrics/
-comparison/
-gates/
-README_REPRODUCE.md
+G0 source, licence, protocole, critères approuvés
+G1 intégrité, géométrie, topologie, unités, frontières
+G2 qualité et convergence CFD pour chaque condition
+G3 entraînement et évaluation sans fuite
+G4 résidus, bilans et sorties attribuables
+G5 métriques held-out dans les tolérances et seconde reproduction
 ```
+
+Chaque gate contient statut, preuve, hash, date et motif de blocage.
 
 ## Conditions de publication
 
-Ne publier un post affirmant une preuve obtenue que si :
+Ne publier une preuve de généralisation PINN que si :
 
-1. le run CFD réel est convergé selon le log ;
-2. les résidus et sorties sont hashés ;
-3. le PINN compatible a réellement produit ses sorties ;
-4. la comparaison indépendante a été calculée ;
-5. les métriques satisfont les tolérances approuvées ;
-6. la seconde reproduction donne la même décision ;
+1. les deux conditions CFD sont physiquement acceptées ;
+2. `aoa_5` est la seule condition utilisée pour l’entraînement ;
+3. `aoa_17` est restée invisible jusqu’à l’évaluation ;
+4. les tolérances ont été gelées avant le run ;
+5. les résidus et métriques sont attribuables ;
+6. la seconde reproduction confirme la décision ;
 7. G0–G5 sont documentées ;
-8. la licence et les droits de redistribution sont confirmés.
+8. la licence autorise l’usage et la publication annoncés.
 
-Sinon, employer une formulation limitée : `provenance verified`, `structural mesh check completed`, `non-converged CFD run recorded` ou `INCONCLUSIVE` selon le cas. Interdire les mots `validated`, `certified`, `industrial proof` et `accuracy demonstrated` si leurs preuves ne sont pas présentes.
+Sinon, employer `INCONCLUSIVE` et décrire exactement le blocage.
 
-## Rapport final obligatoire
-
-Rédiger un rapport avec les sections suivantes :
+## Livrables obligatoires
 
 ```text
-Scope
-Source and license
-Inputs and hashes
-Mesh diagnostics
-Solver configuration
-Convergence evidence
-Residual evidence
-PINN compatibility
-Independent comparison
-G0-G5 decision table
-Reproduction result
-Known limitations
-Allowed claims
-Forbidden claims
-Exact commands
-Artifact inventory
+source_record.json
+split_manifest.json
+train_config.json
+evaluation_config.json
+model_contract.json
+solver manifests
+checkpoint.pt
+training_history.jsonl
+evaluation_metrics.json
+residual evidence
+hashes.sha256
+runtime manifest
+reproduction report
+final report
 ```
 
-Ne terminer la mission qu’après avoir indiqué séparément :
-
-```text
-what was actually executed
-what was actually measured
-what was not available
-what remains blocked
-why the final decision is PASS, FAIL or INCONCLUSIVE
-```
+Aucun secret et aucune donnée non autorisée ne doivent apparaître dans ces livrables.
