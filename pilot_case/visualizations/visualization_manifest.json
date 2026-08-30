@@ -1,0 +1,14 @@
+{
+  "source_files": [
+    "/home/ubuntu/Quantum-Hybrid-PINN/pilot_case/runs/CFD-REFERENCE-002/history.csv",
+    "/home/ubuntu/Quantum-Hybrid-PINN/pilot_case/runs/PINN-TRAIN-001/training_history.jsonl",
+    "/home/ubuntu/Quantum-Hybrid-PINN/pilot_case/runs/PINN-COMPARISON-001/comparison.json"
+  ],
+  "figures": [
+    "su2_residual_history.png",
+    "su2_force_coefficients.png",
+    "pinn_training_history.png",
+    "pinn_cfd_relative_errors.png"
+  ],
+  "status": "VISUALIZATIONS_FROM_OBSERVED_ARTIFACTS_NOT_VALIDATION"
+}
