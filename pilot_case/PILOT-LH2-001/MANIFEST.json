@@ -6,16 +6,16 @@
   "purpose": "First production-oriented demonstrator for transient monophasic LH2 internal flow with wall heat transfer and PINN-T evidence controls.",
   "scientific_scope": {
     "fluid": "parahydrogen",
-    "phase": "single_phase_liquid_pending_state_query",
-    "phase_change": false,
-    "boil_off": "NOT_APPLICABLE_FOR_FIRST_SUBCASE",
+    "phase": "two_phase_liquid_vapor_parahydrogen",
+    "phase_change": true,
+    "boil_off": "IN_SCOPE_PENDING_CFD_RUN",
     "geometry": "parametric_axisymmetric_internal_domain_pending_generation",
     "units": "SI"
   },
   "solver": {
-    "candidate": "OpenFOAM",
-    "selection_status": "PENDING_CASE_COMPATIBILITY_REVIEW",
-    "required_capabilities": ["transient_internal_flow", "energy_transfer", "declared_thermophysical_model"],
+    "candidate": "OpenFOAM_MULTIPHASE",
+    "selection_status": "PENDING_EXECUTABLE_AND_MODEL_COMPATIBILITY_REVIEW",
+    "required_capabilities": ["transient_two_phase_flow", "energy_transfer", "mass_transfer", "boiling_or_evaporation", "declared_parahydrogen_saturation_model", "boiloff_mass_balance"],
     "verified_executable_in_audited_environment": false,
     "alternative": "SU2",
     "alternative_status": "EXECUTABLE_NOT_FOUND_IN_AUDITED_ENVIRONMENT"
@@ -29,7 +29,7 @@
     "hash_algorithm": "SHA-256"
   },
   "gates": {
-    "G0": "INCONCLUSIVE_PENDING_APPROVAL",
+    "G0": "APPROVED_BY_USER_PENDING_SOLVER_MODEL_REVIEW",
     "G1": "INCONCLUSIVE_NOT_RUN",
     "G2": "INCONCLUSIVE_SOLVER_UNAVAILABLE",
     "G3": "INCONCLUSIVE_SOLVER_UNAVAILABLE",
