@@ -1,0 +1,47 @@
+{
+  "schema": "quantum-lh2-manifest.v1",
+  "pilot_id": "PILOT-LH2-001",
+  "created_at": "2026-08-31",
+  "case_status": "INCONCLUSIVE",
+  "purpose": "First production-oriented demonstrator for transient monophasic LH2 internal flow with wall heat transfer and PINN-T evidence controls.",
+  "scientific_scope": {
+    "fluid": "parahydrogen",
+    "phase": "single_phase_liquid_pending_state_query",
+    "phase_change": false,
+    "boil_off": "NOT_APPLICABLE_FOR_FIRST_SUBCASE",
+    "geometry": "parametric_axisymmetric_internal_domain_pending_generation",
+    "units": "SI"
+  },
+  "solver": {
+    "candidate": "OpenFOAM",
+    "selection_status": "PENDING_CASE_COMPATIBILITY_REVIEW",
+    "required_capabilities": ["transient_internal_flow", "energy_transfer", "declared_thermophysical_model"],
+    "verified_executable_in_audited_environment": false,
+    "alternative": "SU2",
+    "alternative_status": "EXECUTABLE_NOT_FOUND_IN_AUDITED_ENVIRONMENT"
+  },
+  "evidence": {
+    "synthetic_data_allowed": true,
+    "synthetic_data_as_reference": false,
+    "training_dataset": "CFD-BASELINE",
+    "evaluation_dataset": "CFD-INDEPENDENT",
+    "evaluation_hidden_during_training": true,
+    "hash_algorithm": "SHA-256"
+  },
+  "gates": {
+    "G0": "INCONCLUSIVE_PENDING_APPROVAL",
+    "G1": "INCONCLUSIVE_NOT_RUN",
+    "G2": "INCONCLUSIVE_SOLVER_UNAVAILABLE",
+    "G3": "INCONCLUSIVE_SOLVER_UNAVAILABLE",
+    "G4": "INCONCLUSIVE_NOT_RUN",
+    "G5": "INCONCLUSIVE_NOT_RUN",
+    "G6": "INCONCLUSIVE_NOT_RUN"
+  },
+  "source_registry": "sources.yaml",
+  "acceptance_criteria": "acceptance_criteria.yaml",
+  "security": {
+    "secrets_in_case": false,
+    "personal_identifiers_in_case": false,
+    "operational_lh2_instructions": false
+  }
+}

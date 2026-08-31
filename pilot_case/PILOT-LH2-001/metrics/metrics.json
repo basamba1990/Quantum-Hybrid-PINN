@@ -1,0 +1,20 @@
+{
+  "schema": "quantum-lh2-metrics.v1",
+  "pilot_id": "PILOT-LH2-001",
+  "status": "INCONCLUSIVE",
+  "computed_at": "2026-08-31",
+  "dataset": {
+    "training": "CFD-BASELINE",
+    "evaluation": "CFD-INDEPENDENT",
+    "evaluation_hidden_during_training": true
+  },
+  "fields": ["temperature", "pressure", "density", "specific_internal_energy"],
+  "metrics": {},
+  "blocking_reasons": [
+    "No validated CFD baseline output in the audited environment.",
+    "No independent CFD output.",
+    "No frozen numeric tolerances approved by the scientific owner.",
+    "No PINN checkpoint trained from declared real training data.",
+    "No clean reproduction run."
+  ]
+}

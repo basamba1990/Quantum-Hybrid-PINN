@@ -27,9 +27,22 @@ export default function NewProjectPage() {
   const { register, handleSubmit, watch } = useForm<{
     name: string
     description: string
+    scenario: string
+    solver: string
+    hydrogenForm: string
+    temperatureK: string
+    pressureBar: string
     video?: FileList
     transcription?: string
-  }>()
+  }>({
+    defaultValues: {
+      scenario: 'LH2_INTERNAL_TRANSIENT',
+      solver: 'OpenFOAM_THERMO_COMPRESSIBLE_CANDIDATE',
+      hydrogenForm: 'PARAHYDROGEN_PENDING_APPROVAL',
+      temperatureK: '20.28',
+      pressureBar: '1.01325'
+    }
+  })
 
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -61,7 +74,7 @@ export default function NewProjectPage() {
     return project.id
   }
 
-  const onSubmit = async (formData: { name: string; description: string; video?: FileList; transcription?: string }) => {
+  const onSubmit = async (formData: { name: string; description: string; scenario: string; solver: string; hydrogenForm: string; temperatureK: string; pressureBar: string; video?: FileList; transcription?: string }) => {
     setLoading(true)
     setErrorMsg(null)
     
@@ -113,7 +126,10 @@ export default function NewProjectPage() {
           description: formData.description,
           category: normalizeScenarioType(formData.name),
           video_url: videoUrl,
-          transcription: formData.transcription || null,
+              transcription: [
+                formData.transcription,
+                `PILOT-LH2-001 | scenario=${formData.scenario} | solver=${formData.solver} | hydrogen_form=${formData.hydrogenForm} | reference_temperature_K=${formData.temperatureK} | reference_pressure_bar=${formData.pressureBar} | evidence_status=INCONCLUSIVE`
+              ].filter(Boolean).join('\n\n') || null,
           user_id: user.id,
           status: 'draft'
           // metadata column removed to avoid schema mismatch error
@@ -269,8 +285,56 @@ export default function NewProjectPage() {
               <div className="p-2.5 bg-emerald-500/10 rounded-xl">
                 <FileText className="w-5 h-5 text-emerald-400" />
               </div>
-              <h2 className="text-xl font-bold text-white">Physical Data</h2>
+              <div>
+                <h2 className="text-xl font-bold text-white">LH2 Production Pilot</h2>
+                <p className="text-[10px] uppercase tracking-widest text-emerald-300/70 mt-1">PILOT-LH2-001 · evidence-first</p>
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 sm:col-span-2">
+                <label htmlFor="scenario" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Scenario</label>
+                <select id="scenario" {...register('scenario')} className="w-full border border-white/10 bg-slate-950/60 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                  <option value="LH2_INTERNAL_TRANSIENT">LH2 · internal transient + wall heat transfer</option>
+                  <option value="LH2_STORAGE_THERMAL_SCREENING">LH2 · storage thermal screening</option>
+                </select>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <label htmlFor="solver" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Solver contract</label>
+                <select id="solver" {...register('solver')} className="w-full border border-white/10 bg-slate-950/60 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                  <option value="OpenFOAM_THERMO_COMPRESSIBLE_CANDIDATE">OpenFOAM · thermo-compressible candidate</option>
+                  <option value="SU2_COMPRESSIBLE_ALTERNATIVE">SU2 · compressible alternative</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="hydrogenForm" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">H₂ form</label>
+                <select id="hydrogenForm" {...register('hydrogenForm')} className="w-full border border-white/10 bg-slate-950/60 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                  <option value="PARAHYDROGEN_PENDING_APPROVAL">Parahydrogen · pending approval</option>
+                  <option value="NORMAL_HYDROGEN_PENDING_APPROVAL">Normal hydrogen · pending approval</option>
+                  <option value="ORTHOHYDROGEN_PENDING_APPROVAL">Orthohydrogen · pending approval</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="temperatureK" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Reference T (K)</label>
+                <input id="temperatureK" type="number" step="0.01" {...register('temperatureK')} className="w-full border border-white/10 bg-white/5 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="pressureBar" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Reference p (bar)</label>
+                <input id="pressureBar" type="number" step="0.00001" {...register('pressureBar')} className="w-full border border-white/10 bg-white/5 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 p-4 bg-amber-500/5 border border-amber-500/15 rounded-xl">
+              <ShieldCheck className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+              <p className="text-[10px] text-amber-200/80 leading-relaxed uppercase tracking-tight">Statut initial INCONCLUSIVE. Les propriétés NIST, la convergence CFD, les tolérances et la reproduction doivent être prouvées avant tout PASS.</p>
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-gray-500 border-t border-white/5 pt-5">
+              <span>Train: CFD-BASELINE</span><span>Eval: CFD-INDEPENDENT</span>
+            </div>
+
+            <div className="pt-4 border-t border-white/5">
+              <h3 className="text-sm font-bold text-white mb-6">Physical Data</h3>
 
             <div className="space-y-6">
               <div className="space-y-2">
@@ -334,6 +398,7 @@ export default function NewProjectPage() {
                     The PINN V8 engine will use this text to extract pressure, temperature and flux variables through GPT-4o.
                   </p>
                 </div>
+              </div>
               </div>
             </div>
           </div>

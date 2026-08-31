@@ -1,0 +1,51 @@
+schema: quantum-lh2-sources.v1
+pilot_id: PILOT-LH2-001
+consulted_at: '2026-08-31'
+entries:
+  - id: NIST-H2-WEBBOOK
+    title: 'NIST Chemistry WebBook — Hydrogen'
+    url: 'https://webbook.nist.gov/cgi/cbook.cgi?ID=1333-74-0'
+    sections_used: ['identity', 'formula', 'molecular_weight', 'fluid_properties_link']
+    use: 'Identité chimique H2 et accès aux données publiques.'
+    limitations: 'La fiche d’identité ne fournit pas à elle seule un état liquide validé pour le cas.'
+    status: VERIFIED_PUBLIC
+  - id: NIST-FLUID
+    title: 'NIST Chemistry WebBook — Thermophysical Properties of Fluid Systems'
+    url: 'https://webbook.nist.gov/chemistry/fluid/'
+    sections_used: ['available_properties', 'species_selection', 'units', 'data_type', 'standard_state_convention']
+    use: 'Densité, Cp, enthalpie, énergie interne, viscosité, conductivité et autres propriétés selon état sélectionné.'
+    limitations: 'Chaque valeur doit être requêtée pour une espèce, un état, une phase, des unités et une convention explicites.'
+    status: VERIFIED_PUBLIC
+  - id: NIST-EOS-H2-ISOMERS
+    title: 'Fundamental Equations of State for Parahydrogen, Normal Hydrogen, and Orthohydrogen'
+    url: 'https://www.nist.gov/publications/fundamental-equations-state-parahydrogen-normal-hydrogen-and-orthohydrogen'
+    sections_used: ['abstract', 'scope', 'uncertainty_summary']
+    use: 'Choix d’une forme H2 et fermeture EOS documentée.'
+    limitations: 'Les incertitudes générales de la publication ne remplacent pas une vérification au point d’état et des propriétés transport.'
+    status: VERIFIED_PUBLIC
+  - id: DOE-HYDROGEN-STORAGE
+    title: 'U.S. Department of Energy — Hydrogen Storage'
+    url: 'https://www.energy.gov/cmei/fuels/hydrogen-storage'
+    sections_used: ['storage_context', 'mass_and_volume_context']
+    use: 'Contexte public du stockage de l’hydrogène.'
+    limitations: 'Ne constitue pas une validation du cas numérique ni une table d’état utilisée par le solveur.'
+    status: VERIFIED_PUBLIC
+  - id: NASA-CFM
+    title: 'NASA — Cryogenic Fluid Management'
+    url: 'https://www.nasa.gov/space-technology-mission-directorate/tdm/cryogenic-fluid-management-cfm/'
+    sections_used: ['definition', 'storage_transfer_measurement_context']
+    use: 'Cadrage public du stockage, transfert, mesure et boil-off cryogéniques.'
+    limitations: 'Ne fournit pas les sorties CFD du pilote.'
+    status: VERIFIED_PUBLIC
+  - id: NASA-NTRS-CPS
+    title: 'NASA NTRS — Cryogenic Propulsion Stage'
+    url: 'https://ntrs.nasa.gov/citations/20110015783'
+    sections_used: ['abstract', 'passive_active_cryo_management']
+    use: 'Contexte public de gestion des pertes par boil-off.'
+    limitations: 'Présentation d’architecture, pas validation expérimentale du cas.'
+    status: VERIFIED_PUBLIC
+thermodynamic_policy:
+  selected_species: parahydrogen
+  selection_status: PENDING_SCIENTIFIC_APPROVAL
+  no_mixing_between_isomer_tables: true
+  missing_state_or_property: INCONCLUSIVE

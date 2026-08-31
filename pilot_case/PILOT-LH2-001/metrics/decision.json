@@ -1,0 +1,22 @@
+{
+  "schema": "quantum-lh2-decision.v1",
+  "pilot_id": "PILOT-LH2-001",
+  "decision": "INCONCLUSIVE",
+  "evaluated_at": "2026-08-31",
+  "basis": "Pre-flight audit only; no production CFD or PINN evidence was executed.",
+  "gates": {
+    "G0": {"status": "INCONCLUSIVE", "reason": "Scientific approval of state point, properties and numeric tolerances is pending."},
+    "G1": {"status": "INCONCLUSIVE", "reason": "Independent parametric geometry and solver mesh checks are not executed."},
+    "G2": {"status": "INCONCLUSIVE", "reason": "Required CFD executable and real convergence log are unavailable in the audited environment."},
+    "G3": {"status": "INCONCLUSIVE", "reason": "Independent CFD case has not been executed."},
+    "G4": {"status": "INCONCLUSIVE", "reason": "Leakage-closed PINN training has not been executed for this pilot."},
+    "G5": {"status": "INCONCLUSIVE", "reason": "No held-out metrics exist and tolerances are pending approval."},
+    "G6": {"status": "INCONCLUSIVE", "reason": "Clean reproduction has not been executed."}
+  },
+  "prohibited_interpretations": [
+    "Do not call this result PASS.",
+    "Do not call this result experimental validation.",
+    "Do not publish a credibility score or certification level.",
+    "Do not infer boil-off or two-phase behavior from this monophasic architecture."
+  ]
+}
