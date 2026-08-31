@@ -2,15 +2,15 @@
   "schema": "quantum-lh2-decision.v1",
   "pilot_id": "PILOT-LH2-001",
   "decision": "INCONCLUSIVE",
-  "evaluated_at": "2026-08-31",
-  "basis": "Pre-flight audit only; no production CFD or PINN evidence was executed.",
+  "evaluated_at": "2026-08-31T11:31:07Z",
+  "basis": "Pre-flight plus production API/Supabase audit; no executable CFD run, held-out PINN evaluation or clean reproduction evidence was found.",
   "gates": {
     "G0": {"status": "INCONCLUSIVE", "reason": "Scientific approval of state point, properties and numeric tolerances is pending."},
     "G1": {"status": "INCONCLUSIVE", "reason": "Independent parametric geometry and solver mesh checks are not executed."},
-    "G2": {"status": "INCONCLUSIVE", "reason": "Required CFD executable and real convergence log are unavailable in the audited environment."},
-    "G3": {"status": "INCONCLUSIVE", "reason": "Independent CFD case has not been executed."},
+    "G2": {"status": "INCONCLUSIVE", "reason": "SU2_CFD and OpenFOAM executables are absent locally; the production API exposes import/simulation routes but no verified direct CFD executable run or convergence log."},
+    "G3": {"status": "INCONCLUSIVE", "reason": "No independent CFD case has been executed or persisted for PILOT-LH2-001."},
     "G4": {"status": "INCONCLUSIVE", "reason": "Leakage-closed PINN training has not been executed for this pilot."},
-    "G5": {"status": "INCONCLUSIVE", "reason": "No held-out metrics exist and tolerances are pending approval."},
+    "G5": {"status": "INCONCLUSIVE", "reason": "No held-out metrics exist, tolerances remain PENDING_APPROVAL, and the production cfd_datasets query returned no LH2 records."},
     "G6": {"status": "INCONCLUSIVE", "reason": "Clean reproduction has not been executed."}
   },
   "prohibited_interpretations": [

@@ -52,3 +52,11 @@ Le document public « Cryogenic Propulsion Stage » décrit un étage cryogéniq
 
 ## Règle de décision scientifique
 Les sources [1]–[3] seront utilisées pour les propriétés et la fermeture thermodynamique, sous réserve d’un état, d’une phase, d’une convention et d’unités explicites. Les sources [4]–[6] seront utilisées uniquement pour le contexte LH2, stockage, transfert thermique et boil-off. Elles ne pourront pas transformer une simulation numérique en validation expérimentale.
+
+## Vérification exécutable et API — 2026-08-31
+
+Dans l’environnement audité, `SU2_CFD`, `gmsh`, `rhoPimpleFoam`, `chtMultiRegionFoam`, `buoyantPimpleFoam` et `compressibleInterFoam` sont absents du PATH. Aucune version CFD exécutable n’a donc pu être vérifiée localement.
+
+L’API distante `https://quantum-pinn-api-qef2.onrender.com/health` répond `{"status":"healthy"}` et la racine indique la version API `8.0.13`, sur CPU. Ses routes publiques listées concernent l’import CFD, les analyses et les simulations hybrides ; l’inspection OpenAPI n’a pas révélé de route publique déclarant un lancement direct de `SU2_CFD`, OpenFOAM ou Gmsh. La présence d’une route d’import ou de prédiction ne constitue pas une preuve d’exécution CFD ni de convergence.
+
+Conclusion : l’exécutable CFD reste **NON VÉRIFIÉ** pour `PILOT-LH2-001`. Le statut scientifique ne peut pas passer à `VALIDATED` sur la seule base de la disponibilité HTTP de l’API.
