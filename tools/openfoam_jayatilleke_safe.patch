@@ -1,0 +1,23 @@
+--- /usr/lib/openfoam/openfoam2512/src/phaseSystemModels/reactingEuler/multiphaseSystem/derivedFvPatchFields/alphatPhaseChangeJayatillekeWallFunction/alphatPhaseChangeJayatillekeWallFunctionFvPatchScalarField.C	2025-12-19 00:00:00.000000000 +0000
++++ /tmp/alphatPhaseChangeJayatillekeWallFunctionFvPatchScalarField.C.safe	2026-09-01 00:00:00.000000000 +0000
+@@ -70,7 +70,10 @@
+ ) const
+ {
+-    return 9.24*(pow(Prat, 0.75) - 1)*(1 + 0.28*exp(-0.007*Prat));
++    // Cryogenic guard: the fractional power is only defined for Prat > 0.
++    // Keep the guard local to the wall function and retain a diagnostic floor.
++    const scalarField PratSafe(max(Prat, scalar(1e-8)));
++    return 9.24*(pow(PratSafe, 0.75) - 1)
++       *(1 + 0.28*exp(-0.007*PratSafe));
+ }
+@@ -168,10 +171,13 @@
+-    const scalarField Pr(muw/alphaw);
++    // Cryogenic thermal-diffusivity floor.  A zero/negative alphaw would
++    // otherwise create a non-positive Prat and trigger pow(Prat, 0.75).
++    const scalarField alphawSafe(max(alphaw, scalar(1e-12)));
++    const scalarField Pr(max(muw/alphawSafe, scalar(1e-8)));
+ 
+     // Molecular-to-turbulent Prandtl number ratio
+-    const scalarField Prat(Pr/Prt_);
++    const scalarField Prat(max(Pr/Prt_, scalar(1e-8)));
+*** End Patch
