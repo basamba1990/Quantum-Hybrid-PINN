@@ -31,3 +31,24 @@ Le type personnalisé a été enregistré sous la sélection runtime, mais la cl
 Aucun coefficient du dictionnaire `phaseProperties` n’est explicitement nul dans les blocs principaux inspectés. Il serait incorrect de conclure que la FPE est résolue par une simple augmentation de `residualAlpha`. La prochaine expérience contrôlée doit isoler successivement la traînée, la masse virtuelle, le transfert thermique et la dispersion, puis journaliser `rho`, `p`, `T`, `alpha`, `d` et les coefficients interfacials avant l’assemblage momentum.
 
 Le statut reste **INCONCLUSIVE** et aucun run interrompu ne doit être enregistré comme baseline ou indépendant.
+
+## Test instrumenté détaillé
+
+Le test contrôlé a été exécuté avec `fieldMinMax` à `t=0` et une journalisation des dictionnaires interfacials avant le démarrage. Le solveur conserve `alpha.gas = 0,01`, puis avance jusqu’à `Time = 0,00011999`. À l’itération suivante, il résout encore la fraction gazeuse dans l’intervalle `0,0099998742–0,0100000002`, puis s’arrête dans :
+
+```text
+alphatPhaseChangeJayatillekeWallFunctionFvPatchScalarField::Psmooth
+return 9.24*(pow(Prat, 0.75) - 1)*(1 + 0.28*exp(-0.007*Prat));
+```
+
+La FPE vient donc de `pow(Prat, 0.75)` avec un `Prat` non positif ou non fini. Dans OpenFOAM 2512, `Prat = (muw/alphaw)/Prt`; le chemin fautif est appelé par `correctEnergyTransport()` avant/après l’assemblage momentum de la phase. Le passage en turbulence laminaire n’élimine pas le problème, car la wall function est encore évaluée dans le transport énergétique.
+
+Les diagnostics montrent également `Tf.gasAndLiquid` compris entre 21,0100 et 21,0613 K et un transfert de masse interfacial initial non nul mais faible, jusqu’à `1,8560e-6` dans le premier cycle. La fraction gazeuse n’est donc plus le diviseur nul. Le candidat prioritaire est une diffusivité thermique de paroi `alphaw` nulle, négative ou non cohérente avec le transport `const` utilisé dans le cas temporaire ; le dictionnaire constTransport avait été régularisé avec des scalaires, mais la wall function Jayatilleke reste inadaptée sans garde explicite sur `Prat`.
+
+La correction robuste ne consiste pas à modifier arbitrairement `Cvm`, Schiller–Naumann ou Burns. Il faut soit fournir un transport cryogénique positif cohérent avec CoolProp et une wall function bornant `Prat` à une valeur strictement positive, soit désactiver la wall function Jayatilleke pour un test thermo de base et utiliser une condition `fixedValue`/`zeroGradient` explicitement documentée. Pour un modèle de boil-off validé, il faudra ensuite une wall function cryogénique dédiée qui conserve le flux de changement de phase tout en protégeant les arguments des fonctions fractionnelles.
+
+Le test est un diagnostic réussi, pas une exécution CFD validée. Le statut reste **INCONCLUSIVE**.
+
+## Paramètres interfacials journalisés
+
+Les valeurs de dictionnaire observées sont : `d = 4,5e-4 m`, `residualAlpha = 1e-4` dans les phases, `SchillerNaumann` avec `residualRe = 1e-3`, `Cvm = 0,5`, transfert thermique `spherical`/`RanzMarshall` avec `residualAlpha = 1e-3`, dispersion `Burns` avec `sigma = 0,7`, `Ctd = 1,0`, et `pMin = 10000 Pa`. Aucun de ces coefficients n’est explicitement nul.
