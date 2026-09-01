@@ -1,0 +1,35 @@
+{
+  "schema": "quantum-pilot-acceptance-freeze.v1",
+  "case_id": "PILOT-001",
+  "status": "TEMPLATE_REQUIRES_DOMAIN_APPROVAL",
+  "purpose": "Freeze acceptance criteria before the held-out evaluation.",
+  "training_condition": "aoa_5",
+  "evaluation_condition": "aoa_17",
+  "evaluation_manifest_hidden_from_training": true,
+  "thresholds": {
+    "pressure_l2_relative": "PENDING_DOMAIN_APPROVAL",
+    "velocity_l2_relative": "PENDING_DOMAIN_APPROVAL",
+    "pressure_max_absolute": "PENDING_DOMAIN_APPROVAL",
+    "mass_balance_relative": "PENDING_DOMAIN_APPROVAL",
+    "residual_mass_l2": "PENDING_DOMAIN_APPROVAL",
+    "residual_momentum_l2": "PENDING_DOMAIN_APPROVAL"
+  },
+  "required_hard_gates": [
+    "cfd_physical_reference_accepted",
+    "data_independence_verified",
+    "criteria_frozen_before_evaluation",
+    "independent_reproduction_completed"
+  ],
+  "decision_policy": {
+    "pass": "All hard gates pass and all approved thresholds pass.",
+    "fail": "A declared failure condition is observed.",
+    "inconclusive": "Evidence is missing, contradictory, or the CFD reference is not physically accepted.",
+    "invalid": "Data leakage or post-hoc criteria modification is detected."
+  },
+  "approval": {
+    "domain_owner": "PENDING",
+    "independent_reviewer": "PENDING",
+    "approved_at": "PENDING",
+    "criteria_sha256": "PENDING"
+  }
+}
