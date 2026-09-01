@@ -44,7 +44,7 @@ boundaryField
 
     wall2
     {
-        type            compressible::alphatWallBoilingWallFunction;
+        type            compressible::alphatPhaseChangeJayatillekeWallFunction;
         phaseType       vapor;
         otherPhase      liquid;
         Prt             0.85;
