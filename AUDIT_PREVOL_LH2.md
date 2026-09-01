@@ -60,3 +60,13 @@ Dans l’environnement audité, `SU2_CFD`, `gmsh`, `rhoPimpleFoam`, `chtMultiReg
 L’API distante `https://quantum-pinn-api-qef2.onrender.com/health` répond `{"status":"healthy"}` et la racine indique la version API `8.0.13`, sur CPU. Ses routes publiques listées concernent l’import CFD, les analyses et les simulations hybrides ; l’inspection OpenAPI n’a pas révélé de route publique déclarant un lancement direct de `SU2_CFD`, OpenFOAM ou Gmsh. La présence d’une route d’import ou de prédiction ne constitue pas une preuve d’exécution CFD ni de convergence.
 
 Conclusion : l’exécutable CFD reste **NON VÉRIFIÉ** pour `PILOT-LH2-001`. Le statut scientifique ne peut pas passer à `VALIDATED` sur la seule base de la disponibilité HTTP de l’API.
+
+## Configuration thermodynamique diphasique — 2026-09-01
+
+Le portail NIST Fluid Properties pour l’identifiant parahydrogène `B5000001` a fourni une table de saturation entre 21,010 K et 32,510 K, avec pression en MPa, densité, énergie interne, enthalpie, capacités calorifiques, viscosité et conductivité pour les phases liquide et vapeur. Le point d’ébullition normal affiché par NIST est 20,271 K ; la table extraite commence à 21,010 K et ne doit donc pas être extrapolée en dessous de sa plage. Le portail NIST liste également une tension superficielle sur la branche liquide.
+
+Sources : https://webbook.nist.gov/cgi/fluid.cgi?ID=B5000001&Action=Page ; https://webbook.nist.gov/cgi/inchi?ID=C1333740&Mask=4 ; https://www.nist.gov/publications/fundamental-equations-state-parahydrogen-normal-hydrogen-and-orthohydrogen
+
+OpenFOAM 2512 fournit `hTabulated` et `icoTabulated`, ce qui permet une interpolation tabulée de Cp et de densité, mais `icoTabulated` est explicitement incompressible et ne représente pas la dépendance pression–densité. La configuration générée est donc une **configuration de transition traçable**, basée sur les propriétés NIST de saturation, et non une EOS compressible NIST/REFPROP complète. Une validation LH2 avec forte variation de pression nécessite un modèle thermo personnalisé ou une interface REFPROP/CoolProp vérifiée et documentée.
+
+La table `Tsat_parahydrogen_NIST.csv` convertit les pressions NIST MPa en Pa et conserve la relation pression–température de saturation. Les dictionnaires OpenFOAM gaz/liquide utilisent la masse molaire H2 = 2,01588 et les tables NIST de densité, Cp, viscosité et conductivité. Le statut reste `INCONCLUSIVE` jusqu’à validation du modèle de compressibilité, du changement de phase et des bilans dans le cas LH2 réel.
