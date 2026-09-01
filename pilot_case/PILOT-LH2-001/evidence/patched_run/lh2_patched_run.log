@@ -1,0 +1,16 @@
+Restore 0/ from 0.orig/
+Running blockMesh on /workspace/pilot_case/PILOT-LH2-001/openfoam_wallBoiling_base
+Running reactingTwoPhaseEulerFoam on /workspace/pilot_case/PILOT-LH2-001/openfoam_wallBoiling_base
+endTime         4;
+
+
+--> FOAM FATAL ERROR: (openfoam-2512)
+Cannot open file "2/T.liquid"
+
+    From int main(int, char**)
+    in file foamDictionary.C at line 421.
+
+FOAM exiting
+
+Running reactingTwoPhaseEulerFoam on /workspace/pilot_case/PILOT-LH2-001/openfoam_wallBoiling_base
+RUN_EXIT=134
