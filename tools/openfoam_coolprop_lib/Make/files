@@ -1,0 +1,2 @@
+openfoam_coolPropThermos.C
+LIB = $(FOAM_USER_LIBBIN)/liblh2CoolPropThermo

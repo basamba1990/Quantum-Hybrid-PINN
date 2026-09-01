@@ -1,0 +1,4 @@
+SOURCE = \
+openfoam_coolPropThermos.C \
+
+# sources
