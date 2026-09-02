@@ -37,6 +37,7 @@ from analysis_processor import router as analysis_router, init_processor
 from pgd_pinn_api import router as pgd_pinn_router
 from export_router import router as export_router
 from cfd_import_router import router as cfd_import_router
+from cfd_worker_router import router as cfd_worker_router
 from hydrogen_api_v2 import router as hydrogen_v2_router
 
 # Sweet Spot Analyzer — Lazy import (Industrial Grade Stability Analysis)
@@ -94,6 +95,7 @@ app.include_router(analysis_router)
 app.include_router(pgd_pinn_router)
 app.include_router(export_router)
 app.include_router(cfd_import_router)
+app.include_router(cfd_worker_router)
 app.include_router(hydrogen_v2_router)
 
 # Lazy import du pipeline CAO industriel (volets 1–9) pour ne pas bloquer
