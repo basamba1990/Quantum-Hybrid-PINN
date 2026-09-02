@@ -1,0 +1,271 @@
+diff --git a/tools/openfoam_coolprop_lib/openfoam_coolPropThermo.H b/tools/openfoam_coolprop_lib/openfoam_coolPropThermo.H
+--- a/tools/openfoam_coolprop_lib/openfoam_coolPropThermo.H
++++ b/tools/openfoam_coolprop_lib/openfoam_coolPropThermo.H
+@@ -1,6 +1,7 @@
+ #ifndef openfoam_coolPropThermo_H
+ #define openfoam_coolPropThermo_H
+ 
++#include <cmath>
+ #include "specie.H"
+ #include "dictionary.H"
+ #include "IOstreams.H"
+@@ -16,40 +17,127 @@
+ {
+     scalar Hf_;
+     scalar Sf_;
+-
+-    static scalar safeT(const scalar T)
+-    {
+-        // Validated pilot domain: liquid-vapour parahydrogen around saturation.
+-        // Do not let the generic Newton inversion query outside this domain.
+-        return min(max(T, scalar(13.8033)), scalar(32.50));
+-    }
+-
+-    static scalar cpCoolProp(const scalar p, const scalar T)
+-    {
+-        return max(PropsSI("C", "P", p, "T", safeT(T), "ParaHydrogen"), scalar(1.0));
+-    }
+-
+-    static scalar hCoolProp(const scalar p, const scalar T)
+-    {
+-        return PropsSI("H", "P", p, "T", safeT(T), "ParaHydrogen");
+-    }
+-
+-    static scalar sCoolProp(const scalar p, const scalar T)
+-    {
+-        return PropsSI("S", "P", p, "T", safeT(T), "ParaHydrogen");
+-    }
+-
+-    static scalar psiCoolProp(const scalar p, const scalar T)
+-    {
+-        // OpenFOAM psi is d(rho)/d(p)|T. The inherited icoTabulated
+-        // implementation returns zero, which causes a division by zero
+-        // during heRhoThermo::calculate() and phase momentum assembly.
+-        const scalar dp = max(100.0, 1e-3*max(mag(p), scalar(1.0)));
+-        const scalar pLo = max(1000.0, p - dp);
+-        const scalar pHi = p + dp;
+-        const scalar rhoLo = PropsSI("D", "P", pLo, "T", safeT(T), "ParaHydrogen");
+-        const scalar rhoHi = PropsSI("D", "P", pHi, "T", safeT(T), "ParaHydrogen");
+-        return max((rhoHi - rhoLo)/(pHi - pLo), scalar(1e-12));
++    scalar pRef_;
++    scalar pMin_;
++    scalar pMax_;
++    scalar TMargin_;
++    scalar satHalfWidth_;
++
++    static scalar finiteValue(const char* name, const scalar value)
++    {
++        if (!std::isfinite(static_cast<double>(value)))
++        {
++            FatalErrorInFunction << name << " is non-finite: " << value
++                << exit(FatalError);
++        }
++        return value;
++    }
++
++    static scalar positiveValue(const char* name, const scalar value)
++    {
++        finiteValue(name, value);
++        if (value <= scalar(0))
++        {
++            FatalErrorInFunction << name << " is not positive: " << value
++                << exit(FatalError);
++        }
++        return value;
++    }
++
++    scalar absolutePressure(const scalar p) const
++    {
++        const scalar pa = finiteValue("p", p) + pRef_;
++        if (!std::isfinite(static_cast<double>(pa)) || pa < pMin_ || pa > pMax_)
++        {
++            FatalErrorInFunction
++                << "absolute pressure outside [" << pMin_ << ", " << pMax_
++                << "] Pa: p=" << p << ", pRef=" << pRef_
++                << exit(FatalError);
++        }
++        return pa;
++    }
++
++    void temperatureBounds(const scalar p, scalar& Tmin, scalar& Tmax) const
++    {
++        const scalar pa = absolutePressure(p);
++        const scalar Ttriple = positiveValue("Ttriple", PropsSI("Ttriple", "ParaHydrogen"));
++        const scalar Tcrit = positiveValue("Tcrit", PropsSI("Tcrit", "ParaHydrogen"));
++        const scalar Pcrit = positiveValue("Pcrit", PropsSI("pcrit", "ParaHydrogen"));
++        Tmin = Ttriple + TMargin_;
++        Tmax = Tcrit - TMargin_;
++        if (pa < Pcrit)
++        {
++            const scalar Tsat = positiveValue
++            (
++                "Tsat", PropsSI("T", "P", pa, "Q", scalar(0), "ParaHydrogen")
++            );
++            if (!(Ttriple < Tsat && Tsat < Tcrit))
++            {
++                FatalErrorInFunction << "invalid Tsat=" << Tsat << " K at p="
++                    << pa << " Pa" << exit(FatalError);
++            }
++            Tmin = max(Tmin, Tsat - satHalfWidth_);
++            Tmax = min(Tmax, Tsat + satHalfWidth_);
++        }
++        if (!(Tmin < Tmax))
++        {
++            FatalErrorInFunction << "empty temperature window at p=" << pa
++                << ": [" << Tmin << ", " << Tmax << "] K"
++                << exit(FatalError);
++        }
++    }
++
++    scalar checkedTemperature(const scalar p, const scalar T) const
++    {
++        scalar Tmin = 0;
++        scalar Tmax = 0;
++        const scalar pa = absolutePressure(p);
++        temperatureBounds(p, Tmin, Tmax);
++        const scalar temperature = finiteValue("T", T);
++        if (temperature < Tmin || temperature > Tmax)
++        {
++            FatalErrorInFunction << "T outside dynamic bounds at p=" << pa
++                << " Pa: T=" << temperature << " K, expected ["
++                << Tmin << ", " << Tmax << "] K" << exit(FatalError);
++        }
++        if (pa < PropsSI("pcrit", "ParaHydrogen"))
++        {
++            const scalar Tsat = PropsSI("T", "P", pa, "Q", scalar(0), "ParaHydrogen");
++            if (mag(temperature - Tsat) < scalar(1e-6))
++            {
++                FatalErrorInFunction << "ambiguous saturated P,T state: p="
++                    << pa << " Pa, T=" << temperature << " K"
++                    << exit(FatalError);
++            }
++        }
++        return temperature;
++    }
++
++    scalar rhoCoolProp(const scalar p, const scalar T) const
++    {
++        return positiveValue
++        (
++            "rho", PropsSI("D", "P", absolutePressure(p), "T", checkedTemperature(p, T), "ParaHydrogen")
++        );
++    }
++
++    scalar psiCoolProp(const scalar p, const scalar T) const
++    {
++        const scalar pa = absolutePressure(p);
++        const scalar temperature = checkedTemperature(p, T);
++        const scalar dp = max(100.0, 1e-3*max(mag(pa), scalar(1.0)));
++        const scalar pLo = max(pMin_, pa - dp);
++        const scalar pHi = min(pMax_, pa + dp);
++        if (!(pHi > pLo))
++        {
++            FatalErrorInFunction << "invalid pressure stencil pLo=" << pLo
++                << ", pHi=" << pHi << exit(FatalError);
++        }
++        checkedTemperature(pLo - pRef_, temperature);
++        checkedTemperature(pHi - pRef_, temperature);
++        const scalar rhoLo = rhoCoolProp(pLo - pRef_, temperature);
++        const scalar rhoHi = rhoCoolProp(pHi - pRef_, temperature);
++        return positiveValue("psi", finiteValue("psi", (rhoHi-rhoLo)/(pHi-pLo)));
+     }
+ 
+ public:
+@@ -57,65 +145,65 @@
+     :
+         EquationOfState(dict),
+         Hf_(dict.subDict("thermodynamics").getOrDefault<scalar>("Hf", 0)),
+-        Sf_(dict.subDict("thermodynamics").getOrDefault<scalar>("Sf", 0))
++        Sf_(dict.subDict("thermodynamics").getOrDefault<scalar>("Sf", 0)),
++        pRef_(dict.subDict("thermodynamics").getOrDefault<scalar>("pRef", 0)),
++        pMin_(dict.subDict("thermodynamics").getOrDefault<scalar>("pMin", 10000)),
++        pMax_(dict.subDict("thermodynamics").getOrDefault<scalar>("pMax", 2000000)),
++        TMargin_(dict.subDict("thermodynamics").getOrDefault<scalar>("Tmargin", 0.05)),
++        satHalfWidth_(dict.subDict("thermodynamics").getOrDefault<scalar>("saturationHalfWidth", 6.0))
+     {}
+ 
+     coolPropThermo(const word& name, const coolPropThermo& rhs)
+     :
+-        EquationOfState(name, rhs), Hf_(rhs.Hf_), Sf_(rhs.Sf_)
++        EquationOfState(name, rhs), Hf_(rhs.Hf_), Sf_(rhs.Sf_), pRef_(rhs.pRef_),
++        pMin_(rhs.pMin_), pMax_(rhs.pMax_), TMargin_(rhs.TMargin_),
++        satHalfWidth_(rhs.satHalfWidth_)
+     {}
+ 
+-    static word typeName()
++    static word typeName() { return "coolPropThermo<" + EquationOfState::typeName() + '>'; }
++
++    scalar limit(const scalar T) const { return finiteValue("T", T); }
++    scalar Cp(const scalar p, const scalar T) const
+     {
+-        return "coolPropThermo<" + EquationOfState::typeName() + '>';
++        return positiveValue("Cp", PropsSI("C", "P", absolutePressure(p), "T", checkedTemperature(p,T), "ParaHydrogen"));
+     }
+-
+-    scalar limit(const scalar T) const { return safeT(T); }
+-    scalar Cp(const scalar p, const scalar T) const { return cpCoolProp(p, T); }
+-    scalar Ha(const scalar p, const scalar T) const { return hCoolProp(p, T) + Hf_; }
+-    scalar Hs(const scalar p, const scalar T) const { return hCoolProp(p, T); }
+-    scalar Hc() const { return Hf_; }
+-    scalar S(const scalar p, const scalar T) const { return sCoolProp(p, T) + Sf_; }
+-    scalar Gstd(const scalar T) const { return Ha(Pstd, T) - T*S(Pstd, T); }
+-    scalar dCpdT(const scalar p, const scalar T) const
++    scalar Ha(const scalar p, const scalar T) const
+     {
+-        const scalar dT = max(1e-3, 1e-4*mag(T));
+-        return (Cp(p, T + dT) - Cp(p, T - dT))/(2*dT);
++        return finiteValue("h", PropsSI("H", "P", absolutePressure(p), "T", checkedTemperature(p,T), "ParaHydrogen")) + Hf_;
+     }
+-    scalar rho(const scalar p, const scalar T) const
++    scalar Hs(const scalar p, const scalar T) const { return Ha(p,T) - Hf_; }
++    scalar Hc() const { return Hf_; }
++    scalar S(const scalar p, const scalar T) const
+     {
+-        return max(PropsSI("D", "P", p, "T", safeT(T), "ParaHydrogen"), scalar(1e-6));
++        return finiteValue("s", PropsSI("S", "P", absolutePressure(p), "T", checkedTemperature(p,T), "ParaHydrogen")) + Sf_;
+     }
+-
+-    scalar psi(const scalar p, const scalar T) const
++    scalar Gstd(const scalar T) const { return Ha(Pstd,T) - T*S(Pstd,T); }
++    scalar dCpdT(const scalar p, const scalar T) const
+     {
+-        return psiCoolProp(p, T);
++        const scalar dT = max(1e-3, 1e-4*mag(T));
++        return (Cp(p,T+dT)-Cp(p,T-dT))/(2*dT);
+     }
++    scalar rho(const scalar p, const scalar T) const { return rhoCoolProp(p,T); }
++    scalar psi(const scalar p, const scalar T) const { return psiCoolProp(p,T); }
+ 
+     void operator+=(const coolPropThermo& rhs)
+     {
+-        EquationOfState::operator+=(rhs);
+-        Hf_ += rhs.Hf_;
+-        Sf_ += rhs.Sf_;
++        EquationOfState::operator+=(rhs); Hf_ += rhs.Hf_; Sf_ += rhs.Sf_;
+     }
+-
+     void operator*=(const scalar s)
+     {
+-        EquationOfState::operator*=(s);
+-        Hf_ *= s;
+-        Sf_ *= s;
++        EquationOfState::operator*=(s); Hf_ *= s; Sf_ *= s;
+     }
+-
+     void write(Ostream& os) const
+     {
+         EquationOfState::write(os);
+         os.beginBlock("thermodynamics");
+-        os.writeEntry("Hf", Hf_);
+-        os.writeEntry("Sf", Sf_);
++        os.writeEntry("Hf", Hf_); os.writeEntry("Sf", Sf_);
++        os.writeEntry("pRef", pRef_); os.writeEntry("pMin", pMin_);
++        os.writeEntry("pMax", pMax_); os.writeEntry("Tmargin", TMargin_);
++        os.writeEntry("saturationHalfWidth", satHalfWidth_);
+         os.endBlock();
+     }
+ };
+-
+ }
+-
+ #endif
