@@ -1,0 +1,18 @@
+{
+  "sans_wall_boiling": {
+    "log": "pilot_case/PILOT-LH2-001/evidence/reprise_2026-09-02/phaseoff_run.log",
+    "residual_count": 4,
+    "nonfinite_events": 7,
+    "last_final_residual": 5.84181339e-09,
+    "max_abs_energy_imbalance": null,
+    "status": "FAIL_NONFINITE"
+  },
+  "wall1_seule": {
+    "log": "pilot_case/PILOT-LH2-001/evidence/reprise_2026-09-02/notrap_run.log",
+    "residual_count": 0,
+    "nonfinite_events": 9,
+    "last_final_residual": null,
+    "max_abs_energy_imbalance": null,
+    "status": "FAIL_NONFINITE"
+  }
+}
