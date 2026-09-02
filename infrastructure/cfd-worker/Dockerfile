@@ -1,7 +1,14 @@
+# syntax=docker/dockerfile:1
 FROM opencfd/openfoam-default:2512
 
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends python3 ca-certificates && rm -rf /var/lib/apt/lists/*
+# BuildKit conserve le cache apt entre les builds sans l’inclure dans une couche
+# de l’image. Le verrou évite les accès concurrents incohérents.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update \
+    && apt-get install -y --no-install-recommends python3 ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 COPY worker.py /opt/lh2-worker/worker.py
 RUN chmod 0555 /opt/lh2-worker/worker.py && mkdir -p /cases /artifacts && useradd -m -u 10001 cfdworker && chown -R cfdworker:cfdworker /cases /artifacts /opt/lh2-worker
 USER cfdworker

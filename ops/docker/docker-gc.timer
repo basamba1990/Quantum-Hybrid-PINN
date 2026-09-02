@@ -1,0 +1,11 @@
+[Unit]
+Description=Planification du nettoyage prudent Docker
+
+[Timer]
+OnCalendar=Sun *-*-01 03:30:00
+Persistent=true
+RandomizedDelaySec=30m
+Unit=docker-gc.service
+
+[Install]
+WantedBy=timers.target

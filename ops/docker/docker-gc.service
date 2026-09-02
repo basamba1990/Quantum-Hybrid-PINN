@@ -1,0 +1,12 @@
+[Unit]
+Description=Nettoyage prudent des images et du cache Docker
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/docker-gc.sh
+User=root
+EnvironmentFile=-/etc/docker/docker-gc.env
+Nice=10
+IOSchedulingClass=best-effort

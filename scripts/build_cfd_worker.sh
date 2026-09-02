@@ -36,4 +36,5 @@ EOF
   exit 2
 fi
 
-exec docker build --progress=plain --pull -t "$IMAGE" "$CONTEXT"
+export DOCKER_BUILDKIT=1
+exec docker buildx build --progress=plain --pull --load -t "$IMAGE" "$CONTEXT"
