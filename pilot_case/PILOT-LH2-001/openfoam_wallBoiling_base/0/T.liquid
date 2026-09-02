@@ -9,46 +9,50 @@ FoamFile
 {
     version     2.0;
     format      ascii;
-    class       dictionary;
-    object      controlDict;
+    class       volScalarField;
+    object      T.liquid;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     reactingTwoPhaseEulerFoam;
+dimensions      [0 0 0 1 0 0 0];
 
-startFrom       latestTime;
+internalField   uniform 21.01;
 
-startTime       0;
+boundaryField
+{
+    inlet
+    {
+        type            fixedValue;
+        value           uniform 21.01;
+    }
 
-stopAt          endTime;
+    outlet
+    {
+        type            inletOutlet;
+        phi             phi.liquid;
+        inletValue      uniform 21.01;
+        value           uniform 21.01;
+    }
 
-endTime         2;
+    wall1
+    {
+        type            zeroGradient;
+    }
 
-deltaT          1e-4;
+    wall2
+    {
+        type            fixedMultiPhaseHeatFlux;
+        relax           0.5;
+        q               uniform 100;
+        phase           liquid;
+        value           uniform 21.01;
+    }
 
-writeControl    adjustable;
-
-writeInterval   0.5;
-
-purgeWrite      0;
-
-writeFormat     ascii;
-
-writePrecision  9;
-
-writeCompression off;
-
-timeFormat      general;
-
-timePrecision   6;
-
-runTimeModifiable yes;
-
-adjustTimeStep  yes;
-
-maxCo           0.02;
-
-maxDeltaT       0.001;
+    defaultFaces
+    {
+        type            empty;
+    }
+}
 
 
 // ************************************************************************* //

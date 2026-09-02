@@ -9,46 +9,49 @@ FoamFile
 {
     version     2.0;
     format      ascii;
-    class       dictionary;
-    object      controlDict;
+    class       volVectorField;
+    object      U.gas;
 }
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-application     reactingTwoPhaseEulerFoam;
+dimensions      [0 1 -1 0 0 0 0];
 
-startFrom       latestTime;
+internalField   uniform (0 1 0);
 
-startTime       0;
+boundaryField
+{
+    inlet
+    {
+        type            mapped;
+        field           U.gas;
+        setAverage      1;
+        average         (0 1 0);
+        interpolationScheme cell;
+        value           uniform (0 1 0);
+    }
 
-stopAt          endTime;
+    outlet
+    {
+        type            pressureInletOutletVelocity;
+        phi             phi.gas;
+        value           uniform (0 1 0);
+    }
 
-endTime         2;
+    wall1
+    {
+        type            slip;
+    }
 
-deltaT          1e-4;
+    wall2
+    {
+        type            slip;
+    }
 
-writeControl    adjustable;
-
-writeInterval   0.5;
-
-purgeWrite      0;
-
-writeFormat     ascii;
-
-writePrecision  9;
-
-writeCompression off;
-
-timeFormat      general;
-
-timePrecision   6;
-
-runTimeModifiable yes;
-
-adjustTimeStep  yes;
-
-maxCo           0.02;
-
-maxDeltaT       0.001;
+    defaultFaces
+    {
+        type            empty;
+    }
+}
 
 
 // ************************************************************************* //
