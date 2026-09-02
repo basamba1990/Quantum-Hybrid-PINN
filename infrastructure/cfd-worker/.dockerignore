@@ -1,0 +1,16 @@
+# Le contexte du worker ne doit contenir que les fichiers nécessaires à l’image.
+.git
+.git/**
+**/__pycache__
+**/*.pyc
+*.log
+*.zip
+artifacts
+cases
+node_modules
+.env
+.env.*
+!.env.example
+Dockerfile*
+docker-compose*.yml
+README*.md

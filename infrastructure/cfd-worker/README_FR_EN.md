@@ -30,7 +30,42 @@ LH2_CFD_WORKER_TOKEN=<secret hors dépôt>
 
 Les routes sont `GET /v1/cfd-worker/health` et `POST /v1/cfd-worker/jobs`. Elles exigent l’en-tête `X-Worker-Token`. L’API transmet uniquement la demande au worker et ne transforme pas un code retour zéro en validation scientifique.
 
-### Déploiement recommandé
+### Dépannage — `no space left on device` avec VFS
+
+Cette erreur peut survenir alors que `df -h /` indique encore de l’espace libre : Docker écrit dans sa propre racine (`DockerRootDir`) et le driver `vfs` crée des copies complètes des couches. Le script `scripts/build_cfd_worker.sh` arrête volontairement le build lorsqu’il détecte `vfs` afin d’éviter une saturation silencieuse.
+
+Sur la VM Docker, commencez par un diagnostic non destructif :
+
+```bash
+docker info --format 'driver={{.Driver}} root={{.DockerRootDir}}'
+docker system df -v
+df -h "$(docker info --format '{{.DockerRootDir}}')"
+```
+
+La correction recommandée est d’utiliser `overlay2` sur un système de fichiers compatible, puis de redémarrer Docker. **La migration de `vfs` vers `overlay2` doit être faite par l’administrateur après sauvegarde des images et volumes nécessaires**, car changer le répertoire de données peut rendre les anciennes images invisibles. Si aucune donnée Docker n’est à conserver, une VM neuve avec `overlay2` est souvent la solution la plus fiable. Un nettoyage contrôlé peut ensuite être effectué avec `docker builder prune`, puis le build :
+
+```bash
+chmod +x scripts/build_cfd_worker.sh
+./scripts/build_cfd_worker.sh
+```
+
+Le script ne lance pas automatiquement `docker system prune`, afin de ne pas supprimer des images, conteneurs ou volumes utiles.
+
+### Troubleshooting — `no space left on device` with VFS
+
+The host filesystem can still have free space while Docker is full: Docker writes under its own `DockerRootDir`, and the `vfs` driver makes complete copies of layers. `scripts/build_cfd_worker.sh` stops intentionally when it detects `vfs`.
+
+Run the non-destructive checks below on the Docker VM:
+
+```bash
+docker info --format 'driver={{.Driver}} root={{.DockerRootDir}}'
+docker system df -v
+df -h "$(docker info --format '{{.DockerRootDir}}')"
+```
+
+Migrate the Docker daemon to `overlay2` on a compatible filesystem after backing up required images and volumes. Changing Docker's data directory can hide the old image store. If no Docker data must be preserved, a fresh VM configured with `overlay2` is usually the safest option. Then run `docker builder prune` if appropriate and build with `scripts/build_cfd_worker.sh`; it never runs `docker system prune` automatically.
+
+### Deployment recommended
 
 Vercel/Next.js ne doit pas héberger le solveur OpenFOAM : le déploiement de production est serverless et ne fournit ni image OpenFOAM, ni volume persistant, ni calcul long. Le worker doit être déployé sur une VM Docker, un runner Kubernetes ou un service de calcul persistant avec volume durable. Le réseau entrant doit être limité à l’API, et le secret `LH2_CFD_WORKER_TOKEN` doit être fourni par le gestionnaire de secrets de l’infrastructure.
 
