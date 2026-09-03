@@ -39,6 +39,24 @@ Les trois GIF `lh2_concept_animation_*.gif` sont des animations conceptuelles et
 
 Les VTU conceptuels, lorsqu’ils sont présentés, doivent porter la mention **REFERENCE_DESIGN** ou **SYNTHETIC_TEST**. Une animation CFD commercialisable devra être exportée depuis les frames réelles d’OpenFOAM après convergence et contrôle des bilans.
 
+## Visualisations pertinentes
+
+### Géométrie conceptuelle du pilote
+
+![Géométrie conceptuelle du pilote LH2](visuals/lh2_geometry_fr.png)
+
+*Figure 1 — Domaine conceptuel 2D du pilote LH2, avec entrée, sortie et zones liquide/vapeur. Cette figure est pertinente pour expliquer l’identité géométrique préliminaire et le contrat de cas. Elle est explicitement **conceptuelle** et **ne constitue pas un résultat CFD validé ni une preuve de géométrie industrielle**.*
+
+### Diagnostic des résidus disponibles
+
+![Diagnostic comparatif des résidus LH2](evidence/plots_2026-09-02/lh2_comparison_residuals_energy.png)
+
+*Figure 2 — Diagnostic des résidus réellement disponibles. Les résidus affichés sont élevés et non convergents; le panneau de bilan énergétique est vide, car aucun CSV de bilan énergétique réel n’était disponible au moment de l’audit. Cette figure est pertinente pour documenter le statut **INCONCLUSIVE**, mais ne doit pas être présentée comme une comparaison convergée entre deux simulations.*
+
+### Médias non pertinents pour une preuve CFD
+
+Les GIF conceptuels, les VTU synthétiques ou de design de référence et les STL du cas cylindre peuvent illustrer l’interface, la géométrie ou le flux de visualisation. Ils ne sont pas pertinents comme preuves de convergence LH2 OpenFOAM et doivent rester étiquetés **CONCEPTUAL**, **SYNTHETIC_TEST** ou **REFERENCE_DESIGN**.
+
 ## Risque technique principal
 
 L’activation du wall-boiling déclenche actuellement une instabilité interfaciale observée dans `Tf.gasAndLiquid` et `iDmdt.gasAndLiquid`. La séquence de réduction du risque est déjà définie : thermodynamique sans wall-boiling, activation sur une seule paroi, contrôle des propriétés `p,T,rho,psi,alphat,iDmdt`, puis deux trajectoires indépendantes.
