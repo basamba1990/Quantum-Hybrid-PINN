@@ -74,6 +74,22 @@ The project should be presented as an **instrumented qualification and engineeri
 | Industrial demonstrator | Dashboard, animations, and exports based on authorized cases |
 | Financial collaboration | Financing of a reference case, data acquisition, and joint qualification of artifacts |
 
+## Industrial Validation Paths Complementary or Alternative to OpenFOAM
+
+OpenFOAM is not the only possible route for building an evidence chain. A robust industrial strategy can combine several levels of fidelity, provided that the validity domain of each tool is documented and that software verification, cross-solver comparison, and physical validation are never conflated.
+
+| Path | Industrial role | Evidence to archive | Limitation |
+|---|---|---|---|
+| Commercial solver, such as STAR-CCM+ or ANSYS Fluent | Independent numerical reference for flow, thermal behavior, and phase change, subject to the available models | Version, license, model, mesh, parameters, residuals, balances, and result exports | Does not replace experimental validation and depends on the selected phase-change model |
+| SU2 or Code_Saturne | Open-source verification of covered compressible, thermal, or flow subproblems | Version, configuration, mesh, criteria, logs, and quantitative comparison | Exact coverage of LH2 two-phase flow and wall boiling must be demonstrated by a benchmark |
+| Reduced-order 0D/1D model | Independent control of mass-energy balances, pressure, temperature, and transient trends | Equations, parameters, units, solution, uncertainty, and comparison with CFD outputs | Does not resolve detailed spatial structure or the local interface |
+| Instrumented tests or authorized public data | Physical validation of pressure, temperature, flow rate, vaporization, and heat flux | Calibration, sensor certificates, synchronization, uncertainty, raw data, and chain of custody | Cost, safety, data access, and experimental similarity |
+| Hybrid digital twin | Monitoring, state estimation, and fast prediction after model qualification | Training data, temporal split, held-out metrics, drift monitoring, and version logs | A PINN or AI model alone does not prove interfacial physics |
+
+For the LH2 pilot, the most practical alternative is a **triangulated evidence chain**: a 0D/1D model for balances, an independent solver for numerical reference, CoolProp/NIST for properties, authorized experimental or published data for comparison, and PINN-T for fast estimation. A complete evidence package can therefore be built even if OpenFOAM is replaced, but it must retain the same requirements for provenance, units, uncertainty, hashes, residuals, and reproducibility.
+
+Official SU2 material describes the platform as an open-source suite covering, among other areas, non-ideal compressible CFD, heat transfer, and high-performance computing [1]. Published hydrogen validation work emphasizes comparison against experiments and separate treatment of release, vaporization, spreading, heat transfer, and gas distribution [2]. These sources support a multi-level approach, but they do not validate the Quantum-Hybrid-PINN case itself.
+
 ## Conditions for Production Release
 
 The LH2 production capability must not be announced until compilation has been completed in a full OpenFOAM VM, two independent runs have produced no non-finite values, residuals have been controlled, mass and energy balances are available, complete SHA-256 manifests have been produced, and the results have been compared with a reference defined before evaluation.
@@ -86,9 +102,12 @@ The pilot provides a credible foundation for offering CFD/PINN-T qualification s
 
 ## References
 
-[1]: https://docs.docker.com/engine/storage/drivers/overlayfs-driver/ "Docker OverlayFS storage driver"
-[2]: https://docs.openfoam.com/ "OpenFOAM documentation"
-[3]: https://coolprop.org/ "CoolProp documentation"
+[1]: https://su2code.github.io/ "SU2 — Multiphysics Simulation and Design Software"
+[2]: https://h2tools.org/sites/default/files/2019-08/paper_155.pdf "Validation Strategy for CFD Models Describing Safety-Relevant Scenarios Including LH2/GH2 Release"
+[3]: https://docs.docker.com/engine/storage/drivers/overlayfs-driver/ "Docker OverlayFS storage driver"
+[4]: https://docs.openfoam.com/ "OpenFOAM documentation"
+[5]: https://coolprop.org/ "CoolProp documentation"
+[6]: https://www.siemens.com/en-us/products/simcenter/fluids-thermal-simulation/star-ccm/ "Simcenter STAR-CCM+ software"
 
 *Prepared by Manus AI.*
 

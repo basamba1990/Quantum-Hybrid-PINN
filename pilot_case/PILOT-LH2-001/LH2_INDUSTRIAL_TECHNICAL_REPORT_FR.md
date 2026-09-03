@@ -74,10 +74,32 @@ Le projet doit être vendu comme une **capacité de qualification et de prestati
 | Démonstrateur industriel | Dashboard, animations et exports issus de cas autorisés |
 | Collaboration financière | Financement d’un cas de référence, acquisition de données et qualification conjointe des artefacts |
 
+## Voies industrielles complémentaires ou alternatives à OpenFOAM
+
+OpenFOAM n’est pas la seule voie possible pour construire une chaîne de preuves. Une stratégie industrielle robuste peut combiner plusieurs niveaux de fidélité, à condition de documenter précisément le domaine de validité de chaque outil et de ne jamais confondre vérification logicielle, comparaison inter-solveurs et validation physique.
+
+| Voie | Rôle industriel | Preuves à archiver | Limite |
+|---|---|---|---|
+| Solveur commercial, par exemple STAR-CCM+ ou ANSYS Fluent | Référence indépendante pour écoulement, thermique et changement de phase selon les modèles disponibles | Version, licence, modèle, maillage, paramètres, résidus, bilans et export des résultats | Ne remplace pas une validation expérimentale et dépend du modèle de changement de phase choisi |
+| SU2 ou Code_Saturne | Vérification open source de sous-problèmes compressibles, thermiques ou d’écoulement | Version, configuration, maillage, critères, logs et comparaison quantitative | La couverture exacte du diphasique LH2 et du wall-boiling doit être démontrée par benchmark |
+| Modèle réduit 0D/1D | Contrôle indépendant des bilans masse-énergie, pression, température et tendances transitoires | Équations, paramètres, unités, solution, incertitudes et comparaison avec les sorties CFD | Ne résout pas la structure spatiale détaillée ni l’interface locale |
+| Essais instrumentés ou données publiques autorisées | Validation physique des pressions, températures, débits, vaporisation et flux thermiques | Calibration, certificats capteurs, synchronisation, incertitudes, données brutes et chaîne de custody | Coût, sécurité, accès aux données et similitude expérimentale |
+| Jumeau numérique hybride | Surveillance, estimation d’état et prédiction rapide après qualification des modèles | Données d’entraînement, séparation temporelle, métriques held-out, dérive et journal des versions | Un PINN ou un modèle IA ne prouve pas à lui seul la physique interfaciale |
+
+Pour le pilote LH2, la meilleure alternative pragmatique est une **chaîne de triangulation** : modèle 0D/1D pour les bilans, solveur indépendant pour une référence numérique, CoolProp/NIST pour les propriétés, données expérimentales ou publiées pour la comparaison, puis PINN-T pour l’estimation rapide. Une preuve complète peut ainsi être construite même si OpenFOAM est remplacé; elle doit toutefois conserver les mêmes exigences de provenance, unités, incertitudes, hachages, résidus et reproductibilité.
+
+Les sources techniques consultées décrivent SU2 comme une suite open source couvrant notamment la CFD compressible non idéale, le transfert thermique et le calcul haute performance [1]. Les travaux de validation de scénarios LH2 soulignent l’importance de comparer les modèles à des essais et de traiter séparément la libération, la vaporisation, l’étalement, le transfert thermique et la distribution du gaz [2]. Ces éléments justifient une approche multi-niveaux, mais ne constituent pas une validation du cas Quantum-Hybrid-PINN lui-même.
+
 ## Conditions de passage en production
 
 La production LH2 ne pourra être annoncée qu’après compilation dans une VM OpenFOAM complète, deux runs indépendants sans valeur non finie, résidus maîtrisés, bilans masse-énergie disponibles, manifestes SHA-256 complets et comparaison avec une référence définie avant l’évaluation.
 
 ## Conclusion
 
-Le pilote offre une base crédible pour vendre une prestation de qualification CFD/PINN-T, un démonstrateur industriel ou une collaboration de développement commercial. Sa force actuelle est la transparence et l’instrumentation. Sa prochaine étape est l’exécution OpenFOAM réelle dans une VM complète et la production de preuves physiques finales.
+Le pilote offre une base crédible pour vendre une prestation de qualification CFD/PINN-T, un démonstrateur industriel ou une collaboration de développement commercial. Sa force actuelle est la transparence et l’instrumentation. Sa prochaine étape peut être réalisée avec OpenFOAM ou une chaîne alternative documentée : exécution réelle, comparaison indépendante, contrôle expérimental ou modèle réduit, puis production de preuves physiques finales.
+
+### Références
+
+[1]: https://su2code.github.io/ "SU2 — Multiphysics Simulation and Design Software"
+[2]: https://h2tools.org/sites/default/files/2019-08/paper_155.pdf "Validation Strategy for CFD Models Describing Safety-Relevant Scenarios Including LH2/GH2 Release"
+[3]: https://www.siemens.com/en-us/products/simcenter/fluids-thermal-simulation/star-ccm/ "Simcenter STAR-CCM+ software"
