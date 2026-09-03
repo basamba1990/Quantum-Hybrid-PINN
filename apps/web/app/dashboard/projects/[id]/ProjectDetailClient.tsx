@@ -367,7 +367,7 @@ export default function ProjectDetailClient({ id, project }: any) {
             <button onClick={() => setDownloadTrigger(prev => prev + 1)} className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase italic tracking-tighter shadow-xl flex items-center gap-2">
               <Download className="w-4 h-4" /> Export Graphiques 300 DPI
             </button>
-            <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase italic tracking-tighter shadow-2xl shadow-blue-900/40"><Zap className="w-4 h-4 fill-white mr-2 inline" /> New Analysis</button>
+            <Link href={`/dashboard/projects/${id}/analyses/new`} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase italic tracking-tighter shadow-2xl shadow-blue-900/40 inline-flex items-center"><Zap className="w-4 h-4 fill-white mr-2 inline" /> New Analysis</Link>
             <button type="button" onClick={() => void handleDeleteProject()} disabled={deleting} className="px-5 py-3 bg-red-600/90 hover:bg-red-500 disabled:opacity-50 text-white rounded-2xl font-black uppercase italic tracking-tighter shadow-xl flex items-center gap-2" aria-label="Supprimer le projet">
               <Trash2 className="w-4 h-4" /> {deleting ? 'Suppression…' : 'Supprimer'}
             </button>
