@@ -1,0 +1,18 @@
+services:
+  su2-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /case
+    environment:
+      CASE_ROOT: /case
+      ARTIFACT_ROOT: /artifacts
+      SU2_CONFIG: ${SU2_CONFIG:-case.cfg}
+      SU2_TIMEOUT_SECONDS: ${SU2_TIMEOUT_SECONDS:-3600}
+      SU2_VERSION: ${SU2_VERSION:-UNPINNED}
+    volumes:
+      - ../case:/case:ro
+      - ../artifacts:/artifacts
+    read_only: true
+    tmpfs:
+      - /tmp

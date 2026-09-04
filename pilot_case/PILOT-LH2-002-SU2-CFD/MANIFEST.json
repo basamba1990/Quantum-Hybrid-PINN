@@ -1,0 +1,30 @@
+{
+  "schema": "quantum-pilot-manifest.v1",
+  "case_id": "PILOT-LH2-002-SU2-CFD",
+  "run_id": "PENDING_REAL_SU2_RUN",
+  "solver": "SU2_CFD",
+  "solver_version": "PENDING_IMAGE_DIGEST",
+  "status": "UNVALIDATED",
+  "scientificStatus": "UNVALIDATED",
+  "validationAllowed": false,
+  "artifacts": [],
+  "outputs": [],
+  "environment": {
+    "container_image": "su2code/su2:latest",
+    "container_digest": "PENDING",
+    "code_commit": "PENDING_SU2_CASE_COMMIT"
+  },
+  "gates": {
+    "G0": "INCONCLUSIVE",
+    "G1": "INCONCLUSIVE",
+    "G2": "INCONCLUSIVE",
+    "G3": "INCONCLUSIVE",
+    "G4": "INCONCLUSIVE",
+    "G5": "INCONCLUSIVE",
+    "G6": "INCONCLUSIVE"
+  },
+  "notes": [
+    "No CAD, mesh, solver output, VTU or experimental validation is claimed yet.",
+    "This pilot is independent from PILOT-LH2-001 OpenFOAM evidence."
+  ]
+}

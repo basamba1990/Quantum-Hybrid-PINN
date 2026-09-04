@@ -1,0 +1,8 @@
+artifacts/
+case/*.vtu
+case/*.vtk
+case/*.cgns
+case/*.dat
+case/*.csv
+case/*.history
+case/*restart*

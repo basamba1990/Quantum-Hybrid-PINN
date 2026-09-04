@@ -1,0 +1,43 @@
+schema: quantum-lh2-acceptance.v1
+pilot_id: PILOT-LH2-001
+status: FROZEN_BEFORE_RUN
+approval_status: APPROVED_BY_USER
+approved_at: 2026-08-31
+approved_scope: diphasic_parahydrogen_with_boiling_and_boiloff
+split:
+  train:
+    dataset: CFD-BASELINE
+    declared_conditions: [initial_state, boundary_state, wall_heat_flux_state]
+  evaluation:
+    dataset: CFD-INDEPENDENT
+    hidden_during_training: true
+rules:
+  no_eval_file_access_during_training: true
+  normalization_fit_on_train_only: true
+  no_shared_hashes_between_train_and_eval: true
+  no_synthetic_data_as_reference: true
+  missing_evidence: INCONCLUSIVE
+  zero_exit_code_is_not_convergence: true
+metrics:
+  temperature_relative_l2: 2 %
+  pressure_relative_l2: 2 %
+  density_relative_l2: 2 %
+  energy_relative_l2: 3 %
+  max_temperature_absolute_error: 1 K
+  vapor_volume_fraction_mean_absolute_error: 0.02
+  boiloff_mass_flow_relative_error: 5 %
+  total_mass_balance_relative_error: 0.5 %
+  total_energy_balance_relative_error: 1 %
+  mass_boiled_off_relative_error: 5 %
+ gates:
+  G0: sources_units_and_tolerances_approved_by_user
+  G1: geometry_mesh_and_boundary_contract_valid
+  G2: CFD_baseline_converged
+  G3: CFD_independent_case_converged
+  G4: PINN_trained_only_on_declared_training_data
+  G5: held_out_metrics_within_frozen_tolerances
+  G6: clean_reproduction_same_decision
+ decision_policy:
+  PASS: 'G0-G6 pass and all frozen metrics, including vapor fraction, boil-off and mass/energy balances, are within tolerance.'
+  FAIL: 'Valid evidence shows a frozen tolerance is exceeded or an assumption is refuted.'
+  INCONCLUSIVE: 'Any source, tolerance, convergence, output or reproduction evidence is missing.'
