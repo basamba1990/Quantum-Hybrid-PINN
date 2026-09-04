@@ -1,0 +1,8 @@
+2026-09-04 production preflight
+Docker: unavailable in current sandbox
+SU2_CFD: unavailable in current sandbox
+Input case.cfg: absent
+Runner result: failed closed
+Synthetic VTU created: no
+Scientific status: UNVALIDATED
+Validation allowed: false
