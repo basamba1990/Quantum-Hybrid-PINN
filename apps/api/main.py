@@ -418,19 +418,24 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             }).eq("id", request.analysis_id).execute()
             
             # 2. Persist to analysis_results (priority table for volumetric rendering)
-            # Use unified schema from final_result
+            # A missing score is intentional for inference without solver evidence.
+            # Do not coerce it to zero: zero is a real score and would misrepresent
+            # an unvalidated analysis. The database migration makes this field nullable.
             try:
-                supabase_client.table("analysis_results").upsert({
+                analysis_result_row = {
                     "analysis_id": request.analysis_id,
                     "project_id": request.project_id,
                     "user_id": request.user_id if (hasattr(request, 'user_id') and request.user_id) else None,
                     "extracted_parameters": request.scenario_inputs or {},
                     "pinn_predictions": final_result.get("pinn_predictions", []),
-                    "credibility_score": final_result.get("credibility_score"),
                     "anomalies": [],
                     "context": final_result.get("scenario_type", "H2_PIPELINE").lower(),
                     "created_at": datetime.utcnow().isoformat()
-                }).execute()
+                }
+                credibility_score = final_result.get("credibility_score")
+                if credibility_score is not None:
+                    analysis_result_row["credibility_score"] = credibility_score
+                supabase_client.table("analysis_results").upsert(analysis_result_row).execute()
             except Exception as inner_e:
                 print(f"Failed to persist to analysis_results: {inner_e}")
 
