@@ -17,6 +17,7 @@ import json
 import os
 import re
 import tempfile
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Tuple
@@ -344,12 +345,23 @@ def _dataset_blob(dataset: Dict[str, Any]) -> bytes:
 
 
 def _storage_bytes(client: Client, bucket: str, path: str, label: str) -> bytes:
-    content = client.storage.from_(bucket).download(path)
-    if not isinstance(content, bytes):
-        content = getattr(content, "content", None) or getattr(content, "data", None)
-    if not isinstance(content, bytes):
-        raise RuntimeError(f"Réponse Storage non binaire pour {label}.")
-    return content
+    """Download exact bytes, tolerating SDK wrappers and short visibility lag."""
+    last_error: Exception | None = None
+    for attempt in range(4):
+        try:
+            content = client.storage.from_(bucket).download(path)
+            if not isinstance(content, bytes):
+                content = getattr(content, "content", None) or getattr(content, "data", None)
+            if isinstance(content, (bytearray, memoryview)):
+                content = bytes(content)
+            if isinstance(content, bytes) and content:
+                return content
+            raise RuntimeError(f"Réponse Storage non binaire ou vide pour {label}.")
+        except Exception as exc:  # SDK versions expose different storage errors
+            last_error = exc
+            if attempt < 3:
+                time.sleep(0.25 * (2 ** attempt))
+    raise RuntimeError(f"Lecture Storage impossible pour {label} après 4 tentatives: {last_error}")
 
 
 def _load_dataset(row: Dict[str, Any]) -> Dict[str, Any]:

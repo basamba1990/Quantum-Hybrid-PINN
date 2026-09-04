@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
+import cfd_import_router
 from cfd_import_router import router
 
 
@@ -46,3 +47,32 @@ def test_storage_import_rejects_path_outside_signed_session():
         )
     assert response.status_code == 422, response.text
     assert "hors session" in response.json()["detail"]
+
+
+def test_storage_bytes_normalizes_wrapped_bytes_and_retries(monkeypatch):
+    class Wrapped:
+        def __init__(self, content):
+            self.content = content
+
+    class Storage:
+        def __init__(self):
+            self.calls = 0
+
+        def from_(self, bucket):
+            return self
+
+        def download(self, path):
+            self.calls += 1
+            if self.calls < 2:
+                raise RuntimeError("object not yet visible")
+            return Wrapped(bytearray(b"exact-vtu-bytes"))
+
+    storage = Storage()
+
+    class Client:
+        def __init__(self):
+            self.storage = storage
+
+    monkeypatch.setattr(cfd_import_router.time, "sleep", lambda _: None)
+    assert cfd_import_router._storage_bytes(Client(), "cfd-artifacts", "x/frame.vtu", "frame") == b"exact-vtu-bytes"
+    assert storage.calls == 2
