@@ -1,6 +1,6 @@
 'use client'
 
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -16,6 +16,7 @@ import ScientificSocialHub from '@/components/scientific-social-hub'
 import { format } from 'date-fns'
 import { resolveVisualizationScenario } from '@/lib/visualization-data'
 import { loadCertifiedCfdDataset } from '@/lib/cfd/cfd-repository'
+import { CFDImportForm } from '@/components/cfd/CFDImportForm'
 
 interface AnalysisDetail {
   id: string
@@ -31,11 +32,13 @@ interface AnalysisDetail {
 
 export default function AnalysisDetailPage() {
   const params = useParams()
+  const router = useRouter()
   const projectId = params.id as string
   const analysisId = params.analysisId as string
   const supabase = createClient()
   
   const [analysis, setAnalysis] = useState<AnalysisDetail | null>(null)
+  const [caseId, setCaseId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -100,9 +103,12 @@ export default function AnalysisDetailPage() {
 
           console.log("Analysis Data Loaded (V2.1.7):", { id: data.id, score, hasPredictions: !!results?.predictions3d, points: results?.predictions3d?.length });
           
+          const analysisTitle = data.name || data.title || 'Untitled analysis'
+          const inferredCaseId = analysisTitle.split(/\s+[—–-]\s+/)[0]?.trim() || analysisTitle.trim()
+          setCaseId(inferredCaseId)
           setAnalysis({
             ...data,
-            title: data.name || data.title || 'Untitled analysis',
+            title: analysisTitle,
             credibility_score: Number(score) || 0,
             results: results || {}
           })
@@ -199,6 +205,36 @@ export default function AnalysisDetailPage() {
           <div className="text-sm text-gray-600">/100</div>
         </div>
       </div>
+
+      <section className="space-y-4 rounded-[32px] border border-cyan-500/20 bg-slate-950/80 p-5 md:p-6">
+        <div>
+          <h2 className="text-xl font-black uppercase tracking-tight text-gray-900">Importer un dataset CFD</h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Importez les frames VTU et le sidecar contractuel dans cette analyse. Les identifiants du projet et de l’analyse sont déterminés par la page courante.
+          </p>
+        </div>
+        <label className="block text-sm text-slate-300">
+          Case ID
+          <input
+            value={caseId}
+            onChange={(event) => setCaseId(event.target.value)}
+            disabled={false}
+            className="mt-2 block w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white outline-none focus:border-cyan-400"
+            aria-describedby="cfd-case-id-help"
+          />
+          <span id="cfd-case-id-help" className="mt-1 block text-xs text-slate-500">
+            Cette valeur doit correspondre au cas déclaré dans le sidecar importé.
+          </span>
+        </label>
+        <CFDImportForm
+          caseId={caseId}
+          projectId={analysis.project_id}
+          analysisId={analysis.id}
+          onImported={() => {
+            router.refresh()
+          }}
+        />
+      </section>
 
       {/* CFD view shared with the CFD Simulation page */}
       <section className="space-y-4">
