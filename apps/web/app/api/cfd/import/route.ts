@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
   const sidecar = incoming.get('sidecar')
   const caseId = incoming.get('case_id')
   const projectId = incoming.get('project_id')
+  const analysisId = incoming.get('analysis_id')
 
   if (vtuFiles.length === 0 || !(sidecar instanceof File) || typeof caseId !== 'string' || !caseId.trim() || typeof projectId !== 'string' || !projectId.trim()) {
     return NextResponse.json(
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
   body.append('case_id', caseId.trim())
   body.append('project_id', projectId.trim())
   body.append('owner_id', user.id)
+  if (typeof analysisId === 'string' && analysisId.trim()) body.append('analysis_id', analysisId.trim())
 
   const apiToken = process.env.CFD_IMPORT_API_TOKEN
   if (!apiToken) {

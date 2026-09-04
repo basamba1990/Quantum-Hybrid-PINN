@@ -2,9 +2,11 @@
 
 ## Endpoints
 
-`POST /v2/cfd/import` reçoit un formulaire `multipart/form-data` composé de `vtu_files` répété pour chaque frame `.vtu`, d’un fichier `sidecar` `.json` et du champ `case_id`. Le backend reçoit aussi `owner_id`, ajouté par le proxy Next.js après lecture de la session Supabase.
+`POST /v2/cfd/import` reçoit un formulaire `multipart/form-data` composé de `vtu_files` répété pour chaque frame `.vtu`, d’un fichier `sidecar` `.json`, de `case_id`, `project_id`, `owner_id` et, pour une analyse préalablement créée, `analysis_id`. Le backend reçoit aussi `owner_id`, ajouté par le proxy Next.js après lecture de la session Supabase.
 
 `GET /v2/cfd/{analysis_id}` relit le dataset persistant. Les deux endpoints exigent `Authorization: Bearer <CFD_IMPORT_API_TOKEN>`.
+
+`GET /v2/cfd/project/{project_id}/latest?owner_id=<user_uuid>` renvoie le dataset le plus récent du projet. Lorsqu’aucun dataset n’existe encore, la réponse est HTTP 200 et non ambiguë : `{"status":"NO_ANALYSIS","analysis":null,"dataset":null}`.
 
 ## Configuration serveur
 
@@ -26,7 +28,7 @@ Le bucket privé `cfd-artifacts` doit exister dans Supabase Storage. La migratio
 
 Le sidecar doit déclarer `contractVersion: cfd-volume.v1`, `fieldDescriptors`, `boundarySets`, `provenance`, `residuals`, `references`, `evidence` et une liste `frames`. Chaque frame doit contenir `frameId`, `time`, `file` et `payloadHash`. Le serveur calcule le SHA-256 des octets reçus et compare exactement ce hash à `payloadHash`. Il refuse les fichiers supplémentaires, les frames manquantes, les temps non croissants, les connectivités différentes, les cellules hors limites, les champs non numériques et toute unité absente.
 
-Le dataset final est reconstruit à partir des octets VTU; les métadonnées non présentes ne sont pas complétées. Les octets originaux du sidecar et des VTU sont conservés dans Storage, tandis que le contrat normalisé et le manifeste de hashes sont enregistrés dans `cfd_datasets`.
+Le dataset final est reconstruit à partir des octets VTU; les métadonnées non présentes ne sont pas complétées. Les octets originaux du sidecar et des VTU sont conservés dans Storage, tandis que le contrat normalisé et le manifeste de hashes sont enregistrés dans `cfd_datasets`. La ligne conserve la relation complète `project_id`, `analysis_id`, `owner_id`, `case_id`, `mesh_hash`, `contract_hash`, `frame_hashes` et `status`.
 
 ## Statuts
 

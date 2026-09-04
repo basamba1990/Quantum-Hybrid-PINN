@@ -26,6 +26,7 @@ export type CfdImportResponse = {
 type Props = {
   caseId: string
   projectId?: string
+  analysisId?: string
   onBeforeImport?: () => Promise<string>
   onImported?: (result: CfdImportResponse) => void
 }
@@ -44,7 +45,7 @@ async function responsePayload(response: Response): Promise<CfdImportResponse & 
   }
 }
 
-export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }: Props) {
+export function CFDImportForm({ caseId, projectId, analysisId, onBeforeImport, onImported }: Props) {
   const [vtuFiles, setVtuFiles] = useState<File[]>([])
   const [sidecar, setSidecar] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
@@ -109,6 +110,19 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
     }
 
     try {
+      let ensuredAnalysisId = analysisId
+      if (!ensuredAnalysisId) {
+        const supabase = createClient()
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        if (userError || !user) throw new Error('Supabase session is missing or expired.')
+        const { data: analysis, error: analysisError } = await supabase
+          .from('analyses')
+          .insert({ project_id: ensuredProjectId, user_id: user.id, title: `CFD import: ${caseId.trim()}`, description: 'Analysis created for the verified CFD artifact import.', analysis_type: 'cfd_import', status: 'pending' })
+          .select('id')
+          .single()
+        if (analysisError || !analysis?.id) throw new Error(`CFD analysis creation failed: ${analysisError?.message ?? 'missing identifier'}`)
+        ensuredAnalysisId = analysis.id
+      }
       const sessionResponse = await fetch('/api/cfd/upload-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,6 +130,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
         body: JSON.stringify({
           caseId,
           projectId: ensuredProjectId,
+          analysisId: ensuredAnalysisId,
           files: vtuFiles.map(file => ({ name: file.name, size: file.size, contentType: file.type || 'application/xml' })),
           sidecar: { name: sidecar.name, size: sidecar.size, contentType: sidecar.type || 'application/json' },
         }),
@@ -161,6 +176,7 @@ export function CFDImportForm({ caseId, projectId, onBeforeImport, onImported }:
         body: JSON.stringify({
           caseId,
           projectId: ensuredProjectId,
+          analysisId: ensuredAnalysisId,
           sessionId: sessionPayload.sessionId,
           bucket: sessionPayload.bucket,
           files: sessionPayload.uploads.filter(upload => upload.role === 'frame').map(({ name, path, size }) => ({ name, path, size })),

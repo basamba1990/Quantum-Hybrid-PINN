@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
   const sidecar = incoming.sidecar
   const caseId = typeof incoming.caseId === 'string' ? incoming.caseId.trim() : ''
   const projectId = typeof incoming.projectId === 'string' ? incoming.projectId.trim() : ''
+  const analysisId = typeof incoming.analysisId === 'string' ? incoming.analysisId.trim() : ''
   const sessionId = typeof incoming.sessionId === 'string' ? incoming.sessionId.trim() : ''
   const bucket = typeof incoming.bucket === 'string' ? incoming.bucket.trim() : ''
   if (!caseId || !projectId || !sessionId || !bucket || !files.length || !sidecar) {
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
   const payload = {
     case_id: caseId,
     project_id: projectId,
+    ...(analysisId ? { analysis_id: analysisId } : {}),
     owner_id: user.id,
     session_id: sessionId,
     bucket,

@@ -306,6 +306,21 @@ def _verify_project_owner(project_id: str, owner_id: str) -> None:
         raise HTTPException(status_code=404, detail="Projet absent ou non accessible par l’utilisateur connecté.")
 
 
+def _verify_analysis_owner(analysis_id: str | None, project_id: str, owner_id: str) -> None:
+    if not analysis_id:
+        return
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", analysis_id):
+        raise HTTPException(status_code=422, detail="analysis_id doit être un UUID valide.")
+    try:
+        response = (_supabase().table("analyses").select("id")
+                    .eq("id", analysis_id).eq("project_id", project_id)
+                    .eq("user_id", owner_id).limit(1).execute())
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Vérification de l’analyse échouée: {exc}") from exc
+    if not getattr(response, "data", None):
+        raise HTTPException(status_code=404, detail="Analyse absente ou non accessible par l’utilisateur connecté.")
+
+
 def _dataset_summary(dataset: Dict[str, Any]) -> Dict[str, Any]:
     """Keep DB metadata small; the exact contract lives as a compressed Storage object."""
     summary = {key: value for key, value in dataset.items() if key != "frames"}
@@ -356,17 +371,29 @@ def _load_dataset(row: Dict[str, Any]) -> Dict[str, Any]:
     return dataset
 
 
-def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_bytes: bytes, case_id: str, project_id: str, owner_id: str) -> str:
-    analysis_id = str(uuid.uuid4())
+def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_bytes: bytes, case_id: str, project_id: str, owner_id: str, analysis_id: str | None = None) -> str:
+    # The application creates the analysis first. Keep a UUID fallback for
+    # legacy import callers, but never replace an explicitly supplied ID.
+    analysis_id = analysis_id or str(uuid.uuid4())
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", analysis_id):
+        raise HTTPException(status_code=422, detail="analysis_id doit être un UUID valide.")
     dataset_id = str(uuid.uuid4())
     status = "UNVALIDATED"
     classification = str(dataset.get("classification", ""))
     evidence = dataset.get("evidence", {})
     if classification.startswith("SYNTHETIC") or not all(evidence.values() if isinstance(evidence, dict) else []):
         status = "STRUCTURAL_TEST_UNVALIDATED" if classification.startswith("SYNTHETIC") else "UNVALIDATED"
+    first_frame = dataset.get("frames", [{}])[0]
+    mesh_hash = _sha256(json.dumps({
+        "points": first_frame.get("points", []),
+        "cells": first_frame.get("cells", []),
+        "offsets": first_frame.get("offsets", []),
+        "cellTypes": first_frame.get("cellTypes", []),
+    }, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    frame_hashes = {name: _sha256(payload) for name, payload in sorted(files.items())}
     artifact_manifest = {
         "sidecarSha256": _sha256(sidecar_bytes),
-        "frames": [{"file": name, "sha256": _sha256(payload), "bytes": len(payload)} for name, payload in sorted(files.items())],
+        "frames": [{"file": name, "sha256": digest, "bytes": len(files[name])} for name, digest in frame_hashes.items()],
     }
     dataset_blob = _dataset_blob(dataset)
     if len(dataset_blob) > MAX_UPLOAD_BYTES:
@@ -407,6 +434,9 @@ def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_b
         "project_id": project_id,
         "case_id": case_id,
         "owner_id": owner_id,
+        "mesh_hash": mesh_hash,
+        "contract_hash": _sha256(sidecar_bytes),
+        "frame_hashes": frame_hashes,
         "status": status,
         "mesh_revision": dataset["meshRevision"],
         "dataset": _dataset_summary(dataset),
@@ -433,6 +463,7 @@ async def import_cfd_dataset(
     case_id: str = Form(..., min_length=1, max_length=160),
     project_id: str = Form(..., min_length=1, max_length=160),
     owner_id: str = Form(..., min_length=1, max_length=160),
+    analysis_id: str | None = Form(default=None, min_length=36, max_length=36),
     _auth: None = Depends(require_cfd_import_auth),
     _slot: None = Depends(require_import_slot),
 ) -> Dict[str, Any]:
@@ -463,7 +494,8 @@ async def import_cfd_dataset(
     parsed = [_parse_vtu(uploaded[name], name, descriptors) for name in [spec["file"] for spec in metadata["frames"]]]
     dataset = _build_dataset(metadata, parsed)
     _verify_project_owner(project_id, owner_id)
-    analysis_id = _persist_dataset(dataset, uploaded, sidecar_bytes, case_id, project_id, owner_id)
+    _verify_analysis_owner(analysis_id, project_id, owner_id)
+    analysis_id = _persist_dataset(dataset, uploaded, sidecar_bytes, case_id, project_id, owner_id, analysis_id)
     return {
         "analysisId": analysis_id,
         "datasetId": analysis_id,
@@ -503,6 +535,7 @@ async def import_cfd_dataset_from_storage(
     case_id = str(payload.get("case_id", "")).strip()
     project_id = str(payload.get("project_id", "")).strip()
     owner_id = str(payload.get("owner_id", "")).strip()
+    analysis_id = str(payload.get("analysis_id", "")).strip() or None
     session_id = str(payload.get("session_id", "")).strip()
     if not case_id or len(case_id) > 160 or "/" in case_id or "\\" in case_id:
         raise HTTPException(status_code=422, detail="case_id invalide pour le stockage.")
@@ -566,9 +599,10 @@ async def import_cfd_dataset_from_storage(
     descriptors = metadata.get("fieldDescriptors", {})
     parsed = [_parse_vtu(uploaded[name], name, descriptors) for name in [spec["file"] for spec in metadata["frames"]]]
     dataset = _build_dataset(metadata, parsed)
+    _verify_analysis_owner(analysis_id, project_id, owner_id)
     session_paths = [sidecar_path, *[path for _, path in frame_specs]]
     try:
-        analysis_id = _persist_dataset(dataset, uploaded, sidecar_bytes, case_id, project_id, owner_id)
+        analysis_id = _persist_dataset(dataset, uploaded, sidecar_bytes, case_id, project_id, owner_id, analysis_id)
     finally:
         try:
             client.storage.from_(bucket).remove(session_paths)
@@ -604,7 +638,7 @@ def get_latest_cfd_dataset_for_project(
         response = (
             _supabase()
             .table("cfd_datasets")
-            .select("analysis_id,project_id,status,dataset,artifact_manifest,created_at")
+            .select("analysis_id,project_id,case_id,owner_id,status,dataset,artifact_manifest,created_at")
             .eq("project_id", project_id)
             .eq("owner_id", owner_id)
             .order("created_at", desc=True)
@@ -614,9 +648,11 @@ def get_latest_cfd_dataset_for_project(
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Lecture du dernier dataset CFD échouée: {exc}") from exc
     if not response.data:
-        raise HTTPException(status_code=404, detail="Aucun dataset CFD persistant pour ce projet.")
+        return {"status": "NO_ANALYSIS", "analysis": None, "dataset": None}
     row = response.data[0]
     return {
+        "status": "OK",
+        "analysis": {"id": row["analysis_id"], "projectId": row["project_id"], "caseId": row["case_id"], "ownerId": row["owner_id"], "createdAt": row.get("created_at")},
         "analysisId": row["analysis_id"],
         "projectId": row["project_id"],
         "status": row["status"],
