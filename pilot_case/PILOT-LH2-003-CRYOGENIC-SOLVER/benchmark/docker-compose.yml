@@ -1,0 +1,12 @@
+services:
+  public-vof-contract-benchmark:
+    build:
+      context: ../../..
+      dockerfile: pilot_case/PILOT-LH2-003-CRYOGENIC-SOLVER/benchmark/Dockerfile
+    environment:
+      OUT_DIR: /workspace/output
+    volumes:
+      - ./run/docker:/workspace/output
+    read_only: true
+    tmpfs:
+      - /tmp
