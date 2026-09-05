@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Vérifie localement le contrat cfd-volume.v1 avant import QuantumPINN."""
 from __future__ import annotations
-import hashlib, json, sys
+import hashlib, json, os, sys
 from pathlib import Path
 
 
@@ -30,7 +30,16 @@ def main() -> int:
         times.append(float(frame["time"]))
     assert times == sorted(times) and len(set(times)) == len(times), "temps non croissants"
     # Parseur canonique QuantumPINN : valide la topologie et les champs numériques.
-    sys.path.insert(0, str(Path(__file__).parents[4] / "apps" / "api"))
+    candidates = []
+    if os.getenv("QUANTUMPINN_API_PATH"):
+        candidates.append(Path(os.environ["QUANTUMPINN_API_PATH"]))
+    candidates.append(Path("/workspace/apps/api"))
+    if len(Path(__file__).parents) > 4:
+        candidates.append(Path(__file__).parents[4] / "apps" / "api")
+    api_path = next((path for path in candidates if path.is_dir()), None)
+    if api_path is None:
+        raise SystemExit("apps/api introuvable : définir QUANTUMPINN_API_PATH")
+    sys.path.insert(0, str(api_path))
     from cfd_import_router import _parse_vtu
     first = None
     for frame in metadata["frames"]:
