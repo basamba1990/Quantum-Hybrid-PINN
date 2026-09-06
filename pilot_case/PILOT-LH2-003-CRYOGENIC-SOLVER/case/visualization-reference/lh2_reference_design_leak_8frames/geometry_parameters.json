@@ -1,0 +1,59 @@
+{
+  "classification": "REFERENCE_DESIGN",
+  "assetStatus": "ENGINEERING_CONCEPT",
+  "synthetic": true,
+  "realAsset": false,
+  "revision": "lh2-reference-tank-rd1",
+  "units": "SI",
+  "nominalCapacity_m3": 1250.0,
+  "geometry": {
+    "orientation": "horizontal",
+    "innerVessel": "cylindrical shell with hemispherical conceptual end closures",
+    "innerRadius_m": 4.2,
+    "straightCylinderLength_m": 16.95,
+    "overallLength_m": 25.35,
+    "estimatedGeometricVolume_m3": 1249.669,
+    "outerInsulationEnvelope": "conceptual double-wall vacuum-jacket envelope; not meshed as a solid",
+    "antiRollBaffles": [
+      3.4,
+      8.5,
+      13.6
+    ],
+    "dipTube": {
+      "axis": "x",
+      "inletX_m": -3.6,
+      "outletX_m": 20.549999999999997
+    },
+    "leakOrifice": {
+      "x_m": 10.509,
+      "y_m": 0.0,
+      "z_m": 3.75,
+      "radius_m": 0.18,
+      "representation": "localized volumetric source region; not a calibrated orifice model"
+    }
+  },
+  "assumptions": [
+    "Single connected fluid volume represented by tetrahedral cells.",
+    "Conceptual double-wall storage vessel; wall and insulation are not solid-mechanics results.",
+    "The leak field is manufactured for renderer and contract tests and is not a solver solution.",
+    "Temperature and pressure ranges are chosen near LH2 operating conditions for a structural demonstration only.",
+    "No claim is made about a real plant, certified equipment, code compliance, or experimental agreement."
+  ],
+  "sourceBasis": [
+    {
+      "id": "NIST-SRD69",
+      "title": "NIST Chemistry WebBook, Thermophysical Properties of Fluid Systems",
+      "uri": "https://webbook.nist.gov/chemistry/fluid/"
+    },
+    {
+      "id": "NASA-TM-2006-214346",
+      "title": "Review of Current State of the Art and Key Design Issues With Potential Solutions for Liquid Hydrogen Cryogenic Storage Tank Structures",
+      "uri": "https://ntrs.nasa.gov/api/citations/20060056194/downloads/20060056194.pdf"
+    },
+    {
+      "id": "NFPA-2",
+      "title": "NFPA 2 Hydrogen Technologies Code scope reference",
+      "uri": "https://www.nfpa.org/product/nfpa-2-hydrogen-technologies-code/p0002code"
+    }
+  ]
+}
