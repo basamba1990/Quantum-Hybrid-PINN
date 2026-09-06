@@ -1,0 +1,145 @@
+{
+  "schema": "lh2-boiloff-config.v1",
+  "case_id": "PILOT-LH2-003-CRYOGENIC-SOLVER",
+  "scientific_status": "UNVALIDATED",
+  "validation_allowed": false,
+  "solver": {
+    "name": "REPLACE_WITH_EXTERNAL_SOLVER",
+    "version": "REQUIRED",
+    "commit_or_build_id": "REQUIRED",
+    "container_image": "REQUIRED",
+    "container_digest": "REQUIRED_SHA256_DIGEST",
+    "command": ["REQUIRED"]
+  },
+  "geometry_and_mesh": {
+    "cad_path": "REQUIRED_AUTHORIZED_CAD.step",
+    "cad_sha256": "REQUIRED_SHA256",
+    "mesh_path": "REQUIRED_VOLUME_MESH.msh",
+    "mesh_sha256": "REQUIRED_SHA256",
+    "mesh_format": "REQUIRED",
+    "mesh_quality_report": "REQUIRED_MESH_REPORT.json"
+  },
+  "fluid": {
+    "name": "parahydrogen",
+    "composition_basis": "pure_para_hydrogen",
+    "para_fraction_mole": 0.998,
+    "para_fraction_source": "REPLACE_WITH_CERTIFICATE_OR_EXPERIMENTAL_SOURCE",
+    "property_backend": "NIST_REFPROP_10_OR_EQUIVALENT_VALIDATED_EOS",
+    "fluid_file_or_database": "REQUIRED_AND_HASHED",
+    "property_database_sha256": "REQUIRED_SHA256",
+    "reference_state": "REFPROP10_REFERENCE_STATE",
+    "phase_equilibrium": "EOS_SATURATION_CURVE",
+    "p_sat": {
+      "method": "EOS_SATURATION_FUNCTION_OF_T",
+      "unit": "Pa",
+      "do_not_replace_with_constant": true
+    },
+    "transport": {
+      "viscosity": "EOS_OR_VALIDATED_TRANSPORT_CORRELATION",
+      "thermal_conductivity": "EOS_OR_VALIDATED_TRANSPORT_CORRELATION",
+      "surface_tension": "VALIDATED_SATURATION_CORRELATION",
+      "all_values_require_source_and_hash": true
+    }
+  },
+  "thermodynamic_domain": {
+    "property_database_domain": {
+      "temperature_min_K": 13.8033,
+      "temperature_max_K": 1000.0,
+      "pressure_min_Pa": 1.0,
+      "pressure_max_Pa": 2000000000.0,
+      "source": "NIST_LEACHMAN_2009_REFPROP_DOMAIN"
+    },
+    "simulation_envelope": {
+      "temperature_min_K": 18.0,
+      "temperature_max_K": 30.0,
+      "pressure_min_Pa": 90000.0,
+      "pressure_max_Pa": 200000.0,
+      "basis": "NARROW_PRE_PRODUCTION_ENVELOPE_TO_BE_APPROVED",
+      "extrapolation_allowed": false
+    },
+    "initial_state": {
+      "pressure_Pa": 111000.0,
+      "temperature_K": 20.6,
+      "liquid_fill_fraction": 0.33,
+      "para_fraction_mole": 0.998,
+      "state_source": "NASA_KSC_REFERENCE_CASE_AS_REPORTED_IN_BOILFAST_2022"
+    }
+  },
+  "phase_properties": {
+    "liquid": {
+      "rho_kg_m3": "GENERATE_FROM_EOS_AT_T_P",
+      "h_J_kg": "GENERATE_FROM_EOS_AT_T_P",
+      "mu_Pa_s": "GENERATE_FROM_VALIDATED_TRANSPORT",
+      "k_W_mK": "GENERATE_FROM_VALIDATED_TRANSPORT"
+    },
+    "vapor": {
+      "rho_kg_m3": "GENERATE_FROM_EOS_AT_T_P",
+      "h_J_kg": "GENERATE_FROM_EOS_AT_T_P",
+      "mu_Pa_s": "GENERATE_FROM_VALIDATED_TRANSPORT",
+      "k_W_mK": "GENERATE_FROM_VALIDATED_TRANSPORT"
+    },
+    "latent_heat": "h_v_minus_h_l_FROM_EOS",
+    "surface_tension_N_m": "GENERATE_FROM_VALIDATED_SATURATION_CORRELATION",
+    "property_table_path": "REQUIRED_GENERATED_PROPERTY_TABLE.csv",
+    "property_table_sha256": "REQUIRED_SHA256"
+  },
+  "vof": {
+    "model": "VOF_SHARP_INTERFACE_OR_SOLVER_EQUIVALENT",
+    "phase_indicator": "alpha_liquid",
+    "alpha_liquid_range": [0.0, 1.0],
+    "interface_compression": "REQUIRED_SOLVER_SETTING_AND_JUSTIFICATION",
+    "phase_change_model": "REQUIRED_MASS_TRANSFER_MODEL",
+    "mass_transfer_direction": "liquid_to_vapor_for_evaporation",
+    "mass_transfer_coefficient": "REQUIRED_CALIBRATED_OR_DERIVED_VALUE",
+    "nucleation_or_wall_boiling_model": "REQUIRED_OR_NOT_APPLICABLE_WITH_JUSTIFICATION"
+  },
+  "boundary_and_initial_conditions": {
+    "initial": {
+      "temperature_K": 20.6,
+      "pressure_Pa": 111000.0,
+      "velocity_m_s": [0.0, 0.0, 0.0],
+      "alpha_liquid": "FROM_INITIAL_FILL_GEOMETRY"
+    },
+    "boundaries": [
+      {
+        "name": "wall",
+        "type": "no_slip_thermal",
+        "temperature_K": "MEASURED_OR_DOCUMENTED_FUNCTION",
+        "heat_flux_W_m2": "MEASURED_OR_DOCUMENTED_FUNCTION",
+        "contact_angle_deg": "MEASURED_OR_DOCUMENTED"
+      },
+      {
+        "name": "vent_or_outlet",
+        "type": "pressure_outlet_or_closed_tank",
+        "pressure_Pa": "REQUIRED_TEST_VALUE",
+        "mass_flow_kg_s": "MEASURED_IF_VENTED"
+      }
+    ]
+  },
+  "convergence": {
+    "residual_norm": "L2",
+    "continuity_target": 1e-8,
+    "momentum_target": 1e-8,
+    "energy_target": 1e-8,
+    "phase_fraction_target": 1e-8,
+    "global_mass_balance_relative": 1e-6,
+    "global_energy_balance_relative": 1e-4,
+    "boiloff_rate_window_relative": 0.05,
+    "steady_window_hours": 4.0,
+    "values_require_preapproval": true
+  },
+  "evidence_files": {
+    "residual_history": "REQUIRED/residuals.csv",
+    "mass_balance": "REQUIRED/mass_balance.csv",
+    "energy_balance": "REQUIRED/energy_balance.csv",
+    "boiloff_history": "REQUIRED/boiloff.csv",
+    "boundary_sets": "REQUIRED/boundary_sets.json",
+    "experimental_reference": "REQUIRED/experimental_comparison.csv"
+  },
+  "validation": {
+    "status_after_import": "UNVALIDATED",
+    "gates": ["G0", "G1", "G2", "G3", "G4", "G5", "G6"],
+    "independent_reproduction_required": true,
+    "experimental_comparison_required": true
+  }
+}
