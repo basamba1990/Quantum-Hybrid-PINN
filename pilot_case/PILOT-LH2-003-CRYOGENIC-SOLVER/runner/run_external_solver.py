@@ -8,6 +8,7 @@ from typing import Any
 HERE = Path(__file__).resolve().parents[1]
 INGEST = HERE / "benchmark" / "scripts" / "ingest_solver_vtu.py"
 VERIFY = HERE / "benchmark" / "scripts" / "verify_sidecar.py"
+PREFLIGHT = HERE / "runner" / "preflight_manifest.py"
 
 
 def sha256(path: Path) -> str:
@@ -20,12 +21,14 @@ def sha256(path: Path) -> str:
 
 def load_config(path: Path) -> dict[str, Any]:
     cfg = json.loads(path.read_text(encoding="utf-8"))
-    required = ("case_id", "project_id", "owner_id", "solver_command", "solver_output_dir")
+    required = ("case_id", "project_id", "owner_id", "solver_command", "solver_output_dir", "sidecar_template")
     missing = [key for key in required if not cfg.get(key)]
     if missing:
         raise SystemExit(f"configuration incomplète: {', '.join(missing)}")
     if cfg.get("validation_allowed", False):
         raise SystemExit("refus fail-closed: validation_allowed doit rester false")
+    if cfg.get("mode", "production") == "production" and not cfg.get("manifest_path"):
+        raise SystemExit("production: manifest_path obligatoire pour le préflight")
     if not isinstance(cfg["solver_command"], list) or not all(isinstance(x, str) for x in cfg["solver_command"]):
         raise SystemExit("solver_command doit être une liste d'arguments, sans shell implicite")
     return cfg
@@ -105,10 +108,13 @@ def main() -> int:
     (work / "config.snapshot.json").write_text(json.dumps(cfg, indent=2) + "\n", encoding="utf-8")
     output = run_solver(cfg, work)
     artifact_dir = work / "artifacts"
-    template = Path(cfg["sidecar_template"]).resolve() if cfg.get("sidecar_template") else None
-    command = [sys.executable, str(INGEST), str(output), str(artifact_dir)]
-    if template:
-        command.append(str(template))
+    template = Path(cfg["sidecar_template"]).resolve()
+    manifest = Path(cfg.get("manifest_path", "")).resolve() if cfg.get("manifest_path") else None
+    if cfg.get("mode", "production") == "production":
+        if manifest is None or not manifest.is_file():
+            raise SystemExit("production: manifest_path introuvable")
+        subprocess.run([sys.executable, str(PREFLIGHT), str(args.config.resolve()), str(manifest)], check=True)
+    command = [sys.executable, str(INGEST), str(output), str(artifact_dir), str(template)]
     subprocess.run(command, check=True)
     subprocess.run([sys.executable, str(VERIFY), str(artifact_dir)], check=True)
     print("artifact sha256:")

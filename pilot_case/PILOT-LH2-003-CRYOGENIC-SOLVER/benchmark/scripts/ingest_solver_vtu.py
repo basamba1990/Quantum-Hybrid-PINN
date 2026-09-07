@@ -18,16 +18,35 @@ def time_from_name(path: Path, index: int) -> float:
     return float(match.group(1)) if match else float(index)
 
 
+def load_template(path: Path) -> dict:
+    if not path.is_file():
+        raise SystemExit(f"template sidecar introuvable: {path}")
+    metadata = json.loads(path.read_text(encoding="utf-8"))
+    required = ("contractVersion", "meshRevision", "fieldDescriptors", "boundarySets", "provenance", "residuals", "references", "evidence")
+    missing = [key for key in required if key not in metadata]
+    if missing:
+        raise SystemExit(f"template sidecar incomplet: {', '.join(missing)}")
+    if metadata.get("contractVersion") != "cfd-volume.v1":
+        raise SystemExit("contractVersion doit être cfd-volume.v1")
+    return metadata
+
+
 def main() -> int:
-    if len(sys.argv) not in (3, 4):
-        print(f"usage: {sys.argv[0]} SOLVER_OUTPUT_DIR DEST_DIR [TEMPLATE_SIDECAR]", file=sys.stderr)
+    if len(sys.argv) != 4:
+        print(f"usage: {sys.argv[0]} SOLVER_OUTPUT_DIR DEST_DIR TEMPLATE_SIDECAR", file=sys.stderr)
         return 2
     source = Path(sys.argv[1]).resolve()
     dest = Path(sys.argv[2]).resolve()
-    template = Path(sys.argv[3]).resolve() if len(sys.argv) == 4 else None
+    template = Path(sys.argv[3]).resolve()
+    if not source.is_dir():
+        raise SystemExit(f"répertoire solveur introuvable: {source}")
     frames = sorted(source.glob("*.vtu"), key=lambda p: (time_from_name(p, 0), p.name))
     if not frames:
         raise SystemExit("aucun fichier .vtu produit par le solveur")
+    times = [time_from_name(path, index) for index, path in enumerate(frames)]
+    if any(t2 <= t1 for t1, t2 in zip(times, times[1:])):
+        raise SystemExit("temps de sortie ambigus ou non strictement croissants")
+    sidecar = load_template(template)
     dest.mkdir(parents=True, exist_ok=True)
     for old in dest.glob("*.vtu"):
         old.unlink()
@@ -35,31 +54,25 @@ def main() -> int:
     for i, path in enumerate(frames):
         name = f"frame_{i:04d}.vtu"
         shutil.copyfile(path, dest / name)
-        names.append((name, time_from_name(path, i)))
-    if template and template.exists():
-        sidecar = json.loads(template.read_text(encoding="utf-8"))
-    else:
-        sidecar = {
-            "contractVersion": "cfd-volume.v1",
-            "meshRevision": "external-solver-mesh",
-            "coordinateSystem": "cartesian-right-handed",
-            "lengthUnit": "m",
-            "fieldDescriptors": {},
-            "boundarySets": [],
-            "provenance": {},
-            "residuals": {},
-            "references": [],
-            "evidence": {},
-        }
+        names.append((name, times[i], sha256(dest / name)))
+    source_manifest = {
+        "sourceFiles": [{"name": path.name, "sha256": digest, "time": time} for path, (name, time, digest) in zip(frames, names)],
+        "frameCount": len(frames),
+    }
+    source_hash = hashlib.sha256(json.dumps(source_manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
     sidecar["frames"] = [
-        {"frameId": f"external-solver-{i:04d}", "time": t, "file": name, "payloadHash": sha256(dest / name)}
-        for i, (name, t) in enumerate(names)
+        {"frameId": f"external-solver-{i:04d}", "time": t, "file": name, "payloadHash": digest}
+        for i, (name, t, digest) in enumerate(names)
     ]
-    sidecar.setdefault("provenance", {})["sourceHash"] = sha256(dest / names[0][0])
-    sidecar["provenance"]["solverOutputDirectory"] = str(source)
+    provenance = dict(sidecar.get("provenance") or {})
+    provenance["sourceHash"] = source_hash
+    provenance["sourceFiles"] = source_manifest["sourceFiles"]
+    provenance.pop("solverOutputDirectory", None)
+    sidecar["provenance"] = provenance
     sidecar["classification"] = "EXTERNAL_SOLVER_OUTPUT_UNVALIDATED"
     sidecar["scientificStatus"] = "UNVALIDATED"
     sidecar["validationAllowed"] = False
+    (dest / "source-manifest.json").write_text(json.dumps(source_manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (dest / "sidecar.json").write_text(json.dumps(sidecar, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"ingested {len(names)} VTU frame(s) into {dest}")
     print("status: UNVALIDATED")
