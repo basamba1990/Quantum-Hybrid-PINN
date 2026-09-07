@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Sidebar } from '@/components/Sidebar'
+import { KellyWidget } from '@/components/KellyWidget'
 import { Providers } from './providers'
 import { createClient } from '@/lib/supabase/server'
 
@@ -40,6 +41,7 @@ export default async function RootLayout({
           <main className={`flex-1 overflow-y-auto ${user ? '' : 'w-full'}`}>
             {children}
           </main>
+          <KellyWidget />
         </Providers>
         <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
       </body>
