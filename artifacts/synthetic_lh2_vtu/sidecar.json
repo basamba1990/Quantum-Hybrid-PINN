@@ -25,6 +25,7 @@
     {
       "name": "synthetic_boundary",
       "association": "point",
+      "indexSpace": "point-index-space-v1",
       "indices": [
         0,
         1,
@@ -46,12 +47,12 @@
     "generatedAt": "2026-08-23T01:58:33.010280+00:00"
   },
   "residuals": {
-    "mass": 0.0,
-    "momentum": 0.0,
-    "energy": 0.0,
-    "norm": "L2",
-    "computedBy": "not-a-physical-solver",
-    "computedAt": "2026-08-23T01:58:33.010280+00:00"
+    "mass": null,
+    "momentum": null,
+    "energy": null,
+    "norm": null,
+    "computedBy": null,
+    "computedAt": null
   },
   "references": [
     {
