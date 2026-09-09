@@ -16,6 +16,12 @@
 | 12 | Seconde reproduction propre | `reproduction_2/*` | Vérificateur indépendant | `NOT_RUN` | Répertoire et environnement propres |
 | 13 | Décision G0–G5 | `final_decision.md` | Vérificateur indépendant | `BLOCKED` | `PASS` seulement si les deux reproductions concordent |
 
+## Simulation de préparation G5
+
+Le script `tools/simulate_clean_reproduction.py` crée deux environnements propres `reproduction_2_simulation/env_a` et `env_b`. Il rejoue uniquement les contrôles de provenance, de manifeste, de hash du dataset déclaré, de hash du split et de cohérence du preview CFD. Les deux environnements concordent sur ces précontrôles.
+
+Cette simulation n’est pas une reproduction scientifique : aucun entraînement PINN, aucune inférence, aucune baseline classique, aucune variante hybride/quantique et aucun calcul de résidu physique n’a été exécuté. Le statut de la preuve 12 reste donc `NOT_RUN`, et G5 reste bloquée.
+
 ## Ordre d’exécution autorisé
 
 L’ordre doit rester strictement séquentiel : autorisation, acquisition, hash, contrat, split, gel des tolérances, référence indépendante, baseline classique, variante hybride/quantique, résidus et métriques, reproduction propre, revue indépendante, décision. Une étape manquante bloque les suivantes.

@@ -1,0 +1,9 @@
+{
+  "basis": "x[:,0]",
+  "evaluation_count": 2215,
+  "evaluation_rule": "x[:,0] >= 0.84700440317615622",
+  "strategy": "streamwise_position_holdout",
+  "training_count": 8856,
+  "training_rule": "x[:,0] < 0.84700440317615622",
+  "warning": "Spatial holdout is independent by index rule but may remain correlated physically; it is not a new Reynolds condition."
+}

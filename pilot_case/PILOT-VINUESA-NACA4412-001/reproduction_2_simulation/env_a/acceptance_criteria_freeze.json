@@ -1,0 +1,57 @@
+{
+  "schema": "quantum-pilot-acceptance-freeze.v1",
+  "case_id": "PILOT-VINUESA-NACA4412-001",
+  "status": "TEMPLATE_REQUIRES_DOMAIN_APPROVAL",
+  "freeze_rule": "No evaluation may start while any threshold is pending.",
+  "training_partition": "PENDING_DOMAIN_APPROVAL",
+  "evaluation_partition": "PENDING_DOMAIN_APPROVAL",
+  "evaluation_manifest_hidden_from_training": true,
+  "metrics": {
+    "velocity_l2_relative": {
+      "definition": "||u_model-u_reference||_2/||u_reference||_2",
+      "threshold": "PENDING_DOMAIN_APPROVAL"
+    },
+    "pressure_l2_relative_if_available": {
+      "definition": "||p_model-p_reference||_2/||p_reference||_2",
+      "threshold": "PENDING_DOMAIN_APPROVAL_OR_NOT_APPLICABLE_WITH_REASON"
+    },
+    "mass_balance_relative": {
+      "definition": "abs(inlet_flux-outlet_flux)/max(abs(inlet_flux),abs(outlet_flux))",
+      "threshold": "PENDING_DOMAIN_APPROVAL"
+    },
+    "mass_residual_l2": {
+      "definition": "sqrt(mean(R_mass^2))",
+      "threshold": "PENDING_DOMAIN_APPROVAL"
+    },
+    "momentum_residual_l2": {
+      "definition": "sqrt(mean(R_momentum^2))",
+      "threshold": "PENDING_DOMAIN_APPROVAL"
+    },
+    "energy_residual_l2_if_energy_is_in_scope": {
+      "definition": "sqrt(mean(R_energy^2))",
+      "threshold": "PENDING_DOMAIN_APPROVAL_OR_NOT_APPLICABLE_WITH_REASON"
+    }
+  },
+  "hard_gates": [
+    "written_authorization_and_license",
+    "case_contract_verified",
+    "raw_artifacts_hash_verified",
+    "independent_reference_physically_accepted",
+    "real_residuals_available",
+    "classical_and_hybrid_runs_separate",
+    "second_clean_reproduction_concordant"
+  ],
+  "approval": {
+    "domain_owner": "PENDING",
+    "technical_owner": "PENDING",
+    "independent_reviewer": "PENDING",
+    "approved_at": "PENDING",
+    "criteria_sha256_after_signature": "PENDING"
+  },
+  "decision_policy": {
+    "pass": "All hard gates pass and all approved thresholds pass in both reproductions.",
+    "fail": "A declared failure condition is observed from real evidence.",
+    "inconclusive": "Any required evidence is missing, contradictory, or unapproved.",
+    "invalid": "Leakage, secret material, post-hoc threshold changes, or fabricated evidence is detected."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "baseline_executed": false,
+  "hybrid_quantum_executed": false,
+  "mode": "clean-reproduction-simulation",
+  "model_training_executed": false,
+  "network": "not_required",
+  "purpose": "replay provenance, schema, hash and split checks only",
+  "python": "3.11-compatible",
+  "raw_dataset_present": false,
+  "scientific_run_executed": false,
+  "seed": "NOT_APPROVED_NOT_USED",
+  "source_commit": "fc5da5893630fd9c39a33f879538953460c9d654"
+}

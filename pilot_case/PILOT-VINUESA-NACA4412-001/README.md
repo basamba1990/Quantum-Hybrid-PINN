@@ -81,3 +81,9 @@ La baseline classique et la variante hybride/quantique doivent consommer la mêm
 [3]: https://github.com/VinuesaLAB-AI/Separation-Control-Applied-To-The-Turbulent-Flow-Around-A-NACA4412-Wing-Section "VinuesaLAB-AI — NACA4412 separation-control database"
 
 **Statut :** `INCONCLUSIVE — STOP UNTIL GATES ARE SATISFIED`
+
+## Préparation de la reproduction G5
+
+Le script `tools/simulate_clean_reproduction.py` prépare deux environnements propres et rejoue les contrôles de provenance, de hash et de split. Les précontrôles concordent dans `reproduction_2_simulation/simulation_report.json`.
+
+Cette exécution est explicitement `SIMULATED_PRECHECK_ONLY`. Elle ne compte pas comme reproduction scientifique et ne modifie pas le statut `UNVALIDATED` : aucun entraînement, aucune inférence, aucune baseline classique, aucune variante hybride/quantique et aucun résidu physique n’ont été exécutés.

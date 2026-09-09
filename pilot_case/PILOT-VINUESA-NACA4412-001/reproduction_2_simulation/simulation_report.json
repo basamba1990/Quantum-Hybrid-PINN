@@ -1,0 +1,36 @@
+{
+  "case_id": "PILOT-VINUESA-NACA4412-001",
+  "checks_a": {
+    "artifact_hash_manifest_record": true,
+    "case_id": true,
+    "preview_not_validated": true,
+    "preview_source_hash": true,
+    "raw_hash_record": true,
+    "reproduction_not_claimed": true,
+    "split_hash": true
+  },
+  "checks_b": {
+    "artifact_hash_manifest_record": true,
+    "case_id": true,
+    "preview_not_validated": true,
+    "preview_source_hash": true,
+    "raw_hash_record": true,
+    "reproduction_not_claimed": true,
+    "split_hash": true
+  },
+  "concordant_prechecks": true,
+  "decision": "INCONCLUSIVE",
+  "environment_a": "pilot_case/PILOT-VINUESA-NACA4412-001/reproduction_2_simulation/env_a",
+  "environment_b": "pilot_case/PILOT-VINUESA-NACA4412-001/reproduction_2_simulation/env_b",
+  "limitations": [
+    "No PINN training or inference was executed.",
+    "No classical baseline or hybrid/quantum run was executed.",
+    "No physical residuals were calculated.",
+    "Acceptance thresholds are still pending approval.",
+    "Written data authorization is still pending.",
+    "This simulation cannot satisfy G5 or mark reproduction_2 as COMPLETED."
+  ],
+  "schema": "quantum-pilot-g5-reproduction-simulation.v1",
+  "scientific_reproduction_status": "NOT_COMPLETED",
+  "status": "SIMULATED_PRECHECK_ONLY"
+}

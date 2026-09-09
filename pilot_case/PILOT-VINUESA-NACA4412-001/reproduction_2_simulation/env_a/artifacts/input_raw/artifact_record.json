@@ -1,0 +1,135 @@
+{
+  "artifact": "top2n_HighRes.npz",
+  "dtypes": {
+    "P": "float64",
+    "U": "float64",
+    "V": "float64",
+    "alpha": "float64",
+    "dPdx": "float64",
+    "dPdy": "float64",
+    "dUdx": "float64",
+    "dUdy": "float64",
+    "dVdx": "float64",
+    "dVdy": "float64",
+    "duudx": "float64",
+    "uu": "float64",
+    "uv": "float64",
+    "vv": "float64",
+    "x": "float64",
+    "xa": "float64",
+    "y": "float64",
+    "ya": "float64",
+    "yn": "float64"
+  },
+  "keys": [
+    "P",
+    "U",
+    "V",
+    "alpha",
+    "dPdx",
+    "dPdy",
+    "dUdx",
+    "dUdy",
+    "dVdx",
+    "dVdy",
+    "duudx",
+    "uu",
+    "uv",
+    "vv",
+    "x",
+    "xa",
+    "y",
+    "ya",
+    "yn"
+  ],
+  "license_status": "PENDING_WRITTEN_OWNER_CONFIRMATION",
+  "path": "artifacts/input_raw/top2n_HighRes.npz",
+  "read_only": true,
+  "reynolds": {
+    "basis": "U_infinity and chord c",
+    "status": "CONFIRMED_FROM_SOURCE_README",
+    "unit": "1",
+    "value": 200000
+  },
+  "sha256": "dac13d230ab834e4112480ccebf3682ef6756e524daecbc2bcd2299471782a6a",
+  "shapes": {
+    "P": [
+      11071,
+      195
+    ],
+    "U": [
+      11071,
+      195
+    ],
+    "V": [
+      11071,
+      195
+    ],
+    "alpha": [
+      11071
+    ],
+    "dPdx": [
+      11071,
+      195
+    ],
+    "dPdy": [
+      11071,
+      195
+    ],
+    "dUdx": [
+      11071,
+      195
+    ],
+    "dUdy": [
+      11071,
+      195
+    ],
+    "dVdx": [
+      11071,
+      195
+    ],
+    "dVdy": [
+      11071,
+      195
+    ],
+    "duudx": [
+      11071,
+      195
+    ],
+    "uu": [
+      11071,
+      195
+    ],
+    "uv": [
+      11071,
+      195
+    ],
+    "vv": [
+      11071,
+      195
+    ],
+    "x": [
+      11071,
+      195
+    ],
+    "xa": [
+      11071
+    ],
+    "y": [
+      11071,
+      195
+    ],
+    "ya": [
+      11071
+    ],
+    "yn": [
+      11071,
+      195
+    ]
+  },
+  "size_bytes": 237619462,
+  "source_commit": "26ba60bcf53476ca26c2fc20c82e5aa110343315",
+  "source_path": "NACA4412/data/xaa..xaw reconnected by NACA4412/gen-Wing-Data",
+  "source_repository": "https://github.com/VinuesaLAB-AI/Physics-informed-neural-networks-for-solving-Reynolds-averaged-Navier-Stokes-equations",
+  "split_sha256": "79f46c8dcaf30e853f4222829b3321d0000f6ef0e93d3518570c206edca1dde4"
+}
