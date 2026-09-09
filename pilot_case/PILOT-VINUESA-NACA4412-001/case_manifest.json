@@ -1,0 +1,95 @@
+{
+  "allowed_decisions": [
+    "PASS",
+    "FAIL",
+    "INCONCLUSIVE"
+  ],
+  "authorization": {
+    "document": "AUTHORIZATION_REQUEST.md",
+    "license": "PENDING_WRITTEN_OWNER_CONFIRMATION",
+    "redistribution": "NOT_AUTHORIZED",
+    "status": "PENDING_WRITTEN_OWNER_CONFIRMATION"
+  },
+  "case_id": "PILOT-VINUESA-NACA4412-001",
+  "coordinates": {
+    "x": "chordwise_coordinate_PENDING_ORIGIN_AND_UNIT",
+    "y": "wall_normal_coordinate_PENDING_ORIENTATION_AND_UNIT",
+    "z": "NOT_APPLICABLE_2D_IF_CONFIRMED"
+  },
+  "decision": "INCONCLUSIVE",
+  "evidence": {
+    "energy_residual": "UNAVAILABLE",
+    "environment_lock_sha256": "PENDING",
+    "mass_residual": "UNAVAILABLE",
+    "metrics": "UNAVAILABLE",
+    "momentum_residual": "UNAVAILABLE",
+    "raw_file_records": [
+      {
+        "path": "artifacts/input_raw/top2n_HighRes.npz",
+        "read_only": true,
+        "sha256": "dac13d230ab834e4112480ccebf3682ef6756e524daecbc2bcd2299471782a6a",
+        "size_bytes": 237619462
+      }
+    ],
+    "raw_files_read_only": true,
+    "reproduction_1": "NOT_RUN",
+    "reproduction_2_clean_environment": "NOT_RUN",
+    "seed": "PENDING_APPROVAL"
+  },
+  "fields_to_compare": [
+    "velocity_u",
+    "velocity_v",
+    "pressure_if_available",
+    "reynolds_stresses_if_available",
+    "integral_quantities_if_available"
+  ],
+  "gates": {
+    "G0": "BLOCKED_AUTHORIZATION_AND_APPROVAL",
+    "G1": "PARTIAL_ARTIFACT_ACQUIRED_SIDECAR_AND_SOURCE_MESH_UNVERIFIED",
+    "G2": "PARTIAL_REYNOLDS_CONFIRMED_UNITS_AND_REFERENCE_FRAME_PENDING",
+    "G3": "BLOCKED_RUN_NOT_EXECUTED",
+    "G4": "BLOCKED_REAL_RESIDUALS_UNAVAILABLE",
+    "G5": "BLOCKED_HELD_OUT_AND_REPRODUCTION_NOT_COMPLETED"
+  },
+  "geometry": {
+    "artifact_path": "artifacts/input_raw/top2n_HighRes.npz",
+    "artifact_sha256": "dac13d230ab834e4112480ccebf3682ef6756e524daecbc2bcd2299471782a6a",
+    "coordinate_units": "PENDING_SOURCE_VERIFICATION",
+    "name": "NACA4412",
+    "origin_and_orientation": "PENDING_SOURCE_VERIFICATION",
+    "source_uri": "https://www.vinuesalab.com/wing/"
+  },
+  "physics": {
+    "properties": "PENDING_SOURCE_AND_MODEL_APPROVAL",
+    "reference_length": "chord_c_PENDING_NUMERIC_VALUE_AND_UNIT",
+    "regime": "incompressible turbulent external flow",
+    "reynolds_number_chord": 200000,
+    "reynolds_status": "CONFIRMED_FROM_SOURCE_README",
+    "time_status": "PENDING_SOURCE_VERIFICATION"
+  },
+  "reference": {
+    "configuration_sha256": "PENDING",
+    "logs_sha256": "PENDING",
+    "physical_acceptance": "PENDING_INDEPENDENT_REVIEW",
+    "solver": "PENDING",
+    "type": "VinuesaLAB source dataset; independent solver reference still pending",
+    "version": "PENDING"
+  },
+  "runs": {
+    "classical_baseline": "NOT_RUN",
+    "hybrid_quantum_variant": "NOT_RUN",
+    "same_held_out_evaluation": true,
+    "same_input_contract": true
+  },
+  "schema": "quantum-pilot-case-manifest.v1",
+  "security_class": "NON_SAFETY_CRITICAL_RESEARCH_ONLY",
+  "split": {
+    "evaluation_manifest_hidden_from_training": true,
+    "evaluation_partition": "x[:,0] >= quantile_0.8",
+    "split_sha256": "79f46c8dcaf30e853f4222829b3321d0000f6ef0e93d3518570c206edca1dde4",
+    "strategy": "held_out_condition_or_reynolds",
+    "training_partition": "x[:,0] < quantile_0.8"
+  },
+  "status": "INCONCLUSIVE_PREPARATION_ONLY",
+  "validated_status_allowed": false
+}
