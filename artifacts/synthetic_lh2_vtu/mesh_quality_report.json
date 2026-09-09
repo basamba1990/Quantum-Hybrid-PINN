@@ -1,0 +1,25 @@
+{
+  "cellCount": 5,
+  "cellTypes": {
+    "tetra": 5
+  },
+  "classification": "STRUCTURAL_MESH_QUALITY_ONLY",
+  "degenerateCellCount": 0,
+  "limitations": "Structural tetrahedral quality only; no CFD solver execution, physical validation, convergence proof, or industrial certification.",
+  "maxCellVolumeM3": 0.3333333333333333,
+  "maxJacobian": 2.0,
+  "maxSkewness": 0.25,
+  "meshSha256": "14bb112ba3de82500eff33003acd1fe69bd66a3f9e6d7083db6f01c4abfb5d23",
+  "minCellVolumeM3": 0.16666666666666666,
+  "minJacobian": 1.0,
+  "minSkewness": 5.921189464667501e-17,
+  "negativeVolumeCellCount": 0,
+  "pointCount": 8,
+  "reportVersion": "volumetric-mesh-quality.v1",
+  "skewnessDefinition": "max normalized triangular-face-angle deviation from ideal 60 degrees; see script docstring",
+  "sourceFile": "frame_0000.vtu",
+  "tool": "compute_vtu_mesh_quality.py",
+  "toolVersion": "1.0.0",
+  "validated": true,
+  "zeroVolumeCellCount": 0
+}
