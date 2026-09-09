@@ -1,0 +1,28 @@
+{
+  "cell_count": 4199,
+  "fields_rendered": [
+    "velocity magnitude",
+    "pressure",
+    "Reynolds-stress magnitude"
+  ],
+  "image": "visualization_local/naca4412_fields_local.png",
+  "image_sha256": "377a961018e4d00d18396f54e17ffc9ab886bf4dd88e014962d3b8aea3e0623c",
+  "limitations": [
+    "derived preview is not original CFD mesh",
+    "no independent reference comparison",
+    "no solver residual calculation",
+    "energy is out of scope"
+  ],
+  "point_count": 4440,
+  "residuals": {
+    "energy": null,
+    "mass": null,
+    "momentum": null
+  },
+  "reynolds_number_chord": 200000,
+  "schema": "naca4412-local-visualization-report.v1",
+  "source_preview": "artifacts/derived/naca4412_cfd_preview.json",
+  "source_preview_sha256": "446bdbfe7fc912c192d420d33314651ca17fc0edd610cdea55099bad73bc5f7d",
+  "status": "STRUCTURAL_LOCAL_RENDER_ONLY",
+  "validated": false
+}

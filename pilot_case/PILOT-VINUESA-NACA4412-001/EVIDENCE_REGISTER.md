@@ -29,3 +29,11 @@ L’ordre doit rester strictement séquentiel : autorisation, acquisition, hash,
 ## Statut
 
 `INCONCLUSIVE — EVIDENCE INCOMPLETE`
+
+## Approbation et visualisation locales
+
+Le formulaire `ACCEPTANCE_APPROVAL_FORM_FR.md` formalise les seuils proposés, les unités, les rôles de signature et la procédure de gel cryptographique. Il ne vaut pas approbation tant que les trois signatures ne sont pas vérifiées.
+
+Le sidecar `case_sidecar.json` est une proposition physique : le Reynolds est confirmé par la source, mais les unités dimensionnelles, les propriétés `rho`/`mu`, l’angle d’attaque et les conditions limites restent à confirmer.
+
+Le rendu `visualization_local/naca4412_fields_local.png` est une visualisation locale du preview dérivé réel. Son rapport est `visualization_local/visualization_report.json`. Statut : `STRUCTURAL_LOCAL_RENDER_ONLY`, `validated: false`, résidus masse/momentum/énergie `N/D`.

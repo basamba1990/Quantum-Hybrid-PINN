@@ -87,3 +87,13 @@ La baseline classique et la variante hybride/quantique doivent consommer la mêm
 Le script `tools/simulate_clean_reproduction.py` prépare deux environnements propres et rejoue les contrôles de provenance, de hash et de split. Les précontrôles concordent dans `reproduction_2_simulation/simulation_report.json`.
 
 Cette exécution est explicitement `SIMULATED_PRECHECK_ONLY`. Elle ne compte pas comme reproduction scientifique et ne modifie pas le statut `UNVALIDATED` : aucun entraînement, aucune inférence, aucune baseline classique, aucune variante hybride/quantique et aucun résidu physique n’ont été exécutés.
+
+## Approbation formelle G0
+
+Le formulaire `ACCEPTANCE_APPROVAL_FORM_FR.md` décrit les seuils proposés, leurs unités, les trois rôles obligatoires et le calcul du hash après signature. Le sidecar `case_sidecar.json` et `acceptance_criteria_proposal.json` restent des propositions tant que le propriétaire du domaine, le responsable technique et le réviseur indépendant n’ont pas approuvé le périmètre.
+
+G0 exige en plus une autorisation VinuesaLAB écrite couvrant les fichiers exacts, la licence, les utilisateurs, la durée et les droits de publication. Une simple signature des tolérances ne débloque donc pas G0 à elle seule.
+
+## Visualisation locale
+
+Le rendu local `visualization_local/naca4412_fields_local.png` montre la magnitude de vitesse, la pression et la magnitude des contraintes de Reynolds du preview dérivé. Le rapport `visualization_local/visualization_report.json` contient le hash du preview et indique `STRUCTURAL_LOCAL_RENDER_ONLY`. Le rendu n’est pas une validation : le maillage source original, la comparaison indépendante et les résidus restent absents.
