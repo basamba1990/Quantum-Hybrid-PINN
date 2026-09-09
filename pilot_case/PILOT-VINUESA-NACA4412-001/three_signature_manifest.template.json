@@ -1,0 +1,41 @@
+{
+  "schema": "quantum-pilot-three-signature-manifest.v1",
+  "case_id": "PILOT-VINUESA-NACA4412-001",
+  "signed_file": "ACCEPTANCE_APPROVAL_FORM_FR.v1.md",
+  "signed_file_sha256": "PENDING",
+  "signatures": [
+    {
+      "role": "domain_owner",
+      "name": "PENDING",
+      "institutional_email": "PENDING",
+      "key_fingerprint": "PENDING",
+      "authority_evidence": "PENDING",
+      "signature_file": "ACCEPTANCE_APPROVAL_FORM_FR.v1.domain-owner.asc",
+      "signature_sha256": "PENDING",
+      "verification": "PENDING"
+    },
+    {
+      "role": "technical_owner",
+      "name": "PENDING",
+      "institutional_email": "PENDING",
+      "key_fingerprint": "PENDING",
+      "authority_evidence": "PENDING",
+      "signature_file": "ACCEPTANCE_APPROVAL_FORM_FR.v1.technical-owner.asc",
+      "signature_sha256": "PENDING",
+      "verification": "PENDING"
+    },
+    {
+      "role": "independent_reviewer",
+      "name": "PENDING",
+      "institutional_email": "PENDING",
+      "key_fingerprint": "PENDING",
+      "authority_evidence": "PENDING",
+      "signature_file": "ACCEPTANCE_APPROVAL_FORM_FR.v1.independent-reviewer.asc",
+      "signature_sha256": "PENDING",
+      "verification": "PENDING"
+    }
+  ],
+  "all_three_verified": false,
+  "authorization_license_verified": false,
+  "status": "PENDING_SIGNATURES_AND_AUTHORIZATION"
+}
