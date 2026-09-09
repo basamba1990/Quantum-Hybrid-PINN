@@ -109,8 +109,19 @@ class InitializeRequestV8(BaseModel):
 
 class TrainRequestV8(BaseModel):
     N_pde: int = 5000
+    N_boundary: int = 512
+    N_initial: int = 256
+    N_data: int = 256
     epochs: int = 5000
     learning_rate: float = 0.001
+    layers: List[int] = [4, 128, 128, 128, 128, 5]
+    activation: str = "tanh"
+    input_order: List[str] = ["t", "x", "y", "z"]
+    output_order: List[str] = ["pressure", "u", "v", "w", "temperature"]
+    batch_size: int = 256
+    seed: Optional[int] = None
+    sampling_strategy: str = "Sobol_fixed_seed"
+    loss_weights: Dict[str, float] = {}
     model_name: str = "hydrogen_pinn_v8_default"
 
 class PredictionRequestV8(BaseModel):
@@ -275,8 +286,11 @@ async def initialize_model_v8(request: InitializeRequestV8):
 async def train_model_v8(request: TrainRequestV8):
     global current_model_v8
     try:
-        if current_model_v8 is None:
-            current_model_v8 = HydrogenPINNV8()
+        if request.seed is not None:
+            torch.manual_seed(request.seed)
+            np.random.seed(request.seed)
+        if current_model_v8 is None or list(getattr(current_model_v8.pinn_model, "layers", [])) != request.layers:
+            current_model_v8 = HydrogenPINNV8(layers=request.layers)
         history = current_model_v8.train_pinn(
             epochs=request.epochs,
             learning_rate=request.learning_rate,
@@ -292,6 +306,9 @@ async def train_model_v8(request: TrainRequestV8):
             "model_path": model_path,
             "final_loss": float(history["loss"][-1]),
             "epochs": request.epochs,
+            "training_config": request.model_dump() if hasattr(request, "model_dump") else request.dict(),
+            "loss_weights_applied": False,
+            "loss_weights_note": "Received and persisted in the training contract; current V2 trainer does not yet apply per-term weights.",
             "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:

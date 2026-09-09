@@ -20,9 +20,21 @@ export interface PINNSimulationJob {
   modelConfig: {
     layers: number[]
     fluidType: 'H2' | 'NH3' | 'CH4' | 'sCO2'
+    activation?: string
+    inputOrder?: string[]
+    outputOrder?: string[]
     epochs?: number
     learningRate?: number
     batchSize?: number
+    seed?: number
+    sampling?: {
+      N_pde: number
+      N_boundary: number
+      N_initial: number
+      N_data: number
+      strategy: string
+    }
+    lossWeights?: Record<string, number>
   }
   dataPoints?: {
     time: number
@@ -328,9 +340,20 @@ export class PINNQueueManager extends EventEmitter {
       case 'training':
         endpoint = '/v2/model/train'
         payload = {
-          N_pde: 5000,
+          N_pde: modelConfig.sampling?.N_pde || 5000,
+          N_boundary: modelConfig.sampling?.N_boundary || 512,
+          N_initial: modelConfig.sampling?.N_initial || 256,
+          N_data: modelConfig.sampling?.N_data || 256,
           epochs: modelConfig.epochs || 5000,
           learning_rate: modelConfig.learningRate || 0.001,
+          layers: modelConfig.layers,
+          activation: modelConfig.activation || 'tanh',
+          input_order: modelConfig.inputOrder || ['t', 'x', 'y', 'z'],
+          output_order: modelConfig.outputOrder || ['pressure', 'u', 'v', 'w', 'temperature'],
+          batch_size: modelConfig.batchSize || 256,
+          seed: modelConfig.seed,
+          sampling_strategy: modelConfig.sampling?.strategy || 'Sobol_fixed_seed',
+          loss_weights: modelConfig.lossWeights || {},
           model_name: `pinn_${Date.now()}`,
         }
         break

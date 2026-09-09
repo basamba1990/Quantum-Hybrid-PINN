@@ -1,0 +1,88 @@
+{
+  "profileVersion": "pinn-training-profile.v1",
+  "classification": "TEST_RECOMMENDATION_NOT_VALIDATION",
+  "projectStatusRequired": "STRUCTURAL_TEST_UNVALIDATED",
+  "solverExecution": "NOT_RUN",
+  "dataset": {
+    "meshRevision": "synthetic-lh2-mesh-v1-topology-proof-v1",
+    "frames": 2,
+    "pointCount": 8,
+    "cellCount": 5,
+    "sourceHash": "14bb112ba3de82500eff33003acd1fe69bd66a3f9e6d7083db6f01c4abfb5d23"
+  },
+  "modelConfig": {
+    "layers": [
+      4,
+      64,
+      64,
+      64,
+      64,
+      5
+    ],
+    "inputOrder": [
+      "t",
+      "x",
+      "y",
+      "z"
+    ],
+    "outputOrder": [
+      "pressure",
+      "u",
+      "v",
+      "w",
+      "temperature"
+    ],
+    "activation": "tanh",
+    "normalization": {
+      "coordinates": "map_each_dimension_to[-1,1]",
+      "time": "map_to[-1,1]",
+      "outputs": "standardize_from_training_split_only"
+    },
+    "epochs": 5000,
+    "learningRate": 0.001,
+    "optimizer": "Adam",
+    "batchSize": 256,
+    "seed": 20260909
+  },
+  "sampling": {
+    "N_pde": 5000,
+    "N_boundary": 512,
+    "N_initial": 256,
+    "N_data": 256,
+    "strategy": "Sobol_fixed_seed",
+    "evaluationSplit": "independent_20_percent_hidden_from_training"
+  },
+  "lossWeights": {
+    "pde_mass": 1.0,
+    "pde_momentum": 1.0,
+    "pde_energy": 0.5,
+    "boundary": 10.0,
+    "initial": 5.0,
+    "data": 1.0,
+    "regularization": 1e-06
+  },
+  "schedule": {
+    "warmupEpochs": 500,
+    "reduceLROnPlateau": {
+      "factor": 0.5,
+      "patience": 250,
+      "minLearningRate": 1e-06
+    },
+    "earlyStopping": {
+      "patience": 750,
+      "minDelta": 1e-06
+    }
+  },
+  "acceptance": {
+    "reportResidualsAs": "N/D until computed by a physical solver or explicitly defined PINN residual evaluator",
+    "doNotPromoteToValidated": true,
+    "requiredArtifacts": [
+      "config.json",
+      "seed.json",
+      "training_log.jsonl",
+      "model_hash",
+      "independent_evaluation.json",
+      "reproduction_2_report.json"
+    ]
+  }
+}
