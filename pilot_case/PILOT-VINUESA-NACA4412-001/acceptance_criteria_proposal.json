@@ -1,0 +1,30 @@
+{
+  "schema": "quantum-pilot-acceptance-proposal.v1",
+  "case_id": "PILOT-VINUESA-NACA4412-001",
+  "status": "PROPOSED_NOT_APPROVED_NOT_FROZEN",
+  "rule": "No run or evaluation may use these values until domain owner, technical owner and independent reviewer approve and hash this file.",
+  "unit_basis": {
+    "coordinates": "x/c, y/c",
+    "velocity": "U/U_infinity, V/U_infinity",
+    "pressure": "p/(rho*U_infinity^2)",
+    "reynolds_stresses": "uu/U_infinity^2, uv/U_infinity^2, vv/U_infinity^2",
+    "residuals": "dimensionless normalized residuals under the same nondimensionalization",
+    "energy": "not applicable unless temperature and an energy equation are approved"
+  },
+  "split": {
+    "training": "x[:,0] < quantile_0.8",
+    "evaluation": "x[:,0] >= quantile_0.8",
+    "manifest_sha256": "79f46c8dcaf30e853f4222829b3321d0000f6ef0e93d3518570c206edca1dde4",
+    "limitation": "spatial holdout, not an independent Reynolds condition"
+  },
+  "metrics": {
+    "velocity_l2_relative": {"definition": "||q_model-q_reference||_2/||q_reference||_2 for q=(U,V)", "proposed_threshold": 0.05, "unitless": true},
+    "pressure_l2_relative_if_available": {"definition": "||P_model-P_reference||_2/||P_reference||_2", "proposed_threshold": 0.10, "unitless": true, "condition": "only if pressure reference is accepted"},
+    "mass_balance_relative": {"definition": "abs(inlet_flux-outlet_flux)/max(abs(inlet_flux),abs(outlet_flux))", "proposed_threshold": 0.001, "unitless": true},
+    "mass_residual_l2": {"definition": "sqrt(mean(R_mass^2))", "proposed_threshold": 0.001, "unitless": true},
+    "momentum_residual_l2": {"definition": "sqrt(mean(R_momentum_x^2 + R_momentum_y^2))", "proposed_threshold": 0.01, "unitless": true},
+    "energy_residual_l2_if_energy_is_in_scope": {"definition": "sqrt(mean(R_energy^2))", "proposed_threshold": null, "status": "NOT_APPLICABLE_PENDING_EXPLICIT_APPROVAL"}
+  },
+  "hard_failures": ["missing_units", "data_leakage", "nonfinite_output", "hash_mismatch", "residual_not_computed_from_real_output", "post_hoc_threshold_change"],
+  "approvals": {"domain_owner": "PENDING", "technical_owner": "PENDING", "independent_reviewer": "PENDING", "approved_at": "PENDING", "sha256_after_approval": "PENDING"}
+}

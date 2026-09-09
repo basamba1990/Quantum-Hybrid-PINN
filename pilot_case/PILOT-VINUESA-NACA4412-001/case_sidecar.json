@@ -1,0 +1,56 @@
+{
+  "schema": "quantum-pilot-case-sidecar.v1",
+  "case_id": "PILOT-VINUESA-NACA4412-001",
+  "status": "PROPOSED_PENDING_DOMAIN_AND_SOURCE_APPROVAL",
+  "approval_required_before_run": true,
+  "geometry": {
+    "name": "NACA4412",
+    "dimension": "2D",
+    "reference_length": {"symbol": "c", "value": null, "unit": "source_chord_unit", "status": "PENDING_SOURCE_VERIFICATION"},
+    "coordinate_system": "right-handed Cartesian embedded in 3D",
+    "origin": "leading_edge_or_source_defined_origin",
+    "axes": {"x": "chordwise, positive toward trailing edge", "y": "wall-normal in source-defined positive orientation", "z": "zero embedding coordinate"},
+    "orientation_status": "PENDING_SOURCE_VERIFICATION",
+    "mesh_status": "derived_preview_only_source_mesh_unavailable"
+  },
+  "flow": {
+    "regime": "external turbulent incompressible flow",
+    "time_representation": "time-averaged/statistical field unless source proves otherwise",
+    "reynolds_number": {"symbol": "Re_c", "value": 200000, "definition": "rho * U_infinity * c / mu", "basis": "U_infinity and chord c", "status": "CONFIRMED_FROM_SOURCE_README"},
+    "angle_of_attack": {"value": null, "unit": "degree", "status": "PENDING_SOURCE_VERIFICATION"},
+    "boundary_conditions": {
+      "inlet": "PENDING_SOURCE_VERIFICATION",
+      "outlet": "PENDING_SOURCE_VERIFICATION",
+      "airfoil_wall": "no-slip if confirmed by source",
+      "far_field": "PENDING_SOURCE_VERIFICATION",
+      "spanwise": "not_applicable_2D_if_confirmed"
+    }
+  },
+  "properties": {
+    "density": {"symbol": "rho", "value": null, "unit": "source_density_unit", "status": "NOT_IDENTIFIED_IN_CURRENT_ARTIFACT"},
+    "dynamic_viscosity": {"symbol": "mu", "value": null, "unit": "source_viscosity_unit", "status": "NOT_IDENTIFIED_IN_CURRENT_ARTIFACT"},
+    "temperature": {"symbol": "T", "value": null, "unit": "K", "status": "OUT_OF_SCOPE_FOR_CURRENT_INCOMPRESSIBLE_DATA"},
+    "compressibility": "neglected",
+    "energy_equation": "OUT_OF_SCOPE_UNLESS_APPROVED_WITH_TEMPERATURE_AND_PROPERTIES"
+  },
+  "field_units": {
+    "x": "x/c",
+    "y": "y/c",
+    "U": "U/U_infinity",
+    "V": "V/U_infinity",
+    "P": "p/(rho*U_infinity^2)",
+    "uu": "<u'u'>/U_infinity^2",
+    "uv": "<u'v'>/U_infinity^2",
+    "vv": "<v'v'>/U_infinity^2",
+    "derivatives": "consistent derivatives in normalized coordinates",
+    "unit_basis_status": "PROPOSED_NORMALIZED_UNITS_PENDING_SOURCE_CONFIRMATION"
+  },
+  "comparison_scope": ["U", "V", "P_if_available", "uu", "uv", "vv"],
+  "excluded_scope": ["temperature", "enthalpy", "compressible_energy"],
+  "source": {
+    "repository": "https://github.com/VinuesaLAB-AI/Physics-informed-neural-networks-for-solving-Reynolds-averaged-Navier-Stokes-equations",
+    "commit": "26ba60bcf53476ca26c2fc20c82e5aa110343315",
+    "artifact_sha256": "dac13d230ab834e4112480ccebf3682ef6756e524daecbc2bcd2299471782a6a",
+    "authorization": "PENDING_WRITTEN_OWNER_CONFIRMATION"
+  }
+}
