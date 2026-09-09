@@ -97,3 +97,5 @@ G0 exige en plus une autorisation VinuesaLAB écrite couvrant les fichiers exact
 ## Visualisation locale
 
 Le rendu local `visualization_local/naca4412_fields_local.png` montre la magnitude de vitesse, la pression et la magnitude des contraintes de Reynolds du preview dérivé. Le rapport `visualization_local/visualization_report.json` contient le hash du preview et indique `STRUCTURAL_LOCAL_RENDER_ONLY`. Le rendu n’est pas une validation : le maillage source original, la comparaison indépendante et les résidus restent absents.
+
+Une animation locale `visualization_local/naca4412_structural_preview_animation.mp4` est également fournie. Elle balaie les champs vitesse, pression et contraintes de Reynolds à partir de l’unique état source disponible. Elle est explicitement une animation d’affichage, pas une série temporelle physique : `display_sweep_not_physical_transient`.

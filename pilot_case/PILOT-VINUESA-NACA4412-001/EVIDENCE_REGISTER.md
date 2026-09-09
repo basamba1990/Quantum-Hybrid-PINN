@@ -37,3 +37,5 @@ Le formulaire `ACCEPTANCE_APPROVAL_FORM_FR.md` formalise les seuils proposés, l
 Le sidecar `case_sidecar.json` est une proposition physique : le Reynolds est confirmé par la source, mais les unités dimensionnelles, les propriétés `rho`/`mu`, l’angle d’attaque et les conditions limites restent à confirmer.
 
 Le rendu `visualization_local/naca4412_fields_local.png` est une visualisation locale du preview dérivé réel. Son rapport est `visualization_local/visualization_report.json`. Statut : `STRUCTURAL_LOCAL_RENDER_ONLY`, `validated: false`, résidus masse/momentum/énergie `N/D`.
+
+L’animation `visualization_local/naca4412_structural_preview_animation.mp4` est un balayage d’affichage des trois champs à partir d’un état source unique. Elle n’est pas une série temporelle mesurée et ne constitue pas une preuve de convergence, de dynamique ou de validation.
