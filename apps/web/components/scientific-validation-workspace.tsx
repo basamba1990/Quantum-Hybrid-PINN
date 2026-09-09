@@ -115,7 +115,8 @@ function statusFor(
     typeof results.referenceError === "number" ||
     typeof results.reference_error === "number" ||
     typeof results.validation_status === "string";
-  if (!hasAnyResult) return "READY_FOR_RUN";
+  // L’absence de métriques et d’artefacts ne signifie pas que le cas est prêt.
+  if (!hasAnyResult) return "DRAFT";
 
   // Le backend émet actuellement validation_status et des contrôles séparés.
   // Un statut backend « passed » ne suffit pas à certifier G0–G5 : les contrôles
@@ -123,7 +124,7 @@ function statusFor(
   const backendStatus = results.validation_status?.toLowerCase();
   if (backendStatus === "failed") return "VALIDATION_FAILED";
   const checks = results.validationChecks || results.validation_checks;
-  if (!checks) return "READY_FOR_RUN";
+  if (!checks) return "DRAFT";
 
   const requiredChecks = [
     checks.residuals_passed,
@@ -150,7 +151,7 @@ function statusFor(
     return "VALIDATED";
   }
 
-  return "READY_FOR_RUN";
+  return "DRAFT";
 }
 
 export default function ScientificValidationWorkspace({

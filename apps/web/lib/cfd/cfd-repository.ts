@@ -7,7 +7,16 @@ export function loadCertifiedCfdDataset(analysis: unknown, result?: unknown) {
   const analysisRecord = parseRecord(analysis);
   const resultRecord = parseRecord(result);
   const storedResults = parseRecord(analysisRecord.results);
-  const raw = resultRecord.cfd_dataset ?? analysisRecord.cfd_dataset ?? storedResults.cfd_dataset;
+  const rawCandidate = resultRecord.cfd_dataset ?? analysisRecord.cfd_dataset ?? storedResults.cfd_dataset;
+  const raw = typeof rawCandidate === "string"
+    ? (() => {
+        try {
+          return JSON.parse(rawCandidate);
+        } catch {
+          return rawCandidate;
+        }
+      })()
+    : rawCandidate;
   if (raw === undefined || raw === null) return { dataset: null, buffers: null, report: null } as const;
   try {
     const dataset = parseCfdMetadata(raw);

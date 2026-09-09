@@ -46,6 +46,16 @@ export async function GET(
       signal: AbortSignal.timeout(30_000),
     })
     const payload = await response.json().catch(() => ({ error: 'Réponse backend non JSON.' }))
+    // L’absence de dataset est un état métier attendu avant import, pas une
+    // erreur d’interface. Le workspace peut alors afficher NO_CFD_ARTIFACT.
+    if (response.status === 404) {
+      return NextResponse.json({
+        analysisId,
+        overallStatus: 'NO_CFD_ARTIFACT',
+        gates: [],
+        error: 'Aucun artefact CFD persistant pour cette analyse. Importez les VTU et le sidecar avant de demander G0–G5.',
+      }, { status: 200 })
+    }
     return NextResponse.json(payload, { status: response.status })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur réseau lors de la lecture G0–G5.'

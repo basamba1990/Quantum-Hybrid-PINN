@@ -78,14 +78,19 @@ export default function AnalysisDetailPage() {
           }
 
           // Merge high-fidelity persisted artifacts if available.
+          const parsePersistedJson = (value: unknown) => {
+            if (typeof value !== 'string') return value
+            try { return JSON.parse(value) } catch { return value }
+          }
+
           if (resData) {
             if (resData.pinn_predictions) results.predictions3d = resData.pinn_predictions;
             if (resData.experimental_data) results.experimental_data = resData.experimental_data;
-            if (resData.cfd_dataset) results.cfd_dataset = resData.cfd_dataset;
-            if (resData.metadata) results.metadata = resData.metadata;
-            if (resData.mesh) results.mesh = resData.mesh;
-            if (resData.geometry) results.geometry = resData.geometry;
-            if (resData.discontinuity) results.discontinuity = resData.discontinuity;
+            if (resData.cfd_dataset) results.cfd_dataset = parsePersistedJson(resData.cfd_dataset);
+            if (resData.metadata) results.metadata = parsePersistedJson(resData.metadata);
+            if (resData.mesh) results.mesh = parsePersistedJson(resData.mesh);
+            if (resData.geometry) results.geometry = parsePersistedJson(resData.geometry);
+            if (resData.discontinuity) results.discontinuity = parsePersistedJson(resData.discontinuity);
             results.extractedData = {
               ...(results.extractedData || {}),
               ...(resData.extracted_parameters || {})

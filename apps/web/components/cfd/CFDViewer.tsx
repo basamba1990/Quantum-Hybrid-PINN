@@ -137,7 +137,16 @@ export default function CFDViewer({ dataset, className }: CFDViewerProps) {
     downloadText(`${fieldName}-${frame?.time ?? 0}s.csv`, rows.join("\n"), "text/csv;charset=utf-8");
   };
 
-  if (!dataset) return <div className={className} data-cfd-state="missing">CFD mesh unavailable: no real artifact loaded.</div>;
+  if (!dataset) return (
+    <div className={`${className ?? ""} flex min-h-[420px] items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-950/20 p-8 text-center`} data-cfd-state="missing">
+      <div className="max-w-xl space-y-3">
+        <div className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">CFD visualization unavailable</div>
+        <p className="text-sm text-slate-200">Aucun artefact CFD réel n’est actuellement lié à cette analyse.</p>
+        <p className="text-xs leading-5 text-slate-400">Importez des frames VTU et leur sidecar contractuel dans cette analyse pour activer la visualisation. Aucun maillage, champ ou résidu n’est généré par l’interface.</p>
+        <div className="font-mono text-[10px] uppercase tracking-widest text-amber-200">Status: NO_CFD_ARTIFACT · scientific status: N/D</div>
+      </div>
+    </div>
+  );
   if (!report?.canRender) return <div className={className} data-cfd-state="rejected">CFD dataset rejected: topology or fields are incompatible with rendering.</div>;
 
   return (
