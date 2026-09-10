@@ -17,6 +17,9 @@ export interface PINNSimulationJob {
   projectId: string
   analysisId: string
   simulationType: 'training' | 'inference' | 'assimilation'
+  pinnProfile?: Record<string, any>
+  pinnProfileHash?: string
+  validationStatus?: string
   modelConfig: {
     layers: number[]
     fluidType: 'H2' | 'NH3' | 'CH4' | 'sCO2'
@@ -35,6 +38,11 @@ export interface PINNSimulationJob {
       strategy: string
     }
     lossWeights?: Record<string, number>
+    optimizer?: string
+    normalization?: { coordinates: string; time: string; outputs: string }
+    schedule?: Record<string, any>
+    acceptance?: Record<string, any>
+    pinnProfile?: Record<string, any>
   }
   dataPoints?: {
     time: number
@@ -289,7 +297,7 @@ export class PINNQueueManager extends EventEmitter {
    */
   private async processJob(job: any): Promise<any> {
     const startTime = Date.now()
-    const { projectId, analysisId, simulationType, modelConfig, dataPoints } = job.data
+    const { projectId, analysisId, simulationType, modelConfig, dataPoints, pinnProfile, pinnProfileHash, validationStatus } = job.data
 
     try {
       console.log(`[PROCESSING] Job ${job.id}: ${simulationType}`)
@@ -316,6 +324,9 @@ export class PINNQueueManager extends EventEmitter {
         predictions: result.predictions,
         credibilityScore: result.credibilityScore,
         executionTime,
+        pinnProfile,
+        pinnProfileHash,
+        validationStatus: validationStatus === 'VALIDATED' && pinnProfile?.acceptance?.doNotPromoteToValidated ? 'VALIDATION_CANDIDATE' : validationStatus,
       }
     } catch (error) {
       console.error(`[ERROR] Job ${job.id}:`, error)
@@ -354,6 +365,11 @@ export class PINNQueueManager extends EventEmitter {
           seed: modelConfig.seed,
           sampling_strategy: modelConfig.sampling?.strategy || 'Sobol_fixed_seed',
           loss_weights: modelConfig.lossWeights || {},
+          optimizer: modelConfig.optimizer || 'Adam',
+          normalization: modelConfig.normalization,
+          schedule: modelConfig.schedule,
+          acceptance: modelConfig.acceptance,
+          pinn_profile: modelConfig.pinnProfile || undefined,
           model_name: `pinn_${Date.now()}`,
         }
         break

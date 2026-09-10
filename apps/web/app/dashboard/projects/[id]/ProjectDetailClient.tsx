@@ -37,6 +37,7 @@ export default function ProjectDetailClient({ id, project }: any) {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
   const [downloadTrigger, setDownloadTrigger] = useState(0)
+  const [pinnProfile, setPinnProfile] = useState<any | null>(null)
   const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -111,6 +112,9 @@ export default function ProjectDetailClient({ id, project }: any) {
           .eq('project_id', id)
           .order('created_at', { ascending: false })
           .limit(10)
+        const { data: profileRow, error: profileError } = await supabase
+          .from('pinn_training_profiles').select('*').eq('project_id', id).maybeSingle()
+        if (!profileError) setPinnProfile(profileRow)
         if (anaError) console.error("Supabase Analyses Error:", anaError)
         if (cfdError) console.error("Supabase CFD Dataset Error:", cfdError)
         console.log("Fetched Analyses Count:", analysisRows?.length || 0)
@@ -374,7 +378,25 @@ export default function ProjectDetailClient({ id, project }: any) {
           </div>
         </div>
 
-        <div className="space-y-10">
+          <div className="space-y-10">
+          {pinnProfile && (
+            <section className="rounded-[32px] border border-cyan-500/20 bg-cyan-500/5 p-6 md:p-8">
+              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 pb-5">
+                <div><h2 className="text-xl font-black uppercase italic tracking-tight text-cyan-100">PINN Training Contract</h2><p className="mt-1 text-xs text-cyan-100/60">Profil immuable utilisé comme référence de reproductibilité</p></div>
+                <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 font-mono text-[10px] text-amber-200">{pinnProfile.project_status_required}</span>
+              </div>
+              <div className="mt-6 grid grid-cols-2 gap-4 text-xs md:grid-cols-4">
+                <div><div className="text-gray-500">Profile</div><code>{pinnProfile.profile_version}</code></div>
+                <div><div className="text-gray-500">Architecture</div><code>{(pinnProfile.model_config?.layers ?? []).join(' → ')}</code></div>
+                <div><div className="text-gray-500">Training</div><code>{pinnProfile.model_config?.epochs?.toLocaleString()} epochs · {pinnProfile.model_config?.optimizer}</code></div>
+                <div><div className="text-gray-500">Seed</div><code>{pinnProfile.model_config?.seed}</code></div>
+                <div><div className="text-gray-500">Sampling</div><code>{pinnProfile.sampling?.strategy}</code></div>
+                <div><div className="text-gray-500">Dataset</div><code>{pinnProfile.dataset?.frames} frame(s) · {pinnProfile.dataset?.meshRevision}</code></div>
+                <div className="col-span-2"><div className="text-gray-500">Canonical profile hash</div><code className="break-all text-cyan-200">{pinnProfile.profile_hash}</code></div>
+              </div>
+              <details className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4"><summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-gray-300">Normalisation, scheduler et artifacts requis</summary><pre className="mt-4 overflow-auto text-[10px] leading-5 text-gray-400">{JSON.stringify({ normalization: pinnProfile.model_config?.normalization, schedule: pinnProfile.schedule, acceptance: pinnProfile.acceptance, dataset: pinnProfile.dataset }, null, 2)}</pre></details>
+            </section>
+          )}
           {(chaosMode || leakAlertMode) && (
             <div className="bg-red-500/20 border border-red-500/50 rounded-3xl p-6 flex items-center gap-4 animate-pulse">
               <AlertTriangle className="w-10 h-10 text-red-500" />

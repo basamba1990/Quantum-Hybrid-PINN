@@ -7,7 +7,7 @@ import sys
 import os
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Dict, Optional, Any
 import torch
 import numpy as np # Ajouté pour np.linspace, etc.
@@ -107,6 +107,30 @@ class InitializeRequestV8(BaseModel):
     fluid_type: str = "H2"
     use_fno: bool = False
 
+class NormalizationConfig(BaseModel):
+    coordinates: str
+    time: str
+    outputs: str
+
+class ReduceLROnPlateauConfig(BaseModel):
+    factor: float = Field(gt=0, le=1)
+    patience: int = Field(ge=0)
+    min_learning_rate: float = Field(gt=0)
+
+class EarlyStoppingConfig(BaseModel):
+    patience: int = Field(ge=0)
+    min_delta: float = Field(ge=0)
+
+class ScheduleConfig(BaseModel):
+    warmup_epochs: int = Field(ge=0)
+    reduce_lr_on_plateau: ReduceLROnPlateauConfig
+    early_stopping: EarlyStoppingConfig
+
+class AcceptanceConfig(BaseModel):
+    report_residuals_as: str
+    do_not_promote_to_validated: bool = True
+    required_artifacts: List[str] = []
+
 class TrainRequestV8(BaseModel):
     N_pde: int = 5000
     N_boundary: int = 512
@@ -123,6 +147,20 @@ class TrainRequestV8(BaseModel):
     sampling_strategy: str = "Sobol_fixed_seed"
     loss_weights: Dict[str, float] = {}
     model_name: str = "hydrogen_pinn_v8_default"
+    normalization: Optional[NormalizationConfig] = None
+    schedule: Optional[ScheduleConfig] = None
+    acceptance: Optional[AcceptanceConfig] = None
+    pinn_profile: Optional[Dict[str, Any]] = None
+
+    @model_validator(mode='after')
+    def validate_contract(self):
+        if len(self.layers) < 2:
+            raise ValueError('Architecture PINN invalide: au moins deux couches sont requises')
+        if len(self.layers) != len(self.input_order) + len(self.output_order) - 2 and self.layers[0] != len(self.input_order):
+            raise ValueError('La première couche doit correspondre au nombre d’entrées')
+        if self.layers[0] != len(self.input_order) or self.layers[-1] != len(self.output_order):
+            raise ValueError('Architecture et ordres d’entrées/sorties incohérents')
+        return self
 
 class PredictionRequestV8(BaseModel):
     time: float

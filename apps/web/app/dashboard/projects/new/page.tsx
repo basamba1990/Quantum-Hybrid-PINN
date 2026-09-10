@@ -20,11 +20,13 @@ import {
 import Link from 'next/link'
 import { normalizeScenarioType } from '@/types/simulation-scenarios'
 import { CFDImportForm } from '@/components/cfd/CFDImportForm'
+import { defaultPinnProfile, hashPinnProfile, type PinnTrainingProfile } from '@/types/pinn-training'
+import { pinnTrainingProfileSchema } from '@/lib/pinn-training-schema'
 
 export default function NewProjectPage() {
   const router = useRouter()
   const supabase = createClient()
-  const { register, handleSubmit, watch } = useForm<{
+  const { register, handleSubmit, watch, setValue, getValues, formState: { errors } } = useForm<{
     name: string
     description: string
     scenario: string
@@ -34,13 +36,15 @@ export default function NewProjectPage() {
     pressureBar: string
     video?: FileList
     transcription?: string
+    pinn: PinnTrainingProfile
   }>({
     defaultValues: {
       scenario: 'LH2_INTERNAL_TRANSIENT',
       solver: 'OpenFOAM_THERMO_COMPRESSIBLE_CANDIDATE',
       hydrogenForm: 'PARAHYDROGEN_PENDING_APPROVAL',
       temperatureK: '20.28',
-      pressureBar: '1.01325'
+      pressureBar: '1.01325',
+      pinn: defaultPinnProfile,
     }
   })
 
@@ -51,6 +55,21 @@ export default function NewProjectPage() {
   const [jsonFile, setJsonFile] = useState<File | null>(null)
   const [jsonData, setJsonData] = useState<any>(null)
   const [cfdProjectId, setCfdProjectId] = useState<string | null>(null)
+
+  const persistPinnProfile = async (projectId: string, profile: PinnTrainingProfile, userId: string) => {
+    const parsed = pinnTrainingProfileSchema.safeParse(profile)
+    if (!parsed.success) throw new Error(`Contrat PINN invalide : ${parsed.error.issues.map((issue) => issue.path.join('.')).join(', ')}`)
+    const profileHash = await hashPinnProfile(parsed.data)
+    const { error } = await supabase.from('pinn_training_profiles').upsert({
+      project_id: projectId, user_id: userId, profile_version: parsed.data.profileVersion,
+      classification: parsed.data.classification, project_status_required: parsed.data.projectStatusRequired,
+      solver_execution: parsed.data.solverExecution, dataset: parsed.data.dataset, model_config: parsed.data.modelConfig,
+      sampling: parsed.data.sampling, loss_weights: parsed.data.lossWeights, schedule: parsed.data.schedule,
+      acceptance: parsed.data.acceptance, profile_hash: profileHash, updated_at: new Date().toISOString(),
+    }, { onConflict: 'project_id' })
+    if (error) throw new Error(`Persistance du contrat PINN impossible : ${error.message}`)
+    return { profile: parsed.data, profileHash }
+  }
 
   const ensureCfdProject = async (): Promise<string> => {
     if (cfdProjectId) return cfdProjectId
@@ -66,15 +85,17 @@ export default function NewProjectPage() {
         category: normalizeScenarioType(name),
         user_id: user.id,
         status: 'draft',
+        validation_status: 'STRUCTURAL_TEST_UNVALIDATED',
       })
       .select('id')
       .single()
     if (error || !project?.id) throw new Error(`CFD project creation failed: ${error?.message ?? 'missing identifier'}`)
+    await persistPinnProfile(project.id, getValues('pinn'), user.id)
     setCfdProjectId(project.id)
     return project.id
   }
 
-  const onSubmit = async (formData: { name: string; description: string; scenario: string; solver: string; hydrogenForm: string; temperatureK: string; pressureBar: string; video?: FileList; transcription?: string }) => {
+  const onSubmit = async (formData: { name: string; description: string; scenario: string; solver: string; hydrogenForm: string; temperatureK: string; pressureBar: string; video?: FileList; transcription?: string; pinn: PinnTrainingProfile }) => {
     setLoading(true)
     setErrorMsg(null)
     
@@ -119,6 +140,9 @@ export default function NewProjectPage() {
         setUploading(false)
       }
 
+      const parsedPinn = pinnTrainingProfileSchema.safeParse(formData.pinn)
+      if (!parsedPinn.success) throw new Error(`Contrat PINN invalide : ${parsedPinn.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join(' | ')}`)
+      const profileHash = await hashPinnProfile(parsedPinn.data)
       const { data: newProject, error: insertError } = await supabase
         .from('projects')
         .insert({
@@ -131,8 +155,8 @@ export default function NewProjectPage() {
                 `PILOT-LH2-001 | scenario=${formData.scenario} | solver=${formData.solver} | hydrogen_form=${formData.hydrogenForm} | reference_temperature_K=${formData.temperatureK} | reference_pressure_bar=${formData.pressureBar} | evidence_status=INCONCLUSIVE`
               ].filter(Boolean).join('\n\n') || null,
           user_id: user.id,
-          status: 'draft'
-          // metadata column removed to avoid schema mismatch error
+          status: 'draft',
+          validation_status: parsedPinn.data.projectStatusRequired,
         })
         .select()
         .single()
@@ -147,11 +171,12 @@ export default function NewProjectPage() {
       }
 
       if (newProject) {
+        await persistPinnProfile(newProject.id, parsedPinn.data, user.id)
         toast.success('Simulation nexus initialized')
         
         // En mode industriel, nous déclenchons automatiquement l'analyse physique 
         // si une transcription ou des paramètres sont fournis
-        if (formData.transcription) {
+        if (formData.transcription || parsedPinn.data) {
           // Create an analysis entry first
           const { data: newAnalysis, error: analysisError } = await supabase
             .from('analyses')
@@ -187,7 +212,18 @@ export default function NewProjectPage() {
                 name: `Automatic analysis: ${formData.name}`,
                 transcription: formData.transcription,
                 userId: user.id,
-                predictions3d: jsonData?.analysis?.results?.predictions3d || null
+                predictions3d: jsonData?.analysis?.results?.predictions3d || null,
+                modelConfig: {
+                  ...parsedPinn.data.modelConfig,
+                  sampling: parsedPinn.data.sampling,
+                  lossWeights: parsedPinn.data.lossWeights,
+                  schedule: parsedPinn.data.schedule,
+                  acceptance: parsedPinn.data.acceptance,
+                  pinnProfile: parsedPinn.data,
+                },
+                pinnProfile: parsedPinn.data,
+                pinnProfileHash: profileHash,
+                validationStatus: parsedPinn.data.projectStatusRequired,
               })
             }).catch(err => console.error("Auto-analysis trigger failed:", err));
             
@@ -355,6 +391,12 @@ export default function NewProjectPage() {
                           try {
                             const data = JSON.parse(event.target?.result as string)
                             setJsonData(data)
+                            const candidate = data?.pinnTrainingProfile ?? data?.pinn ?? data
+                            const parsed = pinnTrainingProfileSchema.safeParse(candidate)
+                            if (parsed.success) {
+                              setValue('pinn', parsed.data)
+                              toast.success('PINN preset loaded and validated')
+                            }
                             toast.success('JSON data loaded successfully')
                           } catch (err) {
                             toast.error('Error: invalid JSON format')
@@ -378,6 +420,32 @@ export default function NewProjectPage() {
                       </div>
                     )}
                   </label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 space-y-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div><h3 className="text-sm font-black uppercase tracking-widest text-cyan-200">PINN Training Contract</h3><p className="text-[10px] text-cyan-200/60 mt-1">Source de vérité structurée · indépendante des notes libres</p></div>
+                    <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-[9px] font-bold text-amber-200">NON VALIDÉ</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Profile version<input {...register('pinn.profileVersion', { required: true })} className="mt-2 w-full rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-white" /></label>
+                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Mesh revision<input {...register('pinn.dataset.meshRevision')} className="mt-2 w-full rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-white" placeholder="synthetic-lh2-mesh-v1" /></label>
+                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Frames<input type="number" min="1" {...register('pinn.dataset.frames', { valueAsNumber: true })} className="mt-2 w-full rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-white" /></label>
+                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Epochs<input type="number" min="1" {...register('pinn.modelConfig.epochs', { valueAsNumber: true })} className="mt-2 w-full rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-white" /></label>
+                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Learning rate<input type="number" step="0.000001" {...register('pinn.modelConfig.learningRate', { valueAsNumber: true })} className="mt-2 w-full rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-white" /></label>
+                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Batch size<input type="number" min="1" {...register('pinn.modelConfig.batchSize', { valueAsNumber: true })} className="mt-2 w-full rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-white" /></label>
+                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Seed<input type="number" min="0" {...register('pinn.modelConfig.seed', { valueAsNumber: true })} className="mt-2 w-full rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-white" /></label>
+                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Activation<select {...register('pinn.modelConfig.activation')} className="mt-2 w-full rounded-xl bg-slate-950 border border-white/10 p-3 text-xs text-white"><option value="tanh">tanh</option><option value="relu">ReLU</option><option value="gelu">GELU</option><option value="sine">Sine</option></select></label>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Coordinates<input {...register('pinn.modelConfig.normalization.coordinates')} className="mt-2 w-full rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-white" /></label>
+                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Time<input {...register('pinn.modelConfig.normalization.time')} className="mt-2 w-full rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-white" /></label>
+                    <label className="text-[10px] uppercase tracking-widest text-gray-400">Outputs<input {...register('pinn.modelConfig.normalization.outputs')} className="mt-2 w-full rounded-xl bg-white/5 border border-white/10 p-3 text-xs text-white" /></label>
+                  </div>
+                  {errors.pinn && <p className="text-xs text-red-300">Contrat invalide : vérifiez les champs PINN et la cohérence entrées/sorties.</p>}
+                  <div className="rounded-xl bg-black/30 p-4 font-mono text-[10px] leading-5 text-cyan-100/80"><div>Architecture : {watch('pinn.modelConfig.layers').join(' → ')}</div><div>Entrées : {watch('pinn.modelConfig.inputOrder').join(', ')} · Sorties : {watch('pinn.modelConfig.outputOrder').join(', ')}</div><div>Sampling : {watch('pinn.sampling.strategy')} · PDE : {watch('pinn.sampling.N_pde')} · Boundary : {watch('pinn.sampling.N_boundary')}</div><div>Statut requis : {watch('pinn.projectStatusRequired')} · Solver : {watch('pinn.solverExecution')}</div></div>
                 </div>
               </div>
 
