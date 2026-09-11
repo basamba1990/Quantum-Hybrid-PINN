@@ -148,7 +148,7 @@ export default function NewProjectPage() {
         .insert({
           name: formData.name,
           description: formData.description,
-          category: normalizeScenarioType(formData.name),
+        category: normalizeScenarioType(formData.scenario) || normalizeScenarioType(formData.name),
           video_url: videoUrl,
               transcription: [
                 formData.transcription,
@@ -331,6 +331,8 @@ export default function NewProjectPage() {
               <div className="space-y-2 sm:col-span-2">
                 <label htmlFor="scenario" className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest ml-1">Scenario</label>
                 <select id="scenario" {...register('scenario')} className="w-full border border-white/10 bg-slate-950/60 rounded-2xl px-4 py-3 text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                  <option value="LH2_TANK_THERMO_MULTIPHASE_V1">LH2 · 50 L tank VOF multiphase reference case</option>
+                  <option value="PCCV_TRANSIENT_THERMO_V1">PCCV · five-way moving-valve transient case</option>
                   <option value="LH2_INTERNAL_TRANSIENT">LH2 · internal transient + wall heat transfer</option>
                   <option value="LH2_STORAGE_THERMAL_SCREENING">LH2 · storage thermal screening</option>
                 </select>

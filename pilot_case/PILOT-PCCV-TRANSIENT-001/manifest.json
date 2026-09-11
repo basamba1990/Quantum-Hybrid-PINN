@@ -1,0 +1,18 @@
+{
+  "pilot_id": "PILOT-PCCV-TRANSIENT-001",
+  "scenario_type": "PCCV_TRANSIENT_THERMO_V1",
+  "contract_version": "pccv-transient-thermo.v1",
+  "evidence_status": "ORACLE_REQUIRED",
+  "required_artifacts": [
+    "geometry.step",
+    "moving_mesh.vtu",
+    "transient_fields.h5",
+    "rotation_trajectory.csv",
+    "boundary_conditions.yaml",
+    "solver.log",
+    "independent_validation.csv"
+  ],
+  "sources": [
+    "https://www.mdpi.com/2076-0825/13/3/110"
+  ]
+}

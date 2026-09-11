@@ -1,0 +1,39 @@
+{
+  "pilot_id": "PILOT-LH2-TANK-THERMO-001",
+  "scenario_type": "LH2_TANK_THERMO_MULTIPHASE_V1",
+  "contract_version": "lh2-tank-thermo-multiphase.v1",
+  "evidence_status": "PUBLIC_PARAMETERS_ONLY_ORACLE_MISSING",
+  "reference_parameters": {
+    "volume_l": 50,
+    "cylindrical_diameter_m": 0.386,
+    "cylindrical_height_m": 0.45,
+    "upper_dome_height_m": 0.0991,
+    "lower_dome_height_m": 0.10145,
+    "wall_material": "aluminium_2219",
+    "wall_thickness_m": 0.003,
+    "insulation_material": "polyurethane_foam",
+    "insulation_thickness_m": [0.01, 0.02, 0.03],
+    "initial_fill_fraction": 0.5,
+    "initial_pressure_pa": 101325,
+    "initial_temperature_k": 20.268,
+    "external_wind_speed_m_s": 2,
+    "reference_mesh_cells": 40000,
+    "multiphase_model": "vof",
+    "interface_model": "csf",
+    "phase_change_model": "ranz_marshall",
+    "property_source": "nist_tables"
+  },
+  "required_artifacts": [
+    "geometry.step",
+    "volume_mesh.vtu",
+    "transient_fields.h5",
+    "boundary_conditions.yaml",
+    "trajectory.csv",
+    "solver.log",
+    "independent_validation.csv"
+  ],
+  "sources": [
+    "https://doi.org/10.3390/fluids8090239",
+    "https://www.preprints.org/manuscript/202308.0653"
+  ]
+}
