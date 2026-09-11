@@ -14,6 +14,7 @@ import ScientificValidationWorkspace from '@/components/scientific-validation-wo
 import { resolveVisualizationScenario } from '@/lib/visualization-data'
 import { getScenarioDisplayName } from '@/types/simulation-scenarios'
 import { loadCertifiedCfdDataset } from '@/lib/cfd/cfd-repository'
+import { loadCfdVtuSeries } from '@/lib/cfd/cfd-loader'
 import { ScenarioDemoPanel } from '@/components/scenario-demo-panel'
 
 const CFDViewer = nextDynamic(
@@ -34,6 +35,7 @@ const PlotlyChart = nextDynamic(
 export default function ProjectDetailClient({ id, project }: any) {
   const [latestAnalysis, setLatestAnalysis] = useState<any | null>(null)
   const [explicitCfdDataset, setExplicitCfdDataset] = useState<any | null>(null)
+  const [demoCfdBuffers, setDemoCfdBuffers] = useState<any | null>(null)
   const [cfdAnalysisId, setCfdAnalysisId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
@@ -43,6 +45,8 @@ export default function ProjectDetailClient({ id, project }: any) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedCfdAnalysisId = searchParams.get('cfdAnalysisId')
+  const isArtifactDemoScenario = project?.scenario_type === 'LH2_TANK_THERMO_MULTIPHASE_V1'
+    || project?.scenario_type === 'PCCV_TRANSIENT_THERMO_V1'
 
   // --- MODES DE DÉMONSTRATION (POUR LA SOUTENANCE) ---
   const [chaosMode, setChaosMode] = useState(false)
@@ -69,6 +73,7 @@ export default function ProjectDetailClient({ id, project }: any) {
         setLoading(true)
         let explicitCfd: any | null = null
         setExplicitCfdDataset(null)
+        setDemoCfdBuffers(null)
         setCfdAnalysisId(null)
         if (requestedCfdAnalysisId) {
           let cfdPayload: any = null
@@ -181,6 +186,24 @@ export default function ProjectDetailClient({ id, project }: any) {
         if (!requestedCfdAnalysisId && typeof latestCfd?.analysis_id === 'string') {
           setCfdAnalysisId(latestCfd.analysis_id)
         }
+        // Fallback strictement limité aux projets de démonstration : il rend
+        // le pipeline VTU inspectable en production sans fabriquer un résultat
+        // CFD. Un dataset cfd_datasets persistant prime toujours ce fixture.
+        if (isArtifactDemoScenario && !requestedCfdAnalysisId && !latestCfd?.dataset) {
+          try {
+            const sidecarResponse = await fetch('/cfd-demo/synthetic-lh2-vtu/sidecar.json', { cache: 'force-cache' })
+            if (!sidecarResponse.ok) throw new Error(`Sidecar démo indisponible (${sidecarResponse.status}).`)
+            const sidecar = await sidecarResponse.json()
+            const frameSources = await Promise.all(sidecar.frames.map(async (frame: { frameId: string; time: number; file: string; payloadHash: string }) => {
+              const response = await fetch(`/cfd-demo/synthetic-lh2-vtu/${frame.file}`, { cache: 'force-cache' })
+              if (!response.ok) throw new Error(`Frame VTU démo indisponible (${response.status}).`)
+              return { frameId: frame.frameId, time: frame.time, payload: await response.arrayBuffer(), payloadHash: frame.payloadHash }
+            }))
+            setDemoCfdBuffers(await loadCfdVtuSeries(frameSources, sidecar))
+          } catch (demoError) {
+            console.warn('Structural CFD demo fixture could not be loaded:', demoError)
+          }
+        }
         if (!analysisRows?.length) {
           if (latestCfd?.dataset) {
             setLatestAnalysis({
@@ -275,7 +298,7 @@ export default function ProjectDetailClient({ id, project }: any) {
       } catch (err) { console.error(err) } finally { setLoading(false) }
     }
     fetchData()
-  }, [id, supabase, requestedCfdAnalysisId])
+  }, [id, supabase, requestedCfdAnalysisId, isArtifactDemoScenario])
 
   const handleDeleteProject = async () => {
     if (!window.confirm('Supprimer définitivement ce projet et ses analyses persistées ?')) return
@@ -310,6 +333,7 @@ export default function ProjectDetailClient({ id, project }: any) {
   const certifiedCfd = useMemo(() => explicitCfdDataset
     ? loadCertifiedCfdDataset({ cfd_dataset: explicitCfdDataset }, {})
     : loadCertifiedCfdDataset(latestAnalysis, results), [explicitCfdDataset, latestAnalysis, results])
+  const viewerCfd = certifiedCfd.buffers ?? demoCfdBuffers
   const residuals = chaosMode || leakAlertMode
       ? {}
       : (results?.residuals ?? {})
@@ -340,7 +364,7 @@ export default function ProjectDetailClient({ id, project }: any) {
       : (results?.validation_checks ?? results?.validationChecks),
     artifact_hashes: results?.artifact_hashes,
     cfd_dataset: certifiedCfd.dataset,
-  }), [scenarioType, persistedMetadata, residuals, chaosMode, leakAlertMode, credibilityScore, results, validationStatus, certifiedCfd.buffers])
+  }), [scenarioType, persistedMetadata, residuals, chaosMode, leakAlertMode, credibilityScore, results, validationStatus, viewerCfd])
 
   const projectDisplayName = getScenarioDisplayName(project?.scenario_type || project?.category || project?.name)
   const isArtifactDemo = scenarioType === 'LH2_TANK_THERMO_MULTIPHASE_V1' || scenarioType === 'PCCV_TRANSIENT_THERMO_V1'
@@ -438,7 +462,7 @@ export default function ProjectDetailClient({ id, project }: any) {
 
                 <TabsContent value="volumetric" className="m-0 p-8">
                   <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 min-h-[760px]">
-                    <CFDViewer dataset={certifiedCfd.buffers} className="min-h-[600px]" />
+                    <CFDViewer dataset={viewerCfd} className="min-h-[600px]" />
                   </div>
                 </TabsContent>
 

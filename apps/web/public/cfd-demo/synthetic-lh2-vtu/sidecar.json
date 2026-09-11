@@ -1,0 +1,95 @@
+{
+  "contractVersion": "cfd-volume.v1",
+  "meshRevision": "synthetic-lh2-mesh-v1",
+  "coordinateSystem": "cartesian-right-handed",
+  "lengthUnit": "m",
+  "fieldDescriptors": {
+    "temperature": {
+      "unit": "K",
+      "quantity": "temperature"
+    },
+    "pressure": {
+      "unit": "MPa",
+      "quantity": "pressure"
+    },
+    "velocity": {
+      "unit": "m/s",
+      "quantity": "velocity"
+    },
+    "region_id": {
+      "unit": "1",
+      "quantity": "cell region identifier"
+    }
+  },
+  "boundarySets": [
+    {
+      "name": "synthetic_boundary",
+      "association": "point",
+      "indexSpace": "point-index-space-v1",
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    }
+  ],
+  "provenance": {
+    "solver": "synthetic-structure-generator",
+    "solverVersion": "1.0.0",
+    "sourceUri": "urn:quantum-hybrid-pinn:test:synthetic-lh2-vtu-v1",
+    "sourceHash": "46843b76a5c79530ef098a5235f22f2784ed0ff43ef83d39a71129153d7aa0ce",
+    "calculationId": "synthetic-lh2-structure-test-v1",
+    "generatedAt": "2026-08-23T01:58:33.010280+00:00"
+  },
+  "residuals": {
+    "mass": null,
+    "momentum": null,
+    "energy": null,
+    "norm": null,
+    "computedBy": null,
+    "computedAt": null
+  },
+  "references": [
+    {
+      "id": "test-only",
+      "title": "No physical reference \u2014 structural parser test only",
+      "uri": "https://example.invalid/quantum-hybrid-pinn/synthetic-test",
+      "variables": [
+        "temperature",
+        "pressure",
+        "velocity"
+      ],
+      "comparisonHash": "8e68b2a87f645821edb76e2d6ed9d45554eabd4a3987b5c49e60671210f26cf7"
+    }
+  ],
+  "evidence": {
+    "meshGeometryAndTopology": false,
+    "fieldsAndUnits": false,
+    "namedBoundaries": false,
+    "solverProvenance": false,
+    "solverResiduals": false,
+    "referenceComparison": false,
+    "immutableHashes": false,
+    "calculatedTransientStates": false
+  },
+  "frames": [
+    {
+      "frameId": "synthetic-lh2-0000",
+      "time": 0.0,
+      "file": "frame_0000.vtu",
+      "payloadHash": "14bb112ba3de82500eff33003acd1fe69bd66a3f9e6d7083db6f01c4abfb5d23"
+    },
+    {
+      "frameId": "synthetic-lh2-0001",
+      "time": 1.0,
+      "file": "frame_0001.vtu",
+      "payloadHash": "c613b015b18a3af787881057151e97fd6f3315634fd404ee1d2cb1b772d97eab"
+    }
+  ],
+  "classification": "SYNTHETIC_STRUCTURE_TEST_NOT_INDUSTRIAL_VALIDATION"
+}
