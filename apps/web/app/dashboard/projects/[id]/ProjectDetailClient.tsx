@@ -45,8 +45,9 @@ export default function ProjectDetailClient({ id, project }: any) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedCfdAnalysisId = searchParams.get('cfdAnalysisId')
-  const isArtifactDemoScenario = project?.scenario_type === 'LH2_TANK_THERMO_MULTIPHASE_V1'
-    || project?.scenario_type === 'PCCV_TRANSIENT_THERMO_V1'
+  const isArtifactDemoScenario = /LH2[_ -]?TANK|THERMO[_ -]?MULTIPHASE|PCCV|TRANSIENT[_ -]?THERMO/i.test(
+    [project?.scenario_type, project?.category, project?.name, project?.title].filter(Boolean).join(' '),
+  )
 
   // --- MODES DE DÉMONSTRATION (POUR LA SOUTENANCE) ---
   const [chaosMode, setChaosMode] = useState(false)
