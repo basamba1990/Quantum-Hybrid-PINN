@@ -190,7 +190,7 @@ export default function ProjectDetailClient({ id, project }: any) {
         // Fallback strictement limité aux projets de démonstration : il rend
         // le pipeline VTU inspectable en production sans fabriquer un résultat
         // CFD. Un dataset cfd_datasets persistant prime toujours ce fixture.
-        if (isArtifactDemoScenario && !requestedCfdAnalysisId && !latestCfd?.dataset) {
+        if (isArtifactDemoScenario && !requestedCfdAnalysisId) {
           try {
             const sidecarResponse = await fetch('/cfd-demo/synthetic-lh2-vtu/sidecar.json', { cache: 'force-cache' })
             if (!sidecarResponse.ok) throw new Error(`Sidecar démo indisponible (${sidecarResponse.status}).`)
