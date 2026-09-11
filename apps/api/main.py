@@ -39,6 +39,7 @@ from export_router import router as export_router
 from cfd_import_router import router as cfd_import_router
 from cfd_worker_router import router as cfd_worker_router
 from hydrogen_api_v2 import router as hydrogen_v2_router
+from pccv_router import router as pccv_router
 
 # Sweet Spot Analyzer — Lazy import (Industrial Grade Stability Analysis)
 def _get_sweet_spot_analyzer():
@@ -97,6 +98,7 @@ app.include_router(export_router)
 app.include_router(cfd_import_router)
 app.include_router(cfd_worker_router)
 app.include_router(hydrogen_v2_router)
+app.include_router(pccv_router)
 
 # Lazy import du pipeline CAO industriel (volets 1–9) pour ne pas bloquer
 # le démarrage : les portes G0–G5 restent évaluées au runtime.
@@ -126,7 +128,7 @@ risk_manager = None
 fno_orchestrator = None
 kalman_filter = None
 # TRULY-INDUSTRIAL SUPABASE INITIALIZATION (Kelly Senecal V2.1.7)
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ivhxnaxhgfbiqlhgfkik.supabase.co")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 supabase_client: Optional[Client] = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_KEY else None
 

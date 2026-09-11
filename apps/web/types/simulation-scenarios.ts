@@ -10,7 +10,8 @@ export type ScenarioType =
   | 'SMART_RADIATOR'
   | 'LH2_INFRASTRUCTURE_INTEGRITY'
   | 'LH2_LARGE_SCALE_STORAGE_1250M3'
-  | 'HEAVY_DUTY_HYDROGEN_REFUELING';
+  | 'HEAVY_DUTY_HYDROGEN_REFUELING'
+  | 'PCCV_TRANSIENT_THERMO_V1';
 
 export interface ScenarioConfig {
   id: ScenarioType;
@@ -240,6 +241,25 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
       { name: 'maxStress', label: 'Contrainte Von Mises Max', unit: 'MPa' },
       { name: 'reynoldsNumber', label: 'Nombre de Reynolds', unit: '' }
     ]
+  },
+  PCCV_TRANSIENT_THERMO_V1: {
+    id: 'PCCV_TRANSIENT_THERMO_V1',
+    name: 'Vanne cinq voies — écoulement transitoire',
+    description: 'Contrat thermo-hydraulique à géométrie mobile. Exécution bloquée tant qu’un maillage et un oracle CFD vérifiables ne sont pas enregistrés.',
+    inputs: [
+      { name: 'geometry_uri', label: 'URI géométrie CAO', type: 'string', defaultValue: '' },
+      { name: 'geometry_checksum_sha256', label: 'Checksum géométrie SHA-256', type: 'string', defaultValue: '' },
+      { name: 'initial_angle_deg', label: 'Angle initial', type: 'number', unit: 'deg', defaultValue: 0 },
+      { name: 'final_angle_deg', label: 'Angle final', type: 'number', unit: 'deg', defaultValue: 90 },
+      { name: 'angular_speed_deg_s', label: 'Vitesse angulaire', type: 'number', unit: 'deg/s', defaultValue: 30 },
+      { name: 'duration_s', label: 'Durée', type: 'number', unit: 's', defaultValue: 3 }
+    ],
+    outputs: [
+      { name: 'port_mass_flow', label: 'Débit massique par port', unit: 'kg/s' },
+      { name: 'pressure_loss', label: 'Perte de pression', unit: 'Pa' },
+      { name: 'mixed_temperature', label: 'Température de mélange', unit: 'K' },
+      { name: 'hydraulic_torque', label: 'Couple hydraulique', unit: 'N·m' }
+    ]
   }
 };
 
@@ -265,6 +285,8 @@ export const SCENARIO_ALIASES: Record<string, ScenarioType> = {
   FPGA_HEATSINK: 'FPGA_HEATSINK',
   SMART_RADIATOR: 'SMART_RADIATOR',
   PORT_ENERGY_OPTIMIZATION: 'PORT_ENERGY_OPTIMIZATION',
+  PCCV_TRANSIENT_THERMO_V1: 'PCCV_TRANSIENT_THERMO_V1',
+  PCCV: 'PCCV_TRANSIENT_THERMO_V1',
 };
 
 export function normalizeScenarioType(value?: string | null): ScenarioType | null {

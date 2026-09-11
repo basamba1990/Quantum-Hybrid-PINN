@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ivhxnaxhgfbiqlhgfkik.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2aHhuYXhoZ2ZiaXFsaGdma2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODExMzgsImV4cCI6MjA5MTQ1NzEzOH0.vfIUnyKeeQ_DFVqnixlvwRTJGvo0WA6V3RMzgh9JkL8';
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function getSupabase() {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseServiceKey) throw new Error('Supabase server configuration is missing.');
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
 
 // ============================================================================
 // GET: Fetch a specific analysis
@@ -16,7 +18,7 @@ export async function GET(
   const { id } = await params;
   
   try {
-    const { data: analysis, error } = await supabase
+    const { data: analysis, error } = await getSupabase()
       .from('analyses')
       .select('*')
       .eq('id', id)
@@ -72,7 +74,7 @@ export async function PATCH(
     // Add updated_at timestamp
     sanitized.updated_at = new Date().toISOString();
 
-    const { data: analysis, error } = await supabase
+    const { data: analysis, error } = await getSupabase()
       .from('analyses')
       .update(sanitized)
       .eq('id', id)
@@ -108,7 +110,7 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    const { error } = await supabase
+    const { error } = await getSupabase()
       .from('analyses')
       .delete()
       .eq('id', id);

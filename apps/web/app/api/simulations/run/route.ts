@@ -1,11 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { verifySubscriptionAccess, incrementSimulationCount } from '@/lib/subscription-middleware';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ivhxnaxhgfbiqlhgfkik.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2aHhuYXhoZ2ZiaXFsaGdma2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODExMzgsImV4cCI6MjA5MTQ1NzEzOH0.vfIUnyKeeQ_DFVqnixlvwRTJGvo0WA6V3RMzgh9JkL8';
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(req: Request) {
   try {
@@ -35,8 +29,10 @@ export async function POST(req: Request) {
     await incrementSimulationCount(userEmail);
 
     // Call the actual simulation backend (FastAPI)
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) throw new Error('NEXT_PUBLIC_API_URL is missing.');
     const simulationResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com'}/api/simulations/run`,
+      `${apiUrl}/api/simulations/run`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

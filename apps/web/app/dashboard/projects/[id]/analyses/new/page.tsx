@@ -25,6 +25,13 @@ const SCENARIOS = [
     color: 'from-cyan-600 to-blue-600'
   },
   {
+    id: 'PCCV_TRANSIENT_THERMO_V1',
+    name: 'Vanne cinq voies — transitoire',
+    description: 'Contrat thermo-hydraulique à géométrie mobile. Un maillage et un oracle CFD vérifiables sont requis avant toute exécution.',
+    icon: '🔁',
+    color: 'from-violet-600 to-fuchsia-600'
+  },
+  {
     id: 'H2_COMPRESSION_STATION',
     name: 'Station de Compression',
     description: 'Bilan thermodynamique d\'une station de compression H₂ avec vérification d\'efficacité isentropique',
@@ -101,6 +108,9 @@ export default function NewAnalysisPage() {
     setErrorMsg(null)
     
     try {
+      if (selectedScenario === 'PCCV_TRANSIENT_THERMO_V1') {
+        throw new Error('Le scénario PCCV exige d’abord un contrat de géométrie, un maillage et un oracle CFD vérifiables. Il ne peut pas être envoyé au moteur H₂ générique.')
+      }
       // 1. Check session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session) {
@@ -139,7 +149,10 @@ export default function NewAnalysisPage() {
       }
 
       // 4. Lancement asynchrone de la simulation
-      const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://quantum-pinn-api-qef2.onrender.com';
+      const industrialApiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!industrialApiUrl) {
+        throw new Error('NEXT_PUBLIC_API_URL est requis pour lancer une analyse.')
+      }
       
       const transcription = project.transcription || "";
       
@@ -212,7 +225,10 @@ export default function NewAnalysisPage() {
       }
 
       // 5. Appel de l'Edge Function (optionnel, en arrière-plan)
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ivhxnaxhgfbiqlhgfkik.supabase.co';
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (!supabaseUrl) {
+        throw new Error('NEXT_PUBLIC_SUPABASE_URL est requis pour la vérification physique.')
+      }
       fetch(`${supabaseUrl}/functions/v1/verify-physics-logic`, {
         method: 'POST',
         headers: {

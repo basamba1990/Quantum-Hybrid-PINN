@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ivhxnaxhgfbiqlhgfkik.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2aHhuYXhoZ2ZiaXFsaGdma2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODExMzgsImV4cCI6MjA5MTQ1NzEzOH0.vfIUnyKeeQ_DFVqnixlvwRTJGvo0WA6V3RMzgh9JkL8';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function getSupabase() {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseServiceKey) throw new Error('Supabase server configuration is missing.');
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
 
 const BACKEND_URLS = [
   process.env.H2_INFERENCE_API_URL,
   process.env.NEXT_PUBLIC_API_URL,
-  'https://quantum-pinn-api-qef2.onrender.com'
 ].filter(Boolean);
 
 const BACKEND_TIMEOUT = 120000;
@@ -24,7 +26,7 @@ export async function POST(
     const { id: analysisId } = await params;
 
     // Fetch the analysis
-    const { data: analysis, error: fetchError } = await supabase
+    const { data: analysis, error: fetchError } = await getSupabase()
       .from('analyses')
       .select('*')
       .eq('id', analysisId)
@@ -79,7 +81,7 @@ export async function POST(
           const data = await res.json();
           const jobId = data.jobId || data.job_id;
 
-          await supabase
+          await getSupabase()
             .from('analyses')
             .update({
               status: 'processing',
@@ -111,7 +113,7 @@ export async function POST(
     }
 
     // All backends failed
-    await supabase
+    await getSupabase()
       .from('analyses')
       .update({
         status: 'failed',

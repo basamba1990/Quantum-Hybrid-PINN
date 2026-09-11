@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ivhxnaxhgfbiqlhgfkik.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2aHhuYXhoZ2ZiaXFsaGdma2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODExMzgsImV4cCI6MjA5MTQ1NzEzOH0.vfIUnyKeeQ_DFVqnixlvwRTJGvo0WA6V3RMzgh9JkL8';
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+function getSupabase() {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseServiceKey) throw new Error('Supabase server configuration is missing.');
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
 
 // ✅ FIX: Backend URL avec fallback chainé
 const BACKEND_URLS = [
   process.env.H2_INFERENCE_API_URL,
   process.env.NEXT_PUBLIC_API_URL,
-  'https://quantum-pinn-api-qef2.onrender.com'
 ].filter(Boolean);
 
 // ✅ FIX: Timeout pour cold start Render (jusqu'à 120s)
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Extract user from Supabase
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
+    const { data: { user }, error: userError } = await getSupabase().auth.getUser(
       authHeader.replace('Bearer ', '')
     );
 
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create analysis record in Supabase with "pending" status
-    const { data: analysis, error: insertError } = await supabase
+    const { data: analysis, error: insertError } = await getSupabase()
       .from('analyses')
       .insert({
         project_id: projectId,
@@ -157,7 +158,7 @@ export async function POST(req: NextRequest) {
       console.log(`✅ Analysis ${analysis.id} submitted to queue: ${result.data.jobId}`);
 
       // Update analysis with job ID and status
-      await supabase
+      await getSupabase()
         .from('analyses')
         .update({
           status: 'processing',
@@ -178,7 +179,7 @@ export async function POST(req: NextRequest) {
       // ✅ FIX: Marquer comme failed au lieu de laisser pending pour toujours
       console.error(`❌ All backend attempts failed for analysis ${analysis.id}`);
 
-      await supabase
+      await getSupabase()
         .from('analyses')
         .update({
           status: 'failed',
@@ -225,7 +226,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { data: analyses, error } = await supabase
+    const { data: analyses, error } = await getSupabase()
       .from('analyses')
       .select('*')
       .eq('project_id', projectId)
@@ -247,7 +248,7 @@ export async function GET(req: NextRequest) {
         const stuckMinutes = (now.getTime() - createdAt.getTime()) / 60000;
         if (stuckMinutes > 5) {
           console.warn(`⚠️ Analysis ${analysis.id} stuck in pending for ${stuckMinutes.toFixed(1)}min, marking failed`);
-          await supabase
+          await getSupabase()
             .from('analyses')
             .update({
               status: 'failed',
