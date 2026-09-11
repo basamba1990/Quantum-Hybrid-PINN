@@ -45,7 +45,7 @@ export default function ProjectDetailClient({ id, project }: any) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const requestedCfdAnalysisId = searchParams.get('cfdAnalysisId')
-  const isArtifactDemoScenario = /LH2[_ -]?TANK|THERMO[_ -]?MULTIPHASE|PCCV|TRANSIENT[_ -]?THERMO/i.test(
+  const isArtifactDemoScenario = /LH2|LH₂|LH[_ -]?TANK|THERMO[_ -]?MULTIPHASE|PCCV|TRANSIENT[_ -]?THERMO/i.test(
     [project?.scenario_type, project?.category, project?.name, project?.title].filter(Boolean).join(' '),
   )
 
