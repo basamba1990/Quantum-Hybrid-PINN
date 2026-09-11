@@ -32,6 +32,13 @@ const SCENARIOS = [
     color: 'from-violet-600 to-fuchsia-600'
   },
   {
+    id: 'LH2_TANK_THERMO_MULTIPHASE_V1',
+    name: 'Réservoir LH₂ — VOF multiphase',
+    description: 'Cas de référence thermo-hydraulique avec isolation 10/20/30 mm, ullage, évaporation et validation CFD indépendante.',
+    icon: '🧊',
+    color: 'from-sky-600 to-indigo-600'
+  },
+  {
     id: 'H2_COMPRESSION_STATION',
     name: 'Station de Compression',
     description: 'Bilan thermodynamique d\'une station de compression H₂ avec vérification d\'efficacité isentropique',
@@ -110,6 +117,9 @@ export default function NewAnalysisPage() {
     try {
       if (selectedScenario === 'PCCV_TRANSIENT_THERMO_V1') {
         throw new Error('Le scénario PCCV exige d’abord un contrat de géométrie, un maillage et un oracle CFD vérifiables. Il ne peut pas être envoyé au moteur H₂ générique.')
+      }
+      if (selectedScenario === 'LH2_TANK_THERMO_MULTIPHASE_V1') {
+        throw new Error('Le scénario réservoir LH₂ multiphase exige d’abord un maillage VOF, les champs CFD et un oracle de changement de phase vérifiables. Il ne peut pas être envoyé au moteur H₂ générique.')
       }
       // 1. Check session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()

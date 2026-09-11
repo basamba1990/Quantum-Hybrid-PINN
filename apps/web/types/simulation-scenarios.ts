@@ -11,7 +11,8 @@ export type ScenarioType =
   | 'LH2_INFRASTRUCTURE_INTEGRITY'
   | 'LH2_LARGE_SCALE_STORAGE_1250M3'
   | 'HEAVY_DUTY_HYDROGEN_REFUELING'
-  | 'PCCV_TRANSIENT_THERMO_V1';
+  | 'PCCV_TRANSIENT_THERMO_V1'
+  | 'LH2_TANK_THERMO_MULTIPHASE_V1';
 
 export interface ScenarioConfig {
   id: ScenarioType;
@@ -77,6 +78,29 @@ export const INDUSTRIAL_SCENARIOS: Record<ScenarioType, ScenarioConfig> = {
       { name: 'internalPressure', label: 'Pression Interne', unit: 'bar' },
       { name: 'convectionVelocity', label: 'Vitesse Convection', unit: 'm/s' },
       { name: 'stabilityScore', label: 'Score de Stabilité', unit: '/100' }
+    ]
+  },
+  LH2_TANK_THERMO_MULTIPHASE_V1: {
+    id: 'LH2_TANK_THERMO_MULTIPHASE_V1',
+    name: 'Réservoir LH₂ — VOF thermo-multiphase',
+    description: 'Cas réel de réservoir LH₂ avec isolation 10/20/30 mm, changement de phase et validation CFD. Aucun champ n’est inventé sans oracle multiphase.',
+    inputs: [
+      { name: 'volume_l', label: 'Volume', type: 'number', unit: 'L', defaultValue: 50 },
+      { name: 'insulation_thickness_m', label: 'Isolation', type: 'select', unit: 'm', defaultValue: 0.02, options: [
+        { label: '10 mm', value: 0.01 },
+        { label: '20 mm', value: 0.02 },
+        { label: '30 mm', value: 0.03 }
+      ]},
+      { name: 'initial_fill_fraction', label: 'Remplissage initial', type: 'number', unit: 'fraction', defaultValue: 0.5 },
+      { name: 'initial_temperature_k', label: 'Température initiale', type: 'number', unit: 'K', defaultValue: 20.268 },
+      { name: 'external_wind_speed_m_s', label: 'Vent extérieur', type: 'number', unit: 'm/s', defaultValue: 2 }
+    ],
+    outputs: [
+      { name: 'ullage_pressure', label: 'Pression ullage', unit: 'Pa' },
+      { name: 'remaining_liquid_mass', label: 'Masse liquide restante', unit: 'kg' },
+      { name: 'boiloff_rate', label: 'Taux d’évaporation', unit: 'kg/s' },
+      { name: 'wall_heat_flux', label: 'Flux thermique paroi', unit: 'W/m²' },
+      { name: 'pressurization_rate', label: 'Taux de pressurisation', unit: 'Pa/s' }
     ]
   },
   PORT_ENERGY_OPTIMIZATION: {
@@ -287,6 +311,8 @@ export const SCENARIO_ALIASES: Record<string, ScenarioType> = {
   PORT_ENERGY_OPTIMIZATION: 'PORT_ENERGY_OPTIMIZATION',
   PCCV_TRANSIENT_THERMO_V1: 'PCCV_TRANSIENT_THERMO_V1',
   PCCV: 'PCCV_TRANSIENT_THERMO_V1',
+  LH2_TANK_THERMO_MULTIPHASE_V1: 'LH2_TANK_THERMO_MULTIPHASE_V1',
+  'LH2 TANK THERMO MULTIPHASE': 'LH2_TANK_THERMO_MULTIPHASE_V1',
 };
 
 export function normalizeScenarioType(value?: string | null): ScenarioType | null {
