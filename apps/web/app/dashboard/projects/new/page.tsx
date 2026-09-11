@@ -100,6 +100,7 @@ export default function NewProjectPage() {
     setErrorMsg(null)
     
     try {
+      const isArtifactDemo = formData.scenario === 'LH2_TANK_THERMO_MULTIPHASE_V1' || formData.scenario === 'PCCV_TRANSIENT_THERMO_V1'
       const { data: { user }, error: authError } = await supabase.auth.getUser()
       if (authError || !user) {
         throw new Error("Session expired or user not found. Please sign in again.")
@@ -152,7 +153,7 @@ export default function NewProjectPage() {
           video_url: videoUrl,
               transcription: [
                 formData.transcription,
-                `PILOT-LH2-001 | scenario=${formData.scenario} | solver=${formData.solver} | hydrogen_form=${formData.hydrogenForm} | reference_temperature_K=${formData.temperatureK} | reference_pressure_bar=${formData.pressureBar} | evidence_status=INCONCLUSIVE`
+                `${formData.scenario === 'PCCV_TRANSIENT_THERMO_V1' ? 'PILOT-PCCV-TRANSIENT-001' : 'PILOT-LH2-TANK-THERMO-001'} | scenario=${formData.scenario} | solver=${formData.solver} | hydrogen_form=${formData.hydrogenForm} | reference_temperature_K=${formData.temperatureK} | reference_pressure_bar=${formData.pressureBar} | evidence_status=${isArtifactDemo ? 'DEMO_NOT_VALIDATED' : 'INCONCLUSIVE'}`
               ].filter(Boolean).join('\n\n') || null,
           user_id: user.id,
           status: 'draft',
@@ -176,7 +177,7 @@ export default function NewProjectPage() {
         
         // En mode industriel, nous déclenchons automatiquement l'analyse physique 
         // si une transcription ou des paramètres sont fournis
-        if (formData.transcription || parsedPinn.data) {
+        if (!isArtifactDemo && (formData.transcription || parsedPinn.data)) {
           // Create an analysis entry first
           const { data: newAnalysis, error: analysisError } = await supabase
             .from('analyses')

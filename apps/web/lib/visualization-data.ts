@@ -13,7 +13,9 @@ export type VisualizationScenario =
   | "H2_DISTRIBUTION_HIGH_PRESSURE"
   | "LH2_INFRASTRUCTURE_INTEGRITY"
   | "LH2_LARGE_SCALE_STORAGE_1250M3"
-  | "HEAVY_DUTY_HYDROGEN_REFUELING";
+  | "HEAVY_DUTY_HYDROGEN_REFUELING"
+  | "LH2_TANK_THERMO_MULTIPHASE_V1"
+  | "PCCV_TRANSIENT_THERMO_V1";
 
 export interface VisualizationPoint {
   x: number;
@@ -162,6 +164,8 @@ const evidenceText = (evidence: unknown[]): string =>
 
 export const resolveVisualizationScenario = (evidence: unknown[]): VisualizationScenario => {
   const text = evidenceText(evidence);
+  if (/lh2[_ -]?tank[_ -]?thermo[_ -]?multiphase|50\s*l.*(tank|reservoir)|vof.*(csf|ranz)/i.test(text)) return "LH2_TANK_THERMO_MULTIPHASE_V1";
+  if (/pccv|five[_ -]?way|cinq[_ -]?voies|moving[_ -]?grid|grille[_ -]?mobile/i.test(text)) return "PCCV_TRANSIENT_THERMO_V1";
   if (/(lh2[_ -]?infrastructure|dn50|cryogenic.*(leak|fuite)|discontinuit|trou de fuite|through[_ -]?hole)/i.test(text)) return "LH2_INFRASTRUCTURE_INTEGRITY";
   if (/(heavy[_ -]?duty.*hydrogen.*refuel|heavy.*duty.*refuel|j2601-2|prhyde)/i.test(text)) return "HEAVY_DUTY_HYDROGEN_REFUELING";
   if (/(lh2[_ -]?large[_ -]?scale.*storage|large[_ -]?scale.*storage|1250\s*m3|1250\s*m³)/i.test(text)) return "LH2_LARGE_SCALE_STORAGE_1250M3";

@@ -14,6 +14,7 @@ import ScientificValidationWorkspace from '@/components/scientific-validation-wo
 import { resolveVisualizationScenario } from '@/lib/visualization-data'
 import { getScenarioDisplayName } from '@/types/simulation-scenarios'
 import { loadCertifiedCfdDataset } from '@/lib/cfd/cfd-repository'
+import { ScenarioDemoPanel } from '@/components/scenario-demo-panel'
 
 const CFDViewer = nextDynamic(
   () => import('@/components/cfd/CFDViewer'),
@@ -342,6 +343,7 @@ export default function ProjectDetailClient({ id, project }: any) {
   }), [scenarioType, persistedMetadata, residuals, chaosMode, leakAlertMode, credibilityScore, results, validationStatus, certifiedCfd.buffers])
 
   const projectDisplayName = getScenarioDisplayName(project?.scenario_type || project?.category || project?.name)
+  const isArtifactDemo = scenarioType === 'LH2_TANK_THERMO_MULTIPHASE_V1' || scenarioType === 'PCCV_TRANSIENT_THERMO_V1'
 
   return (
     <div className="flex min-h-screen bg-[#020617] text-white">
@@ -379,6 +381,7 @@ export default function ProjectDetailClient({ id, project }: any) {
         </div>
 
           <div className="space-y-10">
+          {isArtifactDemo && <ScenarioDemoPanel scenarioType={scenarioType} />}
           {pinnProfile && (
             <section className="rounded-[32px] border border-cyan-500/20 bg-cyan-500/5 p-6 md:p-8">
               <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 pb-5">
