@@ -74,11 +74,45 @@ function readVtkLegacyCells(rawCells: ArrayLike<number> | undefined, cellCount: 
   return { cells, offsets };
 }
 
+function readAsciiVtuFrame(source: VtuFrameSource, sidecar: VtuSidecar): CfdFrame {
+  const xml = new DOMParser().parseFromString(new TextDecoder().decode(source.payload), "application/xml");
+  if (xml.querySelector("parsererror")) throw new Error("CFD_VTU_XML_INVALID");
+  const values = (name: string, parent: Element): number[] => {
+    const node = Array.from(parent.querySelectorAll("DataArray")).find((candidate) => candidate.getAttribute("Name") === name);
+    if (!node || (node.getAttribute("format") || "ascii") !== "ascii") throw new Error(`CFD_VTU_ASCII_ARRAY_MISSING: ${name}`);
+    return (node.textContent || "").trim().split(/\s+/).filter(Boolean).map(Number);
+  };
+  const piece = xml.querySelector("Piece");
+  if (!piece) throw new Error("CFD_VTU_PIECE_MISSING");
+  const points = values("Points", piece.querySelector("Points") || piece);
+  const cellsNode = piece.querySelector("Cells");
+  if (!cellsNode) throw new Error("CFD_VTU_CELLS_MISSING");
+  const connectivity = values("connectivity", cellsNode);
+  const rawOffsets = values("offsets", cellsNode);
+  const offsets = [0, ...rawOffsets];
+  const cells = connectivity.slice();
+  const cellTypes = values("types", cellsNode);
+  if (offsets.length !== cellTypes.length + 1) throw new Error("CFD_VTU_CELL_OFFSETS_INVALID");
+  const fields: CfdFrame["fields"] = [];
+  for (const association of ["point", "cell"] as const) {
+    const parent = piece.querySelector(association === "point" ? "PointData" : "CellData");
+    for (const node of Array.from(parent?.querySelectorAll("DataArray") || [])) {
+      const name = node.getAttribute("Name");
+      if (!name) throw new Error("CFD_VTK_FIELD_METADATA_MISSING");
+      const descriptor = sidecar.fieldDescriptors[name];
+      if (!descriptor?.unit || !descriptor.quantity) throw new Error(`CFD_FIELD_DESCRIPTOR_MISSING: ${name}`);
+      fields.push({ name, association, components: Number(node.getAttribute("NumberOfComponents") || "1"), values: (node.textContent || "").trim().split(/\s+/).filter(Boolean).map(Number), unit: descriptor.unit, quantity: descriptor.quantity });
+    }
+  }
+  if (!fields.length) throw new Error("CFD_VTK_FIELDS_MISSING");
+  return CfdFrameSchema.parse({ frameId: source.frameId, time: source.time, points, cells, offsets, cellTypes, fields });
+}
+
 function readVtuFrame(source: VtuFrameSource, sidecar: VtuSidecar): CfdFrame {
   const reader = macro.newInstance(extendXmlReader, "vtkXMLReader")();
   reader.parseAsArrayBuffer(source.payload);
   const output = reader.getOutputData();
-  if (!output) throw new Error("CFD_VTK_OUTPUT_MISSING");
+  if (!output) return readAsciiVtuFrame(source, sidecar);
 
   const pointsArray = output.getPoints()?.getData?.();
   const points = toNumberArray(pointsArray);
