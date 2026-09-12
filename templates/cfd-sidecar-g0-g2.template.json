@@ -1,0 +1,98 @@
+{
+  "contractVersion": "cfd-volume.v1",
+  "meshRevision": "REPLACE_WITH_IMMUTABLE_MESH_REVISION",
+  "coordinateSystem": "cartesian-right-handed",
+  "lengthUnit": "m",
+  "fieldDescriptors": {
+    "temperature": {
+      "unit": "K",
+      "quantity": "temperature"
+    },
+    "pressure": {
+      "unit": "Pa",
+      "quantity": "pressure"
+    },
+    "velocity": {
+      "unit": "m/s",
+      "quantity": "velocity"
+    },
+    "region_id": {
+      "unit": "1",
+      "quantity": "cell-region-identifier"
+    }
+  },
+  "boundarySets": [
+    {
+      "name": "wall",
+      "association": "point",
+      "indexSpace": "point-index-space-v1",
+      "indices": [0]
+    },
+    {
+      "name": "inlet",
+      "association": "point",
+      "indexSpace": "point-index-space-v1",
+      "indices": [0]
+    },
+    {
+      "name": "outlet",
+      "association": "point",
+      "indexSpace": "point-index-space-v1",
+      "indices": [0]
+    }
+  ],
+  "provenance": {
+    "solver": "REPLACE_WITH_REAL_SOLVER_NAME",
+    "solverVersion": "REPLACE_WITH_REAL_SOLVER_VERSION",
+    "sourceUri": "https://example.invalid/replace-with-authoritative-run",
+    "sourceHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "calculationId": "REPLACE_WITH_REAL_CALCULATION_ID",
+    "generatedAt": "2026-09-12T00:00:00+00:00"
+  },
+  "residuals": {
+    "mass": null,
+    "momentum": null,
+    "energy": null,
+    "norm": null,
+    "computedBy": null,
+    "computedAt": null
+  },
+  "references": [
+    {
+      "id": "REPLACE_WITH_REFERENCE_ID",
+      "title": "REPLACE_WITH_REFERENCE_TITLE",
+      "uri": "https://example.invalid/replace-with-reference",
+      "variables": [
+        "temperature",
+        "pressure",
+        "velocity"
+      ],
+      "comparisonHash": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "evidence": {
+    "meshGeometryAndTopology": true,
+    "fieldsAndUnits": true,
+    "namedBoundaries": true,
+    "solverProvenance": false,
+    "solverResiduals": false,
+    "referenceComparison": false,
+    "immutableHashes": true,
+    "calculatedTransientStates": false
+  },
+  "frames": [
+    {
+      "frameId": "REPLACE_WITH_FRAME_ID_0000",
+      "time": 0.0,
+      "file": "frame_0000.vtu",
+      "payloadHash": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "frameId": "REPLACE_WITH_FRAME_ID_0001",
+      "time": 1.0,
+      "file": "frame_0001.vtu",
+      "payloadHash": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "classification": "REAL_CFD_G0_G2_PENDING_G3_VALIDATION"
+}
