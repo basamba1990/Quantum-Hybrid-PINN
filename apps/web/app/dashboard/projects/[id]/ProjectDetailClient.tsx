@@ -48,6 +48,9 @@ export default function ProjectDetailClient({ id, project }: any) {
   const isArtifactDemoScenario = /LH2|LH₂|LH[_ -]?TANK|THERMO[_ -]?MULTIPHASE|PCCV|TRANSIENT[_ -]?THERMO|D[ÉE]MONSTRATION|D[ÉE]MO/i.test(
     [project?.scenario_type, project?.category, project?.name, project?.title].filter(Boolean).join(' '),
   )
+  const previewArtifact = /PCCV|TRANSIENT[_ -]?THERMO/i.test(
+    [project?.scenario_type, project?.category, project?.name, project?.title].filter(Boolean).join(' '),
+  ) ? 'pccv-valve-preview' : 'lh2-tank-preview'
 
   // --- MODES DE DÉMONSTRATION (POUR LA SOUTENANCE) ---
   const [chaosMode, setChaosMode] = useState(false)
@@ -187,16 +190,18 @@ export default function ProjectDetailClient({ id, project }: any) {
         if (!requestedCfdAnalysisId && typeof latestCfd?.analysis_id === 'string') {
           setCfdAnalysisId(latestCfd.analysis_id)
         }
-        // Fallback strictement limité aux projets de démonstration : il rend
-        // le pipeline VTU inspectable en production sans fabriquer un résultat
-        // CFD. Un dataset cfd_datasets persistant prime toujours ce fixture.
+        // Preview strictement limité aux projets de démonstration : il rend le
+        // pipeline VTU inspectable sans fabriquer un résultat CFD. Chaque
+        // scénario possède son propre artefact de preview ; un dataset
+        // cfd_datasets persistant prime toujours ce preview.
         if (isArtifactDemoScenario && !requestedCfdAnalysisId) {
           try {
-            const sidecarResponse = await fetch('/cfd-demo/synthetic-lh2-vtu/sidecar.json', { cache: 'force-cache' })
+            const previewBase = `/cfd-demo/${previewArtifact}`
+            const sidecarResponse = await fetch(`${previewBase}/sidecar.json`, { cache: 'force-cache' })
             if (!sidecarResponse.ok) throw new Error(`Sidecar démo indisponible (${sidecarResponse.status}).`)
             const sidecar = await sidecarResponse.json()
             const frameSources = await Promise.all(sidecar.frames.map(async (frame: { frameId: string; time: number; file: string; payloadHash: string }) => {
-              const response = await fetch(`/cfd-demo/synthetic-lh2-vtu/${frame.file}`, { cache: 'force-cache' })
+              const response = await fetch(`${previewBase}/${frame.file}`, { cache: 'force-cache' })
               if (!response.ok) throw new Error(`Frame VTU démo indisponible (${response.status}).`)
               return { frameId: frame.frameId, time: frame.time, payload: await response.arrayBuffer(), payloadHash: frame.payloadHash }
             }))

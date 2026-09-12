@@ -1,0 +1,83 @@
+{
+  "contractVersion": "cfd-volume.v1",
+  "meshRevision": "preview-lh2-tank-preview-v1",
+  "coordinateSystem": "cartesian-right-handed",
+  "lengthUnit": "m",
+  "fieldDescriptors": {
+    "temperature": {
+      "unit": "K",
+      "quantity": "temperature"
+    },
+    "pressure": {
+      "unit": "MPa",
+      "quantity": "pressure"
+    },
+    "velocity": {
+      "unit": "m/s",
+      "quantity": "velocity"
+    },
+    "region_id": {
+      "unit": "1",
+      "quantity": "cell region identifier"
+    }
+  },
+  "boundarySets": [
+    {
+      "name": "lh2-tank-preview_preview_boundary",
+      "association": "point",
+      "indexSpace": "point-index-space-v1",
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    }
+  ],
+  "provenance": {
+    "solver": "scenario-preview-generator",
+    "solverVersion": "1.0.0",
+    "sourceUri": "urn:quantum-hybrid-pinn:preview:lh2-tank-preview",
+    "sourceHash": "preview-only",
+    "calculationId": "preview-lh2-tank-preview-v1",
+    "generatedAt": "2026-09-12T00:00:00Z"
+  },
+  "residuals": {
+    "mass": null,
+    "momentum": null,
+    "energy": null,
+    "norm": null,
+    "computedBy": null,
+    "computedAt": null
+  },
+  "references": [],
+  "evidence": {
+    "meshGeometryAndTopology": false,
+    "fieldsAndUnits": false,
+    "namedBoundaries": false,
+    "solverProvenance": false,
+    "solverResiduals": false,
+    "referenceComparison": false,
+    "immutableHashes": false,
+    "calculatedTransientStates": false
+  },
+  "frames": [
+    {
+      "frameId": "lh2-tank-preview-0000",
+      "time": 0.0,
+      "file": "frame_0000.vtu",
+      "payloadHash": "f1411aeea52b8038b5d17fd1fc08e389aaec86a819d044d7affd08db738bd3fe"
+    },
+    {
+      "frameId": "lh2-tank-preview-0001",
+      "time": 1.0,
+      "file": "frame_0001.vtu",
+      "payloadHash": "2a78afdc417c49b68219b40b603b4e6adb8f54787a9544e3ac2c543114a9d0c6"
+    }
+  ],
+  "classification": "SCENARIO_PREVIEW_NOT_INDUSTRIAL_VALIDATION"
+}

@@ -1,0 +1,85 @@
+{
+  "contractVersion": "cfd-volume.v1",
+  "meshRevision": "preview-pccv-valve-preview-v1",
+  "coordinateSystem": "cartesian-right-handed",
+  "lengthUnit": "m",
+  "fieldDescriptors": {
+    "temperature": {
+      "unit": "K",
+      "quantity": "temperature"
+    },
+    "pressure": {
+      "unit": "MPa",
+      "quantity": "pressure"
+    },
+    "velocity": {
+      "unit": "m/s",
+      "quantity": "velocity"
+    },
+    "region_id": {
+      "unit": "1",
+      "quantity": "cell region identifier"
+    }
+  },
+  "boundarySets": [
+    {
+      "name": "pccv-valve-preview_preview_boundary",
+      "association": "point",
+      "indexSpace": "point-index-space-v1",
+      "indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    }
+  ],
+  "provenance": {
+    "solver": "scenario-preview-generator",
+    "solverVersion": "1.0.0",
+    "sourceUri": "urn:quantum-hybrid-pinn:preview:pccv-valve-preview",
+    "sourceHash": "preview-only",
+    "calculationId": "preview-pccv-valve-preview-v1",
+    "generatedAt": "2026-09-12T00:00:00Z"
+  },
+  "residuals": {
+    "mass": null,
+    "momentum": null,
+    "energy": null,
+    "norm": null,
+    "computedBy": null,
+    "computedAt": null
+  },
+  "references": [],
+  "evidence": {
+    "meshGeometryAndTopology": false,
+    "fieldsAndUnits": false,
+    "namedBoundaries": false,
+    "solverProvenance": false,
+    "solverResiduals": false,
+    "referenceComparison": false,
+    "immutableHashes": false,
+    "calculatedTransientStates": false
+  },
+  "frames": [
+    {
+      "frameId": "pccv-valve-preview-0000",
+      "time": 0.0,
+      "file": "frame_0000.vtu",
+      "payloadHash": "fd010bbe6fd3d21047419a707f5346021dd4c03705aa012365ac5d2f3a3e360c"
+    },
+    {
+      "frameId": "pccv-valve-preview-0001",
+      "time": 1.0,
+      "file": "frame_0001.vtu",
+      "payloadHash": "e7057c2a95a7912dcb3c67b89402bd621d19d4e110b61764266a9ccd1a04ff9a"
+    }
+  ],
+  "classification": "SCENARIO_PREVIEW_NOT_INDUSTRIAL_VALIDATION"
+}
