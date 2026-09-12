@@ -1,0 +1,22 @@
+{
+  "pilot_id": "PILOT-PCCV-TRANSIENT-001",
+  "scenario_type": "PCCV_TRANSIENT_THERMO_V1",
+  "article_key": "pccv-transient-thermo",
+  "mesh_revision": "pccv-reconstructed-v1",
+  "source_uri": "https://www.mdpi.com/2076-0825/13/3/110",
+  "geometry_parameters": {
+    "body_radius_m": 0.16,
+    "nominal_port_radius_m": 0.055,
+    "port_count": 5,
+    "inlet_port_count": 4,
+    "outlet_port_count": 1,
+    "pipe_length_to_diameter": 15,
+    "published_reference_nodes": 57096,
+    "published_reference_elements": 512500,
+    "coordinate_system": "cartesian-right-handed"
+  },
+  "geometry_file": "geometry.stl",
+  "geometry_sha256": "10f50d51a7c925b89b537ff014a465e7bedd519f544a3cda6140edc0d155474c",
+  "geometry_kind": "mesh",
+  "status": "RECONSTRUCTED_PARAMETERIZED_NOT_AUTHOR_OFFICIAL"
+}
