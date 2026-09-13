@@ -24,6 +24,44 @@ LH2_LATENT = 445000   # J/kg
 LH2_DENSITY_LIQ = 70.8  # kg/m³
 
 
+def liquid_fraction_from_temperature(temperature: torch.Tensor, saturation_temperature: float = LH2_BOIL, transition_width: float = 0.25) -> torch.Tensor:
+    """Approximation de fraction liquide pour visualisation/initialisation.
+
+    Cette fonction ne constitue pas à elle seule un modèle VOF validé : le
+    contrat physique doit fournir la corrélation, sa plage et sa provenance.
+    """
+    width = max(float(transition_width), 1e-9)
+    return torch.sigmoid((float(saturation_temperature) - temperature) / width)
+
+
+def specific_enthalpy_from_temperature(
+    temperature: torch.Tensor,
+    liquid_fraction: torch.Tensor,
+    cp_liquid: float = CP_H2,
+    cp_vapor: float = CP_H2,
+    latent_heat: float = LH2_LATENT,
+    reference_temperature: float = 0.0,
+) -> torch.Tensor:
+    """Calcule une enthalpie dérivée avec paramètres explicitement traçables."""
+    cp_mix = liquid_fraction * float(cp_liquid) + (1.0 - liquid_fraction) * float(cp_vapor)
+    return cp_mix * (temperature - float(reference_temperature)) + liquid_fraction * float(latent_heat)
+
+
+def build_lh2_physics_contract(*, validated: bool = False, property_source: str = "not-specified") -> Dict[str, Any]:
+    """Retourne le contrat sérialisable ; validated reste faux par défaut."""
+    return {
+        "validated": bool(validated),
+        "contractVersion": "physics-contract.v1",
+        "problemClass": "transient-two-phase-thermo-hydraulic",
+        "governingEquations": ["compressible_mass_conservation", "navier_stokes_momentum", "enthalpy_energy", "vof_phase_fraction_transport"],
+        "phaseModel": {"name": "VOF", "phases": ["liquid_hydrogen", "hydrogen_vapor"], "interfaceField": "alpha_liquid"},
+        "materialProperties": {"source": property_source, "validated": False},
+        "initialConditionsPersisted": False,
+        "boundaryConditionsPersisted": False,
+        "limitations": "Derived alpha/enthalpy terms require calibration and independent review before G3 can pass.",
+    }
+
+
 def finite_number(value: Any) -> float | None:
     try:
         numeric = float(value)
@@ -295,6 +333,9 @@ class TransientPINNLoss(nn.Module):
 
         rho, u, v, w, p, temperature = [outputs[:, i:i + 1] for i in range(6)]
         fields = {"rho": rho, "u": u, "v": v, "w": w, "p": p, "T": temperature}
+        alpha_liquid = liquid_fraction_from_temperature(temperature)
+        fields["alpha_liquid"] = alpha_liquid
+        fields["enthalpy"] = specific_enthalpy_from_temperature(temperature, alpha_liquid)
         derivatives = {}
         for name, field in fields.items():
             derivatives[f"d{name}_dt"] = self._grad(field, t)
