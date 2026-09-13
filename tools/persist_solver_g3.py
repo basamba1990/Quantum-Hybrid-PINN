@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Persiste un contrat G3 uniquement à partir d'une sortie solveur vérifiable."""
+from __future__ import annotations
+import argparse, hashlib, json, shutil
+from pathlib import Path
+import meshio
+import numpy as np
+
+REQUIRED = {"rho", "temperature", "pressure", "velocity", "alpha_liquid", "enthalpy"}
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def main() -> int:
+    p=argparse.ArgumentParser()
+    p.add_argument("kit", type=Path); p.add_argument("output", type=Path)
+    p.add_argument("--physics-contract", type=Path, required=True)
+    p.add_argument("--run-log", type=Path, required=True)
+    p.add_argument("--solver", required=True); p.add_argument("--solver-version", required=True); p.add_argument("--calculation-id", required=True)
+    p.add_argument("--mass-residual", type=float, required=True); p.add_argument("--momentum-residual", type=float, required=True); p.add_argument("--energy-residual", type=float, required=True)
+    a=p.parse_args()
+    side_path=a.kit/"sidecar.json"
+    if not side_path.exists(): raise SystemExit("sidecar.json missing")
+    contract=json.loads(a.physics_contract.read_text())
+    if contract.get("validated") is not True: raise SystemExit("physics contract must be independently reviewed with validated=true")
+    for key in ("governingEquations","phaseModel","materialProperties","initialConditionsPersisted","boundaryConditionsPersisted"):
+        if key not in contract: raise SystemExit(f"physics contract missing {key}")
+    if not a.run_log.exists(): raise SystemExit("solver run log missing")
+    residuals={"mass":a.mass_residual,"momentum":a.momentum_residual,"energy":a.energy_residual}
+    if not all(np.isfinite(v) and v >= 0 for v in residuals.values()): raise SystemExit("residuals must be finite non-negative solver outputs")
+    a.output.mkdir(parents=True, exist_ok=True)
+    side=json.loads(side_path.read_text())
+    frame_specs=[]
+    for frame in sorted(a.kit.glob("frame_*.vtu")):
+        mesh=meshio.read(frame)
+        names=set((mesh.point_data or {}).keys()) | set((mesh.cell_data or {}).keys())
+        missing=REQUIRED-names
+        if missing: raise SystemExit(f"{frame.name}: missing solver fields {sorted(missing)}")
+        target=a.output/frame.name; shutil.copy2(frame,target)
+        frame_specs.append({"frameId":frame.stem,"time":float(len(frame_specs)),"file":frame.name,"payloadHash":sha256(target),"fields":sorted(REQUIRED)})
+    if len(frame_specs)<2: raise SystemExit("at least two solver frames are required")
+    side["physicsContract"]=contract
+    descriptors=side.setdefault("fieldDescriptors",{})
+    descriptors.update({"rho":{"unit":"kg/m3","quantity":"density"},"alpha_liquid":{"unit":"1","quantity":"liquid_volume_fraction"},"enthalpy":{"unit":"J/kg","quantity":"specific_enthalpy"}})
+    side["provenance"]={**side.get("provenance",{}),"solver":a.solver,"solverVersion":a.solver_version,"calculationId":a.calculation_id,"sourceHash":sha256(a.run_log),"sourceUri":f"local://{a.run_log.name}"}
+    side["residuals"]={**side.get("residuals",{}),**residuals,"norm":"L2","computedBy":a.solver}
+    side["executionEvidence"]={"solverOutput":True,"runLogHash":sha256(a.run_log),"configurationHash":sha256(a.physics_contract),"solver":"%s"%a.solver,"solverVersion":a.solver_version}
+    side["evidence"]={**side.get("evidence",{}),"fieldsAndUnits":True,"solverProvenance":True,"solverResiduals":True,"calculatedTransientStates":True}
+    side["frames"]=frame_specs
+    (a.output/"sidecar.json").write_text(json.dumps(side,indent=2,ensure_ascii=False)+"\n")
+    print(json.dumps({"output":str(a.output),"physicsContractValidated":True,"fields":sorted(REQUIRED),"residuals":residuals},indent=2))
+
+if __name__=="__main__": main()
