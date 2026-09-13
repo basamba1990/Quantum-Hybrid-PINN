@@ -115,12 +115,6 @@ export default function NewAnalysisPage() {
     setErrorMsg(null)
     
     try {
-      if (selectedScenario === 'PCCV_TRANSIENT_THERMO_V1') {
-        throw new Error('Le scénario PCCV exige d’abord un contrat de géométrie, un maillage et un oracle CFD vérifiables. Il ne peut pas être envoyé au moteur H₂ générique.')
-      }
-      if (selectedScenario === 'LH2_TANK_THERMO_MULTIPHASE_V1') {
-        throw new Error('Le scénario réservoir LH₂ multiphase exige d’abord un maillage VOF, les champs CFD et un oracle de changement de phase vérifiables. Il ne peut pas être envoyé au moteur H₂ générique.')
-      }
       // 1. Check session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (sessionError || !session) {
@@ -156,6 +150,29 @@ export default function NewAnalysisPage() {
 
       if (insertError) {
         throw new Error(`Failed to create the analysis : ${insertError.message}`)
+      }
+
+      // CFD-first scenarios must open the verified artifact import workflow.
+      // They must never be sent to the generic H₂ inference engine, which cannot
+      // create a trustworthy VTU dataset or a moving-grid/VOF oracle.
+      if (selectedScenario === 'PCCV_TRANSIENT_THERMO_V1' || selectedScenario === 'LH2_TANK_THERMO_MULTIPHASE_V1') {
+        const { error: cfdUpdateError } = await supabase
+          .from('analyses')
+          .update({
+            analysis_type: 'cfd_import',
+            scenario_type: selectedScenario,
+            status: 'pending',
+            description: 'Import VTU frames and a cfd-volume.v1 sidecar before CFD gate evaluation.'
+          })
+          .eq('id', newAnalysis.id)
+
+        if (cfdUpdateError) {
+          throw new Error(`Failed to prepare CFD import analysis : ${cfdUpdateError.message}`)
+        }
+        toast.success('CFD import workspace ready')
+        router.push(`/dashboard/projects/${projectId}/analyses/${newAnalysis.id}`)
+        router.refresh()
+        return
       }
 
       // 4. Lancement asynchrone de la simulation
