@@ -162,6 +162,23 @@ describe("Connected mesh and iso-surface", () => {
     (mesh.material as import("three").Material).dispose();
   });
 
+  test("renders persisted VTK triangle cells used by imported surface VTU kits", () => {
+    const surfaceDataset = makeDataset();
+    surfaceDataset.pointCount = 4;
+    surfaceDataset.cellCount = 1;
+    surfaceDataset.frames = surfaceDataset.frames.map((frame) => ({
+      ...frame,
+      cells: [0, 1, 2],
+      offsets: [0, 3],
+      cellTypes: [5],
+    }));
+    const buffers = normalizeCfdDataset(parseCfdMetadata(surfaceDataset));
+    const mesh = buildCfdSurfaceMesh({ frame: buffers.frames[0] });
+    expect(mesh.geometry.getAttribute("position").count).toBe(3);
+    mesh.geometry.dispose();
+    (mesh.material as import("three").Material).dispose();
+  });
+
   test("extracts an iso-surface from the scalar field and cell connectivity", () => {
     const buffers = normalizeCfdDataset(parseCfdMetadata(makeDataset()));
     const surface = extractCfdIsoSurface(buffers.frames[0], "temperature", 21.5);
