@@ -12,6 +12,7 @@ RUN git clone --branch ${GMSH_TAG} --depth 1 https://gitlab.onelab.info/gmsh/gms
 WORKDIR /src/gmsh
 RUN cmake -S . -B build -G Ninja \
     -DENABLE_NETGEN=ON \
+    -DENABLE_OPENCASCADE=ON \
     -DENABLE_FLTK=OFF \
     -DENABLE_BUILD_LIB=OFF \
     -DENABLE_OPENMP=ON \
