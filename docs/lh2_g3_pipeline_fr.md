@@ -27,7 +27,26 @@ python3 tools/validate_physics_contract_g3.py \
 
 La validation exige les descripteurs `rho`, `velocity`, `pressure`, `temperature`, `alpha_liquid` et `enthalpy`, une provenance du solveur, au moins deux frames et un `physicsContract.validated` explicitement vrai. Un kit enrichi à partir d’une formule ne doit donc normalement pas passer G3 avant revue physique.
 
-L’image `infrastructure/gmsh-netgen/Dockerfile` compile Gmsh avec `ENABLE_NETGEN=ON` et expose le binaire dans `/opt/gmsh/bin/gmsh` :
+Pour persister une sortie G3, le répertoire `--solver-output` doit contenir des `frame_*.vtu` écrits par le solveur réel. Le script ne fabrique ni `rho` ni un contrat validé : il vérifie la topologie identique des frames, la présence de tous les champs dans `point_data`, leur finitude, `rho > 0`, `0 <= alpha_liquid <= 1`, puis recopie les payloads avec leurs hashes.
+
+```bash
+python3 tools/persist_solver_g3.py \
+  /cases/PILOT-LH2-TANK-THERMO-001 \
+  /artifacts/PILOT-LH2-TANK-THERMO-001-g3 \
+  --solver-output /solver/run-2026-09-13/frames \
+  --physics-contract /solver/run-2026-09-13/physics-contract.json \
+  --run-log /solver/run-2026-09-13/solver.log \
+  --solver LH2-ThermoHydraulic-Solver \
+  --solver-version 1.0.0 \
+  --calculation-id LH2-2026-09-13-001 \
+  --mass-residual 1.2e-7 \
+  --momentum-residual 4.8e-6 \
+  --energy-residual 3.1e-5
+```
+
+Le contrat doit avoir été revu indépendamment et contenir `validated: true`, les équations gouvernantes, le modèle de phase, les propriétés matériaux et les conditions initiales/limites persistées. Des valeurs estimées ou injectées à partir d’une corrélation ne permettent pas de débloquer G3.
+
+L’image `infrastructure/gmsh-netgen/Dockerfile` compile Gmsh avec `ENABLE_NETGEN=ON` et `ENABLE_OCC=ON`. Le build et la couche runtime exécutent un smoke test OpenCASCADE réel ; l’image échoue au build si `SetFactory("OpenCASCADE")` ne peut pas créer et mailler un volume.
 
 ```bash
 docker build -f infrastructure/gmsh-netgen/Dockerfile -t quantum-gmsh-netgen infrastructure/gmsh-netgen

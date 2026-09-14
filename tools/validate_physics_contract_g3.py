@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, json, sys
+import argparse, json, math, sys
 from pathlib import Path
 
 REQUIRED_FIELDS = {
@@ -30,6 +30,20 @@ def validate(sidecar: dict) -> list[str]:
         if key not in (contract or {}): errors.append(f"physicsContract missing: {key}")
     frames=sidecar.get("frames")
     if not isinstance(frames,list) or len(frames)<2: errors.append("at least two persisted frames are required")
+    for index, frame in enumerate(frames if isinstance(frames, list) else []):
+        if not isinstance(frame, dict):
+            errors.append(f"frame {index}: descriptor must be an object"); continue
+        if not isinstance(frame.get("file"), str) or not frame["file"].strip():
+            errors.append(f"frame {index}: persisted file is missing")
+        if not isinstance(frame.get("payloadHash"), str) or len(frame["payloadHash"]) != 64:
+            errors.append(f"frame {index}: SHA-256 payloadHash is missing")
+        listed = set(frame.get("fields", [])) if isinstance(frame.get("fields"), list) else set()
+        missing = set(REQUIRED_FIELDS).difference(listed)
+        if missing: errors.append(f"frame {index}: missing declared fields {sorted(missing)}")
+    evidence = sidecar.get("executionEvidence", {})
+    if evidence.get("solverOutput") is not True: errors.append("executionEvidence.solverOutput is not true")
+    if not isinstance(evidence.get("runLogHash"), str) or len(evidence["runLogHash"]) != 64:
+        errors.append("executionEvidence.runLogHash is missing")
     return errors
 
 def main() -> int:

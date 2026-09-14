@@ -26,7 +26,11 @@ class G3ContractTests(unittest.TestCase):
             "fieldDescriptors": descriptors,
             "provenance": {"solver": "solver", "solverVersion": "1", "calculationId": "run", "sourceHash": "a" * 64},
             "physicsContract": contract,
-            "frames": [{"file": "frame_0000.vtu"}, {"file": "frame_0001.vtu"}],
+            "frames": [
+                {"file": "frame_0000.vtu", "payloadHash": "b" * 64, "fields": sorted(module.REQUIRED_FIELDS)},
+                {"file": "frame_0001.vtu", "payloadHash": "c" * 64, "fields": sorted(module.REQUIRED_FIELDS)},
+            ],
+            "executionEvidence": {"solverOutput": True, "runLogHash": "d" * 64},
         })
         self.assertEqual(errors, [])
 
