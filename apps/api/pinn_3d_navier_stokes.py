@@ -5,6 +5,10 @@ try:
     from fluid_properties import FLUID_CONFIGS, get_eos
 except ImportError:
     from .fluid_properties import FLUID_CONFIGS, get_eos
+try:
+    from phase_thermo import PhaseThermoConfig
+except ImportError:
+    from .phase_thermo import PhaseThermoConfig
 
 # Configuration Industrielle (Pipeline de 15m)
 T_MIN, T_MAX = 0.0, 1000.0 # s
@@ -14,16 +18,22 @@ Z_MIN, Z_MAX = -0.25, 0.25 # m
 U_SCALE = 50.0 # m/s
 TEMP_SCALE = 350.0 # K
 RHO_SCALE = 100.0 # kg/m3
+H_SCALE = 1.0e6 # J/kg; normalization scale, declared in the training contract
 
 class PINN3DNavierStokes(nn.Module):
-    def __init__(self, layers=None, fluid_type='H2', dropout_rate=0.1, enable_dropout=False):
+    def __init__(self, layers=None, fluid_type='H2', dropout_rate=0.1, enable_dropout=False, phase_thermo=None):
         super().__init__()
         # Architecture industrielle : plus profonde pour capturer les gradients complexes
         if layers is None:
-            layers = [4, 128, 128, 128, 128, 5]
+            layers = [4, 128, 128, 128, 128, 7]
+        if len(layers) != 6 or layers[0] != 4 or layers[-1] != 7:
+            raise ValueError("native multiphase V8 requires architecture [4, ..., 7]")
         self.fluid_type = fluid_type
         self.config = FLUID_CONFIGS.get(fluid_type, FLUID_CONFIGS['H2'])
         self.enable_dropout = enable_dropout
+        self.phase_thermo = phase_thermo
+        if self.phase_thermo is None:
+            raise ValueError("phase_thermo contract is required for native phase fields")
 
         self.linears = nn.ModuleList()
         for i in range(len(layers) - 1):
@@ -51,7 +61,9 @@ class PINN3DNavierStokes(nn.Module):
         v = (torch.tanh(out[..., 2:3])) * U_SCALE
         w = (torch.tanh(out[..., 3:4])) * U_SCALE
         T = (torch.sigmoid(out[..., 4:5])) * TEMP_SCALE + 13.8 # Point triple H2
-        return rho, u, v, w, T
+        alpha_liquid = torch.sigmoid(out[..., 5:6])
+        enthalpy = H_SCALE * torch.tanh(out[..., 6:7])
+        return rho, u, v, w, T, alpha_liquid, enthalpy
 
     def _safe_grad(self, y, x, create_graph=True):
         grads = torch.autograd.grad(y.sum(), x, create_graph=create_graph, allow_unused=True)
@@ -59,7 +71,7 @@ class PINN3DNavierStokes(nn.Module):
             return torch.zeros_like(x, requires_grad=create_graph)
         return grads[0]
 
-    def compute_residuals(self, t, x, y, z, rho, u, v, w, T, scale_dict=None):
+    def compute_residuals(self, t, x, y, z, rho, u, v, w, T, alpha_liquid, enthalpy, scale_dict=None):
         if not t.requires_grad: t.requires_grad_(True)
         if not x.requires_grad: x.requires_grad_(True)
         if not y.requires_grad: y.requires_grad_(True)
@@ -90,6 +102,10 @@ class PINN3DNavierStokes(nn.Module):
         T_x = self._safe_grad(T, x)
         T_y = self._safe_grad(T, y)
         T_z = self._safe_grad(T, z)
+        alpha_t = self._safe_grad(alpha_liquid, t)
+        alpha_x = self._safe_grad(alpha_liquid, x)
+        alpha_y = self._safe_grad(alpha_liquid, y)
+        alpha_z = self._safe_grad(alpha_liquid, z)
 
         # Dérivées secondes
         u_xx = self._safe_grad(u_x, x)
@@ -136,6 +152,8 @@ class PINN3DNavierStokes(nn.Module):
         
         energy = (rho * Cp * (T_t + u * T_x + v * T_y + w * T_z) -
                   k_therm * (T_xx + T_yy + T_zz) - dissipation - beta_T * Dp_Dt)
+        phase_transport = alpha_t + u * alpha_x + v * alpha_y + w * alpha_z
+        enthalpy_closure = enthalpy - self.phase_thermo.mixture_enthalpy(T, alpha_liquid)
 
         if scale_dict is not None:
             mass = mass / scale_dict['mass']
@@ -143,14 +161,7 @@ class PINN3DNavierStokes(nn.Module):
             mom_y = mom_y / scale_dict['mom']
             mom_z = mom_z / scale_dict['mom']
             energy = energy / scale_dict['energy']
-            return mass, mom_x, mom_y, mom_z, energy
-        else:
-            scales = {
-                'mass': torch.std(mass).item() + 1e-6,
-                'mom': torch.std(mom_x).item() + 1e-6,
-                'energy': torch.std(energy).item() + 1e-6
-            }
-            return mass, mom_x, mom_y, mom_z, energy, scales
+        return mass, mom_x, mom_y, mom_z, energy, phase_transport, enthalpy_closure
 
     def get_physical_velocity_profile(self, y, z, R=0.25, u_avg=6.0, type='turbulent'):
         """
@@ -168,10 +179,11 @@ class PINN3DNavierStokes(nn.Module):
             u_profile = u_max * torch.pow(torch.clamp(1 - r/R, min=1e-6), 1/7)
         return torch.clamp(u_profile, min=0.0)
 
-    def loss(self, t_pde, x_pde, y_pde, z_pde, scale_dict):
-        rho, u, v, w, T = self.forward(t_pde, x_pde, y_pde, z_pde)
-        mass, mom_x, mom_y, mom_z, energy = self.compute_residuals(
-            t_pde, x_pde, y_pde, z_pde, rho, u, v, w, T, scale_dict=scale_dict)
+    def loss(self, t_pde, x_pde, y_pde, z_pde, scale_dict=None, loss_weights=None):
+        rho, u, v, w, T, alpha_liquid, enthalpy = self.forward(t_pde, x_pde, y_pde, z_pde)
+        residuals = self.compute_residuals(
+            t_pde, x_pde, y_pde, z_pde, rho, u, v, w, T, alpha_liquid, enthalpy, scale_dict=scale_dict)
+        mass, mom_x, mom_y, mom_z, energy, phase_transport, enthalpy_closure = residuals[:7]
         
         # Perte PDE
         loss_pde = (mass**2).mean() + (mom_x**2).mean() + (mom_y**2).mean() + (mom_z**2).mean() + (energy**2).mean()
@@ -181,7 +193,7 @@ class PINN3DNavierStokes(nn.Module):
         x_in = torch.zeros_like(x_pde)
         y_in = y_pde
         z_in = z_pde
-        rho_in, u_in, v_in, w_in, T_in = self.forward(t_in, x_in, y_in, z_in)
+        rho_in, u_in, v_in, w_in, T_in, alpha_in, enthalpy_in = self.forward(t_in, x_in, y_in, z_in)
         
         # Profil de vitesse physique à l'entrée
         u_target = self.get_physical_velocity_profile(y_in, z_in, u_avg=6.0)
@@ -192,4 +204,14 @@ class PINN3DNavierStokes(nn.Module):
         I = 0.05 # 5% intensité de turbulence
         # Dans un PINN, on peut aussi modéliser k-epsilon, mais ici on assure la cohérence du profil
         
-        return loss_pde + 10.0 * loss_bc_inlet
+        weights = loss_weights or {}
+        loss_phase = (phase_transport ** 2).mean()
+        loss_enthalpy = (enthalpy_closure / H_SCALE).square().mean()
+        loss_bounds = (torch.relu(-alpha_liquid).square() + torch.relu(alpha_liquid - 1.0).square()).mean()
+        return (
+            weights.get('pde', 1.0) * loss_pde
+            + weights.get('boundary', 10.0) * loss_bc_inlet
+            + weights.get('phase_transport', 1.0) * loss_phase
+            + weights.get('enthalpy_closure', 1.0) * loss_enthalpy
+            + weights.get('bounds', 0.1) * loss_bounds
+        )

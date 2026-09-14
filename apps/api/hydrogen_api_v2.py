@@ -27,6 +27,7 @@ from hydrogen_pinn_model import (
     generate_training_data,
 )
 from hydrogen_pinn_v8 import HydrogenPINNV8, get_device
+from phase_thermo import PhaseThermoConfig
 from fno_3d_navier_stokes import PINO3DNavierStokes
 from advanced_physics_analysis import AdvancedPhysicsAnalysis
 from pvt_physics_engine import PVTPhysicsEngine
@@ -103,9 +104,10 @@ class ModelStatusResponse(BaseModel):
 # ============================================================================
 
 class InitializeRequestV8(BaseModel):
-    layers: List[int] = [4, 256, 256, 256, 256, 5]
+    layers: List[int] = [4, 128, 128, 128, 128, 7]
     fluid_type: str = "H2"
     use_fno: bool = False
+    phase_thermo: Dict[str, float]
 
 class NormalizationConfig(BaseModel):
     coordinates: str
@@ -138,14 +140,15 @@ class TrainRequestV8(BaseModel):
     N_data: int = 256
     epochs: int = 5000
     learning_rate: float = 0.001
-    layers: List[int] = [4, 128, 128, 128, 128, 5]
+    layers: List[int] = [4, 128, 128, 128, 128, 7]
     activation: str = "tanh"
     input_order: List[str] = ["t", "x", "y", "z"]
-    output_order: List[str] = ["pressure", "u", "v", "w", "temperature"]
+    output_order: List[str] = ["rho", "u", "v", "w", "temperature", "alpha_liquid", "enthalpy"]
     batch_size: int = 256
     seed: Optional[int] = None
     sampling_strategy: str = "Sobol_fixed_seed"
-    loss_weights: Dict[str, float] = {}
+    loss_weights: Dict[str, float] = {"pde": 1.0, "boundary": 10.0, "phase_transport": 1.0, "enthalpy_closure": 1.0, "bounds": 0.1}
+    phase_thermo: Dict[str, float]
     model_name: str = "hydrogen_pinn_v8_default"
     normalization: Optional[NormalizationConfig] = None
     schedule: Optional[ScheduleConfig] = None
@@ -160,6 +163,9 @@ class TrainRequestV8(BaseModel):
             raise ValueError('La première couche doit correspondre au nombre d’entrées')
         if self.layers[0] != len(self.input_order) or self.layers[-1] != len(self.output_order):
             raise ValueError('Architecture et ordres d’entrées/sorties incohérents')
+        if self.output_order[-2:] != ["alpha_liquid", "enthalpy"]:
+            raise ValueError('Native multiphase V8 requires alpha_liquid and enthalpy outputs')
+        PhaseThermoConfig.from_contract(self.phase_thermo)
         return self
 
 class PredictionRequestV8(BaseModel):
@@ -175,6 +181,8 @@ class PredictionResponseV8(BaseModel):
     velocity_w: float
     temperature: float
     density: float
+    alpha_liquid: float
+    enthalpy: float
     time: float
     x: float
     y: float
@@ -299,16 +307,11 @@ async def predict(request: PredictionRequest):
 async def initialize_model_v8(request: InitializeRequestV8):
     global current_model_v8
     try:
+        phase_thermo = PhaseThermoConfig.from_contract(request.phase_thermo)
         if request.use_fno:
-            # Initialize PINO (Physics-Informed Neural Operator)
-            model = PINO3DNavierStokes(modes1=8, modes2=8, modes3=8, width=32, fluid_type=request.fluid_type)
-            # Store in a special wrapper or directly
-            current_model_v8 = HydrogenPINNV8(layers=request.layers, fluid_type=request.fluid_type)
-            current_model_v8.pinn_model = model
-            current_model_v8.is_fno = True
-        else:
-            current_model_v8 = HydrogenPINNV8(layers=request.layers, fluid_type=request.fluid_type)
-            current_model_v8.is_fno = False
+            raise ValueError("FNO backend does not implement the native 7-field phase contract")
+        current_model_v8 = HydrogenPINNV8(layers=request.layers, fluid_type=request.fluid_type, phase_thermo=phase_thermo)
+        current_model_v8.is_fno = False
         models_v8[f"default_v8_{request.fluid_type}"] = current_model_v8
         return {
             "status": "success",
@@ -327,8 +330,9 @@ async def train_model_v8(request: TrainRequestV8):
         if request.seed is not None:
             torch.manual_seed(request.seed)
             np.random.seed(request.seed)
+        phase_thermo = PhaseThermoConfig.from_contract(request.phase_thermo)
         if current_model_v8 is None or list(getattr(current_model_v8.pinn_model, "layers", [])) != request.layers:
-            current_model_v8 = HydrogenPINNV8(layers=request.layers)
+            current_model_v8 = HydrogenPINNV8(layers=request.layers, phase_thermo=phase_thermo)
         history = current_model_v8.train_pinn(
             epochs=request.epochs,
             learning_rate=request.learning_rate,
@@ -345,8 +349,8 @@ async def train_model_v8(request: TrainRequestV8):
             "final_loss": float(history["loss"][-1]),
             "epochs": request.epochs,
             "training_config": request.model_dump() if hasattr(request, "model_dump") else request.dict(),
-            "loss_weights_applied": False,
-            "loss_weights_note": "Received and persisted in the training contract; current V2 trainer does not yet apply per-term weights.",
+            "loss_weights_applied": True,
+            "loss_weights": request.loss_weights,
             "timestamp": datetime.utcnow().isoformat(),
         }
     except Exception as e:
@@ -360,31 +364,12 @@ async def validate_3d(request: PredictionRequestV8):
             raise ValueError("No V8 model loaded. Initialize or load a model first.")
         result = current_model_v8.predict_state(request.time, request.x, request.y, request.z)
         
-        # Industrial Correction: Add scalar physical metrics for credibility score (Edge Function)
-        physical_metrics = {
-            "max_damage": 0.0,
-            "max_stress_xx": 0.0,
-            "mean_tke": 0.0,
-            "residuals": {
-                "continuity": 1e-4, # Default or calculated
-                "momentum": 1e-3,
-                "thermodynamic": 1e-5
-            }
-        }
-        
-        # If it's a RockPINN, we can extract real stress/damage
-        if hasattr(current_model_v8.pinn_model, 'compute_stress_strain'):
-            # Simplified extraction for the response point
-            t_t = torch.tensor([[request.time]], dtype=torch.float32).to(current_model_v8.device)
-            x_t = torch.tensor([[request.x]], dtype=torch.float32).to(current_model_v8.device)
-            y_t = torch.tensor([[request.y]], dtype=torch.float32).to(current_model_v8.device)
-            z_t = torch.tensor([[request.z]], dtype=torch.float32).to(current_model_v8.device)
-            
-            with torch.no_grad():
-                rho, u, v, w, T = current_model_v8.pinn_model(t_t, x_t, y_t, z_t)
-                sig_xx, _, _, _, _, _, D = current_model_v8.pinn_model.compute_stress_strain(u, v, w, x_t, y_t, z_t)
-                physical_metrics["max_damage"] = float(D.max().item())
-                physical_metrics["max_stress_xx"] = float(sig_xx.max().item())
+        t_t = torch.tensor([[request.time]], dtype=torch.float32, device=current_model_v8.device)
+        x_t = torch.tensor([[request.x]], dtype=torch.float32, device=current_model_v8.device)
+        y_t = torch.tensor([[request.y]], dtype=torch.float32, device=current_model_v8.device)
+        z_t = torch.tensor([[request.z]], dtype=torch.float32, device=current_model_v8.device)
+        residuals = current_model_v8.calculate_residuals(t_t, x_t, y_t, z_t)
+        physical_metrics = {"residuals": {key: float(value.mean().item()) for key, value in residuals.items()}}
 
         return PredictionResponseV8(
             **result,

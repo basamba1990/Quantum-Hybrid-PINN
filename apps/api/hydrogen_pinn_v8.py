@@ -6,6 +6,7 @@ import logging
 import gc
 
 from pinn_3d_navier_stokes import PINN3DNavierStokes, T_MIN, T_MAX, X_MIN, X_MAX, Y_MIN, Y_MAX, Z_MIN, Z_MAX
+from phase_thermo import PhaseThermoConfig
 from rock_pinn_3d import RockPINN3D
 from deep_kalman_filter import DeepKalmanFilter
 from quantum_eos_torch import SilveraGoldmanEOS, integrate_eos_in_pinn_loss
@@ -61,7 +62,7 @@ class MahalanobisOODDetector:
         return (dist > self.threshold, dist)
 
 class HydrogenPINNV8:
-    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2', rock_type: str = None, geometry_type: str = 'pipeline', enable_quantum: bool = False):
+    def __init__(self, layers: List[int] = None, fluid_type: str = 'H2', rock_type: str = None, geometry_type: str = 'pipeline', enable_quantum: bool = False, phase_thermo: PhaseThermoConfig = None):
         self.device = get_device()
         self.fluid_type = fluid_type
         self.rock_type = rock_type
@@ -72,14 +73,14 @@ class HydrogenPINNV8:
         else:
             # Architecture industrielle par défaut si non spécifiée
             if layers is None:
-                layers = [4, 128, 128, 128, 128, 5]
-            self.pinn_model = PINN3DNavierStokes(layers, fluid_type=fluid_type).to(self.device)
+                layers = [4, 128, 128, 128, 128, 7]
+            self.pinn_model = PINN3DNavierStokes(layers, fluid_type=fluid_type, phase_thermo=phase_thermo).to(self.device)
             
         if enable_quantum:
             self.quantum_kernel = QuantumRobustKernel(n_qubits=4).to(self.device)
             logger.info("Quantum Robust Kernel enabled for high-dimensional feature separation.")
             
-        self.dkl_model = DeepKalmanFilter(state_dim=5, observation_dim=3).to(self.device)
+        self.dkl_model = DeepKalmanFilter(state_dim=7, observation_dim=3).to(self.device)
         self.eos_model = SilveraGoldmanEOS(device=self.device)
         self.enable_ood_detection = False
         self.enable_dropout = False
@@ -127,7 +128,7 @@ class HydrogenPINNV8:
         
         with torch.no_grad():
             for _ in range(n_samples):
-                rho, u, v, w, T = self.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
+                rho, u, v, w, T, alpha_liquid, enthalpy = self.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
                 p = self.eos_model(rho, T)
                 predictions.append({
                     "pressure": p.item(),
@@ -136,6 +137,8 @@ class HydrogenPINNV8:
                     "velocity_w": w.item(),
                     "temperature": T.item(),
                     "density": rho.item(),
+                    "alpha_liquid": alpha_liquid.item(),
+                    "enthalpy": enthalpy.item(),
                 })
         
         self.pinn_model.eval()
@@ -160,18 +163,21 @@ class HydrogenPINNV8:
             y_t = y.clone().detach().requires_grad_(True).to(self.device)
             z_t = z.clone().detach().requires_grad_(True).to(self.device)
             
-            rho, u, v, w, T = self.pinn_model(t_t, x_t, y_t, z_t)
+            rho, u, v, w, T, alpha_liquid, enthalpy = self.pinn_model(t_t, x_t, y_t, z_t)
             residual_output = self.pinn_model.compute_residuals(
-                t_t, x_t, y_t, z_t, rho, u, v, w, T, scale_dict=getattr(self, 'scales', None)
+                t_t, x_t, y_t, z_t, rho, u, v, w, T, alpha_liquid, enthalpy,
+                scale_dict=getattr(self, 'scales', None)
             )
-            mass, mom_x, mom_y, mom_z, energy = residual_output[:5]
+            mass, mom_x, mom_y, mom_z, energy, phase_transport, enthalpy_closure = residual_output[:7]
             
             return {
                 "continuity": torch.abs(mass).detach(),
                 "momentum_x": torch.abs(mom_x).detach(),
                 "momentum_y": torch.abs(mom_y).detach(),
                 "momentum_z": torch.abs(mom_z).detach(),
-                "energy": torch.abs(energy).detach()
+                "energy": torch.abs(energy).detach(),
+                "phase_transport": torch.abs(phase_transport).detach(),
+                "enthalpy_closure": torch.abs(enthalpy_closure).detach(),
             }
 
     def predict_batch(self, t: np.ndarray, x: np.ndarray, y: np.ndarray, z: np.ndarray,
@@ -191,7 +197,7 @@ class HydrogenPINNV8:
             physics_status = {"is_valid": is_valid, "residuals": mean_residuals}
 
         with torch.inference_mode():
-            rho, u, v, w, T = self.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
+            rho, u, v, w, T, alpha_liquid, enthalpy = self.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
             p = self.eos_model(rho, T)
 
         results = {
@@ -201,6 +207,8 @@ class HydrogenPINNV8:
             "velocity_w": w.cpu().numpy().flatten(),
             "temperature": T.cpu().numpy().flatten(),
             "density": rho.cpu().numpy().flatten(),
+            "alpha_liquid": alpha_liquid.cpu().numpy().flatten(),
+            "enthalpy": enthalpy.cpu().numpy().flatten(),
             "time": t.flatten(),
             "x": x.flatten(),
             "y": y.flatten(),
