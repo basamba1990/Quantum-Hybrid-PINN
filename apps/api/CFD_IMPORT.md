@@ -15,12 +15,12 @@ Définir la même valeur aléatoire longue dans Render et Vercel, sans la préfi
 ```text
 CFD_IMPORT_API_TOKEN=<secret différent des clés Supabase>
 CFD_IMPORT_MAX_BYTES=52428800
-CFD_IMPORT_MAX_TOTAL_BYTES=41943040
+CFD_IMPORT_MAX_TOTAL_BYTES=67108864
 CFD_IMPORT_MAX_FILES=32
 CFD_ARTIFACT_BUCKET=cfd-artifacts
 ```
 
-Le backend n’autorise qu’un import volumineux simultané sur l’instance Free. La limite totale de 40 MiB s’applique à l’ensemble du sidecar et des frames, en plus de la limite par fichier. Une réponse `413` ou `429` est volontaire et préférable à un redémarrage mémoire.
+Le backend n’autorise qu’un import volumineux simultané sur l’instance Free. La limite totale de 64 MiB s’applique à l’ensemble du sidecar et des frames, en plus de la limite de 50 MiB par fichier. Une réponse `413` ou `429` est volontaire et préférable à un redémarrage mémoire. Le kit V8 de huit frames contrôlé fait environ 43,97 MiB ; la marge restante couvre le sidecar et l’évolution normale du format sans désactiver les contrôles d’intégrité.
 
 Le bucket privé `cfd-artifacts` doit exister dans Supabase Storage. La migration canonique `apps/web/supabase/migrations/014_cfd_artifacts_and_datasets.sql` doit être exécutée dans Supabase avant le premier import. Le backend utilise uniquement la clé `SUPABASE_SERVICE_ROLE_KEY`; elle ne doit jamais être envoyée au navigateur.
 
