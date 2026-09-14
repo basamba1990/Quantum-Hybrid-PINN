@@ -161,9 +161,10 @@ class HydrogenPINNV8:
             z_t = z.clone().detach().requires_grad_(True).to(self.device)
             
             rho, u, v, w, T = self.pinn_model(t_t, x_t, y_t, z_t)
-            mass, mom_x, mom_y, mom_z, energy = self.pinn_model.compute_residuals(
+            residual_output = self.pinn_model.compute_residuals(
                 t_t, x_t, y_t, z_t, rho, u, v, w, T, scale_dict=getattr(self, 'scales', None)
             )
+            mass, mom_x, mom_y, mom_z, energy = residual_output[:5]
             
             return {
                 "continuity": torch.abs(mass).detach(),

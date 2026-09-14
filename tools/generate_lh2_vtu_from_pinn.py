@@ -98,9 +98,23 @@ def api_predict(base_url: str, times: np.ndarray, points: np.ndarray, batch_size
         response.raise_for_status()
         body = response.json()
         predictions = body.get("predictions")
-        if not isinstance(predictions, list) or len(predictions) != len(indices):
-            raise RuntimeError("predict-batch returned an invalid prediction count")
-        all_predictions.extend(predictions)
+        if isinstance(predictions, list):
+            if len(predictions) != len(indices):
+                raise RuntimeError("predict-batch returned an invalid prediction count")
+            all_predictions.extend(predictions)
+        else:
+            # The V8 production route returns a dict of column arrays rather
+            # than {"predictions": [{...}, ...]}. Normalize both contracts.
+            columns = {
+                key: value for key, value in body.items()
+                if isinstance(value, list) and len(value) == len(indices)
+            }
+            if not columns:
+                raise RuntimeError("predict-batch returned neither predictions[] nor column arrays")
+            all_predictions.extend(
+                {key: value[row] for key, value in columns.items()}
+                for row in range(len(indices))
+            )
     return all_predictions
 
 
