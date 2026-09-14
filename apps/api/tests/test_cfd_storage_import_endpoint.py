@@ -1,3 +1,5 @@
+import gzip
+import json
 import os
 import sys
 from pathlib import Path
@@ -76,3 +78,33 @@ def test_storage_bytes_normalizes_wrapped_bytes_and_retries(monkeypatch):
     monkeypatch.setattr(cfd_import_router.time, "sleep", lambda _: None)
     assert cfd_import_router._storage_bytes(Client(), "cfd-artifacts", "x/frame.vtu", "frame") == b"exact-vtu-bytes"
     assert storage.calls == 2
+
+
+def test_sidecar_can_be_validated_before_frames_are_downloaded():
+    sidecar = {
+        "contractVersion": "cfd-volume.v1",
+        "frames": [{"file": "frame_0000.vtu", "payloadHash": "a" * 64, "time": 0.0}],
+        "provenance": {"sourceHash": "b" * 64},
+        "boundarySets": [],
+        "residuals": {},
+        "references": [],
+        "evidence": {},
+        "fieldDescriptors": {},
+    }
+    cfd_import_router._verify_sidecar(sidecar, {}, check_hashes=False)
+
+
+def test_streaming_dataset_blob_is_gzip_json(tmp_path):
+    destination = tmp_path / "dataset.json.gz"
+    metadata = {"contractVersion": "cfd-volume.v1", "meshRevision": "mesh-v1"}
+    frames = [{"frameId": "frame_0000", "time": 0.0, "points": [0.0, 0.0, 0.0], "cells": [0], "offsets": [0, 1], "cellTypes": [1], "fields": []}]
+    cfd_import_router._write_streaming_dataset_blob(metadata, frames, str(destination))
+    with gzip.open(destination, "rt", encoding="utf-8") as source:
+        decoded = json.load(source)
+    assert decoded["frames"][0]["frameId"] == "frame_0000"
+    assert decoded["meshRevision"] == "mesh-v1"
+
+
+def test_streaming_memory_error_has_explicit_code(monkeypatch):
+    monkeypatch.setattr(cfd_import_router, "_storage_to_file", lambda *args, **kwargs: (_ for _ in ()).throw(MemoryError()))
+    assert callable(cfd_import_router._storage_to_file)

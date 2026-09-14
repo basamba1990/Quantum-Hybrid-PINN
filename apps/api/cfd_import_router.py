@@ -16,6 +16,7 @@ import io
 import json
 import os
 import re
+import shutil
 import tempfile
 import time
 import uuid
@@ -226,7 +227,7 @@ def _parse_vtu(content: bytes, filename: str, descriptors: Dict[str, Any]) -> Di
     }
 
 
-def _verify_sidecar(sidecar: Dict[str, Any], files: Dict[str, bytes]) -> None:
+def _verify_sidecar(sidecar: Dict[str, Any], files: Dict[str, bytes], check_hashes: bool = True) -> None:
     if sidecar.get("contractVersion") != "cfd-volume.v1":
         raise HTTPException(status_code=422, detail="Sidecar: contractVersion doit être cfd-volume.v1.")
     frame_specs = sidecar.get("frames")
@@ -239,12 +240,12 @@ def _verify_sidecar(sidecar: Dict[str, Any], files: Dict[str, bytes]) -> None:
         name = _validate_filename(spec.get("file"), _ALLOWED_VTU, "frame VTU")
         declared_names.add(name)
         expected = spec.get("payloadHash")
-        actual = _sha256(files.get(name, b""))
-        if name not in files:
+        if name not in files and check_hashes:
             raise HTTPException(status_code=422, detail=f"Frame déclarée absente de l'upload: {name}.")
-        if not isinstance(expected, str) or expected.lower() != actual:
+        actual = _sha256(files.get(name, b"")) if name in files else None
+        if check_hashes and (not isinstance(expected, str) or expected.lower() != actual):
             raise HTTPException(status_code=422, detail=f"SHA-256 invalide pour {name}: attendu {expected}, calculé {actual}.")
-    if declared_names != set(files):
+    if check_hashes and declared_names != set(files):
         raise HTTPException(status_code=422, detail="L’upload doit contenir exactement les frames VTU déclarées par le sidecar.")
     provenance = sidecar.get("provenance")
     if not isinstance(provenance, dict) or not isinstance(provenance.get("sourceHash"), str) or not re.fullmatch(r"[0-9a-fA-F]{64}", provenance["sourceHash"]):
@@ -364,6 +365,55 @@ def _storage_bytes(client: Client, bucket: str, path: str, label: str) -> bytes:
     raise RuntimeError(f"Lecture Storage impossible pour {label} après 4 tentatives: {last_error}")
 
 
+def _storage_to_file(client: Client, bucket: str, path: str, label: str, destination: str) -> int:
+    """Download one Storage object to disk, keeping only one object in memory.
+
+    The Supabase Python SDK returns bytes, so the SDK response itself may still be
+    buffered by the client. The important invariant here is that the import path
+    never retains all frames or all expanded mesh structures simultaneously.
+    """
+    content = _storage_bytes(client, bucket, path, label)
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail=f"{label} dépasse la limite CFD_IMPORT_MAX_BYTES ({MAX_UPLOAD_BYTES} octets).")
+    with open(destination, "wb") as output:
+        output.write(content)
+    return len(content)
+
+
+def _sha256_file(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _upload_file(client: Client, bucket: str, path: str, local_path: str, content_type: str) -> None:
+    with open(local_path, "rb") as source:
+        client.storage.from_(bucket).upload(path, source.read(), {"content-type": content_type, "upsert": "false"})
+
+
+def _write_streaming_dataset_blob(metadata: Dict[str, Any], frame_records: List[Dict[str, Any]], destination: str) -> None:
+    """Write the expanded contract incrementally; do not build all frames in RAM."""
+    base = {key: value for key, value in metadata.items() if key != "frames"}
+    with gzip.open(destination, "wt", encoding="utf-8", newline="") as output:
+        output.write("{")
+        first_key = True
+        for key, value in base.items():
+            if not first_key:
+                output.write(",")
+            output.write(json.dumps(str(key), ensure_ascii=False))
+            output.write(":")
+            json.dump(value, output, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+            first_key = False
+        output.write(",\"frames\":[")
+        for index, frame in enumerate(frame_records):
+            if index:
+                output.write(",")
+            json.dump(frame, output, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+        output.write("]}")
+
+
 def _load_dataset(row: Dict[str, Any]) -> Dict[str, Any]:
     """Load the exact contract from Storage, with legacy DB JSON fallback."""
     manifest = row.get("artifact_manifest") or {}
@@ -465,6 +515,99 @@ def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_b
         raise HTTPException(status_code=502, detail=f"Persistance cfd_datasets échouée; artefacts nettoyés: {exc}") from exc
     if not getattr(response, "data", None):
         raise HTTPException(status_code=502, detail="Supabase n’a pas confirmé l’insertion de cfd_datasets.")
+    return analysis_id
+
+
+def _persist_streaming_dataset(
+    metadata: Dict[str, Any],
+    frame_summaries: List[Dict[str, Any]],
+    local_frames: Dict[str, str],
+    sidecar_bytes: bytes,
+    dataset_blob_path: str,
+    case_id: str,
+    project_id: str,
+    owner_id: str,
+    analysis_id: str | None = None,
+) -> str:
+    """Persist a dataset whose expanded frame payload was written to disk incrementally."""
+    analysis_id = analysis_id or str(uuid.uuid4())
+    if not re.fullmatch(r"[0-9a-fA-F-]{36}", analysis_id):
+        raise HTTPException(status_code=422, detail="analysis_id doit être un UUID valide.")
+    if not frame_summaries:
+        raise HTTPException(status_code=422, detail="Aucune frame CFD traitée.")
+    dataset_id = str(uuid.uuid4())
+    evidence = metadata.get("evidence", {})
+    classification = str(metadata.get("classification", ""))
+    status = "STRUCTURAL_TEST_UNVALIDATED" if classification.startswith("SYNTHETIC") else "UNVALIDATED"
+    if not classification.startswith("SYNTHETIC") and isinstance(evidence, dict) and all(evidence.values()):
+        status = "UNVALIDATED"
+    first = frame_summaries[0]
+    mesh_hash = _sha256(json.dumps({
+        "points": first["points"], "cells": first["cells"],
+        "offsets": first["offsets"], "cellTypes": first["cellTypes"],
+    }, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    frame_hashes = {name: _sha256_file(path) for name, path in sorted(local_frames.items())}
+    artifact_manifest = {
+        "sidecarSha256": _sha256(sidecar_bytes),
+        "frames": [{"file": name, "sha256": digest, "bytes": os.path.getsize(local_frames[name])} for name, digest in frame_hashes.items()],
+    }
+    client = _supabase()
+    bucket = os.getenv("CFD_ARTIFACT_BUCKET", "cfd-artifacts").strip()
+    if not bucket:
+        raise HTTPException(status_code=503, detail="CFD_ARTIFACT_BUCKET vide; persistance désactivée.")
+    storage_prefix = f"{owner_id}/{case_id}/{metadata['meshRevision']}/{analysis_id}"
+    uploaded_paths: list[str] = []
+    try:
+        sidecar_path = f"{storage_prefix}/sidecar.json"
+        client.storage.from_(bucket).upload(sidecar_path, sidecar_bytes, {"content-type": "application/json", "upsert": "false"})
+        uploaded_paths.append(sidecar_path)
+        for name, local_path in sorted(local_frames.items()):
+            artifact_path = f"{storage_prefix}/{name}"
+            _upload_file(client, bucket, artifact_path, local_path, "application/xml")
+            uploaded_paths.append(artifact_path)
+        dataset_path = f"{storage_prefix}/dataset.json.gz"
+        with open(dataset_blob_path, "rb") as source:
+            dataset_blob = source.read()
+        if len(dataset_blob) > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail=f"Contrat CFD compressé trop volumineux ({len(dataset_blob)} octets; limite {MAX_UPLOAD_BYTES}).")
+        client.storage.from_(bucket).upload(dataset_path, dataset_blob, {"content-type": "application/json", "upsert": "false"})
+        uploaded_paths.append(dataset_path)
+        artifact_manifest.update({
+            "bucket": bucket, "storagePrefix": storage_prefix, "paths": uploaded_paths,
+            "datasetPath": dataset_path, "datasetEncoding": "gzip+json", "datasetBytes": len(dataset_blob),
+        })
+    except HTTPException:
+        if uploaded_paths:
+            try: client.storage.from_(bucket).remove(uploaded_paths)
+            except Exception: pass
+        raise
+    except Exception as exc:
+        if uploaded_paths:
+            try: client.storage.from_(bucket).remove(uploaded_paths)
+            except Exception: pass
+        raise HTTPException(status_code=502, detail={"code": "CFD_ARTIFACT_STORAGE_FAILED", "message": f"Stockage des artefacts CFD échoué; base non modifiée: {exc}"}) from exc
+
+    summary = {key: value for key, value in metadata.items() if key != "frames"}
+    summary["frames"] = [
+        {"frameId": item["frameId"], "time": item["time"], "pointCount": item["pointCount"], "cellCount": item["cellCount"], "fieldNames": item["fieldNames"]}
+        for item in frame_summaries
+    ]
+    summary["frameCount"] = len(frame_summaries)
+    row = {
+        "id": dataset_id, "analysis_id": analysis_id, "project_id": project_id,
+        "case_id": case_id, "owner_id": owner_id, "mesh_hash": mesh_hash,
+        "contract_hash": _sha256(sidecar_bytes), "frame_hashes": frame_hashes,
+        "status": status, "mesh_revision": metadata["meshRevision"],
+        "dataset": summary, "artifact_manifest": artifact_manifest, "created_at": _utc_now(),
+    }
+    try:
+        response = client.table("cfd_datasets").insert(row).execute()
+    except Exception as exc:
+        try: client.storage.from_(bucket).remove(uploaded_paths)
+        except Exception: pass
+        raise HTTPException(status_code=502, detail={"code": "CFD_DATASET_PERSISTENCE_FAILED", "message": f"Persistance cfd_datasets échouée; artefacts nettoyés: {exc}"}) from exc
+    if not getattr(response, "data", None):
+        raise HTTPException(status_code=502, detail={"code": "CFD_DATASET_PERSISTENCE_UNCONFIRMED", "message": "Supabase n’a pas confirmé l’insertion de cfd_datasets."})
     return analysis_id
 
 
@@ -580,62 +723,102 @@ async def import_cfd_dataset_from_storage(
         raise HTTPException(status_code=409, detail="Frame dupliquée dans la session Storage.")
 
     client = _supabase()
+    session_paths = [sidecar_path, *[path for _, path in frame_specs]]
     try:
-        sidecar_bytes = _storage_bytes(client, bucket, sidecar_path, "sidecar")
-        total_upload_bytes = len(sidecar_bytes)
-        if total_upload_bytes > MAX_TOTAL_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail=f"Import CFD trop volumineux; limite totale {MAX_TOTAL_UPLOAD_BYTES} octets.")
-        uploaded: Dict[str, bytes] = {}
-        for name, path in frame_specs:
-            content = _storage_bytes(client, bucket, path, name)
-            if len(content) > MAX_UPLOAD_BYTES:
-                raise HTTPException(status_code=413, detail=f"VTU {name} dépasse la limite CFD_IMPORT_MAX_BYTES ({MAX_UPLOAD_BYTES} octets).")
-            uploaded[name] = content
-            total_upload_bytes += len(content)
-            if total_upload_bytes > MAX_TOTAL_UPLOAD_BYTES:
-                raise HTTPException(status_code=413, detail=f"Import CFD trop volumineux; limite totale {MAX_TOTAL_UPLOAD_BYTES} octets.")
+        with tempfile.TemporaryDirectory(prefix="cfd-import-") as temporary_dir:
+            sidecar_local = os.path.join(temporary_dir, "sidecar.json")
+            sidecar_size = _storage_to_file(client, bucket, sidecar_path, "sidecar", sidecar_local)
+            if sidecar_size > MAX_UPLOAD_BYTES:
+                raise HTTPException(status_code=413, detail=f"Sidecar dépasse la limite CFD_IMPORT_MAX_BYTES ({MAX_UPLOAD_BYTES} octets).")
+            with open(sidecar_local, "rb") as source:
+                sidecar_bytes = source.read()
+            try:
+                metadata = json.loads(sidecar_bytes.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise HTTPException(status_code=422, detail=f"Sidecar JSON invalide: {exc}") from exc
+            if not isinstance(metadata, dict):
+                raise HTTPException(status_code=422, detail="Sidecar JSON: objet attendu.")
+            _verify_sidecar(metadata, {}, check_hashes=False)
+            descriptors = metadata.get("fieldDescriptors", {})
+            specs_by_name = {spec["file"]: spec for spec in metadata["frames"]}
+            if set(specs_by_name) != {name for name, _ in frame_specs}:
+                raise HTTPException(status_code=422, detail="Les frames Storage ne correspondent pas exactement aux frames déclarées par le sidecar.")
+            expected_names = [spec["file"] for spec in sorted(metadata["frames"], key=lambda item: float(item["time"]))]
+            local_frames: Dict[str, str] = {}
+            frame_summaries: List[Dict[str, Any]] = []
+            first_topology: tuple[list[int], list[int], list[int]] | None = None
+            total_size = sidecar_size
+            dataset_blob_path = os.path.join(temporary_dir, "dataset.json.gz")
+            base = {key: value for key, value in metadata.items() if key != "frames"}
+            with gzip.open(dataset_blob_path, "wt", encoding="utf-8", newline="") as dataset_output:
+                dataset_output.write("{")
+                first_key = True
+                for key, value in base.items():
+                    if not first_key: dataset_output.write(",")
+                    dataset_output.write(json.dumps(str(key), ensure_ascii=False) + ":")
+                    json.dump(value, dataset_output, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+                    first_key = False
+                dataset_output.write(',"frames":[')
+                for frame_index, name in enumerate(expected_names):
+                    path = next(path for candidate, path in frame_specs if candidate == name)
+                    local_path = os.path.join(temporary_dir, name)
+                    frame_size = _storage_to_file(client, bucket, path, name, local_path)
+                    total_size += frame_size
+                    if total_size > MAX_TOTAL_UPLOAD_BYTES:
+                        raise HTTPException(status_code=413, detail=f"Import CFD trop volumineux; limite totale {MAX_TOTAL_UPLOAD_BYTES} octets.")
+                    expected_hash = specs_by_name[name].get("payloadHash")
+                    actual_hash = _sha256_file(local_path)
+                    if not isinstance(expected_hash, str) or expected_hash.lower() != actual_hash:
+                        raise HTTPException(status_code=422, detail=f"SHA-256 invalide pour {name}: attendu {expected_hash}, calculé {actual_hash}.")
+                    with open(local_path, "rb") as source:
+                        content = source.read()
+                    parsed = _parse_vtu(content, name, descriptors)
+                    topology = (parsed["cells"], parsed["offsets"], parsed["cellTypes"])
+                    if first_topology is None:
+                        first_topology = topology
+                    elif topology != first_topology or parsed["pointCount"] != frame_summaries[0]["pointCount"] or parsed["cellCount"] != frame_summaries[0]["cellCount"]:
+                        raise HTTPException(status_code=422, detail="Toutes les frames doivent partager exactement la même connectivité et topologie.")
+                    frame = {
+                        "frameId": str(specs_by_name[name]["frameId"]), "time": float(specs_by_name[name]["time"]),
+                        "points": parsed["points"], "cells": parsed["cells"], "offsets": parsed["offsets"],
+                        "cellTypes": parsed["cellTypes"], "fields": parsed["fields"],
+                    }
+                    if frame_index: dataset_output.write(",")
+                    json.dump(frame, dataset_output, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+                    summary = {
+                        "frameId": frame["frameId"], "time": frame["time"],
+                        "pointCount": parsed["pointCount"], "cellCount": parsed["cellCount"],
+                        "fieldNames": [field.get("name") for field in parsed["fields"]],
+                    }
+                    if frame_index == 0:
+                        summary.update({"points": parsed["points"], "cells": parsed["cells"], "offsets": parsed["offsets"], "cellTypes": parsed["cellTypes"]})
+                    frame_summaries.append(summary)
+                    local_frames[name] = local_path
+                    del content, parsed, frame
+                dataset_output.write("]}")
+            _verify_analysis_owner(analysis_id, project_id, owner_id)
+            analysis_id = _persist_streaming_dataset(metadata, frame_summaries, local_frames, sidecar_bytes, dataset_blob_path, case_id, project_id, owner_id, analysis_id)
+            result = {
+                "analysisId": analysis_id, "datasetId": analysis_id,
+                "contractVersion": metadata["contractVersion"], "meshRevision": metadata["meshRevision"],
+                "pointCount": frame_summaries[0]["pointCount"], "cellCount": frame_summaries[0]["cellCount"],
+                "frameCount": len(frame_summaries),
+                "status": "STRUCTURAL_TEST_UNVALIDATED" if str(metadata.get("classification", "")).startswith("SYNTHETIC") else "UNVALIDATED",
+                "projectId": project_id, "sidecar": sidecar_name,
+                "artifactHashes": {"sidecar": _sha256(sidecar_bytes), "frames": {name: _sha256_file(path) for name, path in sorted(local_frames.items())}},
+            }
+    except MemoryError as exc:
+        raise HTTPException(status_code=507, detail={"code": "CFD_IMPORT_MEMORY_EXHAUSTED", "message": "Import CFD interrompu: mémoire insuffisante; les frames sont traitées séquentiellement."}) from exc
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Téléchargement des artefacts Storage échoué: {exc}") from exc
-
-    if len(sidecar_bytes) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail=f"Sidecar dépasse la limite CFD_IMPORT_MAX_BYTES ({MAX_UPLOAD_BYTES} octets).")
-    try:
-        metadata = json.loads(sidecar_bytes.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=422, detail=f"Sidecar JSON invalide: {exc}") from exc
-    if not isinstance(metadata, dict):
-        raise HTTPException(status_code=422, detail="Sidecar JSON: objet attendu.")
-    _verify_sidecar(metadata, uploaded)
-    descriptors = metadata.get("fieldDescriptors", {})
-    parsed = [_parse_vtu(uploaded[name], name, descriptors) for name in [spec["file"] for spec in metadata["frames"]]]
-    dataset = _build_dataset(metadata, parsed)
-    _verify_analysis_owner(analysis_id, project_id, owner_id)
-    session_paths = [sidecar_path, *[path for _, path in frame_specs]]
-    try:
-        analysis_id = _persist_dataset(dataset, uploaded, sidecar_bytes, case_id, project_id, owner_id, analysis_id)
+        raise HTTPException(status_code=502, detail={"code": "CFD_IMPORT_WORKER_FAILED", "message": f"Worker d’import CFD indisponible ou interrompu: {exc}"}) from exc
     finally:
         try:
             client.storage.from_(bucket).remove(session_paths)
         except Exception:
             pass
-    return {
-        "analysisId": analysis_id,
-        "datasetId": analysis_id,
-        "contractVersion": dataset["contractVersion"],
-        "meshRevision": dataset["meshRevision"],
-        "pointCount": dataset["pointCount"],
-        "cellCount": dataset["cellCount"],
-        "frameCount": len(dataset["frames"]),
-        "status": "STRUCTURAL_TEST_UNVALIDATED" if str(metadata.get("classification", "")).startswith("SYNTHETIC") else "UNVALIDATED",
-        "projectId": project_id,
-        "sidecar": sidecar_name,
-        "artifactHashes": {
-            "sidecar": _sha256(sidecar_bytes),
-            "frames": {name: _sha256(content) for name, content in sorted(uploaded.items())},
-        },
-    }
+    return result
 
 
 @router.get("/project/{project_id}/latest")
