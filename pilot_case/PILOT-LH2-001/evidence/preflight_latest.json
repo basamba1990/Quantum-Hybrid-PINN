@@ -1,0 +1,70 @@
+{
+  "schema": "quantum-lh2-preflight.v1",
+  "pilotId": "PILOT-LH2-001",
+  "evaluatedAt": "2026-09-14T23:15:41.184523+00:00",
+  "status": "BLOCKED",
+  "checks": [
+    {
+      "check": "required:pilot_case/PILOT-LH2-001/MANIFEST.json",
+      "pass": true,
+      "value": "/tmp/quantum-hybrid-pinn/pilot_case/PILOT-LH2-001/MANIFEST.json"
+    },
+    {
+      "check": "required:pilot_case/PILOT-LH2-001/acceptance_criteria.yaml",
+      "pass": true,
+      "value": "/tmp/quantum-hybrid-pinn/pilot_case/PILOT-LH2-001/acceptance_criteria.yaml"
+    },
+    {
+      "check": "required:pilot_case/PILOT-LH2-001/sources.yaml",
+      "pass": true,
+      "value": "/tmp/quantum-hybrid-pinn/pilot_case/PILOT-LH2-001/sources.yaml"
+    },
+    {
+      "check": "required:pilot_case/PILOT-LH2-001/cases/CFD-BASELINE/Allrun",
+      "pass": true,
+      "value": "/tmp/quantum-hybrid-pinn/pilot_case/PILOT-LH2-001/cases/CFD-BASELINE/Allrun"
+    },
+    {
+      "check": "required:pilot_case/PILOT-LH2-001/cases/CFD-INDEPENDENT/Allrun",
+      "pass": true,
+      "value": "/tmp/quantum-hybrid-pinn/pilot_case/PILOT-LH2-001/cases/CFD-INDEPENDENT/Allrun"
+    },
+    {
+      "check": "manifest.case_status_not_validated",
+      "pass": true,
+      "value": "INCONCLUSIVE"
+    },
+    {
+      "check": "baseline_independent_are_distinct",
+      "pass": true,
+      "value": true
+    },
+    {
+      "check": "evaluation_hidden_during_training",
+      "pass": true,
+      "value": true
+    },
+    {
+      "check": "openfoam_runner_available",
+      "pass": false,
+      "value": {
+        "wmProjectDir": null,
+        "executables": {
+          "foamRun": null,
+          "reactingTwoPhaseEulerFoam": null
+        },
+        "available": false,
+        "version": null
+      }
+    }
+  ],
+  "artifactHashes": {
+    "pilot_case/PILOT-LH2-001/MANIFEST.json": "4f0ce92c27e065edb24189768356267b12a8571bf6aa166b07db73256a571646",
+    "pilot_case/PILOT-LH2-001/acceptance_criteria.yaml": "a66d2fd8d2b514a16e475d8f28ff034e08966316031cd3d8d33bb738fe6541c3",
+    "pilot_case/PILOT-LH2-001/sources.yaml": "a02575c471c10345024af99b9bee4a9af910b3d84507a4a1f70aece5630d7da7",
+    "pilot_case/PILOT-LH2-001/cases/CFD-BASELINE/Allrun": "c3d274716ec0c5e26ddef8a47217f07a889b8f65fc11e56b32760aa1724acf78",
+    "pilot_case/PILOT-LH2-001/cases/CFD-INDEPENDENT/Allrun": "c3d274716ec0c5e26ddef8a47217f07a889b8f65fc11e56b32760aa1724acf78"
+  },
+  "scientificDecision": "INCONCLUSIVE",
+  "prohibitedInterpretation": "Preflight success is not CFD convergence, G3, G4, G5 or experimental validation."
+}
