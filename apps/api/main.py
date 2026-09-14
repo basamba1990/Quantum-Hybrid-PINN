@@ -1,4 +1,5 @@
 import os
+import json
 import uvicorn
 import numpy as np
 import gc
@@ -145,7 +146,8 @@ async def startup_event():
            IndustrialRiskManager
     try:
         # Import heavy modules
-        from hydrogen_pinn_tfc_v8 import HydrogenPINNTFCV8 as _HP
+        from hydrogen_pinn_v8 import HydrogenPINNV8 as _HP
+        from phase_thermo import PhaseThermoConfig
         from geometry_handler import GeometryHandler as _GH
         from deep_kalman_filter import DeepKalmanFilter as _DKF
         from cfd_validation_service import CFDValidationService as _CFD
@@ -201,7 +203,20 @@ async def ensure_pinn_loaded():
                 with open(model_local_path, "wb") as f:
                     f.write(res)
         
-        current_model_v8 = HydrogenPINNTFCV8(layers=[4, 128, 128, 128, 128, 5], fluid_type="H2", geometry_type="pipeline")
+        phase_contract = json.loads(os.getenv("PHASE_THERMO_JSON", json.dumps({
+            "saturation_temperature_k": 20.3,
+            "latent_heat_j_kg": 446000.0,
+            "cp_liquid_j_kg_k": 9700.0,
+            "cp_vapor_j_kg_k": 14300.0,
+            "reference_temperature_k": 20.3,
+            "reference_enthalpy_j_kg": 0.0,
+        })))
+        current_model_v8 = HydrogenPINNTFCV8(
+            layers=[4, 128, 128, 128, 128, 7],
+            fluid_type="H2",
+            phase_thermo=PhaseThermoConfig.from_contract(phase_contract),
+        )
+        current_model_v8.geometry_handler = GeometryHandler(geometry_type="pipeline")
         if os.path.exists(model_local_path):
             state_dict = torch.load(model_local_path, map_location=current_model_v8.device)
             current_model_v8.pinn_model.load_state_dict(state_dict, strict=False)
@@ -314,10 +329,10 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             z_tensor = torch.tensor([[float(req_z)]], dtype=torch.float32, device=current_model_v8.device)
 
             with torch.no_grad():
-                rho, u, v, w, T = current_model_v8.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
+                rho, u, v, w, T, alpha_liquid, enthalpy = current_model_v8.pinn_model(t_tensor, x_tensor, y_tensor, z_tensor)
                 p = get_eos(current_model_v8.fluid_type, rho, T)
                 
-            history.append({"iteration": i, "time": sim_t, "source": "pinn_inference_without_solver_evidence"})
+            history.append({"iteration": i, "time": sim_t, "source": "pinn_inference_without_solver_evidence", "alpha_liquid": float(alpha_liquid.item()), "enthalpy": float(enthalpy.item())})
             
         # 2. Échantillonnage spatial haute densité (Truly-Industrial Volume Plein)
         # On utilise une grille structurée pour garantir la continuité volumétrique
@@ -337,7 +352,7 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
         
         with torch.no_grad():
             # Inférence par batch pour économiser la RAM
-            rho_s, u_s, v_s, w_s, T_s = current_model_v8.pinn_model(t_s, x_s, y_s, z_s)
+            rho_s, u_s, v_s, w_s, T_s, alpha_s, enthalpy_s = current_model_v8.pinn_model(t_s, x_s, y_s, z_s)
             
             for i in range(len(x_s)):
                 # Filtre pour ne garder que les points à l'intérieur de la géométrie (ex: cylindre/sphère)
@@ -354,6 +369,7 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
                     "pressure": float(p_val.item()), "velocity_u": float(u_s[i].item()),
                     "velocity_v": float(v_s[i].item()), "velocity_w": float(w_s[i].item()),
                     "temperature": float(T_s[i].item()), "density": float(rho_s[i].item()),
+                    "alpha_liquid": float(alpha_s[i].item()), "enthalpy": float(enthalpy_s[i].item()),
                     "velocity_magnitude": float(torch.sqrt(u_s[i]**2 + v_s[i]**2 + w_s[i]**2).item())
                 })
 
@@ -364,6 +380,8 @@ async def hybrid_simulation_task(job_id: str, request: SimulationRequest):
             "mass": None,
             "momentum": None,
             "energy": None,
+            "phase_transport": None,
+            "enthalpy_closure": None,
             "status": "UNAVAILABLE",
             "computedBy": None,
             "computedAt": None,

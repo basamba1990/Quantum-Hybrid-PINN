@@ -4,8 +4,8 @@ import math
 from datetime import datetime, timezone
 from supabase import create_client
 
-SUPABASE_URL = "https://ivhxnaxhgfbiqlhgfkik.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2aHhuYXhoZ2ZiaXFsaGdma2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODExMzgsImV4cCI6MjA5MTQ1NzEzOH0.vfIUnyKeeQ_DFVqnixlvwRTJGvo0WA6V3RMzgh9JkL8")
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 LH2_AID = "2e5c40b4-580d-4a10-a88e-f4562fcd6e2c"
 

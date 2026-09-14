@@ -1,8 +1,8 @@
 import os
 from supabase import create_client
 
-SUPABASE_URL = "https://ivhxnaxhgfbiqlhgfkik.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2aHhuYXhoZ2ZiaXFsaGdma2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODExMzgsImV4cCI6MjA5MTQ1NzEzOH0.vfIUnyKeeQ_DFVqnixlvwRTJGvo0WA6V3RMzgh9JkL8")
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 PROJECTS = {
     "HEAVY_DUTY_HYDROGEN_REFUELING": "59e46c9c-23af-49b3-9f87-d847d3b80c10",

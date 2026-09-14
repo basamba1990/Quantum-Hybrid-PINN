@@ -6,9 +6,9 @@ from hydrogen_api_v2 import TrainRequestV8
 
 def base_request():
     return dict(
-        layers=[4, 64, 64, 64, 5],
+        layers=[4, 128, 128, 128, 128, 7],
         input_order=['t', 'x', 'y', 'z'],
-        output_order=['pressure', 'u', 'v', 'w', 'temperature'],
+        output_order=['rho', 'u', 'v', 'w', 'temperature', 'alpha_liquid', 'enthalpy'],
         normalization={'coordinates': 'map_to[-1,1]', 'time': 'map_to[-1,1]', 'outputs': 'standardize_training_only'},
         schedule={'warmup_epochs': 10, 'reduce_lr_on_plateau': {'factor': 0.5, 'patience': 5, 'min_learning_rate': 1e-6}, 'early_stopping': {'patience': 10, 'min_delta': 1e-6}},
         acceptance={'report_residuals_as': 'N/D', 'do_not_promote_to_validated': True, 'required_artifacts': ['config.json']},

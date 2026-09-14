@@ -29,6 +29,8 @@ export interface VisualizationPoint {
   velocity_v?: number;
   velocity_w?: number;
   density?: number;
+  alpha_liquid?: number;
+  enthalpy?: number;
   stress?: number;
   damage?: number;
   von_mises?: number;
@@ -137,6 +139,8 @@ export const normalizeVisualizationPoints = (value: unknown): VisualizationPoint
       velocity_v: ["velocity_v", "v"],
       velocity_w: ["velocity_w", "w"],
       density: ["density", "rho"],
+      alpha_liquid: ["alpha_liquid", "liquid_fraction", "phase_fraction"],
+      enthalpy: ["enthalpy", "specific_enthalpy"],
       stress: ["stress", "von_mises", "sigma_vm"],
       damage: ["damage"],
       von_mises: ["von_mises", "stress", "sigma_vm"],
@@ -235,7 +239,7 @@ export const buildVisualizationMetadata = (
   };
 
   const fields: NonNullable<VisualizationMetadata["fields"]> = {};
-  for (const key of ["temperature", "pressure", "velocity_magnitude", "stress", "shear_stress"]) {
+  for (const key of ["temperature", "pressure", "velocity_magnitude", "density", "alpha_liquid", "enthalpy", "stress", "shear_stress"]) {
     const rawField = parseRecord(explicitFields[key]);
     const field = {
       unit: validUnit(rawField.unit) || scenarioDefaults[scenarioType]?.[key],

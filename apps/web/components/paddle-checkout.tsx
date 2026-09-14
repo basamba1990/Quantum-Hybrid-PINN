@@ -28,20 +28,23 @@ export function PaddleCheckout({
           if (window.Paddle) {
             clearInterval(checkPaddle);
             try {
-              let token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || 'live_ce999e230ab010638729f5f28bf';
-              
-              if (token) {
-                console.log('Initializing Paddle with token:', token.substring(0, 10) + '...');
-                window.Paddle.Initialize({
-                  token: token,
-                  eventCallback: (event: any) => {
-                    console.log('Paddle Event:', event.name, event);
-                    if (event.name === 'checkout.completed' || event.name === 'transaction.completed') {
-                      onSuccess?.()
-                    }
-                  }
-                });
+              const token = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
+
+              if (!token) {
+                console.error('NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is not configured.')
+                return
               }
+
+              console.log('Initializing Paddle with token:', token.substring(0, 10) + '...');
+              window.Paddle.Initialize({
+                token: token,
+                eventCallback: (event: any) => {
+                  console.log('Paddle Event:', event.name, event);
+                  if (event.name === 'checkout.completed' || event.name === 'transaction.completed') {
+                    onSuccess?.()
+                  }
+                }
+              });
             } catch (err) {
               console.error('Failed to initialize Paddle:', err);
             }
@@ -62,12 +65,10 @@ export function PaddleCheckout({
         throw new Error('Paddle not loaded')
       }
 
-      // ✅ CORRECTIF V8.2 : Fallback sur les IDs de prix fournis par l'utilisateur
+      // Price IDs are supplied through Vercel environment variables by the caller.
       let finalPriceId = planId;
       if (!finalPriceId || finalPriceId === 'undefined') {
-        if (planName === 'Researcher') finalPriceId = 'pri_01kws7mnzam0jvm7aha7s7txj3';
-        else if (planName === 'Professional') finalPriceId = 'pri_01kws7wp26ngs9vf08wg7w2ny7';
-        else if (planName === 'Enterprise') finalPriceId = 'pri_01kws84eg5bpffg4m6r2pm85fv';
+        throw new Error(`No Paddle price configured for ${planName}`)
       }
 
       const checkoutConfig: any = {

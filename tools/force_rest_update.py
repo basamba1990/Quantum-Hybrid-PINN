@@ -4,7 +4,7 @@ import requests
 import math
 
 URL = "https://ivhxnaxhgfbiqlhgfkik.supabase.co/rest/v1/analyses"
-KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2aHhuYXhoZ2ZiaXFsaGdma2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODExMzgsImV4cCI6MjA5MTQ1NzEzOH0.vfIUnyKeeQ_DFVqnixlvwRTJGvo0WA6V3RMzgh9JkL8")
+KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 AID = "2e5c40b4-580d-4a10-a88e-f4562fcd6e2c"
 
 def generate_points():

@@ -13,8 +13,8 @@ TARGET_MAP = {
     "DEEP_MINING_BLOCK": "9c82ab04-6c7d-4e34-b6c6-567166f56e19"
 }
 
-SUPABASE_URL = "https://ivhxnaxhgfbiqlhgfkik.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2aHhuYXhoZ2ZiaXFsaGdma2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODExMzgsImV4cCI6MjA5MTQ1NzEzOH0.vfIUnyKeeQ_DFVqnixlvwRTJGvo0WA6V3RMzgh9JkL8")
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 def generate_aligned_points(scenario):
     points = []

@@ -1,0 +1,128 @@
+{
+  "meshRevision": "lh2-cad-analytic-v1",
+  "pointCount": 35536,
+  "cellCount": 189105,
+  "frameCount": 8,
+  "frames": [
+    {
+      "frameId": "frame_0000",
+      "time": 0.0,
+      "file": "frame_0000.vtu",
+      "payloadHash": "5a372353637d5b327525f1bfe4dce4a02554ebdfc930bc7f12879a3a4e4668ee",
+      "fields": [
+        "rho",
+        "velocity",
+        "pressure",
+        "temperature",
+        "alpha_liquid",
+        "enthalpy"
+      ]
+    },
+    {
+      "frameId": "frame_0001",
+      "time": 0.005,
+      "file": "frame_0001.vtu",
+      "payloadHash": "9cce1995a8362d9e7a2adf7120d7160c0b78313093c911bccfe9f5d1b0eb78d6",
+      "fields": [
+        "rho",
+        "velocity",
+        "pressure",
+        "temperature",
+        "alpha_liquid",
+        "enthalpy"
+      ]
+    },
+    {
+      "frameId": "frame_0002",
+      "time": 0.01,
+      "file": "frame_0002.vtu",
+      "payloadHash": "91500b99acc658e8722741bb5b50f0f5e11fac95c94c76b9d857bd0f0d3a0738",
+      "fields": [
+        "rho",
+        "velocity",
+        "pressure",
+        "temperature",
+        "alpha_liquid",
+        "enthalpy"
+      ]
+    },
+    {
+      "frameId": "frame_0003",
+      "time": 0.015,
+      "file": "frame_0003.vtu",
+      "payloadHash": "e3dcf859b5b97a869ccf5828b55dd9e2bb6dc3874847987e9e252fd9f6ca44e6",
+      "fields": [
+        "rho",
+        "velocity",
+        "pressure",
+        "temperature",
+        "alpha_liquid",
+        "enthalpy"
+      ]
+    },
+    {
+      "frameId": "frame_0004",
+      "time": 0.02,
+      "file": "frame_0004.vtu",
+      "payloadHash": "dc76fea72571e7161626cc381046463cdb82b0b0118090a67256308be45938ae",
+      "fields": [
+        "rho",
+        "velocity",
+        "pressure",
+        "temperature",
+        "alpha_liquid",
+        "enthalpy"
+      ]
+    },
+    {
+      "frameId": "frame_0005",
+      "time": 0.025,
+      "file": "frame_0005.vtu",
+      "payloadHash": "489ebb80a51064be7362e1b36a8b1ceea106b7ba0da74cf0dff3ad9b0df1e585",
+      "fields": [
+        "rho",
+        "velocity",
+        "pressure",
+        "temperature",
+        "alpha_liquid",
+        "enthalpy"
+      ]
+    },
+    {
+      "frameId": "frame_0006",
+      "time": 0.03,
+      "file": "frame_0006.vtu",
+      "payloadHash": "a1e53d354d51e8f0d073d12b6df7cbe0cd1eb4b0dd78fec6b6e0dea1ca21846b",
+      "fields": [
+        "rho",
+        "velocity",
+        "pressure",
+        "temperature",
+        "alpha_liquid",
+        "enthalpy"
+      ]
+    },
+    {
+      "frameId": "frame_0007",
+      "time": 0.035,
+      "file": "frame_0007.vtu",
+      "payloadHash": "56fdd07a3eed02a44c458dc8ff7d65d915fd407f41ef15f0b4769f75aee98c2f",
+      "fields": [
+        "rho",
+        "velocity",
+        "pressure",
+        "temperature",
+        "alpha_liquid",
+        "enthalpy"
+      ]
+    }
+  ],
+  "topology": {
+    "pointsSha256": "8cd845a6e6357a0d6a269060e03aa56306ebdb1b2180e44051cb176b822c21ff",
+    "tetraSha256": "ace8471574cfb7d90db52497e407ec7026bf970421eee8b39a61dadc05c77079"
+  },
+  "phaseFieldsDerived": true,
+  "g3Eligible": false,
+  "inferenceEndpoint": "http://127.0.0.1:8000/v2/predict-batch",
+  "kitVersion": "v8-native-phase-fields-2026-09-14"
+}

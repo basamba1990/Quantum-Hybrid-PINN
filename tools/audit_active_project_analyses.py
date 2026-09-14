@@ -1,8 +1,8 @@
 import json, os
 from supabase import create_client
 ROOT='/home/ubuntu/Quantum-Hybrid-PINN'
-key=os.getenv('SUPABASE_SERVICE_ROLE_KEY') or 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2aHhuYXhoZ2ZiaXFsaGdma2lrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTg4MTEzOCwiZXhwIjoyMDkxNDU3MTM4fQ.AGAlzLEvBNCoaMq9ha2tjygGv6cd5kcGl1b_wHdqb9s'
-c=create_client('https://ivhxnaxhgfbiqlhgfkik.supabase.co',key)
+key=os.getenv('SUPABASE_SERVICE_ROLE_KEY') or '<REDACTED_SUPABASE_JWT>'
+c=create_client(os.environ['SUPABASE_URL'],key)
 projects={'HEAVY_DUTY_HYDROGEN_REFUELING':'59e46c9c-23af-49b3-9f87-d847d3b80c10','LH2_LARGE_SCALE_STORAGE_1250M3':'7a4a10f5-e6a5-4a76-b9fc-fdb825ece00e','FPGA_HEATSINK':'fcee88e0-1a55-441b-b0c7-ffa4a89d5467','DEEP_MINING_BLOCK':'6bc2a6e9-30cb-4afa-91a6-11dacfca6f1d'}
 out={}
 for scenario,pid in projects.items():

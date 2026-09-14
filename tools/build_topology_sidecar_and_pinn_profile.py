@@ -83,9 +83,9 @@ def main() -> None:
         "solverExecution": "NOT_RUN",
         "dataset": {"meshRevision": sidecar["meshRevision"], "frames": 2, "pointCount": 8, "cellCount": 5, "sourceHash": mesh_hash},
         "modelConfig": {
-            "layers": [4, 64, 64, 64, 64, 5],
+            "layers": [4, 128, 128, 128, 128, 7],
             "inputOrder": ["t", "x", "y", "z"],
-            "outputOrder": ["pressure", "u", "v", "w", "temperature"],
+            "outputOrder": ["rho", "u", "v", "w", "temperature", "alpha_liquid", "enthalpy"],
             "activation": "tanh",
             "normalization": {"coordinates": "map_each_dimension_to[-1,1]", "time": "map_to[-1,1]", "outputs": "standardize_from_training_split_only"},
             "epochs": 5000,

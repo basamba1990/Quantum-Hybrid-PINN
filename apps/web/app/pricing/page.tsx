@@ -149,9 +149,9 @@ export default function PricingPage() {
                 <div className="mb-8">
                   <PaddleCheckout
                     planId={
-                      plan.name === 'Researcher' ? (process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_RESEARCHER || 'pri_01kws7mnzam0jvm7aha7s7txj3') : 
-                      plan.name === 'Professional' ? (process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_PROFESSIONAL || 'pri_01kws7wp26ngs9vf08wg7w2ny7') : 
-                      (process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_ENTERPRISE || 'pri_01kws84eg5bpffg4m6r2pm85fv')
+                      plan.name === 'Researcher' ? (process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_RESEARCHER || '') :
+                      plan.name === 'Professional' ? (process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_PROFESSIONAL || '') :
+                      (process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_ENTERPRISE || '')
                     }
                     planName={plan.name}
                     price={plan.price === 'Custom' ? 2499 : parseInt(plan.price.replace('$', '').replace(',', ''))}

@@ -4,7 +4,7 @@ import math
 import requests
 
 URL = "https://ivhxnaxhgfbiqlhgfkik.supabase.co/rest/v1/analyses"
-KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2aHhuYXhoZ2ZiaXFsaGdma2lrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTg4MTEzOCwiZXhwIjoyMDkxNDU3MTM4fQ.AGAlzLEvBNCoaMq9ha2tjygGv6cd5kcGl1b_wHdqb9s"
+KEY = "<REDACTED_SUPABASE_JWT>"
 
 PROJECTS = {
     "LH2": "7a4a10f5-e6a5-4a76-b9fc-fdb825ece00e",

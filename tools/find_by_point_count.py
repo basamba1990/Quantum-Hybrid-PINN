@@ -2,7 +2,7 @@ import os
 import requests
 
 URL = "https://ivhxnaxhgfbiqlhgfkik.supabase.co/rest/v1/analyses"
-KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2aHhuYXhoZ2ZiaXFsaGdma2lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODExMzgsImV4cCI6MjA5MTQ1NzEzOH0.vfIUnyKeeQ_DFVqnixlvwRTJGvo0WA6V3RMzgh9JkL8")
+KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 def main():
     headers = {

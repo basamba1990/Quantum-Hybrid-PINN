@@ -1,0 +1,9 @@
+{
+  "gate": "G3",
+  "state": "BLOCKED",
+  "errors": [
+    "physicsContract.validated is not true",
+    "executionEvidence.solverOutput is not true",
+    "executionEvidence.runLogHash is missing"
+  ]
+}

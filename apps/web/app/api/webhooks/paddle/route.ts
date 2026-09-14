@@ -12,13 +12,8 @@ export async function POST(request: NextRequest) {
     const body = await request.text()
     const signature = request.headers.get('paddle-signature')
 
-    // Vérifier la signature Paddle
-    let secretKey = process.env.PADDLE_WEBHOOK_SECRET
-    
-    // ✅ CORRECTIF V8.2 : Fallback sur le secret fourni par l'utilisateur
-    if (!secretKey || secretKey === 'undefined') {
-      secretKey = 'pdl_ntfset_01kws492x6qb9f0c42xt8tep8b_wnAaaK5Drp1W1QlmjGYZVsrmYlw0zYBX'
-    }
+    // Vérifier la signature Paddle; aucun secret de production ne doit être codé en dur.
+    const secretKey = process.env.PADDLE_WEBHOOK_SECRET
 
     if (!secretKey) {
       console.error('PADDLE_WEBHOOK_SECRET not configured')
@@ -63,9 +58,14 @@ export async function POST(request: NextRequest) {
       let plan = 'researcher' // Par défaut
       const priceId = items[0]?.price_id
 
-      const researcherPriceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_RESEARCHER || 'pri_01kws7mnzam0jvm7aha7s7txj3'
-      const professionalPriceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_PROFESSIONAL || 'pri_01kws7wp26ngs9vf08wg7w2ny7'
-      const enterprisePriceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_ENTERPRISE || 'pri_01kws84eg5bpffg4m6r2pm85fv'
+      const researcherPriceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_RESEARCHER
+      const professionalPriceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_PROFESSIONAL
+      const enterprisePriceId = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID_ENTERPRISE
+
+      if (!researcherPriceId || !professionalPriceId || !enterprisePriceId) {
+        console.error('Paddle price IDs are not configured')
+        return NextResponse.json({ error: 'Configuration error' }, { status: 500 })
+      }
 
       // Log for debugging (only in development or secure logs)
       console.log('Webhook Price ID received:', priceId);
