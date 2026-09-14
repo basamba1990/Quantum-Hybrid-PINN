@@ -12,7 +12,7 @@ const BACKEND_URL = (
 ).replace(/\/$/, '')
 
 function jsonError(error: string, status: number) {
-  return NextResponse.json({ error }, { status })
+  return NextResponse.json({ error, code: status === 502 ? 'CFD_IMPORT_UPSTREAM_UNAVAILABLE' : 'CFD_IMPORT_REQUEST_INVALID' }, { status })
 }
 
 export async function POST(request: NextRequest) {
@@ -65,12 +65,37 @@ export async function POST(request: NextRequest) {
     try {
       data = JSON.parse(text)
     } catch {
-      data = { error: `Backend returned a non-JSON response (HTTP ${response.status}).` }
+      data = {
+        error: `Le backend CFD a renvoyé une réponse non JSON (HTTP ${response.status}).`,
+        code: response.status === 502 || response.status === 503 || response.status === 504
+          ? 'CFD_IMPORT_WORKER_UNAVAILABLE'
+          : 'CFD_IMPORT_INVALID_UPSTREAM_RESPONSE',
+      }
     }
-    if (!response.ok) return NextResponse.json({ ...(data as object), upstreamStatus: response.status, upstreamPath: '/v2/cfd/import-from-storage' }, { status: response.status })
+    if (!response.ok) {
+      const objectData = data && typeof data === 'object' ? data as Record<string, unknown> : {}
+      const detail = objectData.detail
+      const normalized = objectData.error
+        ? objectData
+        : {
+            ...objectData,
+            error: typeof detail === 'string'
+              ? detail
+              : detail && typeof detail === 'object' && typeof (detail as Record<string, unknown>).message === 'string'
+                ? String((detail as Record<string, unknown>).message)
+                : `Échec de l’import CFD (HTTP ${response.status}).`,
+            code: detail && typeof detail === 'object' && typeof (detail as Record<string, unknown>).code === 'string'
+              ? String((detail as Record<string, unknown>).code)
+              : objectData.code || 'CFD_IMPORT_UPSTREAM_ERROR',
+          }
+      return NextResponse.json({ ...normalized, upstreamStatus: response.status, upstreamPath: '/v2/cfd/import-from-storage' }, { status: response.status })
+    }
     return NextResponse.json(data, { status: response.status })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Network error during CFD Storage import.'
-    return jsonError(message, 502)
+    return NextResponse.json({
+      error: `Le worker d’import CFD n’a pas répondu: ${message}`,
+      code: 'CFD_IMPORT_WORKER_UNAVAILABLE',
+    }, { status: 502 })
   }
 }
