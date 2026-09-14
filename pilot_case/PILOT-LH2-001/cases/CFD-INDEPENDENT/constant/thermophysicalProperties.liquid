@@ -1,0 +1,94 @@
+/* NIST SRD 69 saturation-derived parahydrogen properties; see source registry. */
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object thermophysicalProperties.liquid;
+}
+thermoType
+{
+    type heRhoThermo;
+    mixture pureMixture;
+    transport const;
+    thermo coolPropThermo;
+    equationOfState icoTabulated;
+    specie specie;
+    energy sensibleEnthalpy;
+}
+mixture
+{
+    specie
+    {
+        nMoles 1;
+        molWeight 2.01588;
+    }
+    equationOfState
+    {
+        // NIST saturation density interpolation; pressure dependence is not represented by icoTabulated.
+        rho
+        (
+            (21.010 69.965)
+            (21.510 69.357)
+            (22.010 68.73)
+            (22.510 68.082)
+            (23.010 67.411)
+            (23.510 66.716)
+            (24.010 65.996)
+            (24.510 65.247)
+            (25.010 64.469)
+            (25.510 63.657)
+            (26.010 62.809)
+            (26.510 61.921)
+            (27.010 60.987)
+            (27.510 60.002)
+            (28.010 58.958)
+            (28.510 57.846)
+            (29.010 56.652)
+            (29.510 55.361)
+            (30.010 53.947)
+            (30.510 52.375)
+            (31.010 50.587)
+            (31.510 48.482)
+            (32.010 45.84)
+            (32.510 42.009)
+        );
+    }
+    thermodynamics
+    {
+        Hf 0;
+        Sf 0;
+        Cp
+        (
+            (21.010 10188)
+            (21.510 10521)
+            (22.010 10872)
+            (22.510 11245)
+            (23.010 11643)
+            (23.510 12070)
+            (24.010 12529)
+            (24.510 13028)
+            (25.010 13573)
+            (25.510 14173)
+            (26.010 14841)
+            (26.510 15592)
+            (27.010 16447)
+            (27.510 17434)
+            (28.010 18594)
+            (28.510 19984)
+            (29.010 21691)
+            (29.510 23856)
+            (30.010 26715)
+            (30.510 30703)
+            (31.010 36724)
+            (31.510 47004)
+            (32.010 68866)
+            (32.510 147280)
+        );
+    }
+    transport
+    {
+        mu              1.27e-5;
+        Pr              1.00;
+    }
+}

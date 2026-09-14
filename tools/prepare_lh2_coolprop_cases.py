@@ -1,7 +1,8 @@
 from pathlib import Path
+import re
 import shutil
 
-ROOT=Path('/home/ubuntu/quantum-hybrid-pinn')
+ROOT = Path(__file__).resolve().parents[1]
 src=ROOT/'pilot_case/PILOT-LH2-001/openfoam_wallBoiling_base'
 out=ROOT/'pilot_case/PILOT-LH2-001/cases'
 for name, heat_flux, p0 in [('CFD-BASELINE', 100.0, 125310.0), ('CFD-INDEPENDENT', 160.0, 135000.0)]:
@@ -33,6 +34,10 @@ for name, heat_flux, p0 in [('CFD-BASELINE', 100.0, 125310.0), ('CFD-INDEPENDENT
         p=dst/'0.orig'/field
         t=p.read_text().replace('uniform 125310;', f'uniform {p0:g};')
         p.write_text(t)
-    p=dst/'0.orig/T.liquid'
-    p.write_text(p.read_text().replace('uniform 21.01;', 'uniform 21.01;').replace('uniform 100;', f'uniform {heat_flux:g};'))
+    p = dst / '0.orig/T.liquid'
+    text = p.read_text()
+    text, replacements = re.subn(r'(\n\s*q\s+uniform\s+)[0-9.eE+-]+(\s*;)', rf'\g<1>{heat_flux:g}\g<2>', text, count=1)
+    if replacements != 1:
+        raise ValueError(f'expected exactly one wall heat-flux entry in {p}, got {replacements}')
+    p.write_text(text)
 print(out)
