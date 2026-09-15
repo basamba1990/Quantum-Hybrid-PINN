@@ -51,25 +51,6 @@ class coolPropThermo : public EquationOfState
         return checked(property, PropsSI(property, "T", Ts, "Q", phaseQuality_, "ParaHydrogen"), ps, Ts);
     }
 
-    scalar boundedEnthalpy(const scalar p, const scalar T) const
-    {
-        const scalar ps = safeP(p);
-        const scalar Ts = safeT(T);
-        const scalar hRaw = phaseProperty("H", ps, Ts);
-        const scalar hLo = PropsSI("H", "T", scalar(13.8033), "Q", phaseQuality_, "ParaHydrogen");
-        const scalar hHi = PropsSI("H", "T", scalar(32.50), "Q", phaseQuality_, "ParaHydrogen");
-        const scalar lo = min(hLo, hHi);
-        const scalar hi = max(hLo, hHi);
-        const scalar hBounded = min(max(hRaw, lo), hi);
-        if (mag(hBounded-hRaw) > 1e-9*max(mag(hRaw), scalar(1.0)))
-        {
-            WarningInFunction << "bounded enthalpy for phaseQuality=" << phaseQuality_
-                << ": raw=" << hRaw << ", bounded=" << hBounded
-                << ", p=" << ps << " Pa, T=" << Ts << " K" << nl;
-        }
-        return hBounded;
-    }
-
     scalar phaseDensity(const scalar p, const scalar T) const
     {
         const scalar ps = safeP(p);
@@ -129,8 +110,8 @@ public:
     static word typeName() { return "coolPropThermo<" + EquationOfState::typeName() + '>'; }
     scalar limit(const scalar T) const { return safeT(T); }
     scalar Cp(const scalar p, const scalar T) const { return max(phaseProperty("C", p, T), scalar(1.0)); }
-    scalar Ha(const scalar p, const scalar T) const { return boundedEnthalpy(p, T) + Hf_; }
-    scalar Hs(const scalar p, const scalar T) const { return boundedEnthalpy(p, T); }
+    scalar Ha(const scalar p, const scalar T) const { return phaseProperty("H", p, T) + Hf_; }
+    scalar Hs(const scalar p, const scalar T) const { return phaseProperty("H", p, T); }
     scalar Hc() const { return Hf_; }
     scalar S(const scalar p, const scalar T) const { return phaseProperty("S", p, T) + Sf_; }
     scalar Gstd(const scalar T) const { return Ha(Pstd, T) - T*S(Pstd, T); }
