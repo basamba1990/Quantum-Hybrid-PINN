@@ -10,6 +10,7 @@ appel si ce secret n'est pas configuré ou si le Bearer token est incorrect.
 from __future__ import annotations
 
 import asyncio
+import gc
 import gzip
 import hashlib
 import io
@@ -189,23 +190,13 @@ def _cell_data(mesh: Any) -> Dict[str, np.ndarray]:
     return result
 
 
-def _parse_vtu(content: bytes, filename: str, descriptors: Dict[str, Any]) -> Dict[str, Any]:
+def _parse_vtu_path(path: str, filename: str, descriptors: Dict[str, Any]) -> Dict[str, Any]:
     if meshio is None:
         raise HTTPException(status_code=503, detail=f"Dépendance meshio absente: {_MESHIO_IMPORT_ERROR}")
-    temporary_path = None
     try:
-        with tempfile.NamedTemporaryFile(suffix=".vtu", delete=False) as temporary:
-            temporary.write(content)
-            temporary_path = temporary.name
-        mesh = meshio.read(temporary_path, file_format="vtu")
+        mesh = meshio.read(path, file_format="vtu")
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"VTU illisible ({filename}): {exc}") from exc
-    finally:
-        if temporary_path:
-            try:
-                os.unlink(temporary_path)
-            except OSError:
-                pass
     points, cells, offsets, cell_types, cell_count = _normalise_cells(mesh)
     point_arrays = getattr(mesh, "point_data", {}) or {}
     cell_arrays = _cell_data(mesh)
@@ -225,6 +216,22 @@ def _parse_vtu(content: bytes, filename: str, descriptors: Dict[str, Any]) -> Di
         "pointCount": len(points) // 3,
         "cellCount": cell_count,
     }
+
+
+def _parse_vtu(content: bytes, filename: str, descriptors: Dict[str, Any]) -> Dict[str, Any]:
+    """Parse multipart bytes through the same path-based implementation."""
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".vtu", delete=False) as temporary:
+            temporary.write(content)
+            temporary_path = temporary.name
+        return _parse_vtu_path(temporary_path, filename, descriptors)
+    finally:
+        if temporary_path:
+            try:
+                os.unlink(temporary_path)
+            except OSError:
+                pass
 
 
 def _verify_sidecar(sidecar: Dict[str, Any], files: Dict[str, bytes], check_hashes: bool = True) -> None:
@@ -770,9 +777,10 @@ async def import_cfd_dataset_from_storage(
                     actual_hash = _sha256_file(local_path)
                     if not isinstance(expected_hash, str) or expected_hash.lower() != actual_hash:
                         raise HTTPException(status_code=422, detail=f"SHA-256 invalide pour {name}: attendu {expected_hash}, calculé {actual_hash}.")
-                    with open(local_path, "rb") as source:
-                        content = source.read()
-                    parsed = _parse_vtu(content, name, descriptors)
+                    # Parse directly from the temporary file. Reading the VTU into
+                    # bytes here duplicates the upload and can exceed Render Free's
+                    # 512 MiB limit once meshio expands XML/binary arrays.
+                    parsed = _parse_vtu_path(local_path, name, descriptors)
                     topology = (parsed["cells"], parsed["offsets"], parsed["cellTypes"])
                     if first_topology is None:
                         first_topology = topology
@@ -794,7 +802,8 @@ async def import_cfd_dataset_from_storage(
                         summary.update({"points": parsed["points"], "cells": parsed["cells"], "offsets": parsed["offsets"], "cellTypes": parsed["cellTypes"]})
                     frame_summaries.append(summary)
                     local_frames[name] = local_path
-                    del content, parsed, frame
+                    del parsed, frame
+                    gc.collect()
                 dataset_output.write("]}")
             _verify_analysis_owner(analysis_id, project_id, owner_id)
             analysis_id = _persist_streaming_dataset(metadata, frame_summaries, local_frames, sidecar_bytes, dataset_blob_path, case_id, project_id, owner_id, analysis_id)
