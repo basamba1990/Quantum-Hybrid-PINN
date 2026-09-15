@@ -7,7 +7,7 @@ never upgrades a scientific status to VALIDATED. The API/gate service remains
 server-authoritative for G0-G6.
 """
 from __future__ import annotations
-import hashlib, json, os, shutil, subprocess, time
+import hashlib, json, os, re, shutil, subprocess, time
 from datetime import datetime, timezone
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -31,6 +31,23 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def nonfinite_markers(log: Path) -> list[str]:
+    """Return solver failure markers found in a completed log.
+
+    A zero exit code is not sufficient evidence of a valid CFD trajectory:
+    OpenFOAM can flush a partial time directory after a floating-point failure.
+    Keep the check conservative and report the exact markers in the manifest.
+    """
+    text = log.read_text(encoding="utf-8", errors="replace")
+    lowered = text.lower()
+    markers = []
+    if re.search(r"(?<![a-z])(?:[-+]?nan(?:\([^)]*\))?|[-+]?inf(?:inity)?)(?![a-z])", lowered):
+        markers.append("nonfinite_numeric_token")
+    if "floating point exception" in lowered:
+        markers.append("floating point exception")
+    return markers
+
+
 def run_job(payload: dict) -> dict:
     pilot = str(payload.get("pilotId", "PILOT-LH2-001"))
     case_name = str(payload.get("case", "CFD-BASELINE"))
@@ -50,11 +67,15 @@ def run_job(payload: dict) -> dict:
     command = ["bash", "-lc", f"source /opt/openfoam*/etc/bashrc 2>/dev/null || true; cd '{source}'; ./Allrun"]
     status = "FAILED"
     return_code = None
+    failure_markers: list[str] = []
     try:
         with log.open("w", encoding="utf-8") as stream:
             proc = subprocess.run(command, stdout=stream, stderr=subprocess.STDOUT, env=env, timeout=TIMEOUT, check=False)
         return_code = proc.returncode
         status = "COMPLETED" if return_code == 0 else "FAILED"
+        failure_markers = nonfinite_markers(log)
+        if failure_markers:
+            status = "FAILED_NONFINITE"
     except subprocess.TimeoutExpired:
         status = "TIMEOUT"
     files = []
@@ -66,6 +87,7 @@ def run_job(payload: dict) -> dict:
         "jobId": job_id, "pilotId": pilot, "case": case_name,
         "solver": SOLVER, "startedAt": started, "finishedAt": now(),
         "returnCode": return_code, "executionStatus": status,
+        "failureMarkers": failure_markers,
         "scientificStatus": "INCONCLUSIVE",
         "validationAllowed": False,
         "command": command, "files": files,

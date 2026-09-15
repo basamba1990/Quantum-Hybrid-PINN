@@ -1,0 +1,18 @@
+/* Initial specific enthalpy from CoolProp ParaHydrogen at T=21.01 K, p=125310.0 Pa, Q=0.0. */
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class volScalarField;
+    object h.liquid;
+}
+dimensions [0 2 -2 0 0 0 0];
+internalField uniform 7573.92518537;
+boundaryField
+{
+    inlet { type calculated; value uniform 7573.92518537; }
+    outlet { type calculated; value uniform 7573.92518537; }
+    wall1 { type calculated; value uniform 7573.92518537; }
+    wall2 { type calculated; value uniform 7573.92518537; }
+    defaultFaces { type empty; }
+}

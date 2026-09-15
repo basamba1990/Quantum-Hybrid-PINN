@@ -2,7 +2,7 @@
   "schema": "quantum-lh2-manifest.v1",
   "pilot_id": "PILOT-LH2-001",
   "created_at": "2026-08-31",
-  "case_status": "INCONCLUSIVE",
+  "case_status": "INCONCLUSIVE_SOLVER_STABILITY",
   "purpose": "First production-oriented demonstrator for transient monophasic LH2 internal flow with wall heat transfer and PINN-T evidence controls.",
   "scientific_scope": {
     "fluid": "parahydrogen",
@@ -14,9 +14,16 @@
   },
   "solver": {
     "candidate": "OpenFOAM_MULTIPHASE",
-    "selection_status": "PENDING_EXECUTABLE_AND_MODEL_COMPATIBILITY_REVIEW",
-    "required_capabilities": ["transient_two_phase_flow", "energy_transfer", "mass_transfer", "boiling_or_evaporation", "declared_parahydrogen_saturation_model", "boiloff_mass_balance"],
-    "verified_executable_in_audited_environment": false,
+    "selection_status": "EXECUTABLE_OPENFOAM_2512_RUNNER_VERIFIED_THERMO_STABILITY_PENDING",
+    "required_capabilities": [
+      "transient_two_phase_flow",
+      "energy_transfer",
+      "mass_transfer",
+      "boiling_or_evaporation",
+      "declared_parahydrogen_saturation_model",
+      "boiloff_mass_balance"
+    ],
+    "verified_executable_in_audited_environment": true,
     "alternative": "SU2",
     "alternative_status": "EXECUTABLE_NOT_FOUND_IN_AUDITED_ENVIRONMENT"
   },
@@ -26,15 +33,16 @@
     "training_dataset": "CFD-BASELINE",
     "evaluation_dataset": "CFD-INDEPENDENT",
     "evaluation_hidden_during_training": true,
-    "hash_algorithm": "SHA-256"
+    "hash_algorithm": "SHA-256",
+    "runtime_evidence": "evidence/runtime_2026-09-15/manifest.json"
   },
   "gates": {
     "G0": "APPROVED_BY_USER_PENDING_SOLVER_MODEL_REVIEW",
-    "G1": "INCONCLUSIVE_NOT_RUN",
-    "G2": "INCONCLUSIVE_SOLVER_UNAVAILABLE",
-    "G3": "INCONCLUSIVE_SOLVER_UNAVAILABLE",
-    "G4": "INCONCLUSIVE_NOT_RUN",
-    "G5": "INCONCLUSIVE_NOT_RUN",
+    "G1": "PASS_RUNNER_AVAILABLE",
+    "G2": "PASS_SOLVER_STARTED",
+    "G3": "INCONCLUSIVE_ENTHALPY_INVERSION",
+    "G4": "NOT_RUN_CONVERGENCE_REQUIRED",
+    "G5": "NOT_RUN_INDEPENDENT_REQUIRED",
     "G6": "INCONCLUSIVE_NOT_RUN"
   },
   "source_registry": "sources.yaml",
