@@ -10,7 +10,7 @@ import logging
 from typing import Optional, Dict, Any
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 import httpx
 import torch
 from pgd_pinn_hybrid import run_hybrid_simulation
@@ -26,7 +26,9 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 class AnalysisSubmissionRequest(BaseModel):
-    projectId: str
+    model_config = ConfigDict(populate_by_name=True)
+
+    projectId: str = Field(..., alias="project_id")
     analysisId: str
     name: str
     transcription: Optional[str] = None
@@ -34,6 +36,21 @@ class AnalysisSubmissionRequest(BaseModel):
     userId: str
     scenario_type: Optional[str] = "H2_PIPELINE"
     scenario_inputs: Optional[Dict[str, Any]] = {}
+
+    @field_validator("projectId")
+    @classmethod
+    def validate_project_id(cls, value: str) -> str:
+        """Reject missing, blank, or malformed project identifiers before queuing."""
+        from uuid import UUID
+
+        normalized = value.strip() if isinstance(value, str) else ""
+        if not normalized:
+            raise ValueError("project_id is required")
+        try:
+            UUID(normalized)
+        except (ValueError, AttributeError, TypeError) as exc:
+            raise ValueError("project_id must be a valid UUID") from exc
+        return normalized
 
 class AnalysisResponse(BaseModel):
     jobId: str
@@ -147,6 +164,8 @@ class AnalysisProcessor:
             
             # Store results
             job["results"] = {
+                "projectId": request.projectId,
+                "userId": request.userId,
                 "physicsParams": physics_params,
                 "pinn_results": pinn_results,
                 "validation": validation_results,
@@ -425,9 +444,19 @@ class AnalysisProcessor:
             
             # KELLY SENECAL V2.1.7: Upsert into analysis_results for high-fidelity volumetric rendering
             if status == "completed":
+                project_id = (
+                    results.get("projectId")
+                    or results.get("physicsParams", {}).get("projectId")
+                )
+                if not project_id:
+                    logger.error(
+                        "Skipping analysis_results upsert for %s: project_id is missing",
+                        analysis_id,
+                    )
+                    return
                 results_data = {
                     "analysis_id": analysis_id,
-                    "project_id": results.get("projectId") or results.get("physicsParams", {}).get("projectId"),
+                    "project_id": project_id,
                     "user_id": results.get("userId") or results.get("physicsParams", {}).get("userId"),
                     "pinn_predictions": results.get("predictions3d") or results.get("pinn_results", {}).get("predictions3d") or [],
                     "extracted_parameters": results.get("physicsParams") or {},
