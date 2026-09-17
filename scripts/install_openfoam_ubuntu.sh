@@ -1,93 +1,54 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Installe OpenFOAM Foundation 13 sur Ubuntu 22.04/24.04/25.04/25.10/26.04.
-# Référence officielle : https://openfoam.org/download/13-ubuntu/
-# Usage : sudo ./scripts/install_openfoam_ubuntu.sh
-# Variables optionnelles : OPENFOAM_VERSION=13 APT_RETRIES=5
+# Installs OpenCFD/Keysight OpenFOAM v2512 from the official signed Debian/Ubuntu repository.
+# Official repository instructions:
+# https://gitlab.com/openfoam/core/openfoam/-/wikis/precompiled/debian
+# Usage: sudo ./scripts/install_openfoam_ubuntu.sh
 
-OPENFOAM_VERSION="${OPENFOAM_VERSION:-13}"
-APT_RETRIES="${APT_RETRIES:-5}"
-REPO_HOST="dl.openfoam.org"
-REPO_KEY_URL="https://${REPO_HOST}/gpg.key"
-REPO_FILE="/etc/apt/sources.list.d/openfoam.list"
-KEY_FILE="/etc/apt/trusted.gpg.d/openfoam.asc"
-PREFIX="/opt/openfoam${OPENFOAM_VERSION}"
+PACKAGE="openfoam2512-default"
+PREFIX="/usr/lib/openfoam/openfoam2512"
+REPO_INSTALLER_URL="https://dl.openfoam.com/add-debian-repo.sh"
+REPO_KEY_URL="https://dl.openfoam.com/pubkey.gpg"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
-info() { printf '[openfoam-install] %s\n' "$*"; }
+info() { printf '[openfoam2512-install] %s\n' "$*"; }
 
-[[ "${EUID}" -eq 0 ]] || fail "exécuter avec sudo"
-[[ "$(uname -m)" == "x86_64" ]] || fail "architecture x86_64 requise, détecté: $(uname -m)"
+[[ "${EUID}" -eq 0 ]] || fail "run with sudo"
+[[ "$(uname -m)" == "x86_64" ]] || fail "x86_64 required; found $(uname -m)"
 source /etc/os-release
-[[ "${ID:-}" == "ubuntu" ]] || fail "Ubuntu requis, détecté: ${ID:-UNAVAILABLE}"
-case "${VERSION_CODENAME:-}" in
-  jammy|noble|plucky|quantal|resolute) ;;
-  *) fail "version Ubuntu non couverte par OpenFOAM 13: ${VERSION_CODENAME:-UNAVAILABLE}" ;;
-esac
+[[ "${ID:-}" == "ubuntu" ]] || fail "Ubuntu required; found ${ID:-UNAVAILABLE}"
 
 export DEBIAN_FRONTEND=noninteractive
-APT=(apt-get -o Acquire::Retries="${APT_RETRIES}" -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+apt-get update
+apt-get install -y --no-install-recommends ca-certificates curl gnupg lsb-release
 
-info "Mise à jour des dépôts Ubuntu"
-"${APT[@]}" update || fail "apt update initial échoué; vérifier DNS, proxy et accès HTTPS/HTTP"
-"${APT[@]}" install -y --no-install-recommends ca-certificates wget gnupg
+info "Downloading the official OpenCFD repository installer"
+tmp_installer="$(mktemp)"
+trap 'rm -f "$tmp_installer"' EXIT
+curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$REPO_INSTALLER_URL" -o "$tmp_installer"
+test -s "$tmp_installer" || fail "empty repository installer"
+info "Official repository installer SHA-256: $(sha256sum "$tmp_installer" | awk '{print $1}')"
 
-info "Téléchargement et installation de la clé publique OpenFOAM"
-install -d -m 0755 "$(dirname "${KEY_FILE}")"
-tmp_key="$(mktemp)"
-trap 'rm -f "${tmp_key}"' EXIT
-wget --https-only --secure-protocol=TLSv1_2 --timeout=30 --tries="${APT_RETRIES}" -qO "${tmp_key}" "${REPO_KEY_URL}" \
-  || fail "clé OpenFOAM inaccessible: ${REPO_KEY_URL}"
-test -s "${tmp_key}" || fail "clé OpenFOAM vide"
-install -m 0644 "${tmp_key}" "${KEY_FILE}"
+# The downloaded official installer installs the repository signing key and apt source.
+bash "$tmp_installer"
+apt-get update
+apt-get install -y "$PACKAGE"
 
-info "Configuration du dépôt signé OpenFOAM"
-cat > "${REPO_FILE}" <<EOF
-# OpenFOAM Foundation packages; repository authenticated by ${KEY_FILE}
-deb [arch=amd64 signed-by=${KEY_FILE}] http://${REPO_HOST}/ubuntu ${VERSION_CODENAME} main dev
-EOF
+[[ -f "$PREFIX/etc/bashrc" ]] || fail "missing OpenFOAM environment: $PREFIX/etc/bashrc"
+command -v openfoam2512 >/dev/null 2>&1 || fail "openfoam2512 selector command is missing"
 
-info "Mise à jour de l’index apt OpenFOAM"
-"${APT[@]}" update || fail "dépôt OpenFOAM inaccessible; aucun paquet n’a été déclaré installé"
-
-PACKAGE="openfoam${OPENFOAM_VERSION}"
-info "Installation de ${PACKAGE}"
-"${APT[@]}" install -y "${PACKAGE}" \
-  || fail "installation de ${PACKAGE} échouée"
-
-[[ -f "${PREFIX}/etc/bashrc" ]] || fail "configuration absente après installation: ${PREFIX}/etc/bashrc"
-
-cat > "${PREFIX}/OPENFOAM_INSTALL_RECORD.txt" <<EOF
-package=${PACKAGE}
-prefix=${PREFIX}
-distribution=Ubuntu ${VERSION_ID}
-codename=${VERSION_CODENAME}
+cat > "$PREFIX/OPENFOAM_INSTALL_RECORD.txt" <<EOF
+package=$PACKAGE
+prefix=$PREFIX
+repository_installer=$REPO_INSTALLER_URL
+repository_signing_key=$REPO_KEY_URL
+ubuntu=${VERSION_ID:-UNKNOWN}
+codename=${VERSION_CODENAME:-UNKNOWN}
 architecture=$(uname -m)
 installed_utc=$(date -u +%FT%TZ)
-repository=http://${REPO_HOST}/ubuntu
-key_url=${REPO_KEY_URL}
 EOF
 
-# Le shell courant doit être relancé ou la configuration sourcée manuellement.
-# Le bashrc OpenFOAM peut sonder des variables propres à Zsh ; ne pas appliquer
-# nounset pendant son chargement dans un shell Bash strict.
-set +e
-set +u
-# shellcheck disable=SC1090
-source "${PREFIX}/etc/bashrc"
-source_rc=$?
-set -u
-set -e
-[[ "${source_rc}" -eq 0 || -n "${WM_PROJECT_DIR:-}" ]] || fail "chargement du bashrc OpenFOAM échoué"
-for command_name in blockMesh checkMesh potentialFoam; do
-  command -v "${command_name}" >/dev/null 2>&1 \
-    || fail "utilitaire absent après installation: ${command_name}"
-done
-
-if command -v foamInstallationTest >/dev/null 2>&1; then
-  foamInstallationTest || fail "foamInstallationTest a échoué"
-fi
-
-info "PASS: ${PACKAGE} installé; blockMesh, checkMesh et potentialFoam sont disponibles"
-printf 'Pour charger OpenFOAM dans un nouveau shell : source %s/etc/bashrc\n' "${PREFIX}"
+info "PASS: $PACKAGE installed from the official signed OpenCFD repository"
+printf 'Load the environment with: source %s/etc/bashrc\n' "$PREFIX"
+printf 'Or use the selector: openfoam2512\n'

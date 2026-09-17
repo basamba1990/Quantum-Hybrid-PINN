@@ -37,8 +37,21 @@ def sha256(path: Path) -> str:
 
 def executable() -> dict:
     candidates = ["foamRun", "reactingTwoPhaseEulerFoam"]
-    found = {name: shutil.which(name) for name in candidates}
-    wm_project_dir = os.environ.get("WM_PROJECT_DIR", "")
+    known_prefixes = []
+    if os.environ.get("WM_PROJECT_DIR"):
+        known_prefixes.append(Path(os.environ["WM_PROJECT_DIR"]))
+    known_prefixes.append(Path("/usr/lib/openfoam/openfoam2512"))
+    known_bin = next(
+        (prefix / "platforms/linux64GccDPInt32Opt/bin" for prefix in known_prefixes if prefix.is_dir()),
+        None,
+    )
+    found = {
+        name: shutil.which(name) or (str(known_bin / name) if known_bin and (known_bin / name).is_file() else None)
+        for name in candidates
+    }
+    wm_project_dir = os.environ.get("WM_PROJECT_DIR", "") or (
+        str(known_bin.parent.parent.parent) if known_bin else ""
+    )
     return {
         "wmProjectDir": wm_project_dir or None,
         "executables": found,

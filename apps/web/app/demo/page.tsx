@@ -52,13 +52,13 @@ export default function DemoPage() {
                 <div>
                   <h3 className="font-semibold text-lg mb-2">About This Demo</h3>
                   <p className="text-slate-300 mb-3">
-                    This demonstration showcases a real hydrogen liquefaction pipeline simulation using PINN V8.1. The data shown below is pre-calculated and represents a scientifically validated scenario.
+                    This read-only demonstration shows a pre-calculated illustrative dataset for a hydrogen liquefaction pipeline. It is a structural product demo and is not a scientifically validated CFD result.
                   </p>
                   <ul className="space-y-2 text-sm text-slate-400">
-                    <li>✓ Credibility Score: 92.5/100 (Physically Coherent)</li>
+                    <li>• Scientific status: UNVALIDATED — evidence required</li>
                     <li>✓ 12-meter pipeline with 0.5m diameter</li>
                     <li>✓ Inlet: 50 bar, 25K | Outlet: 35 bar, 20K</li>
-                    <li>✓ Real-time 3D visualization with scientific audit</li>
+                    <li>• Visualisation only; no independent validation claimed</li>
                   </ul>
                 </div>
               </div>
@@ -111,6 +111,7 @@ export default function DemoPage() {
               auditData={DEMO_AUDIT_DATA}
               projectName="Hydrogen Liquefaction Pipeline (Demo)"
               isLoading={false}
+              demoMode
             />
           </div>
 

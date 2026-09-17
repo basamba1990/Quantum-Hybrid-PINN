@@ -2,7 +2,7 @@
 
 ## État actuel
 
-Le préflight `tools/run_lh2_preflight.py` est `BLOCKED` uniquement parce qu’aucun exécutable OpenFOAM n’est accessible dans l’environnement courant. Les dossiers `CFD-BASELINE` et `CFD-INDEPENDENT` sont distincts, le cas est maintenu `INCONCLUSIVE` et l’évaluation indépendante est déclarée cachée pendant l’entraînement.
+Le préflight `tools/run_lh2_preflight.py` trouve maintenant OpenFOAM v2512 et `reactingTwoPhaseEulerFoam`. Le statut scientifique reste `INCONCLUSIVE` : le baseline réel charge `coolPropThermo`, atteint le premier pas de temps, puis s’arrête sur une température hors domaine lors de l’inversion enthalpie–température. Les dossiers `CFD-BASELINE` et `CFD-INDEPENDENT` restent distincts et l’évaluation indépendante reste interdite avant acceptation du baseline.
 
 Le dernier run disponible échoue au premier correcteur PIMPLE avec une exception flottante dans `libreactingTwoPhaseSystem`. Le journal montre ensuite `Tf.gasAndLiquid = NaN` et `iDmdt.gasAndLiquid = NaN`. Ces sorties ne sont pas des résultats CFD exploitables.
 

@@ -21,7 +21,7 @@ export const DEMO_SIMULATION_DATA = {
   },
   audit: {
     credibility_score: 92.5,
-    status: 'PHYSICALLY_COHERENT',
+    status: 'STRUCTURAL_DEMO_UNVALIDATED',
     residuals: {
       continuity: 1.2e-5,
       momentum: 8.7e-6,
@@ -32,7 +32,7 @@ export const DEMO_SIMULATION_DATA = {
     },
     physics_violations: 0,
     warnings: [],
-    certified: true,
+    certified: false,
   },
   predictions_3d: [
     // Données 3D réalistes pour la visualisation
@@ -311,9 +311,9 @@ export const DEMO_SIMULATION_DATA = {
 }
 
 export const DEMO_AUDIT_DATA = {
-  isPhysicallyCoherent: true,
-  credibilityScore: 92.5,
-  anomalies: [],
+  isPhysicallyCoherent: false,
+  credibilityScore: null,
+  anomalies: ['Demo dataset: independent CFD provenance and reference comparison are not provided.'],
   extractedData: {
     inlet_pressure: 50e5,
     outlet_pressure: 35e5,

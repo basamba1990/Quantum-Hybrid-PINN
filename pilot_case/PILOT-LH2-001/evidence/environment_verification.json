@@ -1,0 +1,60 @@
+{
+  "schema": "quantum-lh2-environment.v1",
+  "evaluatedAt": "2026-09-17T00:11:49.767439+00:00",
+  "openfoam": {
+    "package": "2512.0-2",
+    "prefix": "/usr/lib/openfoam/openfoam2512",
+    "solver": "/usr/lib/openfoam/openfoam2512/platforms/linux64GccDPInt32Opt/bin/reactingTwoPhaseEulerFoam",
+    "solverHelp": {
+      "command": [
+        "/usr/lib/openfoam/openfoam2512/platforms/linux64GccDPInt32Opt/bin/reactingTwoPhaseEulerFoam",
+        "-help"
+      ],
+      "returncode": 127,
+      "stdout": "",
+      "stderr": "/usr/lib/openfoam/openfoam2512/platforms/linux64GccDPInt32Opt/bin/reactingTwoPhaseEulerFoam: error while loading shared libraries: libfiniteVolume.so: cannot open shared object file: No such file or directory\n",
+      "pass": false
+    }
+  },
+  "compiler": {
+    "command": [
+      "g++",
+      "--version"
+    ],
+    "returncode": 0,
+    "stdout": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+    "stderr": "",
+    "pass": true
+  },
+  "dynamicLibraries": {
+    "command": [
+      "ldd",
+      "/usr/lib/openfoam/openfoam2512/platforms/linux64GccDPInt32Opt/bin/reactingTwoPhaseEulerFoam"
+    ],
+    "returncode": 0,
+    "stdout": "\tlinux-vdso.so.1 (0x00007f8cc3eb3000)\n\tlibfiniteVolume.so => not found\n\tlibfvOptions.so => not found\n\tlibmeshTools.so => not found\n\tlibsampling.so => not found\n\tlibreactingMultiphaseSystem.so => not found\n\tlibreactingTwoPhaseSystem.so => not found\n\tlibtwoPhaseReactingTurbulenceModels.so => not found\n\tlibthermoTools.so => not found\n\tlibOpenFOAM.so => not found\n\tlibstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007f8cc3a00000)\n\tlibm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f8cc3cd4000)\n\tlibgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f8cc3ca6000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f8cc3600000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007f8cc3eb5000)\n\tlibfluidThermophysicalModels.so => not found\n",
+    "stderr": "",
+    "pass": true
+  },
+  "coolProp": {
+    "nativeLibrary": "/opt/coolprop/lib/libCoolProp.so.7.2.0",
+    "nativeLibrarySha256": "10b82f392b3c85dd34b7ba0dca9926162e74e82ae9aecd4d0a3365999468451d",
+    "pythonCheck": {
+      "command": [
+        "python3",
+        "-c",
+        "import CoolProp; print(CoolProp.__version__)"
+      ],
+      "returncode": 0,
+      "stdout": "7.2.0\n",
+      "stderr": "",
+      "pass": true
+    }
+  },
+  "gates": {
+    "G3": "INCONCLUSIVE",
+    "G4": "INCONCLUSIVE",
+    "G5": "INCONCLUSIVE",
+    "reason": "Environment availability does not prove CFD convergence, independent evaluation, or held-out PINN metrics."
+  }
+}

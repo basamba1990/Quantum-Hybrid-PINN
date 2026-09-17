@@ -29,7 +29,7 @@ interface ConfidenceMetrics {
 
 interface AuditData {
   isPhysicallyCoherent: boolean
-  credibilityScore: number
+  credibilityScore?: number | null
   credibility_score?: number
   anomalies: string[]
   extractedData: Record<string, number>
@@ -45,6 +45,7 @@ interface ScientificAuditCardProps {
   onDownloadReport?: () => void
   isLoading?: boolean
   scenarioType?: any
+  demoMode?: boolean
 }
 
 export default function ScientificAuditCard({
@@ -53,14 +54,16 @@ export default function ScientificAuditCard({
   onDownloadReport,
   isLoading = false,
   scenarioType,
+  demoMode = false,
 }: ScientificAuditCardProps) {
   const [showDetails, setShowDetails] = useState(false)
   const [visualizationType, setVisualizationType] = useState<'trajectory' | 'field'>('field')
 
   const getCredibilityLevel = (score: number) => {
+    if (demoMode) return { level: 'EVIDENCE-REQUIRED', color: 'text-amber-300', bg: 'bg-amber-500/10', border: 'border-amber-500/20' }
     if (!Number.isFinite(score)) return { level: 'EVIDENCE-REQUIRED', color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/20' }
-    if (score >= 90) return { level: 'INDUSTRIAL-GOLD', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' }
-    if (score >= 75) return { level: 'CERTIFIED-PRO', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' }
+    if (score >= 90) return { level: 'EVIDENCE-REQUIRED', color: 'text-amber-300', bg: 'bg-amber-500/10', border: 'border-amber-500/20' }
+    if (score >= 75) return { level: 'REVIEW-REQUIRED', color: 'text-blue-300', bg: 'bg-blue-500/10', border: 'border-blue-500/20' }
     if (score >= 50) return { level: 'VALIDATION-REQUIRED', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' }
     return { level: 'CRITICAL-FAILURE', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' }
   }
@@ -93,7 +96,7 @@ export default function ScientificAuditCard({
           
           <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${credibility.bg} ${credibility.border}`}>
             <div className="text-right">
-              <div className={`text-[10px] font-black uppercase tracking-widest ${credibility.color}`}>Certification Level</div>
+              <div className={`text-[10px] font-black uppercase tracking-widest ${credibility.color}`}>Scientific status</div>
               <div className="text-lg font-black text-white">{credibility.level}</div>
             </div>
             {auditData.isPhysicallyCoherent ? (
@@ -113,8 +116,8 @@ export default function ScientificAuditCard({
               <Activity className="w-4 h-4 text-blue-500" />
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-black text-white">{Number.isFinite(score) ? score.toFixed(1) : 'N/A'}</span>
-              <span className="text-xl font-bold text-gray-600">/100</span>
+              <span className="text-3xl font-black text-white">{Number.isFinite(score) && !demoMode ? score.toFixed(1) : 'N/A'}</span>
+              {!demoMode && <span className="text-xl font-bold text-gray-600">/100</span>}
             </div>
             <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
               <div className={`h-full transition-all duration-1000 ${score >= 90 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0}%` }} />
@@ -127,7 +130,7 @@ export default function ScientificAuditCard({
               <Layers className="w-4 h-4 text-emerald-500" />
             </div>
             <div className={`text-3xl font-black ${auditData.isPhysicallyCoherent ? 'text-emerald-400' : 'text-red-400'}`}>
-              {auditData.isPhysicallyCoherent ? 'VALIDATED' : 'ANOMALY'}
+              {demoMode ? 'UNVALIDATED' : auditData.isPhysicallyCoherent ? 'VALIDATED' : 'ANOMALY'}
             </div>
             <p className="text-[10px] text-gray-500 leading-relaxed font-medium">PDE residual analysis performed on the volumetric domain.</p>
           </div>
