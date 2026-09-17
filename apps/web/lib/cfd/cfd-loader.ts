@@ -32,6 +32,7 @@ export type VtuSidecar = {
   provenance: CfdVolumeDataset["provenance"];
   residuals: CfdVolumeDataset["residuals"];
   references: CfdVolumeDataset["references"];
+  transientProof?: CfdVolumeDataset["transientProof"];
   evidence: CfdVolumeDataset["evidence"];
 };
 

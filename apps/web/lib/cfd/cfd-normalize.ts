@@ -73,6 +73,7 @@ export function normalizeCfdDataset(dataset: CfdVolumeDataset): CfdBufferDataset
     provenance: dataset.provenance,
     residuals: dataset.residuals,
     references: dataset.references,
+    transientProof: dataset.transientProof,
     evidence: dataset.evidence,
   };
 }

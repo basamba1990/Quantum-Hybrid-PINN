@@ -63,6 +63,21 @@ export const CfdReferenceSchema = z.object({
   comparisonHash: sha256,
 });
 
+/** Preuves attribuables au solveur; une série de temps seule ne suffit pas. */
+export const CfdTransientProofSchema = z.object({
+  solverCaseHash: sha256,
+  runManifestHash: sha256,
+  residualHistoryHash: sha256,
+  balanceHistoryHash: sha256,
+  exportManifestHash: sha256,
+  runLogHash: sha256,
+  timeStepSeconds: z.number().finite().positive(),
+  frameTimesSeconds: z.array(z.number().finite()).min(2),
+  residualNorm: z.enum(["L1", "L2", "Linf"]),
+  solverCompleted: z.literal(true),
+  calculatedBy: nonEmpty,
+});
+
 /**
  * Les huit critères sont intentionnellement explicites. Aucun score n’est
  * calculé à partir du nombre de points et aucun champ absent n’est complété.
@@ -90,6 +105,7 @@ export const CfdVolumeDatasetSchema = z.object({
   provenance: CfdProvenanceSchema,
   residuals: CfdResidualSchema.optional(),
   references: z.array(CfdReferenceSchema).min(1),
+  transientProof: CfdTransientProofSchema.optional(),
   evidence: CfdEvidenceSchema,
 });
 
@@ -131,6 +147,7 @@ export type CfdBufferDataset = {
   provenance: CfdVolumeDataset["provenance"];
   residuals?: CfdVolumeDataset["residuals"];
   references: CfdVolumeDataset["references"];
+  transientProof?: CfdVolumeDataset["transientProof"];
   evidence: CfdEvidence;
 };
 

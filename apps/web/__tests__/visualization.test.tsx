@@ -34,6 +34,7 @@ function makeDataset() {
     provenance: { solver: "test-solver", solverVersion: "1.0.0", sourceUri: "https://example.invalid/cfd.vtu", sourceHash: HASH, calculationId: "calculation-test-1", generatedAt: "2026-08-23T00:00:00.000Z" },
     residuals: { mass: 1e-8, momentum: 2e-8, energy: 3e-8, norm: "L2" as const, computedBy: "test-solver", computedAt: "2026-08-23T00:00:00.000Z" },
     references: [{ id: "reference-1", title: "Reference CFD case", uri: "https://example.invalid/reference", variables: ["temperature", "pressure"], comparisonHash: HASH }],
+    transientProof: { solverCaseHash: HASH, runManifestHash: HASH, residualHistoryHash: HASH, balanceHistoryHash: HASH, exportManifestHash: HASH, runLogHash: HASH, timeStepSeconds: 1, frameTimesSeconds: [0, 1], residualNorm: "L2" as const, solverCompleted: true as const, calculatedBy: "test-solver" },
     evidence: { meshGeometryAndTopology: true, fieldsAndUnits: true, namedBoundaries: true, solverProvenance: true, solverResiduals: true, referenceComparison: true, immutableHashes: true, calculatedTransientStates: true },
   };
 }
@@ -99,6 +100,15 @@ describe("CFD contract and validation", () => {
     const loaded = loadCertifiedCfdDataset({ results: { cfd_dataset: structuralOnly } });
     expect(loaded.buffers?.frames[0].cells).toBeInstanceOf(Uint32Array);
     expect(loaded.report?.canClaimValidated).toBe(false);
+  });
+
+  test("rejects a real-transient claim when solver proof is missing", () => {
+    const incomplete = makeDataset();
+    delete (incomplete as { transientProof?: unknown }).transientProof;
+    const report = validateCfdDataset(parseCfdMetadata(incomplete));
+    expect(report.canRender).toBe(true);
+    expect(report.canClaimValidated).toBe(false);
+    expect(report.issues.some((item) => item.code === "TRANSIENT_PROOF_INVALID")).toBe(true);
   });
 
   test("rejects a dataset with missing units and invalid topology", () => {
