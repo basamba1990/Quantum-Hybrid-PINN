@@ -2,21 +2,21 @@
   "schema": "quantum-lh2-decision.v1",
   "pilot_id": "PILOT-LH2-001",
   "decision": "INCONCLUSIVE",
-  "evaluated_at": "2026-08-31T11:31:07Z",
-  "basis": "Pre-flight plus production API/Supabase audit; no executable CFD run, held-out PINN evaluation or clean reproduction evidence was found.",
+  "evaluated_at": "2026-09-17T01:33:00Z",
+  "basis": "Revalidation réelle OpenFOAM v2512, CoolProp et adaptateur : installation et chargement du solveur vérifiés, mais CFD-BASELINE arrêté au premier pas sur une incohérence T(P,H)/icoTabulated à 147.005 K hors fenêtre LH2.",
   "gates": {
-    "G0": {"status": "INCONCLUSIVE", "reason": "User approved the diphasic thresholds; solver-model compatibility and complete thermodynamic state-point review remain pending."},
-    "G1": {"status": "INCONCLUSIVE", "reason": "Independent parametric geometry and solver mesh checks are not executed."},
-    "G2": {"status": "INCONCLUSIVE", "reason": "OpenFOAM v2512 and reactingTwoPhaseEulerFoam are installed and verified, but the real baseline stops on a thermodynamic T(P,H) domain error before a converged run."},
-    "G3": {"status": "INCONCLUSIVE", "reason": "No independent CFD case has been executed or persisted for PILOT-LH2-001."},
-    "G4": {"status": "INCONCLUSIVE", "reason": "Leakage-closed PINN training has not been executed for this pilot."},
-    "G5": {"status": "INCONCLUSIVE", "reason": "Approved diphasic tolerances exist, but no held-out metrics exist and the production cfd_datasets query returned no LH2 records."},
-    "G6": {"status": "INCONCLUSIVE", "reason": "Clean reproduction has not been executed."}
+    "G0": {"status": "INCONCLUSIVE", "reason": "Le contrat thermo diphasique est documenté mais la cohérence OpenFOAM sensibleEnthalpy avec T(P,H) reste à corriger."},
+    "G1": {"status": "INCONCLUSIVE", "reason": "blockMesh passe, mais la validation scientifique du cas complet n'est pas établie."},
+    "G2": {"status": "INCONCLUSIVE", "reason": "OpenFOAM 2512, reactingTwoPhaseEulerFoam, CoolProp et l'adaptateur sont vérifiés ; le baseline ne converge pas."},
+    "G3": {"status": "INCONCLUSIVE", "reason": "Aucun contrat physique CFD complet avec résidus et bilan énergie validés n'est persisté."},
+    "G4": {"status": "INCONCLUSIVE", "reason": "CFD-INDEPENDENT et l'entraînement V8 sont volontairement non lancés avant convergence du baseline."},
+    "G5": {"status": "INCONCLUSIVE", "reason": "Aucune comparaison indépendante held-out n'est recevable sans baseline convergé."},
+    "G6": {"status": "INCONCLUSIVE", "reason": "La reproduction propre complète est bloquée par l'incohérence thermo."}
   },
   "prohibited_interpretations": [
-    "Do not call this result PASS.",
-    "Do not call this result experimental validation.",
-    "Do not publish a credibility score or certification level.",
-    "Do not infer boil-off or two-phase behavior from this monophasic architecture."
+    "Ne pas appeler ce résultat PASS ou CONCLUSIVE.",
+    "Ne pas appeler ce résultat une validation expérimentale.",
+    "Ne pas publier de score de crédibilité ou de certification.",
+    "Ne pas inférer un comportement boil-off ou diphasique validé à partir de ce run arrêté."
   ]
 }

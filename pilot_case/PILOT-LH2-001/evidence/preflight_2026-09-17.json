@@ -1,0 +1,70 @@
+{
+  "schema": "quantum-lh2-preflight.v1",
+  "pilotId": "PILOT-LH2-001",
+  "evaluatedAt": "2026-09-17T01:17:07.476383+00:00",
+  "status": "BLOCKED",
+  "checks": [
+    {
+      "check": "required:pilot_case/PILOT-LH2-001/MANIFEST.json",
+      "pass": true,
+      "value": "/home/ubuntu/work/quantum/pilot_case/PILOT-LH2-001/MANIFEST.json"
+    },
+    {
+      "check": "required:pilot_case/PILOT-LH2-001/acceptance_criteria.yaml",
+      "pass": true,
+      "value": "/home/ubuntu/work/quantum/pilot_case/PILOT-LH2-001/acceptance_criteria.yaml"
+    },
+    {
+      "check": "required:pilot_case/PILOT-LH2-001/sources.yaml",
+      "pass": true,
+      "value": "/home/ubuntu/work/quantum/pilot_case/PILOT-LH2-001/sources.yaml"
+    },
+    {
+      "check": "required:pilot_case/PILOT-LH2-001/cases/CFD-BASELINE/Allrun",
+      "pass": true,
+      "value": "/home/ubuntu/work/quantum/pilot_case/PILOT-LH2-001/cases/CFD-BASELINE/Allrun"
+    },
+    {
+      "check": "required:pilot_case/PILOT-LH2-001/cases/CFD-INDEPENDENT/Allrun",
+      "pass": true,
+      "value": "/home/ubuntu/work/quantum/pilot_case/PILOT-LH2-001/cases/CFD-INDEPENDENT/Allrun"
+    },
+    {
+      "check": "manifest.case_status_not_validated",
+      "pass": false,
+      "value": "INCONCLUSIVE_SOLVER_STABILITY"
+    },
+    {
+      "check": "baseline_independent_are_distinct",
+      "pass": true,
+      "value": true
+    },
+    {
+      "check": "evaluation_hidden_during_training",
+      "pass": true,
+      "value": true
+    },
+    {
+      "check": "openfoam_runner_available",
+      "pass": true,
+      "value": {
+        "wmProjectDir": "/usr/lib/openfoam/openfoam2512",
+        "executables": {
+          "foamRun": null,
+          "reactingTwoPhaseEulerFoam": "/usr/lib/openfoam/openfoam2512/platforms/linux64GccDPInt32Opt/bin/reactingTwoPhaseEulerFoam"
+        },
+        "available": true,
+        "version": "\nUsage: reactingTwoPhaseEulerFoam [OPTIONS]\nOptions:\n  -case <dir>       Case directory (instead of current directory)\n  -decomposeParDict <file>\n                    Alternative decomposePar dictionary file\n  -dry-run          Check case set-up only using a single time step\n  -dry-run-write    Check case set-up and write only using a single time step\n  -parallel         Run in parallel\n  -postProcess      Execute functionObjects only\n  -doc              Display documentation in browser\n  -help  "
+      }
+    }
+  ],
+  "artifactHashes": {
+    "pilot_case/PILOT-LH2-001/MANIFEST.json": "81b7ef7b69f69661eaa4112f038f5687c9b3f7ad4384848f1b1da81570fe435b",
+    "pilot_case/PILOT-LH2-001/acceptance_criteria.yaml": "a66d2fd8d2b514a16e475d8f28ff034e08966316031cd3d8d33bb738fe6541c3",
+    "pilot_case/PILOT-LH2-001/sources.yaml": "a02575c471c10345024af99b9bee4a9af910b3d84507a4a1f70aece5630d7da7",
+    "pilot_case/PILOT-LH2-001/cases/CFD-BASELINE/Allrun": "c3d274716ec0c5e26ddef8a47217f07a889b8f65fc11e56b32760aa1724acf78",
+    "pilot_case/PILOT-LH2-001/cases/CFD-INDEPENDENT/Allrun": "c3d274716ec0c5e26ddef8a47217f07a889b8f65fc11e56b32760aa1724acf78"
+  },
+  "scientificDecision": "INCONCLUSIVE",
+  "prohibitedInterpretation": "Preflight success is not CFD convergence, G3, G4, G5 or experimental validation."
+}
