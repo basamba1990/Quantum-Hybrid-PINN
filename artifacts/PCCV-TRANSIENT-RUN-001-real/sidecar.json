@@ -4,21 +4,13 @@
   "coordinateSystem": "cartesian-right-handed",
   "lengthUnit": "m",
   "fieldDescriptors": {
-    "temperature": {
-      "unit": "K",
-      "quantity": "temperature"
-    },
-    "pressure": {
+    "p": {
       "unit": "Pa",
       "quantity": "pressure"
     },
-    "velocity": {
+    "U": {
       "unit": "m/s",
       "quantity": "velocity"
-    },
-    "region_id": {
-      "unit": "1",
-      "quantity": "cell region identifier"
     }
   },
   "boundarySets": [
@@ -54,7 +46,7 @@
     "note": "Real OpenFOAM transient solution on reconstructed closed geometry; not a diphasic LH2 validation."
   },
   "residuals": {
-    "mass": 1.548671248e-20,
+    "mass": 1.548671248E-20,
     "momentum": "SEE residual_history.csv",
     "energy": null,
     "norm": "OPENFOAM_FINAL_RESIDUALS",
@@ -80,49 +72,49 @@
   "frames": [
     {
       "frameId": "PCCV-TRANSIENT-RUN-001-0000",
-      "time": 0.0,
+      "time": 0.001,
       "file": "frame_0000.vtu",
       "payloadHash": "0fd866eeffd9d606469191c4ffb8d89ec8867dcb5d38ba64154afdf03fa32954"
     },
     {
       "frameId": "PCCV-TRANSIENT-RUN-001-0001",
-      "time": 1.0,
+      "time": 0.002,
       "file": "frame_0001.vtu",
       "payloadHash": "b508e8eb3cf7732e67ef93fdf0bbb7e0e1c81acdc6669df44712b04b0669aeed"
     },
     {
       "frameId": "PCCV-TRANSIENT-RUN-001-0002",
-      "time": 2.0,
+      "time": 0.003,
       "file": "frame_0002.vtu",
       "payloadHash": "04f3ddfe905ec9428fb69f511528aac5a1ca58ce22b8b24aed9ad272a0871314"
     },
     {
       "frameId": "PCCV-TRANSIENT-RUN-001-0003",
-      "time": 3.0,
+      "time": 0.004,
       "file": "frame_0003.vtu",
       "payloadHash": "712ff9f2c322ced732509a5e27f00f1e7ef74f91f29dd970ffe09484a12d41ef"
     },
     {
       "frameId": "PCCV-TRANSIENT-RUN-001-0004",
-      "time": 4.0,
+      "time": 0.005,
       "file": "frame_0004.vtu",
       "payloadHash": "e696bb72670451a826957cf385162c0aae3f1ff593c6be70713038231b18794f"
     },
     {
       "frameId": "PCCV-TRANSIENT-RUN-001-0005",
-      "time": 5.0,
+      "time": 0.006,
       "file": "frame_0005.vtu",
       "payloadHash": "1fe6d2fe693cf17a27c88938c3f311f3f1ff491677ca3ffa207066d2ce03381e"
     },
     {
       "frameId": "PCCV-TRANSIENT-RUN-001-0006",
-      "time": 6.0,
+      "time": 0.007,
       "file": "frame_0006.vtu",
       "payloadHash": "cb7b1cb47238a3bab20269ae5a84ea8b761e3f1b640549cbf9a6aac8944226e3"
     },
     {
       "frameId": "PCCV-TRANSIENT-RUN-001-0007",
-      "time": 7.0,
+      "time": 0.008,
       "file": "frame_0007.vtu",
       "payloadHash": "19192784d83085beed42a0a26218b9fae424ad4e6ed38bb5b7e260533e1fdec4"
     }
@@ -134,9 +126,9 @@
     "meshSha256": "0fd866eeffd9d606469191c4ffb8d89ec8867dcb5d38ba64154afdf03fa32954"
   },
   "executionEvidence": {
-    "runLog": "logs/22_pimpleFoam_run001.log",
+    "runLog": "logs_22_pimpleFoam_run001.log",
     "runLogHash": "bbd96e1c21e9599e847ab365819e88c08a1f3f5aaaa9a21e27c6f8ecc6dd2738",
-    "meshCheckLog": "logs/18_checkMesh_final.log",
+    "meshCheckLog": "logs_18_checkMesh_final.log",
     "meshCheckLogHash": "aec4ee8316c28043b64004f76ca1ed7f598fe048fb0f728e204bfe48d7ed2b38",
     "status": "COMPLETED"
   }
