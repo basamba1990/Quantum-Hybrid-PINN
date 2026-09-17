@@ -1,0 +1,59 @@
+{
+  "runId": "PCCV-TRANSIENT-RUN-001",
+  "solver": "pimpleFoam",
+  "solverVersion": "OpenFOAM v2512",
+  "geometry": "lh2_reconstructed.stl",
+  "geometryStatus": "RECONSTRUCTED_PARAMETERIZED_NOT_AUTHOR_OFFICIAL",
+  "physics": "incompressible Newtonian laminar Stokes",
+  "frameCount": 8,
+  "frames": [
+    {
+      "frameId": "PCCV-TRANSIENT-RUN-001-0000",
+      "time": 0.001,
+      "file": "frame_0000.vtu",
+      "sha256": "0fd866eeffd9d606469191c4ffb8d89ec8867dcb5d38ba64154afdf03fa32954"
+    },
+    {
+      "frameId": "PCCV-TRANSIENT-RUN-001-0001",
+      "time": 0.002,
+      "file": "frame_0001.vtu",
+      "sha256": "b508e8eb3cf7732e67ef93fdf0bbb7e0e1c81acdc6669df44712b04b0669aeed"
+    },
+    {
+      "frameId": "PCCV-TRANSIENT-RUN-001-0002",
+      "time": 0.003,
+      "file": "frame_0002.vtu",
+      "sha256": "04f3ddfe905ec9428fb69f511528aac5a1ca58ce22b8b24aed9ad272a0871314"
+    },
+    {
+      "frameId": "PCCV-TRANSIENT-RUN-001-0003",
+      "time": 0.004,
+      "file": "frame_0003.vtu",
+      "sha256": "712ff9f2c322ced732509a5e27f00f1e7ef74f91f29dd970ffe09484a12d41ef"
+    },
+    {
+      "frameId": "PCCV-TRANSIENT-RUN-001-0004",
+      "time": 0.005,
+      "file": "frame_0004.vtu",
+      "sha256": "e696bb72670451a826957cf385162c0aae3f1ff593c6be70713038231b18794f"
+    },
+    {
+      "frameId": "PCCV-TRANSIENT-RUN-001-0005",
+      "time": 0.006,
+      "file": "frame_0005.vtu",
+      "sha256": "1fe6d2fe693cf17a27c88938c3f311f3f1ff491677ca3ffa207066d2ce03381e"
+    },
+    {
+      "frameId": "PCCV-TRANSIENT-RUN-001-0006",
+      "time": 0.007,
+      "file": "frame_0006.vtu",
+      "sha256": "cb7b1cb47238a3bab20269ae5a84ea8b761e3f1b640549cbf9a6aac8944226e3"
+    },
+    {
+      "frameId": "PCCV-TRANSIENT-RUN-001-0007",
+      "time": 0.008,
+      "file": "frame_0007.vtu",
+      "sha256": "19192784d83085beed42a0a26218b9fae424ad4e6ed38bb5b7e260533e1fdec4"
+    }
+  ]
+}

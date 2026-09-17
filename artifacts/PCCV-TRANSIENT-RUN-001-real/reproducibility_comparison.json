@@ -1,0 +1,96 @@
+{
+  "frames": [
+    {
+      "frame": 0,
+      "same_points": true,
+      "same_cells": [
+        [
+          "hexahedron",
+          true
+        ]
+      ],
+      "max_abs_field_difference": 0.0
+    },
+    {
+      "frame": 1,
+      "same_points": true,
+      "same_cells": [
+        [
+          "hexahedron",
+          true
+        ]
+      ],
+      "max_abs_field_difference": 0.0
+    },
+    {
+      "frame": 2,
+      "same_points": true,
+      "same_cells": [
+        [
+          "hexahedron",
+          true
+        ]
+      ],
+      "max_abs_field_difference": 0.0
+    },
+    {
+      "frame": 3,
+      "same_points": true,
+      "same_cells": [
+        [
+          "hexahedron",
+          true
+        ]
+      ],
+      "max_abs_field_difference": 0.0
+    },
+    {
+      "frame": 4,
+      "same_points": true,
+      "same_cells": [
+        [
+          "hexahedron",
+          true
+        ]
+      ],
+      "max_abs_field_difference": 0.0
+    },
+    {
+      "frame": 5,
+      "same_points": true,
+      "same_cells": [
+        [
+          "hexahedron",
+          true
+        ]
+      ],
+      "max_abs_field_difference": 0.0
+    },
+    {
+      "frame": 6,
+      "same_points": true,
+      "same_cells": [
+        [
+          "hexahedron",
+          true
+        ]
+      ],
+      "max_abs_field_difference": 0.0
+    },
+    {
+      "frame": 7,
+      "same_points": true,
+      "same_cells": [
+        [
+          "hexahedron",
+          true
+        ]
+      ],
+      "max_abs_field_difference": 0.0
+    }
+  ],
+  "all_topology_equal": true,
+  "max_abs_field_difference": 0.0,
+  "binary_hashes_equal": false,
+  "note": "Binary VTU hashes differ because foamToVTK serialization embeds run-specific metadata; numerical content is compared separately."
+}

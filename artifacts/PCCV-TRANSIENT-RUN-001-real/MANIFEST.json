@@ -1,0 +1,115 @@
+{
+  "kitId": "PCCV-TRANSIENT-RUN-001",
+  "status": "REPRODUCIBLE_REAL_OPENFOAM_RUN_NOT_LH2_VALIDATED",
+  "solver": {
+    "name": "pimpleFoam",
+    "version": "OpenFOAM v2512"
+  },
+  "physics": "incompressible Newtonian laminar Stokes",
+  "geometryStatus": "RECONSTRUCTED_PARAMETERIZED_NOT_AUTHOR_OFFICIAL",
+  "frames": 8,
+  "times_s": [
+    0.001,
+    0.002,
+    0.003,
+    0.004,
+    0.005,
+    0.006,
+    0.007,
+    0.008
+  ],
+  "independentRun": "PCCV-TRANSIENT-RUN-002",
+  "independentComparison": "runs/PCCV-TRANSIENT-RUN-002/reproducibility_comparison.json",
+  "files": [
+    {
+      "file": "README_RUN.md",
+      "sha256": "508478f130fc03ab21d62cbfcbe1094664f2b680f277b7b9442fefc5126cc6c4",
+      "bytes": 353
+    },
+    {
+      "file": "balance_history.csv",
+      "sha256": "532846209ea2916c2dee23081749b3b6498708ef3839f65bf16fde72425cda02",
+      "bytes": 9825
+    },
+    {
+      "file": "frames/frame_0000.vtu",
+      "sha256": "0fd866eeffd9d606469191c4ffb8d89ec8867dcb5d38ba64154afdf03fa32954",
+      "bytes": 2586274
+    },
+    {
+      "file": "frames/frame_0001.vtu",
+      "sha256": "b508e8eb3cf7732e67ef93fdf0bbb7e0e1c81acdc6669df44712b04b0669aeed",
+      "bytes": 2586275
+    },
+    {
+      "file": "frames/frame_0002.vtu",
+      "sha256": "04f3ddfe905ec9428fb69f511528aac5a1ca58ce22b8b24aed9ad272a0871314",
+      "bytes": 2586275
+    },
+    {
+      "file": "frames/frame_0003.vtu",
+      "sha256": "712ff9f2c322ced732509a5e27f00f1e7ef74f91f29dd970ffe09484a12d41ef",
+      "bytes": 2586275
+    },
+    {
+      "file": "frames/frame_0004.vtu",
+      "sha256": "e696bb72670451a826957cf385162c0aae3f1ff593c6be70713038231b18794f",
+      "bytes": 2586275
+    },
+    {
+      "file": "frames/frame_0005.vtu",
+      "sha256": "1fe6d2fe693cf17a27c88938c3f311f3f1ff491677ca3ffa207066d2ce03381e",
+      "bytes": 2586275
+    },
+    {
+      "file": "frames/frame_0006.vtu",
+      "sha256": "cb7b1cb47238a3bab20269ae5a84ea8b761e3f1b640549cbf9a6aac8944226e3",
+      "bytes": 2586275
+    },
+    {
+      "file": "frames/frame_0007.vtu",
+      "sha256": "19192784d83085beed42a0a26218b9fae424ad4e6ed38bb5b7e260533e1fdec4",
+      "bytes": 2586275
+    },
+    {
+      "file": "geometry_reconstructed.stl",
+      "sha256": "964fb030b97b2730c0732c89bb88705ace8d22e7011cfaede67ad6f7e0c78470",
+      "bytes": 266224
+    },
+    {
+      "file": "logs_06_surfaceCheck_fixed.log",
+      "sha256": "76f3682c0553c90f7216344559767bf13ffda583931edc8ce26579d2812c3ae9",
+      "bytes": 2922
+    },
+    {
+      "file": "logs_16_blockMesh_final.log",
+      "sha256": "72067e5b1fa8d77b7efa8c6cc5b4db5e6a63a664718b7f161ca7f671a13a1e43",
+      "bytes": 2801
+    },
+    {
+      "file": "logs_17_snappyHexMesh_final.log",
+      "sha256": "2d9730078797b174c6e3e9373363d9aef4e5bd8752b68605f2d034642dc32bc7",
+      "bytes": 1698
+    },
+    {
+      "file": "logs_18_checkMesh_final.log",
+      "sha256": "aec4ee8316c28043b64004f76ca1ed7f598fe048fb0f728e204bfe48d7ed2b38",
+      "bytes": 4413
+    },
+    {
+      "file": "logs_22_pimpleFoam_run001.log",
+      "sha256": "bbd96e1c21e9599e847ab365819e88c08a1f3f5aaaa9a21e27c6f8ecc6dd2738",
+      "bytes": 78902
+    },
+    {
+      "file": "residual_history.csv",
+      "sha256": "b92a4877d739a0b9d17b529bc53993124f602335ef9823337b049813181875e5",
+      "bytes": 19583
+    },
+    {
+      "file": "sidecar.json",
+      "sha256": "0a91cc397ee176de80a3f18fc44998ffb4d21765be4f85dec4516f759f0b25bf",
+      "bytes": 4273
+    }
+  ]
+}

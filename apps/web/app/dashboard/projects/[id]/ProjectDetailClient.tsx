@@ -50,7 +50,7 @@ export default function ProjectDetailClient({ id, project }: any) {
   )
   const previewArtifact = /PCCV|TRANSIENT[_ -]?THERMO/i.test(
     [project?.scenario_type, project?.category, project?.name, project?.title].filter(Boolean).join(' '),
-  ) ? 'pccv-valve-preview' : 'lh2-tank-preview'
+  ) ? 'pccv-transient-run-001-real' : 'lh2-tank-preview'
 
   // --- MODES DE DÉMONSTRATION (POUR LA SOUTENANCE) ---
   const [chaosMode, setChaosMode] = useState(false)

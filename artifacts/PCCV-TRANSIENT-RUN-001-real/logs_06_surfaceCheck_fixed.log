@@ -1,0 +1,84 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2512                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _bd2b6720-20260127 OPENFOAM=2512 version=2512
+Arch   : "LSB;label=32;scalar=64"
+Exec   : surfaceCheck constant/triSurface/lh2_reconstructed.stl
+Date   : Sep 17 2026
+Time   : 09:09:55
+Host   : 0f5379ece420
+PID    : 6820
+I/O    : uncollated
+Case   : /tmp/Quantum-Hybrid-PINN/runs/PCCV-TRANSIENT-RUN-001
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+memory pool : not available
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Reading surface from "constant/triSurface/lh2_reconstructed.stl" ...
+
+Statistics:
+Triangles    : 1152 in 1 region(s)
+Vertices     : 578
+Bounding Box : (-0.193 -0.193 -0.10145) (0.193 0.193 0.620452)
+
+Index	Region	Size
+-----	------	----
+0	lh2_reconstructed	1152
+
+
+Surface has no illegal triangles.
+
+Triangle quality (equilateral=1, collapsed=0):
+    0 .. 0.05  : 0.166667
+    0.05 .. 0.1  : 0.166667
+    0.1 .. 0.15  : 0
+    0.15 .. 0.2  : 0
+    0.2 .. 0.25  : 0.166667
+    0.25 .. 0.3  : 0.166667
+    0.3 .. 0.35  : 0
+    0.35 .. 0.4  : 0
+    0.4 .. 0.45  : 0
+    0.45 .. 0.5  : 0
+    0.5 .. 0.55  : 0.333333
+    0.55 .. 0.6  : 0
+    0.6 .. 0.65  : 0
+    0.65 .. 0.7  : 0
+    0.7 .. 0.75  : 0
+    0.75 .. 0.8  : 0
+    0.8 .. 0.85  : 0
+    0.85 .. 0.9  : 0
+    0.9 .. 0.95  : 0
+    0.95 .. 1  : 0
+
+    min 0.0353928 for triangle 487
+    max 0.538474 for triangle 707
+
+Edges:
+    min 0.00909328 for edge 18 points (0.115541 0.077202 -0.073044)(0.120343 0.06948 -0.073044)
+    max 0.549245 for edge 787 points (0.173096 0.0853617 0.5491)(0.178309 0.0738579 0)
+
+Checking for points less than 1e-6 of bounding box ((0.386 0.386 0.721902) metre) apart.
+Found 0 nearby points.
+
+Surface is closed. All edges connected to two faces.
+
+Number of unconnected parts : 1
+
+Number of zones (connected area with consistent normal) : 3
+More than one normal orientation.
+Wrote zoning to "constant/triSurface/lh2_reconstructed.vtp"
+
+writing part 0 size 96 to "constant/triSurface/lh2_reconstructed_normal_0.obj"
+writing part 1 size 960 to "constant/triSurface/lh2_reconstructed_normal_1.obj"
+writing part 2 size 96 to "constant/triSurface/lh2_reconstructed_normal_2.obj"
+
+
+End
+
