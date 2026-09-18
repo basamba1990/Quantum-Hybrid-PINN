@@ -1,0 +1,12 @@
+SetFactory("OpenCASCADE");
+Mesh.CharacteristicLengthMin = 0.004;
+Mesh.CharacteristicLengthMax = 0.012;
+body = newv; Sphere(body) = {0,0,0,0.04};
+px = newv; Cylinder(px) = {0,0,0,0.3,0,0,0.01};
+nx = newv; Cylinder(nx) = {0,0,0,-0.3,0,0,0.01};
+py = newv; Cylinder(py) = {0,0,0,0,0.3,0,0.01};
+ny = newv; Cylinder(ny) = {0,0,0,0,-0.3,0,0.01};
+pz = newv; Cylinder(pz) = {0,0,0,0,0,0.3,0.01};
+BooleanUnion(100) = { Volume{body}; Delete; }{ Volume{px,nx,py,ny,pz}; Delete; };
+Mesh 2;
+Save "/home/ubuntu/Quantum-Hybrid-PINN/pilot_case/PILOT-PCCV-TRANSIENT-001/analytic_geometry/geometry.stl";

@@ -1,0 +1,10 @@
+{
+  "runId": "PCCV-TRANSIENT-RUN-001",
+  "independentRunDirectory": "/tmp/PCCV-TRANSIENT-RUN-001-independent",
+  "independentSolverCompleted": true,
+  "mainSolverLogSha256": "e98ceaf75c69457bb0cdb85abbfa92f4ec7cb6c6383f3ff109e612fd226cd802",
+  "independentSolverLogSha256": "4a408bfa7251f3cdb9a67db568c63ac8c712b248160172adea5b72a995498a19",
+  "normalizedSolverTraceMatch": true,
+  "independentOpenFOAMVersion": "2512",
+  "note": "Independent clean-directory rerun from the same committed case and geometry; runtime-only log metadata is excluded from normalized comparison."
+}

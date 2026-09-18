@@ -1,0 +1,133 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2512                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _bd2b6720-20260127 OPENFOAM=2512 version=2512
+Arch   : "LSB;label=32;scalar=64"
+Exec   : foamToVTK -ascii -time 0:0.07 -fields (p U)
+Date   : Sep 18 2026
+Time   : 01:35:56
+Host   : 4418d3f36382
+PID    : 11250
+I/O    : uncollated
+Case   : /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/PILOT-PCCV-TRANSIENT-001/openfoam_reconstructed
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+memory pool : not available
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Including fields (p U)
+
+Create time
+
+Initial memory 125132 kB
+Create mesh for time = 0
+
+VTK mesh topology: 0.59 s, 165172 kB
+Time: 0
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/openfoam_reconstructed_0/internal.vtu"
+    Boundary  : "VTK/openfoam_reconstructed_0/boundary/inlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_0/boundary/outlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_0/boundary/sideWalls.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_0/boundary/front.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_0/boundary/back.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_0/boundary/pccvWall.vtp"
+Wrote in 0.84 s, 211744 kB
+Time: 0.000000
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/openfoam_reconstructed_1/internal.vtu"
+    Boundary  : "VTK/openfoam_reconstructed_1/boundary/inlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_1/boundary/outlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_1/boundary/sideWalls.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_1/boundary/front.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_1/boundary/back.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_1/boundary/pccvWall.vtp"
+Wrote in 0.51 s, 212324 kB
+Time: 0.010000
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/openfoam_reconstructed_10/internal.vtu"
+    Boundary  : "VTK/openfoam_reconstructed_10/boundary/inlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_10/boundary/outlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_10/boundary/sideWalls.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_10/boundary/front.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_10/boundary/back.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_10/boundary/pccvWall.vtp"
+Wrote in 0.83 s, 216312 kB
+Time: 0.020000
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/openfoam_reconstructed_20/internal.vtu"
+    Boundary  : "VTK/openfoam_reconstructed_20/boundary/inlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_20/boundary/outlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_20/boundary/sideWalls.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_20/boundary/front.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_20/boundary/back.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_20/boundary/pccvWall.vtp"
+Wrote in 0.83 s, 216312 kB
+Time: 0.030000
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/openfoam_reconstructed_30/internal.vtu"
+    Boundary  : "VTK/openfoam_reconstructed_30/boundary/inlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_30/boundary/outlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_30/boundary/sideWalls.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_30/boundary/front.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_30/boundary/back.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_30/boundary/pccvWall.vtp"
+Wrote in 0.82 s, 216312 kB
+Time: 0.040000
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/openfoam_reconstructed_40/internal.vtu"
+    Boundary  : "VTK/openfoam_reconstructed_40/boundary/inlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_40/boundary/outlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_40/boundary/sideWalls.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_40/boundary/front.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_40/boundary/back.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_40/boundary/pccvWall.vtp"
+Wrote in 0.92 s, 216312 kB
+Time: 0.050000
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/openfoam_reconstructed_50/internal.vtu"
+    Boundary  : "VTK/openfoam_reconstructed_50/boundary/inlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_50/boundary/outlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_50/boundary/sideWalls.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_50/boundary/front.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_50/boundary/back.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_50/boundary/pccvWall.vtp"
+Wrote in 0.85 s, 216312 kB
+Time: 0.060000
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/openfoam_reconstructed_60/internal.vtu"
+    Boundary  : "VTK/openfoam_reconstructed_60/boundary/inlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_60/boundary/outlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_60/boundary/sideWalls.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_60/boundary/front.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_60/boundary/back.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_60/boundary/pccvWall.vtp"
+Wrote in 1.05 s, 216312 kB
+Time: 0.070000
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/openfoam_reconstructed_70/internal.vtu"
+    Boundary  : "VTK/openfoam_reconstructed_70/boundary/inlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_70/boundary/outlet.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_70/boundary/sideWalls.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_70/boundary/front.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_70/boundary/back.vtp"
+    Boundary  : "VTK/openfoam_reconstructed_70/boundary/pccvWall.vtp"
+Wrote in 0.77 s, 216312 kB
+
+End: 8.01 s, 219112 kB (peak)
+

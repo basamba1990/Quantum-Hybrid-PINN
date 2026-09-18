@@ -1,0 +1,84 @@
+{
+  "schema": "pccv-transient-run.v1",
+  "runId": "PCCV-TRANSIENT-RUN-001",
+  "solverCompleted": true,
+  "timeStepSeconds": 0.001,
+  "frameTimesSeconds": [
+    0.0,
+    0.01,
+    0.02,
+    0.03,
+    0.04,
+    0.05,
+    0.06,
+    0.07
+  ],
+  "boundarySets": [
+    {
+      "name": "inlet",
+      "type": "patch"
+    },
+    {
+      "name": "outlet",
+      "type": "patch"
+    },
+    {
+      "name": "sideWalls",
+      "type": "patch"
+    },
+    {
+      "name": "front",
+      "type": "patch"
+    },
+    {
+      "name": "back",
+      "type": "patch"
+    },
+    {
+      "name": "pccvWall",
+      "type": "patch"
+    }
+  ],
+  "provenance": {
+    "solver": "OpenFOAM",
+    "solverVersion": "2512",
+    "application": "pimpleFoam",
+    "sourceUri": "https://www.mdpi.com/2076-0825/13/3/110",
+    "calculationId": "PCCV-TRANSIENT-RUN-001",
+    "generatedAt": "2026-09-18T01:37:05.556011+00:00",
+    "geometryStatus": "RECONSTRUCTED_PARAMETERIZED_NOT_AUTHOR_OFFICIAL"
+  },
+  "finalResiduals": {
+    "norm": "L2",
+    "maxLinearResidual": 9.84151127537e-09,
+    "finalContinuityCumulative": -8.69161411931e-08
+  },
+  "residualNorm": "L2",
+  "boundaryConditions": {
+    "inletVelocity_m_per_s": [
+      1,
+      0,
+      0
+    ],
+    "outletPressure_Pa": 0,
+    "fluid": "incompressible Newtonian laminar"
+  },
+  "references": [
+    {
+      "uri": "https://www.mdpi.com/2076-0825/13/3/110",
+      "role": "descriptive source only; not exact CAD or numerical reproduction"
+    }
+  ],
+  "referenceComparisonAvailable": false,
+  "independentReproductionCompleted": true,
+  "independentReproduction": {
+    "runId": "PCCV-TRANSIENT-RUN-001",
+    "independentRunDirectory": "/tmp/PCCV-TRANSIENT-RUN-001-independent",
+    "independentSolverCompleted": true,
+    "mainSolverLogSha256": "e98ceaf75c69457bb0cdb85abbfa92f4ec7cb6c6383f3ff109e612fd226cd802",
+    "independentSolverLogSha256": "4a408bfa7251f3cdb9a67db568c63ac8c712b248160172adea5b72a995498a19",
+    "normalizedSolverTraceMatch": true,
+    "independentOpenFOAMVersion": "2512",
+    "note": "Independent clean-directory rerun from the same committed case and geometry; runtime-only log metadata is excluded from normalized comparison."
+  }
+}
