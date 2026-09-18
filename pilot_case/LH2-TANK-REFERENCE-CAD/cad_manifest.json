@@ -1,0 +1,31 @@
+{
+  "cadId": "LH2-TANK-REFERENCE-CAD-50L-V1",
+  "status": "PARAMETRIC_RECONSTRUCTION_NOT_AUTHOR_INDUSTRIAL_CAD",
+  "solidWorksImport": "STEP AP214/AP242-compatible neutral solids; native SLDPRT not generated",
+  "source": "Jeong et al., Fluids 2023, 8, 239",
+  "publishedDimensions_m": {
+    "innerDiameter": 0.386,
+    "totalHeight": 0.45,
+    "bottomDomeHeight": 0.0991,
+    "topDomeHeight": 0.10145,
+    "aluminiumWallThickness": 0.003
+  },
+  "insulationThicknesses_m": [
+    0.01,
+    0.02,
+    0.03
+  ],
+  "assumptions": [
+    "Both dome profiles reconstructed as spherical caps through the published equator radius and dome heights.",
+    "The article does not publish the author CAD feature tree, exact dome profile, ports, supports, welds, or manufacturing tolerances.",
+    "The STEP files are neutral reconstruction solids for CAD/meshing, not author CAD."
+  ],
+  "files": [
+    "LH2_tank_aluminium_62219_wall.step",
+    "LH2_tank_aluminium_62219_wall.stl",
+    "LH2_tank_polyurethane_insulation_10mm.step",
+    "LH2_tank_polyurethane_insulation_20mm.step",
+    "LH2_tank_polyurethane_insulation_30mm.step"
+  ],
+  "fireAvailable": false
+}
