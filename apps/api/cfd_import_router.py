@@ -860,9 +860,13 @@ def get_latest_cfd_dataset_for_project(
         "analysisId": row["analysis_id"],
         "projectId": row["project_id"],
         "status": row["status"],
-        "dataset": _load_dataset(row),
+        # Return the persisted summary here. The expanded gzip contract is
+        # intentionally lazy: loading it during page hydration can exceed
+        # Render Free's memory limit before the viewer actually requests it.
+        "dataset": row.get("dataset") or {},
         "artifactManifest": row["artifact_manifest"],
         "createdAt": row.get("created_at"),
+        "datasetDeferred": bool((row.get("artifact_manifest") or {}).get("datasetPath")),
     }
 
 
@@ -919,4 +923,10 @@ def get_cfd_dataset(analysis_id: str, _auth: None = Depends(require_cfd_import_a
     if not response.data:
         raise HTTPException(status_code=404, detail="Dataset CFD absent.")
     row = response.data[0]
-    return {"analysisId": analysis_id, "status": row["status"], "dataset": _load_dataset(row), "artifactManifest": row["artifact_manifest"]}
+    return {
+        "analysisId": analysis_id,
+        "status": row["status"],
+        "dataset": row.get("dataset") or {},
+        "artifactManifest": row["artifact_manifest"],
+        "datasetDeferred": bool((row.get("artifact_manifest") or {}).get("datasetPath")),
+    }
