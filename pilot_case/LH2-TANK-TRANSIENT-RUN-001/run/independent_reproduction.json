@@ -1,0 +1,14 @@
+{
+  "runId": "LH2-TANK-TRANSIENT-RUN-001",
+  "mainSolverLogSha256": "d630fc722250feadd95a2478071b342b65a1db86568707048a4cc6a3e5869e2d",
+  "independentSolverLogSha256": "2b7be26ed7096f3eafebeb8effab71f861c95aa08ab55d96d56b4c96c73876e6",
+  "mainResidualRows": 112,
+  "independentResidualRows": 112,
+  "mainBalanceRows": 32,
+  "independentBalanceRows": 32,
+  "maxAbsFinalResidualDifference": 0.0,
+  "maxAbsCumulativeContinuityDifference": 0.0,
+  "normalizedSolverTraceMatch": true,
+  "independentOpenFOAMVersion": "2512",
+  "note": "Independent clean-directory rerun from the same committed case and geometry; wall-clock metadata is excluded."
+}

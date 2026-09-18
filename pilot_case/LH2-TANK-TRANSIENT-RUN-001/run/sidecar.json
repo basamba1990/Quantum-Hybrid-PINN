@@ -1,0 +1,142 @@
+{
+  "contractVersion": "cfd-volume.v1",
+  "caseId": "LH2-TANK-TRANSIENT-RUN-001",
+  "meshRevision": "lh2-tank-analytic-snappy-v1",
+  "coordinateSystem": "cartesian-right-handed",
+  "lengthUnit": "m",
+  "fieldDescriptors": {
+    "pressure": {
+      "unit": "Pa",
+      "quantity": "pressure"
+    },
+    "temperature": {
+      "unit": "K",
+      "quantity": "temperature"
+    },
+    "velocity": {
+      "unit": "m/s",
+      "quantity": "velocity"
+    },
+    "density": {
+      "unit": "kg/m3",
+      "quantity": "density"
+    }
+  },
+  "boundarySets": [
+    {
+      "name": "tankWall",
+      "type": "wall"
+    }
+  ],
+  "provenance": {
+    "solver": "OpenFOAM",
+    "solverVersion": "2512",
+    "application": "pimpleFoam",
+    "calculationId": "LH2-TANK-TRANSIENT-RUN-001",
+    "geometryStatus": "RECONSTRUCTED_PARAMETERIZED_NOT_AUTHOR_CAD",
+    "source": "Jeong et al., Fluids 2023, 8, 239"
+  },
+  "residuals": {
+    "norm": "OpenFOAM final residuals",
+    "maxLinearResidual": 9.86758101754e-10,
+    "finalContinuityCumulative": -1.61573517839e-21,
+    "maxAbsContinuityGlobal": 5.27223943726e-22
+  },
+  "references": [
+    {
+      "uri": "https://doi.org/10.3390/fluids8090239",
+      "role": "geometry and descriptive source; not exact CAD or thermo-boiling reproduction"
+    }
+  ],
+  "frames": [
+    {
+      "frameId": "LH2-TANK-TRANSIENT-RUN-001-0000",
+      "time": 0.01,
+      "file": "frames/frame_0000.vtu",
+      "payloadHash": "8f3d2a099dfa50fa80dbc60a18799fc0c08a51a14ef8b8f85a3b49e40c33556f",
+      "sha256": "8f3d2a099dfa50fa80dbc60a18799fc0c08a51a14ef8b8f85a3b49e40c33556f"
+    },
+    {
+      "frameId": "LH2-TANK-TRANSIENT-RUN-001-0001",
+      "time": 0.02,
+      "file": "frames/frame_0001.vtu",
+      "payloadHash": "732286fc295128f49d03350578961c18289fbdb638280e234eb0e5446c40dee0",
+      "sha256": "732286fc295128f49d03350578961c18289fbdb638280e234eb0e5446c40dee0"
+    },
+    {
+      "frameId": "LH2-TANK-TRANSIENT-RUN-001-0002",
+      "time": 0.03,
+      "file": "frames/frame_0002.vtu",
+      "payloadHash": "3f9d9ce60c056ec51456f5376b8b7a42e4ebce33f4fcbf88a145751cad07bb0b",
+      "sha256": "3f9d9ce60c056ec51456f5376b8b7a42e4ebce33f4fcbf88a145751cad07bb0b"
+    },
+    {
+      "frameId": "LH2-TANK-TRANSIENT-RUN-001-0003",
+      "time": 0.04,
+      "file": "frames/frame_0003.vtu",
+      "payloadHash": "d2ab4267de5336118d840335f20c34bd945530ff2f5cc9cc64877307479724c1",
+      "sha256": "d2ab4267de5336118d840335f20c34bd945530ff2f5cc9cc64877307479724c1"
+    },
+    {
+      "frameId": "LH2-TANK-TRANSIENT-RUN-001-0004",
+      "time": 0.05,
+      "file": "frames/frame_0004.vtu",
+      "payloadHash": "cedfd507566a973e1b7c4de2731b1c064a5867545d1dc582a1c0ce32a23f0a0f",
+      "sha256": "cedfd507566a973e1b7c4de2731b1c064a5867545d1dc582a1c0ce32a23f0a0f"
+    },
+    {
+      "frameId": "LH2-TANK-TRANSIENT-RUN-001-0005",
+      "time": 0.06,
+      "file": "frames/frame_0005.vtu",
+      "payloadHash": "319d2f7d8142d511be59ed8b92ba1baf33102491ecf57741d949243522e7432e",
+      "sha256": "319d2f7d8142d511be59ed8b92ba1baf33102491ecf57741d949243522e7432e"
+    },
+    {
+      "frameId": "LH2-TANK-TRANSIENT-RUN-001-0006",
+      "time": 0.07,
+      "file": "frames/frame_0006.vtu",
+      "payloadHash": "d5d5d123dc4b8ba1407f4514436d40f1cdf15db2cb83601998a3407c53e0cc2e",
+      "sha256": "d5d5d123dc4b8ba1407f4514436d40f1cdf15db2cb83601998a3407c53e0cc2e"
+    },
+    {
+      "frameId": "LH2-TANK-TRANSIENT-RUN-001-0007",
+      "time": 0.08,
+      "file": "frames/frame_0007.vtu",
+      "payloadHash": "b781cdc7e55ac1eed73a0ea24b38ef57f40a44d1f3baae69012fc845f2958e1a",
+      "sha256": "b781cdc7e55ac1eed73a0ea24b38ef57f40a44d1f3baae69012fc845f2958e1a"
+    }
+  ],
+  "transientProof": {
+    "solverCaseHash": "e24b60064e87b7db9732e7c8f95cf292da57c58f4863ca523dd98ae11568fef5",
+    "runManifestHash": "d23eade36e034cd2195db0328af21fef140aff2da6385bf83591e94ba7dde9e7",
+    "residualHistoryHash": "c9e69a13ae75502618bd7374a9dd9c33d4f8f144cb88d09ebc227e7a0325d545",
+    "balanceHistoryHash": "cb901e7d0367fa93928581d3417ffb6dbb215dbd6c5353641a2345713e92ce62",
+    "exportManifestHash": "65982c7a1075fe33479e3e0cc169627ec6ec0d250c59334871d51e56be139c72",
+    "runLogHash": "d630fc722250feadd95a2478071b342b65a1db86568707048a4cc6a3e5869e2d",
+    "timeStepSeconds": 0.01,
+    "frameTimesSeconds": [
+      0.01,
+      0.02,
+      0.03,
+      0.04,
+      0.05,
+      0.06,
+      0.07,
+      0.08
+    ],
+    "residualNorm": "L2",
+    "solverCompleted": true,
+    "calculatedBy": "OpenFOAM"
+  },
+  "evidence": {
+    "meshGeometryAndTopology": true,
+    "fieldsAndUnits": true,
+    "namedBoundaries": true,
+    "solverProvenance": true,
+    "solverResiduals": true,
+    "referenceComparison": false,
+    "immutableHashes": true,
+    "calculatedTransientStates": true
+  },
+  "classification": "REAL_TRANSIENT_SOLVER_OUTPUT_REPRODUCED_ANALYTIC_GEOMETRY_NOT_AUTHOR_CAD"
+}

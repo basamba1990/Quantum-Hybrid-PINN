@@ -1,0 +1,29 @@
+FoamFile { version 2.0; format ascii; class dictionary; object snappyHexMeshDict; }
+castellatedMesh true;
+mergeTolerance 1e-6;
+snap true;
+addLayers false;
+geometry { lh2_tank_analytic.stl { type triSurfaceMesh; name tankWall; } }
+castellatedMeshControls { maxLocalCells 300000; maxGlobalCells 300000; minRefinementCells 10; nCellsBetweenLevels 2; resolveFeatureAngle 30; features (); refinementSurfaces { tankWall { level (2 2); patchInfo { type wall; } } } refinementRegions {} locationInMesh (0 0 0.225); allowFreeStandingZoneFaces true; }
+snapControls { nSmoothPatch 3; tolerance 2.0; nSolveIter 30; nRelaxIter 5; }
+addLayersControls
+{
+    relativeSizes true;
+    layers { }
+    expansionRatio 1.0;
+    finalLayerThickness 0.3;
+    minThickness 0.1;
+    nGrow 0;
+    featureAngle 60;
+    nRelaxIter 3;
+    nSmoothSurfaceNormals 1;
+    nSmoothNormals 3;
+    nSmoothThickness 10;
+    maxFaceThicknessRatio 0.5;
+    maxThicknessToMedialRatio 0.3;
+    minMedialAxisAngle 90;
+    nBufferCellsNoExtrude 0;
+    nLayerIter 50;
+    nRelaxedIter 20;
+}
+meshQualityControls { #include "meshQualityDict" errorReduction 0.75; nSmoothScale 4; }

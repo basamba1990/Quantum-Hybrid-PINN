@@ -1,0 +1,40 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2512                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _bd2b6720-20260127 OPENFOAM=2512 version=2512
+Arch   : "LSB;label=32;scalar=64"
+Exec   : snappyHexMesh -overwrite
+Date   : Sep 18 2026
+Time   : 11:05:51
+Host   : 0f5379ece420
+PID    : 6230
+I/O    : uncollated
+Case   : /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/LH2-TANK-TRANSIENT-RUN-001/case
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+memory pool : not available
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+Create mesh for time = 0.00
+
+Read mesh in = 0.07 s
+
+
+--> FOAM FATAL IO ERROR: (openfoam-2512)
+Entry 'mergeTolerance' not found in dictionary "/home/ubuntu/Quantum-Hybrid-PINN/pilot_case/LH2-TANK-TRANSIENT-RUN-001/case/system/snappyHexMeshDict"
+
+
+file: system/snappyHexMeshDict at line 2.
+
+    From bool Foam::dictionary::readEntry(const Foam::word&, T&, Foam::keyType::option, Foam::IOobjectOption::readOption) const [with T = double]
+    in file ./src/OpenFOAM/lnInclude/dictionaryTemplates.C at line 327.
+
+FOAM exiting

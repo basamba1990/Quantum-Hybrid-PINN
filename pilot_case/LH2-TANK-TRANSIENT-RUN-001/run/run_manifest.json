@@ -1,0 +1,69 @@
+{
+  "schema": "lh2-transient-run.v1",
+  "runId": "LH2-TANK-TRANSIENT-RUN-001",
+  "solverCompleted": true,
+  "solver": "pimpleFoam",
+  "solverVersion": "OpenFOAM v2512",
+  "timeStepSeconds": 0.01,
+  "frameTimesSeconds": [
+    0.01,
+    0.02,
+    0.03,
+    0.04,
+    0.05,
+    0.06,
+    0.07,
+    0.08
+  ],
+  "boundarySets": [
+    {
+      "name": "tankWall",
+      "type": "wall"
+    }
+  ],
+  "provenance": {
+    "solver": "OpenFOAM",
+    "solverVersion": "2512",
+    "application": "pimpleFoam",
+    "calculationId": "LH2-TANK-TRANSIENT-RUN-001",
+    "geometryStatus": "RECONSTRUCTED_PARAMETERIZED_NOT_AUTHOR_CAD",
+    "source": "Jeong et al., Fluids 2023, 8, 239"
+  },
+  "finalResiduals": {
+    "norm": "OpenFOAM final residuals",
+    "maxLinearResidual": 9.86758101754e-10,
+    "finalContinuityCumulative": -1.61573517839e-21,
+    "maxAbsContinuityGlobal": 5.27223943726e-22
+  },
+  "residualNorm": "L2",
+  "boundaryConditions": {
+    "model": "incompressible laminar Newtonian",
+    "initialVelocity_m_per_s": [
+      0.02,
+      0,
+      0
+    ]
+  },
+  "references": [
+    {
+      "uri": "https://doi.org/10.3390/fluids8090239",
+      "role": "geometry and descriptive source; not exact CAD or thermo-boiling reproduction"
+    }
+  ],
+  "referenceComparisonAvailable": false,
+  "independentReproductionCompleted": true,
+  "independentReproduction": {
+    "runId": "LH2-TANK-TRANSIENT-RUN-001",
+    "mainSolverLogSha256": "d630fc722250feadd95a2478071b342b65a1db86568707048a4cc6a3e5869e2d",
+    "independentSolverLogSha256": "2b7be26ed7096f3eafebeb8effab71f861c95aa08ab55d96d56b4c96c73876e6",
+    "mainResidualRows": 112,
+    "independentResidualRows": 112,
+    "mainBalanceRows": 32,
+    "independentBalanceRows": 32,
+    "maxAbsFinalResidualDifference": 0.0,
+    "maxAbsCumulativeContinuityDifference": 0.0,
+    "normalizedSolverTraceMatch": true,
+    "independentOpenFOAMVersion": "2512",
+    "note": "Independent clean-directory rerun from the same committed case and geometry; wall-clock metadata is excluded."
+  }
+}

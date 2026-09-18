@@ -1,0 +1,9 @@
+{
+  "geometryId": "LH2-TANK-ANALYTIC-50L-V1",
+  "source": "Jeong et al., Fluids 2023, 8, 239, attached PDF",
+  "status": "RECONSTRUCTED_PARAMETERIZED_NOT_AUTHOR_CAD",
+  "closedSolid": true,
+  "dimensions_m": {"innerDiameter": 0.386, "totalHeight": 0.450, "bottomDomeHeight": 0.0991, "topDomeHeight": 0.10145, "wallThickness": 0.003},
+  "assumptions": ["axisymmetric analytic surface", "straight cylindrical section between described dome heights", "single-phase incompressible pimpleFoam pipeline validation; not a thermo-boiling LH2 reproduction"],
+  "meshMethod": "blockMesh background plus snappyHexMesh surface refinement"
+}
