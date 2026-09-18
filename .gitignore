@@ -24,6 +24,7 @@ pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam
 !pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam/postProcessing/interfaceHeight1/
 !pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam/postProcessing/interfaceHeight1/1.36/
 !pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam/postProcessing/interfaceHeight1/1.36/height.dat
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam/postProcessing/interfaceHeight1/1.36/position.dat
 pilot_case/THERMO-VOF-STEFAN-VALIDATION/setups/
 pilot_case/THERMO-VOF-STEFAN-VALIDATION/setups.orig/
 pilot_case/THERMO-VOF-STEFAN-VALIDATION/resources/
