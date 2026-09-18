@@ -876,15 +876,36 @@ def get_cfd_gates(analysis_id: str, _auth: None = Depends(require_cfd_import_aut
     if not response.data:
         raise HTTPException(status_code=404, detail="Dataset CFD absent.")
     row = response.data[0]
-    full_dataset = _load_dataset(row)
     artifact_manifest = row.get("artifact_manifest") or {}
-    report = evaluate_cfd_gates(full_dataset, artifact_manifest)
+    # G0/G1/G2 only need the persisted contract summary and the artifact
+    # manifest. Do not decompress the potentially hundreds-of-megabytes
+    # dataset.json.gz before checking these gates: Render's free instance can
+    # otherwise be OOM-killed for a report that is already blocked by the
+    # sidecar's patch-only boundaries.
+    summary_dataset = row.get("dataset") or {}
+    report = evaluate_cfd_gates(summary_dataset, artifact_manifest)
+    summary_reasons = [
+        reason
+        for gate in report.get("gates", [])
+        if gate.get("gate") == report.get("blockingGate")
+        for reason in gate.get("reasons", [])
+    ]
+    summary_decides_without_full = (
+        report.get("blockingGate") in {"G0", "G2"}
+        or (
+            report.get("blockingGate") == "G1"
+            and any("patch only" in reason for reason in summary_reasons)
+        )
+    )
+    if not summary_decides_without_full:
+        full_dataset = _load_dataset(row)
+        report = evaluate_cfd_gates(full_dataset, artifact_manifest)
     report.update({
         "analysisId": analysis_id,
         "persistedStatus": row.get("status"),
-        "evaluationSource": "persisted_storage_contract" if artifact_manifest.get("datasetPath") else "persisted_dataset_column",
+        "evaluationSource": "persisted_dataset_summary" if summary_decides_without_full else "persisted_storage_contract",
         "datasetPath": artifact_manifest.get("datasetPath"),
-        "summaryUsedForGateEvaluation": not bool(artifact_manifest.get("datasetPath")),
+        "summaryUsedForGateEvaluation": summary_decides_without_full,
     })
     return report
 
