@@ -32,6 +32,7 @@ type Props = {
 }
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024
+const IMPORT_TIMEOUT_MS = 240_000
 
 type SignedUpload = { role: 'frame' | 'sidecar'; name: string; path: string; signedUrl: string; token: string; size: number }
 type UploadSession = { sessionId: string; bucket: string; uploads: SignedUpload[] }
@@ -169,20 +170,33 @@ export function CFDImportForm({ caseId, projectId, analysisId, onBeforeImport, o
         }
       }
 
-      const response = await fetch('/api/cfd/import-storage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          caseId,
-          projectId: ensuredProjectId,
-          analysisId: ensuredAnalysisId,
-          sessionId: sessionPayload.sessionId,
-          bucket: sessionPayload.bucket,
-          files: sessionPayload.uploads.filter(upload => upload.role === 'frame').map(({ name, path, size }) => ({ name, path, size })),
-          sidecar: sessionPayload.uploads.find(upload => upload.role === 'sidecar'),
-        }),
-      })
+      const controller = new AbortController()
+      const timeout = window.setTimeout(() => controller.abort(), IMPORT_TIMEOUT_MS)
+      let response: Response
+      try {
+        response = await fetch('/api/cfd/import-storage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            caseId,
+            projectId: ensuredProjectId,
+            analysisId: ensuredAnalysisId,
+            sessionId: sessionPayload.sessionId,
+            bucket: sessionPayload.bucket,
+            files: sessionPayload.uploads.filter(upload => upload.role === 'frame').map(({ name, path, size }) => ({ name, path, size })),
+            sidecar: sessionPayload.uploads.find(upload => upload.role === 'sidecar'),
+          }),
+          signal: controller.signal,
+        })
+      } catch (caught) {
+        if (caught instanceof DOMException && caught.name === 'AbortError') {
+          throw new Error('CFD import timed out after 240 seconds. Check Render logs and CFD_IMPORT_API_TOKEN/SUPABASE_SERVICE_ROLE_KEY configuration.')
+        }
+        throw caught
+      } finally {
+        window.clearTimeout(timeout)
+      }
       const payload = await responsePayload(response)
       if (!response.ok) {
         throw new Error(payload.error || payload.detail || `Import rejected (HTTP ${response.status}).`)
