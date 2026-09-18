@@ -71,6 +71,16 @@ def _boundary_indices_are_valid(dataset: Dict[str, Any]) -> tuple[bool, List[str
         association = boundary.get("association")
         index_space = boundary.get("indexSpace")
         indices = boundary.get("indices")
+        # The production PCCV sidecar currently carries OpenFOAM patch
+        # declarations (name/type) rather than persisted point/cell indices.
+        # Preserve that evidence in the report, but do not promote it to a
+        # passing G1: patch names alone cannot prove volumetric boundaries.
+        legacy_patch_type = boundary.get("type")
+        if name and isinstance(legacy_patch_type, str) and legacy_patch_type.strip() and association is None and indices is None:
+            evidence["sets"].append({"name": name, "type": legacy_patch_type, "declarationOnly": True})
+            valid = False
+            reasons.append(f"Boundary {name} is declared as an OpenFOAM patch only; point/cell indices are required for G1.")
+            continue
         expected_space = {"point": "point-index-space-v1", "cell": "cell-index-space-v1"}.get(association)
         evidence["sets"].append({"name": name, "association": association, "indexSpace": index_space, "count": len(indices) if isinstance(indices, list) else 0})
         if not name or association not in ("point", "cell") or index_space != expected_space or not isinstance(indices, list) or not indices:

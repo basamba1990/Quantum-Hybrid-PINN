@@ -140,3 +140,24 @@ def test_gates_endpoint_requires_import_token():
     with patch.dict(os.environ, {"CFD_IMPORT_API_TOKEN": "test-token"}):
         response = make_client().get("/v2/cfd/analysis-1/gates")
     assert response.status_code == 401
+
+
+def test_current_openfoam_patch_sidecar_passes_g0_but_blocks_g1_without_indices():
+    current = deepcopy(dataset())
+    current["boundarySets"] = [
+        {"name": "inlet", "type": "patch"},
+        {"name": "outlet", "type": "patch"},
+        {"name": "tank", "type": "wall"},
+    ]
+    current["topologyEvidence"] = None
+    from cfd_gate_service import evaluate_cfd_gates
+
+    report = evaluate_cfd_gates(
+        current,
+        {"sidecarSha256": "c" * 64, "frames": [{"file": "frame.vtu", "sha256": "d" * 64}]},
+    )
+
+    assert report["gates"][0]["state"] == "PASS"
+    assert report["gates"][1]["state"] == "BLOCKED"
+    assert report["blockingGate"] == "G1"
+    assert any("patch only" in reason for reason in report["gates"][1]["reasons"])

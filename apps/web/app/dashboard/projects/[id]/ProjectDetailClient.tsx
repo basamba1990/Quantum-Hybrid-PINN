@@ -50,13 +50,7 @@ export default function ProjectDetailClient({ id, project }: any) {
   )
   const previewArtifact = /PCCV|TRANSIENT[_ -]?THERMO/i.test(
     [project?.scenario_type, project?.category, project?.name, project?.title].filter(Boolean).join(' '),
-  )
-    ? 'pccv-transient-run-001-real'
-    : /LH2|LH₂|LH[_ -]?TANK/i.test(
-        [project?.scenario_type, project?.category, project?.name, project?.title].filter(Boolean).join(' '),
-      )
-      ? 'lh2-tank-transient-run-001'
-      : 'lh2-tank-preview'
+  ) ? 'pccv-transient-run-001-real' : 'lh2-tank-preview'
 
   // --- MODES DE DÉMONSTRATION (POUR LA SOUTENANCE) ---
   const [chaosMode, setChaosMode] = useState(false)
@@ -417,7 +411,12 @@ export default function ProjectDetailClient({ id, project }: any) {
         </div>
 
           <div className="space-y-10">
-          {isArtifactDemo && <ScenarioDemoPanel scenarioType={scenarioType} />}
+          {/* The demo contract is only a pre-import fallback. Once a persisted
+              CFD dataset is hydrated, the server-authoritative G0–G5 matrix
+              below is the only pipeline status shown to the user. */}
+          {isArtifactDemo && !loading && !explicitCfdDataset && !latestAnalysis?.results?.cfd_dataset && (
+            <ScenarioDemoPanel scenarioType={scenarioType} />
+          )}
           {pinnProfile && (
             <section className="rounded-[32px] border border-cyan-500/20 bg-cyan-500/5 p-6 md:p-8">
               <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 pb-5">
