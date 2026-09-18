@@ -16,6 +16,7 @@ import { getScenarioDisplayName } from '@/types/simulation-scenarios'
 import { loadCertifiedCfdDataset } from '@/lib/cfd/cfd-repository'
 import { loadCfdVtuSeries } from '@/lib/cfd/cfd-loader'
 import { ScenarioDemoPanel } from '@/components/scenario-demo-panel'
+import { gunzipSync, strFromU8 } from 'fflate'
 
 const CFDViewer = nextDynamic(
   () => import('@/components/cfd/CFDViewer'),
@@ -31,6 +32,17 @@ const PlotlyChart = nextDynamic(
   () => import('@/components/plotly-chart'),
   { ssr: false, loading: () => <div className="h-64 bg-slate-950/50 rounded-2xl animate-pulse" /> }
 )
+
+async function hydrateDeferredCfdDataset(payload: any): Promise<any | null> {
+  if (!payload?.datasetUrl || payload.datasetDeferred !== true) return payload?.dataset ?? null
+  const response = await fetch(payload.datasetUrl, { cache: 'no-store' })
+  if (!response.ok) throw new Error(`CFD dataset download failed (${response.status}).`)
+  const compressed = new Uint8Array(await response.arrayBuffer())
+  const text = strFromU8(gunzipSync(compressed))
+  const dataset = JSON.parse(text)
+  if (!dataset || typeof dataset !== 'object') throw new Error('CFD dataset JSON is invalid.')
+  return dataset
+}
 
 export default function ProjectDetailClient({ id, project }: any) {
   const [latestAnalysis, setLatestAnalysis] = useState<any | null>(null)
@@ -93,17 +105,18 @@ export default function ProjectDetailClient({ id, project }: any) {
             await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)))
           }
           if (cfdResponse?.ok && cfdPayload?.dataset) {
+            const hydratedDataset = await hydrateDeferredCfdDataset(cfdPayload)
             const importedCfdAnalysisId = typeof cfdPayload.analysisId === 'string'
               ? cfdPayload.analysisId
               : requestedCfdAnalysisId
             setCfdAnalysisId(importedCfdAnalysisId)
-            setExplicitCfdDataset(cfdPayload.dataset)
+            setExplicitCfdDataset(hydratedDataset)
             explicitCfd = {
               analysis_id: importedCfdAnalysisId,
               project_id: typeof cfdPayload.projectId === 'string' ? cfdPayload.projectId : id,
               created_at: new Date().toISOString(),
               status: cfdPayload.status,
-              dataset: cfdPayload.dataset,
+              dataset: hydratedDataset,
               artifact_manifest: cfdPayload.artifactManifest,
             }
           } else if (cfdResponse && cfdResponse.status !== 404) {
@@ -169,17 +182,18 @@ export default function ProjectDetailClient({ id, project }: any) {
             await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)))
           }
           if (persistedResponse?.ok && persistedPayload?.dataset) {
+            const hydratedDataset = await hydrateDeferredCfdDataset(persistedPayload)
             const persistedAnalysisId = typeof persistedPayload.analysisId === 'string'
               ? persistedPayload.analysisId
               : latestCfd.analysis_id
             setCfdAnalysisId(persistedAnalysisId)
-            setExplicitCfdDataset(persistedPayload.dataset)
+            setExplicitCfdDataset(hydratedDataset)
             explicitCfd = {
               ...latestCfd,
               analysis_id: persistedAnalysisId,
               project_id: typeof persistedPayload.projectId === 'string' ? persistedPayload.projectId : id,
               status: persistedPayload.status,
-              dataset: persistedPayload.dataset,
+              dataset: hydratedDataset,
               artifact_manifest: persistedPayload.artifactManifest ?? latestCfd.artifact_manifest,
             }
             latestCfd = explicitCfd
@@ -415,7 +429,7 @@ export default function ProjectDetailClient({ id, project }: any) {
               CFD dataset is hydrated, the server-authoritative G0–G5 matrix
               below is the only pipeline status shown to the user. */}
           {isArtifactDemo && !loading && !explicitCfdDataset && !latestAnalysis?.results?.cfd_dataset && (
-            <ScenarioDemoPanel scenarioType={scenarioType} />
+    <ScenarioDemoPanel scenarioType={scenarioType} />
           )}
           {pinnProfile && (
             <section className="rounded-[32px] border border-cyan-500/20 bg-cyan-500/5 p-6 md:p-8">
@@ -473,7 +487,11 @@ export default function ProjectDetailClient({ id, project }: any) {
 
                 <TabsContent value="volumetric" className="m-0 p-8">
                   <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 min-h-[760px]">
-                    <CFDViewer dataset={viewerCfd} className="min-h-[600px]" />
+                    <CFDViewer
+                      dataset={viewerCfd}
+                      artifactPresent={Boolean(explicitCfdDataset || latestAnalysis?.results?.cfd_dataset || cfdAnalysisId)}
+                      className="min-h-[600px]"
+                    />
                   </div>
                 </TabsContent>
 

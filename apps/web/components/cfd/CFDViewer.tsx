@@ -8,7 +8,7 @@ import CFDControls from "./CFDControls";
 import CFDScalarLegend from "./CFDScalarLegend";
 import ExportButtonsImproved from "@/components/export-buttons-improved";
 
-export type CFDViewerProps = { dataset: CfdBufferDataset | null; className?: string };
+export type CFDViewerProps = { dataset: CfdBufferDataset | null; artifactPresent?: boolean; className?: string };
 
 function downloadText(fileName: string, content: string, type: string) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -19,7 +19,7 @@ function downloadText(fileName: string, content: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function CFDViewer({ dataset, className }: CFDViewerProps) {
+export default function CFDViewer({ dataset, artifactPresent = false, className }: CFDViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<CfdSceneHandle | null>(null);
@@ -141,9 +141,9 @@ export default function CFDViewer({ dataset, className }: CFDViewerProps) {
     <div className={`${className ?? ""} flex min-h-[420px] items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-950/20 p-8 text-center`} data-cfd-state="missing">
       <div className="max-w-xl space-y-3">
         <div className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">CFD visualization unavailable</div>
-        <p className="text-sm text-slate-200">Aucun artefact CFD réel n’est actuellement lié à cette analyse.</p>
-        <p className="text-xs leading-5 text-slate-400">Importez des frames VTU et leur sidecar contractuel dans cette analyse pour activer la visualisation. Aucun maillage, champ ou résidu n’est généré par l’interface.</p>
-        <div className="font-mono text-[10px] uppercase tracking-widest text-amber-200">Status: NO_CFD_ARTIFACT · scientific status: N/D</div>
+        <p className="text-sm text-slate-200">{artifactPresent ? "Artefact CFD persistant détecté; chargement volumétrique différé." : "Aucun artefact CFD réel n’est actuellement lié à cette analyse."}</p>
+        <p className="text-xs leading-5 text-slate-400">{artifactPresent ? "Le contrat volumétrique est chargé depuis Storage dans le navigateur afin de préserver la mémoire du serveur." : "Importez des frames VTU et leur sidecar contractuel dans cette analyse pour activer la visualisation. Aucun maillage, champ ou résidu n’est généré par l’interface."}</p>
+        <div className="font-mono text-[10px] uppercase tracking-widest text-amber-200">Status: {artifactPresent ? "CFD_DATASET_LOADING" : "NO_CFD_ARTIFACT"}</div>
       </div>
     </div>
   );

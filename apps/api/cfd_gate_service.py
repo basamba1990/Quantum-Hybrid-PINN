@@ -146,6 +146,14 @@ def _topology_is_structurally_valid(dataset: Dict[str, Any]) -> bool:
         return False
     first = frames[0]
     for frame in frames:
+        # The compact row persisted in cfd_datasets keeps full connectivity
+        # only for the first frame; later entries intentionally contain
+        # frameId/time/pointCount/cellCount/fieldNames. This is sufficient to
+        # verify mesh cardinality without claiming that omitted arrays match.
+        if "points" not in frame and "cells" not in frame and "offsets" not in frame and "cellTypes" not in frame:
+            if frame.get("pointCount") != point_count or frame.get("cellCount") != cell_count:
+                return False
+            continue
         if len(frame.get("points", [])) != point_count * 3:
             return False
         if len(frame.get("cellTypes", [])) != cell_count or len(frame.get("offsets", [])) != cell_count + 1:

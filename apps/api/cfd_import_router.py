@@ -440,6 +440,24 @@ def _load_dataset(row: Dict[str, Any]) -> Dict[str, Any]:
     return dataset
 
 
+def _dataset_signed_url(row: Dict[str, Any], expires_in: int = 300) -> str | None:
+    """Return a short-lived browser URL without downloading the gzip server-side."""
+    manifest = row.get("artifact_manifest") or {}
+    path = manifest.get("datasetPath")
+    if not isinstance(path, str) or not path:
+        return None
+    bucket = str(manifest.get("bucket") or os.getenv("CFD_ARTIFACT_BUCKET", "cfd-artifacts")).strip()
+    try:
+        result = _supabase().storage.from_(bucket).create_signed_url(path, expires_in)
+        if isinstance(result, dict):
+            return result.get("signedURL") or result.get("signedUrl") or result.get("signed_url")
+    except Exception:
+        # The summary response remains usable if signed URL creation is not
+        # available on a legacy Supabase client.
+        return None
+    return None
+
+
 def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_bytes: bytes, case_id: str, project_id: str, owner_id: str, analysis_id: str | None = None) -> str:
     # The application creates the analysis first. Keep a UUID fallback for
     # legacy import callers, but never replace an explicitly supplied ID.
@@ -867,6 +885,7 @@ def get_latest_cfd_dataset_for_project(
         "artifactManifest": row["artifact_manifest"],
         "createdAt": row.get("created_at"),
         "datasetDeferred": bool((row.get("artifact_manifest") or {}).get("datasetPath")),
+        "datasetUrl": _dataset_signed_url(row),
     }
 
 
@@ -929,4 +948,5 @@ def get_cfd_dataset(analysis_id: str, _auth: None = Depends(require_cfd_import_a
         "dataset": row.get("dataset") or {},
         "artifactManifest": row["artifact_manifest"],
         "datasetDeferred": bool((row.get("artifact_manifest") or {}).get("datasetPath")),
+        "datasetUrl": _dataset_signed_url(row),
     }

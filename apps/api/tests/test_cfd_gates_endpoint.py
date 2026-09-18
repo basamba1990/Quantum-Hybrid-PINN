@@ -86,7 +86,7 @@ def dataset():
     }
 
 
-def test_gates_endpoint_evaluates_full_storage_contract_not_sql_summary():
+def test_gates_endpoint_evaluates_compact_summary_without_loading_storage_contract():
     full = dataset()
     summary = {key: value for key, value in full.items() if key != "frames"}
     summary["frames"] = [{"frameId": "f0", "time": 0.0, "pointCount": 4, "cellCount": 1, "fieldNames": ["temperature"]}]
@@ -95,9 +95,9 @@ def test_gates_endpoint_evaluates_full_storage_contract_not_sql_summary():
         response = make_client().get("/v2/cfd/analysis-1/gates", headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 200, response.text
     payload = response.json()
-    load_dataset.assert_called_once_with(row)
-    assert payload["evaluationSource"] == "persisted_storage_contract"
-    assert payload["summaryUsedForGateEvaluation"] is False
+    load_dataset.assert_not_called()
+    assert payload["evaluationSource"] == "persisted_dataset_summary"
+    assert payload["summaryUsedForGateEvaluation"] is True
     assert payload["gates"][1]["state"] == "PASS"
     assert payload["gates"][1]["evidence"]["decision"] == "G1_EVIDENCE_GENERATED_NOT_CERTIFIED"
 
