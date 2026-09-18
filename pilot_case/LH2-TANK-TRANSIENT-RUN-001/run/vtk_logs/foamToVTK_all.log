@@ -1,0 +1,81 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2512                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _bd2b6720-20260127 OPENFOAM=2512 version=2512
+Arch   : "LSB;label=32;scalar=64"
+Exec   : foamToVTK -time 0.01:0.08 -fields (p U) -ascii
+Date   : Sep 18 2026
+Time   : 11:08:42
+Host   : 0f5379ece420
+PID    : 8516
+I/O    : uncollated
+Case   : /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/LH2-TANK-TRANSIENT-RUN-001/case
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+memory pool : not available
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Including fields (p U)
+
+Create time
+
+Initial memory 125132 kB
+Create mesh for time = 0.01
+
+VTK mesh topology: 0.41 s, 147256 kB
+Time: 0.01
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/case_1/internal.vtu"
+    Boundary  : "VTK/case_1/boundary/tankWall.vtp"
+Wrote in 0.91 s, 223596 kB
+Time: 0.02
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/case_2/internal.vtu"
+    Boundary  : "VTK/case_2/boundary/tankWall.vtp"
+Wrote in 0.65 s, 225692 kB
+Time: 0.03
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/case_3/internal.vtu"
+    Boundary  : "VTK/case_3/boundary/tankWall.vtp"
+Wrote in 0.64 s, 225692 kB
+Time: 0.04
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/case_4/internal.vtu"
+    Boundary  : "VTK/case_4/boundary/tankWall.vtp"
+Wrote in 0.62 s, 225692 kB
+Time: 0.05
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/case_5/internal.vtu"
+    Boundary  : "VTK/case_5/boundary/tankWall.vtp"
+Wrote in 0.64 s, 225692 kB
+Time: 0.06
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/case_6/internal.vtu"
+    Boundary  : "VTK/case_6/boundary/tankWall.vtp"
+Wrote in 0.65 s, 225692 kB
+Time: 0.07
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/case_7/internal.vtu"
+    Boundary  : "VTK/case_7/boundary/tankWall.vtp"
+Wrote in 0.61 s, 225692 kB
+Time: 0.08
+    volScalar    : p
+    volVector    : U
+    Internal  : "VTK/case_8/internal.vtu"
+    Boundary  : "VTK/case_8/boundary/tankWall.vtp"
+Wrote in 0.62 s, 225692 kB
+
+End: 5.75 s, 226788 kB (peak)

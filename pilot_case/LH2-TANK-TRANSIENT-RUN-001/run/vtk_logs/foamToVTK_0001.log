@@ -1,0 +1,7 @@
+Using: OpenFOAM-2512 (2512) - visit www.openfoam.com
+Build: _bd2b6720-20260127
+
+Invalid option: -no-keepProcessors
+
+See 'foamToVTK -help' for usage
+ or 'foamToVTK -help-full' for extended usage
