@@ -75,13 +75,41 @@ function readVtkLegacyCells(rawCells: ArrayLike<number> | undefined, cellCount: 
   return { cells, offsets };
 }
 
+function readVtuDataArray(node: Element, expectedName?: string): number[] {
+  const format = node.getAttribute("format") || "ascii";
+  const type = node.getAttribute("type") || "Float32";
+  const components = Number(node.getAttribute("NumberOfComponents") || "1");
+  if (expectedName && node.getAttribute("Name") !== expectedName) throw new Error(`CFD_VTU_ARRAY_NAME_INVALID: ${expectedName}`);
+  if (format === "ascii") return (node.textContent || "").trim().split(/\s+/).filter(Boolean).map(Number);
+  if (format !== "binary") throw new Error(`CFD_VTU_FORMAT_UNSUPPORTED: ${format}`);
+  const encoded = (node.textContent || "").replace(/\s+/g, "");
+  const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+  const headerBytes = 8; // OpenFOAM export declares header_type="UInt64".
+  const count = Math.floor((bytes.byteLength - headerBytes) / ({ Float32: 4, Float64: 8, Int8: 1, UInt8: 1, Int16: 2, UInt16: 2, Int32: 4, UInt32: 4 } as Record<string, number>)[type]);
+  const view = new DataView(bytes.buffer, bytes.byteOffset + headerBytes);
+  const values: number[] = [];
+  const read = type === "Float32" ? (offset: number) => view.getFloat32(offset, true)
+    : type === "Float64" ? (offset: number) => view.getFloat64(offset, true)
+      : type === "Int32" ? (offset: number) => view.getInt32(offset, true)
+        : type === "UInt32" ? (offset: number) => view.getUint32(offset, true)
+          : type === "UInt8" ? (offset: number) => view.getUint8(offset)
+            : type === "Int8" ? (offset: number) => view.getInt8(offset)
+              : type === "UInt16" ? (offset: number) => view.getUint16(offset, true)
+                : type === "Int16" ? (offset: number) => view.getInt16(offset, true)
+                  : null;
+  if (!read) throw new Error(`CFD_VTU_DATA_TYPE_UNSUPPORTED: ${type}`);
+  const bytesPerValue = ({ Float32: 4, Float64: 8, Int8: 1, UInt8: 1, Int16: 2, UInt16: 2, Int32: 4, UInt32: 4 } as Record<string, number>)[type];
+  for (let index = 0; index < count * components; index += 1) values.push(read(index * bytesPerValue));
+  return values;
+}
+
 function readAsciiVtuFrame(source: VtuFrameSource, sidecar: VtuSidecar): CfdFrame {
   const xml = new DOMParser().parseFromString(new TextDecoder().decode(source.payload), "application/xml");
   if (xml.querySelector("parsererror")) throw new Error("CFD_VTU_XML_INVALID");
   const values = (name: string, parent: Element): number[] => {
-    const node = Array.from(parent.querySelectorAll("DataArray")).find((candidate) => candidate.getAttribute("Name") === name);
-    if (!node || (node.getAttribute("format") || "ascii") !== "ascii") throw new Error(`CFD_VTU_ASCII_ARRAY_MISSING: ${name}`);
-    return (node.textContent || "").trim().split(/\s+/).filter(Boolean).map(Number);
+    const node = name === "Points" ? parent.querySelector("Points > DataArray") : Array.from(parent.querySelectorAll("DataArray")).find((candidate) => candidate.getAttribute("Name") === name);
+    if (!node) throw new Error(`CFD_VTU_ARRAY_MISSING: ${name}`);
+    return readVtuDataArray(node, name === "Points" ? undefined : name);
   };
   const piece = xml.querySelector("Piece");
   if (!piece) throw new Error("CFD_VTU_PIECE_MISSING");
