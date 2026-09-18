@@ -1,0 +1,116 @@
+{
+  "runId": "LH2-TANK-TRANSIENT-RUN-001",
+  "status": "PRESSURE_AND_VELOCITY_ONLY",
+  "thermalStatus": "NOT_COMPUTABLE_TEMPERATURE_FIELD_ABSENT",
+  "sourceFields": [
+    "p",
+    "U"
+  ],
+  "units": {
+    "p": "Pa",
+    "U": "m/s"
+  },
+  "frames": [
+    {
+      "time_s": 0.01,
+      "pressure_min_Pa": -0.308479,
+      "pressure_max_Pa": 0.459044,
+      "pressure_mean_Pa": 0.07528369581992814,
+      "pressure_range_Pa": 0.767523,
+      "speed_min_m_s": 0.0,
+      "speed_max_m_s": 0.005662892026936304,
+      "speed_mean_m_s": 0.0007882272849089101,
+      "point_count": 136079,
+      "frame_sha256": "8f3d2a099dfa50fa80dbc60a18799fc0c08a51a14ef8b8f85a3b49e40c33556f"
+    },
+    {
+      "time_s": 0.02,
+      "pressure_min_Pa": -0.00492818,
+      "pressure_max_Pa": 0.00278835,
+      "pressure_mean_Pa": -0.0010664498600252582,
+      "pressure_range_Pa": 0.00771653,
+      "speed_min_m_s": 0.0,
+      "speed_max_m_s": 0.0037375941413930968,
+      "speed_mean_m_s": 0.0006276117129565866,
+      "point_count": 136079,
+      "frame_sha256": "732286fc295128f49d03350578961c18289fbdb638280e234eb0e5446c40dee0"
+    },
+    {
+      "time_s": 0.03,
+      "pressure_min_Pa": -0.00142413,
+      "pressure_max_Pa": 0.0014411,
+      "pressure_mean_Pa": 7.0687223583632295e-06,
+      "pressure_range_Pa": 0.00286523,
+      "speed_min_m_s": 0.0,
+      "speed_max_m_s": 0.003520916391673077,
+      "speed_mean_m_s": 0.0005724042166771085,
+      "point_count": 136079,
+      "frame_sha256": "3f9d9ce60c056ec51456f5376b8b7a42e4ebce33f4fcbf88a145751cad07bb0b"
+    },
+    {
+      "time_s": 0.04,
+      "pressure_min_Pa": -0.000709707,
+      "pressure_max_Pa": 0.000436028,
+      "pressure_mean_Pa": -0.00013850351697713043,
+      "pressure_range_Pa": 0.001145735,
+      "speed_min_m_s": 0.0,
+      "speed_max_m_s": 0.0035441816419732567,
+      "speed_mean_m_s": 0.0005638210454670376,
+      "point_count": 136079,
+      "frame_sha256": "d2ab4267de5336118d840335f20c34bd945530ff2f5cc9cc64877307479724c1"
+    },
+    {
+      "time_s": 0.05,
+      "pressure_min_Pa": -0.000550247,
+      "pressure_max_Pa": 0.000291072,
+      "pressure_mean_Pa": -0.0001262182084730319,
+      "pressure_range_Pa": 0.0008413190000000001,
+      "speed_min_m_s": 0.0,
+      "speed_max_m_s": 0.0035904396292404206,
+      "speed_mean_m_s": 0.0005615562085956885,
+      "point_count": 136079,
+      "frame_sha256": "cedfd507566a973e1b7c4de2731b1c064a5867545d1dc582a1c0ce32a23f0a0f"
+    },
+    {
+      "time_s": 0.06,
+      "pressure_min_Pa": -0.000411813,
+      "pressure_max_Pa": 0.000161142,
+      "pressure_mean_Pa": -0.00012282678972150014,
+      "pressure_range_Pa": 0.000572955,
+      "speed_min_m_s": 0.0,
+      "speed_max_m_s": 0.0036099986950402416,
+      "speed_mean_m_s": 0.0005620942193476419,
+      "point_count": 136079,
+      "frame_sha256": "319d2f7d8142d511be59ed8b92ba1baf33102491ecf57741d949243522e7432e"
+    },
+    {
+      "time_s": 0.07,
+      "pressure_min_Pa": -0.000334935,
+      "pressure_max_Pa": 0.000109968,
+      "pressure_mean_Pa": -0.00011064585914953805,
+      "pressure_range_Pa": 0.000444903,
+      "speed_min_m_s": 0.0,
+      "speed_max_m_s": 0.003615237575896457,
+      "speed_mean_m_s": 0.0005630724586147951,
+      "point_count": 136079,
+      "frame_sha256": "d5d5d123dc4b8ba1407f4514436d40f1cdf15db2cb83601998a3407c53e0cc2e"
+    },
+    {
+      "time_s": 0.08,
+      "pressure_min_Pa": -0.000266495,
+      "pressure_max_Pa": 6.32846e-05,
+      "pressure_mean_Pa": -9.9877268664165e-05,
+      "pressure_range_Pa": 0.0003297796,
+      "speed_min_m_s": 0.0,
+      "speed_max_m_s": 0.0036074606212443956,
+      "speed_mean_m_s": 0.0005641113506143316,
+      "point_count": 136079,
+      "frame_sha256": "b781cdc7e55ac1eed73a0ea24b38ef57f40a44d1f3baae69012fc845f2958e1a"
+    }
+  ],
+  "notes": [
+    "Pressure statistics are calculated from the exported point p field.",
+    "No temperature, enthalpy, heat flux, density or phase-fraction field was exported; no thermal result is inferred.",
+    "This is an incompressible laminar pimpleFoam run, not a thermo-boiling LH2 reproduction."
+  ]
+}
