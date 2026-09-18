@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/client'
 import { fr } from 'date-fns/locale'
 import { resolveVisualizationScenario } from '@/lib/visualization-data'
 import { loadCertifiedCfdDataset } from '@/lib/cfd/cfd-repository'
+import { loadCfdVtuSeries } from '@/lib/cfd/cfd-loader'
 
 const CFDViewer = dynamic(
   () => import('@/components/cfd/CFDViewer'),
@@ -31,6 +32,8 @@ export default function SimulationsPage() {
   const [selectedProject, setSelectedProject] = useState<any>(null)
   const [analyses, setAnalyses] = useState<any[]>([])
   const [selectedAnalysis, setSelectedAnalysis] = useState<any>(null)
+  const [demoCfdBuffers, setDemoCfdBuffers] = useState<any | null>(null)
+  const [demoCfdError, setDemoCfdError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [dynamicMetrics, setDynamicMetrics] = useState({ credibility: 0, computeTime: 0, validatedPoints: 0 })
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -77,7 +80,37 @@ export default function SimulationsPage() {
     }
   }, [selectedProject, supabase])
 
+  useEffect(() => {
+    let cancelled = false
+    const loadPreview = async () => {
+      setDemoCfdBuffers(null)
+      setDemoCfdError(null)
+      const projectText = [selectedProject?.name, selectedProject?.description, selectedProject?.scenario_type].filter(Boolean).join(' ')
+      if (!selectedProject || !/PCCV|TRANSIENT|LH2/i.test(projectText)) return
+      try {
+        const previewBase = /PCCV|TRANSIENT/i.test(projectText)
+          ? '/cfd-demo/pccv-transient-run-001-real'
+          : '/cfd-demo/lh2-tank-preview'
+        const sidecarResponse = await fetch(`${previewBase}/sidecar.json`, { cache: 'force-cache' })
+        if (!sidecarResponse.ok) throw new Error(`Sidecar CFD indisponible (${sidecarResponse.status}).`)
+        const sidecar = await sidecarResponse.json()
+        const frameSources = await Promise.all((sidecar.frames ?? []).map(async (frame: { frameId: string; time: number; file: string; payloadHash: string }) => {
+          const response = await fetch(`${previewBase}/${frame.file}`, { cache: 'force-cache' })
+          if (!response.ok) throw new Error(`Frame VTU indisponible (${response.status}).`)
+          return { frameId: frame.frameId, time: frame.time, payload: await response.arrayBuffer(), payloadHash: frame.payloadHash }
+        }))
+        const buffers = await loadCfdVtuSeries(frameSources, sidecar)
+        if (!cancelled) setDemoCfdBuffers(buffers)
+      } catch (error) {
+        if (!cancelled) setDemoCfdError(error instanceof Error ? error.message : 'Erreur de chargement du preview CFD.')
+      }
+    }
+    void loadPreview()
+    return () => { cancelled = true }
+  }, [selectedProject])
+
   const certifiedCfd = useMemo(() => selectedAnalysis ? loadCertifiedCfdDataset(selectedAnalysis, selectedAnalysis.analysisResult) : { dataset: null, buffers: null, report: null }, [selectedAnalysis])
+  const viewerBuffers = certifiedCfd.buffers ?? demoCfdBuffers
   const predictions3d: never[] = []
   const scenarioType = useMemo(() => resolveVisualizationScenario([
     selectedProject?.name,
@@ -125,8 +158,13 @@ export default function SimulationsPage() {
 
             <TabsContent value="visualizer" className="mt-6 space-y-6">
               <div className="h-[600px] rounded-[40px] overflow-hidden border border-white/10 bg-slate-900/50">
-                <CFDViewer dataset={certifiedCfd.buffers} className="min-h-[600px]" />
+                <CFDViewer dataset={viewerBuffers} className="min-h-[600px]" />
               </div>
+              {demoCfdError && !certifiedCfd.buffers && (
+                <div role="alert" className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-xs text-amber-100">
+                  Preview CFD indisponible : {demoCfdError}
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="bg-white/5 border-white/10 rounded-3xl p-6">
                   <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Crédibilité</p>
