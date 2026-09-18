@@ -41,9 +41,10 @@ boundaryField
 
     wall2
     {
-        type            copiedFixedValue;
-        sourceFieldName T.liquid;
-        value           uniform 21.01;
+        // Keep the vapour phase on the valid superheated side of its local
+        // saturation window as pressure evolves above the initial value.
+        type            fixedValue;
+        value           uniform 21.10;
     }
 
     defaultFaces

@@ -41,10 +41,10 @@ boundaryField
 
     wall2
     {
-        type            fixedMultiPhaseHeatFlux;
-        relax           0.5;
-        q               uniform 100;
-        phase           liquid;
+        // Saturated LH2 wall temperature at p=125310 Pa.
+        // The former heat-flux boundary used default Tmin=273 K and
+        // generated the non-physical first-step value T=147.005 K.
+        type            fixedValue;
         value           uniform 21.01;
     }
 
