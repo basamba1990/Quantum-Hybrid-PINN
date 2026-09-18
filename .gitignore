@@ -17,3 +17,16 @@ pilot_case/LH2-TANK-REFERENCE-CAD/*.stl
 pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/*/processor*/
 pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/*/[0-9]*/
 pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/mesh/
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/icoReactingMultiphaseInterFoam/
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam/*
+!pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam/log.interCondensatingEvaporatingFoam
+!pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam/postProcessing/
+!pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam/postProcessing/interfaceHeight1/
+!pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam/postProcessing/interfaceHeight1/1.36/
+!pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam/postProcessing/interfaceHeight1/1.36/height.dat
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/setups/
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/setups.orig/
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/resources/
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/Allclean
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/Allrun
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/plot
