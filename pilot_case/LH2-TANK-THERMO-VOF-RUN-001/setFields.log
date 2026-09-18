@@ -1,0 +1,39 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2512                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _bd2b6720-20260127 OPENFOAM=2512 version=2512
+Arch   : "LSB;label=32;scalar=64"
+Exec   : setFields -case /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/LH2-TANK-THERMO-VOF-RUN-001
+Date   : Sep 18 2026
+Time   : 12:03:07
+Host   : 0f5379ece420
+PID    : 17751
+I/O    : uncollated
+Case   : /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/LH2-TANK-THERMO-VOF-RUN-001
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+memory pool : not available
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+Create mesh for time = 0
+
+Reading setFieldsDict
+
+Setting volume field default values
+    - set internal values of volScalarField: alpha.liquid = 0
+
+Setting field region values
+
+    Adding cells with centre within boxes 1((0 0 0) (0.193 0.225 0.001))
+    Selected 15660/31320 cells
+    - set internal values of volScalarField: alpha.liquid = 1
+
+End

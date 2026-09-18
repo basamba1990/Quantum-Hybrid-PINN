@@ -1,0 +1,30 @@
+
+# Create the setup: icoReactingMultiphaseInterFoam
+
+# Run the setup: icoReactingMultiphaseInterFoam
+
+Restore 0/ from 0.orig/
+Running blockMesh on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/icoReactingMultiphaseInterFoam
+Running renumberMesh on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/icoReactingMultiphaseInterFoam
+Running checkMesh on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/icoReactingMultiphaseInterFoam
+Running setAlphaField on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/icoReactingMultiphaseInterFoam
+Running setAlphaField on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/icoReactingMultiphaseInterFoam
+Running decomposePar on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/icoReactingMultiphaseInterFoam
+Running icoReactingMultiphaseInterFoam (2 processes) on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/icoReactingMultiphaseInterFoam
+Running reconstructPar on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/icoReactingMultiphaseInterFoam
+
+## Store the mesh of icoReactingMultiphaseInterFoam as the common mesh
+
+
+# Create the setup: interCondensatingEvaporatingFoam
+
+# Run the setup: interCondensatingEvaporatingFoam
+
+## Copy the common mesh to the setup: interCondensatingEvaporatingFoam
+
+Restore 0/ from 0.orig/
+Running setAlphaField on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam
+Running decomposePar on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam
+Running interCondensatingEvaporatingFoam (2 processes) on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam
+Running reconstructPar on /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/interCondensatingEvaporatingFoam
+gnuplot not found - skipping graph creation

@@ -1,0 +1,113 @@
+/*---------------------------------------------------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  2512                                  |
+|   \\  /    A nd           | Website:  www.openfoam.com                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+Build  : _bd2b6720-20260127 OPENFOAM=2512 version=2512
+Arch   : "LSB;label=32;scalar=64"
+Exec   : interCondensatingEvaporatingFoam -case /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/LH2-TANK-THERMO-VOF-RUN-001 -dry-run
+Date   : Sep 18 2026
+Time   : 12:03:08
+Host   : 0f5379ece420
+PID    : 18002
+I/O    : uncollated
+Case   : /home/ubuntu/Quantum-Hybrid-PINN/pilot_case/LH2-TANK-THERMO-VOF-RUN-001
+nProcs : 1
+trapFpe: Floating point exception trapping enabled (FOAM_SIGFPE).
+memory pool : not available
+fileModificationChecking : Monitoring run-time modified files using timeStampMaster (fileModificationSkew 5, maxFileModificationPolls 20)
+allowSystemOperations : Allowing user-supplied system call operations
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+Create time
+
+Create mesh for time = 0
+
+Operating in 'dry-run' mode: case will run for 1 time step.  All checks assumed OK on a clean exit
+Selecting simplified mesh model staticFvMesh
+Creating simplified mesh using "/home/ubuntu/Quantum-Hybrid-PINN/pilot_case/LH2-TANK-THERMO-VOF-RUN-001/constant/polyMesh"
+Mesh bounds: (0 0 0) (0.193 0.45 0.001)
+
+PIMPLE: Operating solver in PISO mode
+
+Reading field p_rgh
+
+Reading field U
+
+Reading/calculating face flux field phi
+
+Selecting incompressible transport model Newtonian
+Selecting incompressible transport model Newtonian
+Creating temperaturePhaseChangeTwoPhaseMixture
+
+Selecting phaseChange model interfaceHeatResistance
+DICPCG:  Solving for mDotSmear, Initial residual = 1, Final residual = 3.22868e-16, No Iterations 1
+Selecting turbulence model type RAS
+Selecting RAS turbulence model kOmegaSST
+Selecting patchDistMethod meshWave
+RAS
+{
+    RASModel        kOmegaSST;
+    turbulence      on;
+    printCoeffs     on;
+    alphaK1         0.85;
+    alphaK2         1;
+    alphaOmega1     0.5;
+    alphaOmega2     0.856;
+    gamma1          0.555556;
+    gamma2          0.44;
+    beta1           0.075;
+    beta2           0.0828;
+    betaStar        0.09;
+    a1              0.31;
+    b1              1;
+    c1              10;
+    F3              false;
+    decayControl    false;
+    kInf            0;
+    omegaInf        0;
+}
+
+
+Reading g
+
+Reading hRef
+Calculating field g.h
+
+No MRF models present
+
+No finite volume options present
+GAMG:  Solving for pcorr, Initial residual = 0, Final residual = 0, No Iterations 0
+time step continuity errors : sum local = 0, global = 0, cumulative = 0
+Courant Number mean: 0 max: 0
+
+Starting time loop
+
+Courant Number mean: 0 max: 0
+Interface Courant Number mean: 0 max: 0
+deltaT = 1.2e-06
+Time = 1.2e-06
+
+PIMPLE: iteration 1
+DICPCG:  Solving for mDotSmear, Initial residual = 1, Final residual = 3.22868e-16, No Iterations 1
+smoothSolver:  Solving for alpha.liquid, Initial residual = 0, Final residual = 0, No Iterations 0
+Phase-1 volume fraction = 1  Min(alpha.liquid) = 1  Max(alpha.liquid) = 1
+MULES: Correcting alpha.liquid
+MULES: Correcting alpha.liquid
+Liquid phase volume fraction = 1  Min(alpha.liquid) = 1  Max(alpha.liquid) = 1
+smoothSolver:  Solving for alpha.liquid, Initial residual = 0, Final residual = 0, No Iterations 0
+Phase-1 volume fraction = 1  Min(alpha.liquid) = 1  Max(alpha.liquid) = 1
+MULES: Correcting alpha.liquid
+MULES: Correcting alpha.liquid
+Liquid phase volume fraction = 1  Min(alpha.liquid) = 1  Max(alpha.liquid) = 1
+smoothSolver:  Solving for T, Initial residual = 1, Final residual = 3.17055e-08, No Iterations 1
+min/max(T) = 20.268, 20.268
+GAMG:  Solving for p_rgh, Initial residual = 1, Final residual = 5.50647e-16, No Iterations 1
+GAMGPCG:  Solving for p_rgh, Initial residual = 8.76092e-20, Final residual = 8.76092e-20, No Iterations 0
+DILUPBiCGStab:  Solving for omega, Initial residual = 1.72462e-05, Final residual = 0, No Iterations 1
+DILUPBiCGStab:  Solving for k, Initial residual = 1, Final residual = 6.56712e-17, No Iterations 1
+ExecutionTime = 0.05 s  ClockTime = 0 s
+
+End

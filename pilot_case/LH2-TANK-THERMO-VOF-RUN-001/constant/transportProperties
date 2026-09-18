@@ -1,0 +1,9 @@
+FoamFile
+{ version 2.0; format ascii; class dictionary; object transportProperties; }
+// Effective initial-state values from CoolProp ParaHydrogen at p=101325 Pa, T=20.268 K.
+// These are constant in this stock solver; they are NOT a validated T,p property law.
+phases (liquid vapour);
+sigma 0.00192969014;
+liquid { transportModel Newtonian; nu 1.9056e-7; rho 70.8319430; Cp 9726.97479; Cv 9726.97479; kappa 0.10064151; hf 0; }
+vapour { transportModel Newtonian; nu 1.0098e-5; rho 1.33860287; Cp 14300; Cv 10100; kappa 0.018; hf 446066.072; }
+Prt 0.7;

@@ -10,3 +10,10 @@ pilot_case/reports/
 
 # Local deployment secrets (never commit)
 apps/web/.env.local
+
+# Local CAD tessellations: STEP is the versioned neutral CAD deliverable
+pilot_case/LH2-TANK-REFERENCE-CAD/*.stl
+# Raw Stefan solver fields are retained locally; lightweight logs/summary are versioned
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/*/processor*/
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/*/[0-9]*/
+pilot_case/THERMO-VOF-STEFAN-VALIDATION/results/mesh/

@@ -1,0 +1,14 @@
+{
+  "runId": "LH2-TANK-THERMO-VOF-RUN-001",
+  "status": "CONFIGURED_NOT_EXECUTED",
+  "solver": "interCondensatingEvaporatingFoam",
+  "solverVersion": "OpenFOAM v2512",
+  "geometry": "LH2-TANK-REFERENCE-CAD reconstructed inner envelope",
+  "initialPressure_Pa": 101325.0,
+  "initialTemperature_K": 20.268,
+  "initialLiquidFillFraction": 0.5,
+  "ambientTemperature_K": 283.15,
+  "phaseChange": "stock interfaceHeatResistance closure; Ranz-Marshall not implemented/validated in stock solver",
+  "thermoProperties": "CoolProp ParaHydrogen initial-state constants; T,p-dependent law not yet implemented",
+  "solidRegions": "documented handoff only; not consumed by current single-region solver"
+}

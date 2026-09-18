@@ -1,0 +1,4 @@
+FoamFile
+{ version 2.0; format ascii; class dictionary; object thermophysicalProperties; }
+// Initial saturation reference from CoolProp ParaHydrogen at 101325 Pa.
+TSat 20.2712506609;

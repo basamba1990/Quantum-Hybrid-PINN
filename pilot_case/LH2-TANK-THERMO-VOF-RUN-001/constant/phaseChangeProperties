@@ -1,0 +1,9 @@
+FoamFile
+{ version 2.0; format ascii; class dictionary; object phaseChangeProperties; }
+// Stock interCondensatingEvaporatingFoam closure. Article Ranz-Marshall coefficients are not published.
+phaseChangeTwoPhaseModel interfaceHeatResistance;
+R 1e6;
+maxAlphaRate 0.1;
+spread 3;
+coeffC 150;
+coeffE 150;

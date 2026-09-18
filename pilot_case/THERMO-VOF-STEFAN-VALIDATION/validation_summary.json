@@ -1,0 +1,20 @@
+{
+  "benchmark": "OpenFOAM v2512 StefanProblem",
+  "solver": "interCondensatingEvaporatingFoam",
+  "solver_completed": true,
+  "end_time_s": 50.0,
+  "temperature_range_K": [373.150004932, 378.15],
+  "final_log_marker": "End",
+  "validation_scope": "stock OpenFOAM phase-change VOF benchmark; not LH2 and not FIRE",
+  "evidence": [
+    "results/interCondensatingEvaporatingFoam/log.interCondensatingEvaporatingFoam",
+    "results/interCondensatingEvaporatingFoam/postProcessing/interfaceHeight1/1.36/height.dat"
+  ],
+  "lh2_case_status": "CONFIGURED_NOT_EXECUTED",
+  "lh2_blocker": "initial 50 percent alpha field is present, but the one-step dry-run collapses alpha.liquid to 1 in this simplified single-region setup; no LH2 result is claimed",
+  "notes": [
+    "The official Allrun wrapper returned non-zero during finalization, but the solver log itself reaches End at t=50 s.",
+    "The stock solver uses interfaceHeatResistance closure; Ranz-Marshall article coefficients are not available or validated.",
+    "Solid aluminium and polyurethane regions are documented but not solved by this single-region executable."
+  ]
+}
