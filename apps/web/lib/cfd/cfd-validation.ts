@@ -57,7 +57,9 @@ export function validateCfdDataset(dataset: CfdVolumeDataset): CfdValidationRepo
   if (!residuals || !Number.isFinite(residuals.mass) || !Number.isFinite(residuals.momentum) || !Number.isFinite(residuals.energy) || !residuals.norm || !residuals.computedBy || !residuals.computedAt) issues.push(issue("RESIDUALS_INVALID", "Les résidus mass, momentum et energy sont absents ou non certifiés; ils restent N/D."));
   if (dataset.references.length === 0 || dataset.references.some((reference) => !reference.uri || !reference.comparisonHash)) issues.push(issue("REFERENCE_INVALID", "Une comparaison de référence avec hash doit être persistée."));
   issues.push(...validateTransient(dataset.frames), ...validateTransientProof(dataset));
-  const hasStructuralRenderingIssue = issues.some((item) => ["CONTRACT_INVALID", "POINT_BUFFER_INVALID", "CELL_TOPOLOGY_INVALID", "FIELD_ASSOCIATION_INVALID", "BOUNDARY_INVALID"].includes(item.code));
+  // Boundary indices are required for certification, not for rendering the
+  // real persisted volume.
+  const hasStructuralRenderingIssue = issues.some((item) => ["CONTRACT_INVALID", "POINT_BUFFER_INVALID", "CELL_TOPOLOGY_INVALID", "FIELD_ASSOCIATION_INVALID"].includes(item.code));
   const hasRealTransientStates = !issues.some((item) => item.code === "TIME_SERIES_INVALID");
   return { valid: issues.length === 0, issues, hasRealTransientStates, canRender: !hasStructuralRenderingIssue, canClaimValidated: issues.length === 0 && Object.values(dataset.evidence).every(Boolean) && dataset.transientProof?.solverCompleted === true };
 }
@@ -74,7 +76,7 @@ export function validateCfdBufferDataset(dataset: CfdBufferDataset): CfdValidati
   const hasRealTransientStates = dataset.frames.length > 1 && dataset.frames.slice(1).every((frame, index) => frame.time > dataset.frames[index].time) && hasMeasuredBufferTransientDifference(dataset.frames);
   if (!hasRealTransientStates) issues.push(issue("TIME_SERIES_INVALID", "Aucun état transitoire spatialement différent n’est disponible."));
   if (!dataset.transientProof || dataset.transientProof.solverCompleted !== true) issues.push(issue("TRANSIENT_PROOF_INVALID", "Les buffers ne portent pas la preuve d’un solveur transitoire terminé."));
-  const hasStructuralRenderingIssue = issues.some((item) => ["CONTRACT_INVALID", "POINT_BUFFER_INVALID", "CELL_TOPOLOGY_INVALID", "FIELD_ASSOCIATION_INVALID", "BOUNDARY_INVALID"].includes(item.code));
+  const hasStructuralRenderingIssue = issues.some((item) => ["CONTRACT_INVALID", "POINT_BUFFER_INVALID", "CELL_TOPOLOGY_INVALID", "FIELD_ASSOCIATION_INVALID"].includes(item.code));
   return { valid: issues.length === 0, issues, hasRealTransientStates, canRender: !hasStructuralRenderingIssue, canClaimValidated: issues.length === 0 && Object.values(dataset.evidence).every(Boolean) && dataset.transientProof?.solverCompleted === true };
 }
 export async function sha256Hex(payload: ArrayBuffer): Promise<string> { const digest = await globalThis.crypto.subtle.digest("SHA-256", payload); return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join(""); }

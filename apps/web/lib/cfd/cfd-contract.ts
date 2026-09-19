@@ -35,7 +35,7 @@ export const CfdFrameSchema = z.object({
 export const CfdProvenanceSchema = z.object({
   solver: nonEmpty,
   solverVersion: nonEmpty,
-  sourceUri: nonEmpty,
+  sourceUri: nonEmpty.optional(),
   sourceHash: sha256,
   calculationId: nonEmpty,
   generatedAt: z.string().datetime({ offset: true }),
@@ -101,10 +101,10 @@ export const CfdVolumeDatasetSchema = z.object({
   pointCount: z.number().int().positive(),
   cellCount: z.number().int().positive(),
   frames: z.array(CfdFrameSchema).min(1),
-  boundarySets: z.array(CfdBoundarySetSchema).min(1),
+  boundarySets: z.array(CfdBoundarySetSchema),
   provenance: CfdProvenanceSchema,
   residuals: CfdResidualSchema.optional(),
-  references: z.array(CfdReferenceSchema).min(1),
+  references: z.array(CfdReferenceSchema),
   transientProof: CfdTransientProofSchema.optional(),
   evidence: CfdEvidenceSchema,
 });
@@ -174,6 +174,17 @@ export function adaptCfdMetadata(input: unknown): unknown {
   if (!input || typeof input !== "object" || Array.isArray(input)) return input;
   const source = input as Record<string, unknown>;
   const boundarySets = source.boundarySets;
+  const frames = source.frames;
+  // The persisted gzip is the expanded solver payload. Its point/cell
+  // cardinalities are unambiguous in the first frame, while patch names do
+  // not contain point/cell indices and therefore remain non-certifying.
+  const expandedFrames = Array.isArray(frames) && frames.length > 0 && frames[0] && typeof frames[0] === "object"
+    ? frames as Array<Record<string, unknown>>
+    : null;
+  const derivedCounts = expandedFrames ? {
+    pointCount: Array.isArray(expandedFrames[0].points) ? Math.floor(expandedFrames[0].points.length / 3) : undefined,
+    cellCount: Array.isArray(expandedFrames[0].cellTypes) ? expandedFrames[0].cellTypes.length : undefined,
+  } : {};
   if (Array.isArray(boundarySets) && boundarySets.some((item) => {
     if (!item || typeof item !== "object") return false;
     return (item as Record<string, unknown>).association === "boundary_face";
@@ -187,7 +198,7 @@ export function adaptCfdMetadata(input: unknown): unknown {
   const evidenceRecord = evidence as Record<string, unknown>;
   const canonicalKeys = Object.keys(CfdEvidenceSchema.shape);
   const hasCanonical = canonicalKeys.every((key) => Object.prototype.hasOwnProperty.call(evidenceRecord, key));
-  if (hasCanonical) return input;
+  if (hasCanonical) return { ...source, ...derivedCounts, boundarySets: normalizeRenderBoundaries(boundarySets), references: normalizeRenderReferences(source.references), residuals: normalizeRenderResiduals(source.residuals) };
   const translated: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(evidenceRecord)) {
     const target = LEGACY_EVIDENCE_MAP[key];
@@ -202,7 +213,23 @@ export function adaptCfdMetadata(input: unknown): unknown {
   if (missing.length > 0) {
     throw new Error(`CFD contract rejected: missing canonical evidence: ${missing.join(", ")}`);
   }
-  return { ...source, evidence: translated };
+  return { ...source, ...derivedCounts, boundarySets: normalizeRenderBoundaries(boundarySets), references: normalizeRenderReferences(source.references), residuals: normalizeRenderResiduals(source.residuals), evidence: translated };
+}
+
+function normalizeRenderBoundaries(value: unknown): unknown[] {
+  if (!Array.isArray(value)) return [];
+  return value.every((item) => item && typeof item === "object" && Array.isArray((item as Record<string, unknown>).indices)) ? value : [];
+}
+
+function normalizeRenderReferences(value: unknown): unknown[] {
+  if (!Array.isArray(value)) return [];
+  return value.every((item) => item && typeof item === "object" && typeof (item as Record<string, unknown>).uri === "string" && typeof (item as Record<string, unknown>).comparisonHash === "string") ? value : [];
+}
+
+function normalizeRenderResiduals(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const item = value as Record<string, unknown>;
+  return item.mass === null || typeof item.mass !== "number" ? undefined : value;
 }
 
 export function parseCfdMetadata(input: unknown): CfdVolumeDataset {
