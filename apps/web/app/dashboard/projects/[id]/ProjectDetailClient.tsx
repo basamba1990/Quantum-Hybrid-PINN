@@ -16,7 +16,6 @@ import { getScenarioDisplayName } from '@/types/simulation-scenarios'
 import { loadCertifiedCfdDataset } from '@/lib/cfd/cfd-repository'
 import { loadCfdVtuSeries } from '@/lib/cfd/cfd-loader'
 import { ScenarioDemoPanel } from '@/components/scenario-demo-panel'
-import { gunzipSync, strFromU8 } from 'fflate'
 
 const CFDViewer = nextDynamic(
   () => import('@/components/cfd/CFDViewer'),
@@ -33,20 +32,82 @@ const PlotlyChart = nextDynamic(
   { ssr: false, loading: () => <div className="h-64 bg-slate-950/50 rounded-2xl animate-pulse" /> }
 )
 
+type DeferredCfdLoadError = { stage: 'download' | 'decompress' | 'parse' | 'normalize'; message: string }
+
+function markPerformance(name: string) {
+  if (typeof performance !== 'undefined' && typeof performance.mark === 'function') performance.mark(name)
+}
+
+async function decompressGzipAsync(compressed: ArrayBuffer): Promise<ArrayBuffer> {
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('CFD_GZIP_DECOMPRESSION_UNSUPPORTED: DecompressionStream est indisponible dans ce navigateur.')
+  }
+  const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'))
+  return new Response(stream).arrayBuffer()
+}
+
 async function hydrateDeferredCfdDataset(payload: any): Promise<any | null> {
   if (!payload?.datasetUrl || payload.datasetDeferred !== true) return payload?.dataset ?? null
-  const response = await fetch(payload.datasetUrl, { cache: 'no-store' })
-  if (!response.ok) throw new Error(`CFD dataset download failed (${response.status}).`)
-  const compressed = new Uint8Array(await response.arrayBuffer())
-  const text = strFromU8(gunzipSync(compressed))
-  const dataset = JSON.parse(text)
-  if (!dataset || typeof dataset !== 'object') throw new Error('CFD dataset JSON is invalid.')
-  return dataset
+  markPerformance('cfd-download-start')
+  let response: Response
+  try {
+    response = await fetch(payload.datasetUrl, { cache: 'no-store' })
+    if (!response.ok) throw new Error(`CFD dataset download failed (${response.status}).`)
+    const compressed = await response.arrayBuffer()
+    markPerformance('cfd-download-end')
+    markPerformance('cfd-decompress-start')
+    const decompressed = await decompressGzipAsync(compressed)
+    markPerformance('cfd-decompress-end')
+    // Yield once so React can paint progress before the unavoidable JSON parse.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    markPerformance('cfd-parse-start')
+    const dataset = JSON.parse(new TextDecoder().decode(decompressed))
+    markPerformance('cfd-parse-end')
+    if (!dataset || typeof dataset !== 'object') throw new Error('CFD dataset JSON is invalid.')
+    return dataset
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'CFD dataset loading failed.'
+    const stage = message.includes('download') || message.includes('HTTP') ? 'download' : message.includes('GZIP') || message.includes('decompress') ? 'decompress' : 'parse'
+    throw Object.assign(new Error(message), { cfdStage: stage } as { cfdStage: DeferredCfdLoadError['stage'] })
+  }
+}
+
+function summarizeCfdDataset(dataset: any) {
+  if (!dataset) return null
+  return {
+    contractVersion: dataset.contractVersion,
+    meshRevision: dataset.meshRevision,
+    coordinateSystem: dataset.coordinateSystem,
+    lengthUnit: dataset.lengthUnit,
+    pointCount: dataset.pointCount,
+    cellCount: dataset.cellCount,
+    frames: Array.isArray(dataset.frames) ? dataset.frames.map((frame: any) => ({ frameId: frame.frameId, time: frame.time })) : [],
+    boundarySets: dataset.boundarySets,
+    provenance: dataset.provenance,
+    residuals: dataset.residuals,
+    references: dataset.references,
+    transientProof: dataset.transientProof,
+    evidence: dataset.evidence,
+  }
+}
+
+function prepareCfdResult(dataset: any) {
+  markPerformance('cfd-normalize-start')
+  try {
+    const result = loadCertifiedCfdDataset({ cfd_dataset: dataset }, {})
+    markPerformance('cfd-normalize-end')
+    return { ...result, dataset: summarizeCfdDataset(result.dataset) }
+  } catch (error) {
+    markPerformance('cfd-normalize-error')
+    const message = error instanceof Error ? error.message : 'CFD dataset normalization failed.'
+    throw Object.assign(new Error(message), { cfdStage: 'normalize' as const })
+  }
 }
 
 export default function ProjectDetailClient({ id, project }: any) {
   const [latestAnalysis, setLatestAnalysis] = useState<any | null>(null)
-  const [explicitCfdDataset, setExplicitCfdDataset] = useState<any | null>(null)
+  const [explicitCfdResult, setExplicitCfdResult] = useState<any | null>(null)
+  const [cfdLoadError, setCfdLoadError] = useState<DeferredCfdLoadError | null>(null)
   const [demoCfdBuffers, setDemoCfdBuffers] = useState<any | null>(null)
   const [cfdAnalysisId, setCfdAnalysisId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -88,7 +149,8 @@ export default function ProjectDetailClient({ id, project }: any) {
       try {
         setLoading(true)
         let explicitCfd: any | null = null
-        setExplicitCfdDataset(null)
+        setExplicitCfdResult(null)
+        setCfdLoadError(null)
         setDemoCfdBuffers(null)
         setCfdAnalysisId(null)
         if (requestedCfdAnalysisId) {
@@ -106,17 +168,18 @@ export default function ProjectDetailClient({ id, project }: any) {
           }
           if (cfdResponse?.ok && cfdPayload?.dataset) {
             const hydratedDataset = await hydrateDeferredCfdDataset(cfdPayload)
+            const preparedCfd = prepareCfdResult(hydratedDataset)
             const importedCfdAnalysisId = typeof cfdPayload.analysisId === 'string'
               ? cfdPayload.analysisId
               : requestedCfdAnalysisId
             setCfdAnalysisId(importedCfdAnalysisId)
-            setExplicitCfdDataset(hydratedDataset)
+            setExplicitCfdResult(preparedCfd)
             explicitCfd = {
               analysis_id: importedCfdAnalysisId,
               project_id: typeof cfdPayload.projectId === 'string' ? cfdPayload.projectId : id,
               created_at: new Date().toISOString(),
               status: cfdPayload.status,
-              dataset: hydratedDataset,
+              dataset: preparedCfd.dataset,
               artifact_manifest: cfdPayload.artifactManifest,
             }
           } else if (cfdResponse && cfdResponse.status !== 404) {
@@ -183,17 +246,18 @@ export default function ProjectDetailClient({ id, project }: any) {
           }
           if (persistedResponse?.ok && persistedPayload?.dataset) {
             const hydratedDataset = await hydrateDeferredCfdDataset(persistedPayload)
+            const preparedCfd = prepareCfdResult(hydratedDataset)
             const persistedAnalysisId = typeof persistedPayload.analysisId === 'string'
               ? persistedPayload.analysisId
               : latestCfd.analysis_id
             setCfdAnalysisId(persistedAnalysisId)
-            setExplicitCfdDataset(hydratedDataset)
+            setExplicitCfdResult(preparedCfd)
             explicitCfd = {
               ...latestCfd,
               analysis_id: persistedAnalysisId,
               project_id: typeof persistedPayload.projectId === 'string' ? persistedPayload.projectId : id,
               status: persistedPayload.status,
-              dataset: hydratedDataset,
+              dataset: preparedCfd.dataset,
               artifact_manifest: persistedPayload.artifactManifest ?? latestCfd.artifact_manifest,
             }
             latestCfd = explicitCfd
@@ -315,7 +379,13 @@ export default function ProjectDetailClient({ id, project }: any) {
           return 0
         })
         setLatestAnalysis(candidates[0] ?? null)
-      } catch (err) { console.error(err) } finally { setLoading(false) }
+      } catch (err) {
+        console.error('CFD dataset loading failed:', err)
+        const error = err as Error & { cfdStage?: DeferredCfdLoadError['stage'] }
+        if (error.cfdStage || error.message?.includes('CFD dataset')) {
+          setCfdLoadError({ stage: error.cfdStage ?? 'normalize', message: error.message || 'CFD dataset loading failed.' })
+        }
+      } finally { setLoading(false) }
     }
     fetchData()
   }, [id, supabase, requestedCfdAnalysisId, isArtifactDemoScenario])
@@ -350,9 +420,7 @@ export default function ProjectDetailClient({ id, project }: any) {
 
   const results = latestAnalysis?.results || {}
   const scenarioType = resolveVisualizationScenario([latestAnalysis?.scenario_type, project?.scenario_type, project?.category, project?.name])
-  const certifiedCfd = useMemo(() => explicitCfdDataset
-    ? loadCertifiedCfdDataset({ cfd_dataset: explicitCfdDataset }, {})
-    : loadCertifiedCfdDataset(latestAnalysis, results), [explicitCfdDataset, latestAnalysis, results])
+  const certifiedCfd = useMemo(() => explicitCfdResult ?? loadCertifiedCfdDataset(latestAnalysis, results), [explicitCfdResult, latestAnalysis, results])
   const viewerCfd = certifiedCfd.buffers ?? demoCfdBuffers
   const residuals = chaosMode || leakAlertMode
       ? {}
@@ -428,7 +496,7 @@ export default function ProjectDetailClient({ id, project }: any) {
           {/* The demo contract is only a pre-import fallback. Once a persisted
               CFD dataset is hydrated, the server-authoritative G0–G5 matrix
               below is the only pipeline status shown to the user. */}
-          {isArtifactDemo && !loading && !explicitCfdDataset && !latestAnalysis?.results?.cfd_dataset && (
+          {isArtifactDemo && !loading && !explicitCfdResult && !latestAnalysis?.results?.cfd_dataset && (
     <ScenarioDemoPanel scenarioType={scenarioType} />
           )}
           {pinnProfile && (
@@ -487,9 +555,15 @@ export default function ProjectDetailClient({ id, project }: any) {
 
                 <TabsContent value="volumetric" className="m-0 p-8">
                   <div className="relative rounded-[32px] overflow-hidden bg-slate-950/50 border border-white/5 min-h-[760px]">
+                    {cfdLoadError && (
+                      <div className="m-4 rounded-xl border border-red-400/30 bg-red-950/30 p-4 text-red-200" data-cfd-state="error">
+                        <div className="font-mono text-[10px] font-black uppercase tracking-widest">CFD_DATASET_ERROR · {cfdLoadError.stage}</div>
+                        <p className="mt-2 break-words text-xs leading-5 text-red-100/80">{cfdLoadError.message}</p>
+                      </div>
+                    )}
                     <CFDViewer
                       dataset={viewerCfd}
-                      artifactPresent={Boolean(explicitCfdDataset || latestAnalysis?.results?.cfd_dataset || cfdAnalysisId)}
+                      artifactPresent={Boolean(explicitCfdResult || latestAnalysis?.results?.cfd_dataset || cfdAnalysisId)}
                       className="min-h-[600px]"
                     />
                   </div>

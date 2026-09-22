@@ -5,7 +5,7 @@ export const CFD_CONTRACT_VERSION = "cfd-volume.v1" as const;
 const nonEmpty = z.string().trim().min(1);
 const sha256 = z.string().regex(/^[a-fA-F0-9]{64}$/, "SHA-256 attendu");
 const finiteNumber = z.number().finite();
-const nullableFiniteNumber = finiteNumber.nullable().optional();
+const nullableFiniteNumberOrExplanation = z.union([finiteNumber, nonEmpty]).nullable().optional();
 
 export const CfdFieldSchema = z.object({
   name: nonEmpty,
@@ -47,10 +47,10 @@ export const CfdProvenanceSchema = z.object({
  * elle n’est jamais convertie en zéro ni en métrique synthétique.
  */
 export const CfdResidualSchema = z.object({
-  mass: nullableFiniteNumber,
-  momentum: nullableFiniteNumber,
-  energy: nullableFiniteNumber,
-  norm: z.enum(["L1", "L2", "Linf"]).nullable().optional(),
+  mass: nullableFiniteNumberOrExplanation,
+  momentum: nullableFiniteNumberOrExplanation,
+  energy: nullableFiniteNumberOrExplanation,
+  norm: z.union([z.enum(["L1", "L2", "Linf"]), nonEmpty]).nullable().optional(),
   computedBy: nonEmpty.nullable().optional(),
   computedAt: z.string().datetime({ offset: true }).nullable().optional(),
 });
