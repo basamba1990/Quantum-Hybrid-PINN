@@ -98,6 +98,26 @@ export default function AnalysisDetailPage() {
             results.credibilityScore = resData.credibility_score ?? results.credibilityScore;
           }
 
+          // The CFD importer persists its authoritative dataset in cfd_datasets,
+          // not in analyses.analysis_results. Load that contract through the
+          // authenticated proxy so a successful import becomes renderable after
+          // a reload while preserving its UNVALIDATED status.
+          try {
+            const cfdResponse = await fetch(`/api/cfd/${encodeURIComponent(analysisId)}`, {
+              cache: 'no-store',
+              credentials: 'include',
+            })
+            if (cfdResponse.ok) {
+              const cfdPayload = await cfdResponse.json()
+              if (cfdPayload?.dataset && typeof cfdPayload.dataset === 'object') {
+                results.cfd_dataset = cfdPayload.dataset
+                results.cfd_status = cfdPayload.status
+              }
+            }
+          } catch (cfdError) {
+            console.warn('Persisted CFD dataset unavailable:', cfdError)
+          }
+
           // ✅ Correction: Assurer que le score et les résultats sont correctement structurés
           const score = resData?.credibility_score ?? data.credibility_score ?? results?.credibility_score ?? results?.credibilityScore ?? 0;
           
@@ -236,7 +256,7 @@ export default function AnalysisDetailPage() {
           projectId={analysis.project_id}
           analysisId={analysis.id}
           onImported={() => {
-            router.refresh()
+            window.location.reload()
           }}
         />
       </section>
