@@ -110,7 +110,16 @@ export default function AnalysisDetailPage() {
             if (cfdResponse.ok) {
               const cfdPayload = await cfdResponse.json()
               if (cfdPayload?.dataset && typeof cfdPayload.dataset === 'object') {
-                results.cfd_dataset = cfdPayload.dataset
+                let persistedDataset = cfdPayload.dataset
+                // The API deliberately returns a compact summary on Render Free;
+                // hydrate the exact gzip contract only when the viewer needs it.
+                if (cfdPayload.datasetDeferred && typeof cfdPayload.datasetUrl === 'string' && typeof DecompressionStream !== 'undefined') {
+                  const datasetResponse = await fetch(cfdPayload.datasetUrl, { cache: 'no-store' })
+                  if (!datasetResponse.ok || !datasetResponse.body) throw new Error(`Contrat CFD compressé indisponible (${datasetResponse.status}).`)
+                  const decompressed = datasetResponse.body.pipeThrough(new DecompressionStream('gzip'))
+                  persistedDataset = JSON.parse(await new Response(decompressed).text())
+                }
+                results.cfd_dataset = persistedDataset
                 results.cfd_status = cfdPayload.status
               }
             }

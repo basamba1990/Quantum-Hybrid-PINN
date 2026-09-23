@@ -15,6 +15,7 @@ import gzip
 import hashlib
 import io
 import json
+import logging
 import os
 import re
 import shutil
@@ -37,6 +38,7 @@ except ImportError as exc:  # pragma: no cover - configuration error
     _MESHIO_IMPORT_ERROR = exc
 
 router = APIRouter(prefix="/v2/cfd", tags=["cfd-import"])
+logger = logging.getLogger("cfd_import")
 
 MAX_UPLOAD_BYTES = int(os.getenv("CFD_IMPORT_MAX_BYTES", str(50 * 1024 * 1024)))
 MAX_TOTAL_UPLOAD_BYTES = int(os.getenv("CFD_IMPORT_MAX_TOTAL_BYTES", str(64 * 1024 * 1024)))
@@ -58,6 +60,30 @@ _SAFE_FILENAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,180}$")
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _is_structural_synthetic(dataset: Dict[str, Any]) -> bool:
+    """Keep synthetic/reference-design artifacts renderable but never validated."""
+    return (
+        str(dataset.get("classification", "")).upper().startswith("SYNTHETIC")
+        or dataset.get("synthetic") is True
+        or dataset.get("realAsset") is False
+        or dataset.get("solverProduced") is False
+    )
+
+
+def _persist_analysis_import_status(analysis_id: str, status: str) -> None:
+    """Make the analysis list reflect a completed import without changing science status."""
+    try:
+        response = _supabase().table("analyses").update({"status": "completed"}).eq("id", analysis_id).execute()
+        if not getattr(response, "data", None):
+            logger.warning("CFD_IMPORT_ANALYSIS_STATUS_NOT_UPDATED analysis_id=%s", analysis_id)
+        else:
+            logger.info("CFD_IMPORT_ANALYSIS_STATUS_UPDATED analysis_id=%s dataset_status=%s", analysis_id, status)
+    except Exception as exc:
+        # The immutable cfd_datasets row is authoritative; a legacy analyses
+        # schema must not make a valid artifact import fail after persistence.
+        logger.warning("CFD_IMPORT_ANALYSIS_STATUS_UPDATE_FAILED analysis_id=%s error=%s", analysis_id, exc)
 
 
 def _sha256(data: bytes) -> str:
@@ -468,8 +494,8 @@ def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_b
     status = "UNVALIDATED"
     classification = str(dataset.get("classification", ""))
     evidence = dataset.get("evidence", {})
-    if classification.startswith("SYNTHETIC") or not all(evidence.values() if isinstance(evidence, dict) else []):
-        status = "STRUCTURAL_TEST_UNVALIDATED" if classification.startswith("SYNTHETIC") else "UNVALIDATED"
+    if _is_structural_synthetic(dataset) or not all(evidence.values() if isinstance(evidence, dict) else []):
+        status = "STRUCTURAL_TEST_UNVALIDATED" if _is_structural_synthetic(dataset) else "UNVALIDATED"
     first_frame = dataset.get("frames", [{}])[0]
     mesh_hash = _sha256(json.dumps({
         "points": first_frame.get("points", []),
@@ -540,6 +566,7 @@ def _persist_dataset(dataset: Dict[str, Any], files: Dict[str, bytes], sidecar_b
         raise HTTPException(status_code=502, detail=f"Persistance cfd_datasets échouée; artefacts nettoyés: {exc}") from exc
     if not getattr(response, "data", None):
         raise HTTPException(status_code=502, detail="Supabase n’a pas confirmé l’insertion de cfd_datasets.")
+    _persist_analysis_import_status(analysis_id, status)
     return analysis_id
 
 
@@ -563,8 +590,8 @@ def _persist_streaming_dataset(
     dataset_id = str(uuid.uuid4())
     evidence = metadata.get("evidence", {})
     classification = str(metadata.get("classification", ""))
-    status = "STRUCTURAL_TEST_UNVALIDATED" if classification.startswith("SYNTHETIC") else "UNVALIDATED"
-    if not classification.startswith("SYNTHETIC") and isinstance(evidence, dict) and all(evidence.values()):
+    status = "STRUCTURAL_TEST_UNVALIDATED" if _is_structural_synthetic(metadata) else "UNVALIDATED"
+    if not _is_structural_synthetic(metadata) and isinstance(evidence, dict) and all(evidence.values()):
         status = "UNVALIDATED"
     first = frame_summaries[0]
     mesh_hash = _sha256(json.dumps({
@@ -633,6 +660,7 @@ def _persist_streaming_dataset(
         raise HTTPException(status_code=502, detail={"code": "CFD_DATASET_PERSISTENCE_FAILED", "message": f"Persistance cfd_datasets échouée; artefacts nettoyés: {exc}"}) from exc
     if not getattr(response, "data", None):
         raise HTTPException(status_code=502, detail={"code": "CFD_DATASET_PERSISTENCE_UNCONFIRMED", "message": "Supabase n’a pas confirmé l’insertion de cfd_datasets."})
+    _persist_analysis_import_status(analysis_id, status)
     return analysis_id
 
 
@@ -647,6 +675,8 @@ async def import_cfd_dataset(
     _auth: None = Depends(require_cfd_import_auth),
     _slot: None = Depends(require_import_slot),
 ) -> Dict[str, Any]:
+    started_at = time.monotonic()
+    logger.info("CFD_IMPORT_MULTIPART_START files=%s case_id=%s project_id=%s analysis_id=%s", len(vtu_files), case_id, project_id, analysis_id or "auto")
     if not vtu_files or len(vtu_files) > MAX_FILES_PER_IMPORT:
         raise HTTPException(status_code=400, detail=f"Nombre de VTU invalide; maximum {MAX_FILES_PER_IMPORT}.")
     sidecar_name = _validate_filename(sidecar.filename, {".json"}, "sidecar")
@@ -676,6 +706,7 @@ async def import_cfd_dataset(
     _verify_project_owner(project_id, owner_id)
     _verify_analysis_owner(analysis_id, project_id, owner_id)
     analysis_id = _persist_dataset(dataset, uploaded, sidecar_bytes, case_id, project_id, owner_id, analysis_id)
+    logger.info("CFD_IMPORT_MULTIPART_DONE analysis_id=%s frames=%s bytes=%s elapsed_s=%.2f", analysis_id, len(dataset["frames"]), total_upload_bytes, time.monotonic() - started_at)
     return {
         "analysisId": analysis_id,
         "datasetId": analysis_id,
@@ -684,7 +715,7 @@ async def import_cfd_dataset(
         "pointCount": dataset["pointCount"],
         "cellCount": dataset["cellCount"],
         "frameCount": len(dataset["frames"]),
-        "status": "STRUCTURAL_TEST_UNVALIDATED" if str(metadata.get("classification", "")).startswith("SYNTHETIC") else "UNVALIDATED",
+        "status": "STRUCTURAL_TEST_UNVALIDATED" if _is_structural_synthetic(metadata) else "UNVALIDATED",
         "projectId": project_id,
         "sidecar": sidecar_name,
         "artifactHashes": {
@@ -749,6 +780,8 @@ async def import_cfd_dataset_from_storage(
 
     client = _supabase()
     session_paths = [sidecar_path, *[path for _, path in frame_specs]]
+    started_at = time.monotonic()
+    logger.info("CFD_IMPORT_STORAGE_START files=%s case_id=%s project_id=%s analysis_id=%s session_id=%s", len(frame_specs), case_id, project_id, analysis_id or "auto", session_id)
     try:
         with tempfile.TemporaryDirectory(prefix="cfd-import-") as temporary_dir:
             sidecar_local = os.path.join(temporary_dir, "sidecar.json")
@@ -825,20 +858,23 @@ async def import_cfd_dataset_from_storage(
                 dataset_output.write("]}")
             _verify_analysis_owner(analysis_id, project_id, owner_id)
             analysis_id = _persist_streaming_dataset(metadata, frame_summaries, local_frames, sidecar_bytes, dataset_blob_path, case_id, project_id, owner_id, analysis_id)
+            logger.info("CFD_IMPORT_STORAGE_DONE analysis_id=%s frames=%s bytes=%s elapsed_s=%.2f", analysis_id, len(frame_summaries), total_size, time.monotonic() - started_at)
             result = {
                 "analysisId": analysis_id, "datasetId": analysis_id,
                 "contractVersion": metadata["contractVersion"], "meshRevision": metadata["meshRevision"],
                 "pointCount": frame_summaries[0]["pointCount"], "cellCount": frame_summaries[0]["cellCount"],
                 "frameCount": len(frame_summaries),
-                "status": "STRUCTURAL_TEST_UNVALIDATED" if str(metadata.get("classification", "")).startswith("SYNTHETIC") else "UNVALIDATED",
+                "status": "STRUCTURAL_TEST_UNVALIDATED" if _is_structural_synthetic(metadata) else "UNVALIDATED",
                 "projectId": project_id, "sidecar": sidecar_name,
                 "artifactHashes": {"sidecar": _sha256(sidecar_bytes), "frames": {name: _sha256_file(path) for name, path in sorted(local_frames.items())}},
             }
     except MemoryError as exc:
+        logger.exception("CFD_IMPORT_STORAGE_MEMORY_EXHAUSTED session_id=%s", session_id)
         raise HTTPException(status_code=507, detail={"code": "CFD_IMPORT_MEMORY_EXHAUSTED", "message": "Import CFD interrompu: mémoire insuffisante; les frames sont traitées séquentiellement."}) from exc
     except HTTPException:
         raise
     except Exception as exc:
+        logger.exception("CFD_IMPORT_STORAGE_FAILED session_id=%s error=%s", session_id, exc)
         raise HTTPException(status_code=502, detail={"code": "CFD_IMPORT_WORKER_FAILED", "message": f"Worker d’import CFD indisponible ou interrompu: {exc}"}) from exc
     finally:
         try:

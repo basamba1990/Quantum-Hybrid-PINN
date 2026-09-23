@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 
-from cfd_import_router import router
+from cfd_import_router import _is_structural_synthetic, router
 
 
 ROOT = Path(__file__).resolve().parents[3] / 'artifacts' / 'synthetic_lh2_vtu'
@@ -20,6 +20,13 @@ def make_client() -> TestClient:
     app = FastAPI()
     app.include_router(router)
     return TestClient(app)
+
+
+def test_reference_design_sidecar_remains_structural_and_unvalidated():
+    assert _is_structural_synthetic({"classification": "REFERENCE_DESIGN", "synthetic": True})
+    assert _is_structural_synthetic({"classification": "REFERENCE_DESIGN", "realAsset": False})
+    assert _is_structural_synthetic({"classification": "REFERENCE_DESIGN", "solverProduced": False})
+    assert not _is_structural_synthetic({"classification": "REAL_CFD", "synthetic": False, "realAsset": True, "solverProduced": True})
 
 
 def test_import_accepts_exact_hashes_and_builds_dataset():

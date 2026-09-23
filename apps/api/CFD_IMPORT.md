@@ -30,6 +30,10 @@ Le sidecar doit déclarer `contractVersion: cfd-volume.v1`, `fieldDescriptors`, 
 
 Le dataset final est reconstruit à partir des octets VTU; les métadonnées non présentes ne sont pas complétées. Les octets originaux du sidecar et des VTU sont conservés dans Storage, tandis que le contrat normalisé et le manifeste de hashes sont enregistrés dans `cfd_datasets`. La ligne conserve la relation complète `project_id`, `analysis_id`, `owner_id`, `case_id`, `mesh_hash`, `contract_hash`, `frame_hashes` et `status`.
 
+Après une insertion confirmée dans `cfd_datasets`, le backend passe l’analyse correspondante à `completed`. Cette mise à jour est informative et ne modifie jamais le statut scientifique du dataset. Un sidecar de référence qui déclare `synthetic: true`, `realAsset: false` ou `solverProduced: false` est classé `STRUCTURAL_TEST_UNVALIDATED`; il peut être rendu pour contrôler le pipeline, mais ne peut pas devenir `VALIDATED`.
+
+Les imports produisent les marqueurs Render `CFD_IMPORT_STORAGE_START`, `CFD_IMPORT_STORAGE_DONE`, `CFD_IMPORT_MULTIPART_START` et `CFD_IMPORT_MULTIPART_DONE`, avec le nombre de frames, l’identifiant d’analyse, la taille traitée et la durée. L’absence du marqueur `*_DONE` indique que l’échec se situe pendant le téléchargement Storage, le parsing VTU ou la persistance Supabase.
+
 ## Statuts
 
 Un sidecar classé `SYNTHETIC_*` donne `STRUCTURAL_TEST_UNVALIDATED`. Un artefact non synthétique dont les preuves sont incomplètes donne `UNVALIDATED`. L’import ne produit pas automatiquement une certification G0–G5; une validation scientifique nécessite encore les preuves de solveur, de provenance, de résidus et de comparaison exigées par le service de certification.
