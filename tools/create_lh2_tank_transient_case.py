@@ -91,7 +91,7 @@ mergePatchPairs ();\n''')
 mergeTolerance 1e-6;
 snap true;
 addLayers false;
-geometry { lh2_tank_analytic.stl { type triSurfaceMesh; name tankWall; } }
+geometry { tank { type triSurfaceMesh; file "lh2_tank_analytic.stl"; name tankWall; } }
 castellatedMeshControls { maxLocalCells 300000; maxGlobalCells 300000; minRefinementCells 10; nCellsBetweenLevels 2; resolveFeatureAngle 30; features (); refinementSurfaces { tankWall { level (2 2); patchInfo { type wall; } } } refinementRegions {} locationInMesh (0 0 0.225); allowFreeStandingZoneFaces true; }
 snapControls { nSmoothPatch 3; tolerance 2.0; nSolveIter 30; nRelaxIter 5; }
 addLayersControls
@@ -148,11 +148,11 @@ nu [0 2 -1 0 0 0 0] 1.3e-6;
 ''')
 (case/"0/U").write_text(foam%"U"+'''dimensions [0 1 -1 0 0 0 0];
 internalField uniform (0.02 0 0);
-boundaryField { outer { type slip; } tankWall { type noSlip; } }
+boundaryField { tankWall { type noSlip; } }
 ''')
 (case/"0/p").write_text(foam%"p"+'''dimensions [0 2 -2 0 0 0 0];
 internalField uniform 0;
-boundaryField { outer { type zeroGradient; } tankWall { type zeroGradient; } }
+boundaryField { tankWall { type zeroGradient; } }
 ''')
 (root/"geometry_manifest.json").write_text('''{\n  "geometryId": "LH2-TANK-ANALYTIC-50L-V1",\n  "source": "Jeong et al., Fluids 2023, 8, 239, attached PDF",\n  "status": "RECONSTRUCTED_PARAMETERIZED_NOT_AUTHOR_CAD",\n  "closedSolid": true,\n  "dimensions_m": {"innerDiameter": 0.386, "totalHeight": 0.450, "bottomDomeHeight": 0.0991, "topDomeHeight": 0.10145, "wallThickness": 0.003},\n  "assumptions": ["axisymmetric analytic surface", "straight cylindrical section between described dome heights", "single-phase incompressible pimpleFoam pipeline validation; not a thermo-boiling LH2 reproduction"],\n  "meshMethod": "blockMesh background plus snappyHexMesh surface refinement"\n}\n''')
 (root/"README.md").write_text('''# LH2-TANK-TRANSIENT-RUN-001\n\nThis benchmark uses a closed analytic reconstruction of the 50 L LH2 tank described by Jeong et al. (Fluids 2023, 8, 239). It is not the author CAD. The executable validation case is incompressible laminar `pimpleFoam` with `snappyHexMesh`; thermo-boiling physics are not claimed.\n''')
