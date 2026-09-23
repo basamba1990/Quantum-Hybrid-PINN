@@ -1,4 +1,5 @@
 torch>=2.0.0
+pennylane>=0.45,<0.46
 fastapi>=0.104.0
 uvicorn>=0.24.0
 numpy>=1.24.0
