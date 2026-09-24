@@ -8,6 +8,10 @@
       "ok": true
     },
     {
+      "check": "command:foamRun",
+      "ok": true
+    },
+    {
       "check": "command:chtMultiRegionFoam",
       "ok": true
     },

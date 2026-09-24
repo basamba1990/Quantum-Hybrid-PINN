@@ -127,10 +127,10 @@ Un contrôle multi-région OpenFOAM 12 suit cette structure :
 
 ```foam
 application     foamMultiRun;
-
 regionSolvers
 {
-    LH2             multiphaseInterFoam;
+    // OpenFOAM 12 stock module; thermal LH2 phase change requires an extension.
+    LH2             incompressibleMultiphaseVoF;
     aluminium2219   solid;
     polyurethane10mm solid;
 }
@@ -144,7 +144,7 @@ writeInterval   10;
 maxCo           0.5;
 ```
 
-Pour un cas purement CHT sans changement de phase, le fluide peut être remplacé par `fluid` ou le solveur thermo-compressible disponible dans l’installation. Pour le cas LH₂/vapeur, le solveur multiphasique doit posséder les champs `alpha`, `T` et `h` ainsi que la fermeture d’évaporation/condensation. Si cette fermeture n’existe pas dans le solveur choisi, le run doit être refusé comme cas article-comparable.
+Pour un cas purement CHT sans changement de phase, le fluide peut être remplacé par `fluid` ou le solveur thermo-compressible disponible dans l’installation. Pour le cas LH₂/vapeur, le module VOF stock `incompressibleMultiphaseVoF` ne suffit pas : il faut un module personnalisé qui possède les champs `alpha`, `T` et `h` ainsi que la fermeture d’évaporation/condensation. L’alternative OpenFOAM native est `multiphaseEuler` avec `thermalPhaseChangeMultiphaseSystem`, mais elle doit être déclarée comme modèle Euler multiphasique et non comme reproduction VOF de l’article.
 
 ## Propriétés des solides
 

@@ -25,7 +25,7 @@ def main() -> int:
     case = args.case.resolve()
     checks: list[dict[str, object]] = []
 
-    for app in ("foamMultiRun", "chtMultiRegionFoam", "splitMeshRegions", "foamToVTK"):
+    for app in ("foamMultiRun", "foamRun", "chtMultiRegionFoam", "splitMeshRegions", "foamToVTK"):
         checks.append({"check": f"command:{app}", "ok": shutil.which(app) is not None})
 
     region_file = case / "constant" / "regionProperties"

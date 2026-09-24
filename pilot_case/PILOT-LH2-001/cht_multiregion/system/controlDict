@@ -10,7 +10,10 @@ FoamFile
 application     foamMultiRun;
 regionSolvers
 {
-    LH2             multiphaseInterFoam;
+    // OpenFOAM 12 stock VOF module; it does not include LH2 phase change.
+    // Replace with a compiled lh2ThermalMultiphaseVoF module for the
+    // article-faithful Ranz-Marshall closure.
+    LH2             incompressibleMultiphaseVoF;
     aluminium2219   solid;
     polyurethane10mm solid;
 }
