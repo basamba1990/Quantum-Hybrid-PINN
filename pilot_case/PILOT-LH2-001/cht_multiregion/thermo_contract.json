@@ -1,0 +1,11 @@
+{
+  "status": "TEMPLATE_NOT_IMPLEMENTED",
+  "h_lh2": {"implemented": false, "source": "CoolProp/validated LH2 thermo package required"},
+  "h_fg(p)": {"implemented": false, "source": "pressure-dependent saturation property required"},
+  "T_sat(p)": {"implemented": false, "source": "pressure-dependent saturation property required"},
+  "evaporation": {"implemented": false, "source": "two-phase enthalpy closure required"},
+  "condensation": {"implemented": false, "source": "two-phase enthalpy closure required"},
+  "wall_heat_transfer": {"implemented": false, "source": "conformal LH2/aluminium/PU interfaces required"},
+  "requiredFields": ["alpha", "T", "h", "p", "U", "rho"],
+  "scientificStatus": "THERMAL_LH2_VOF_CHT_NOT_VALIDATED"
+}

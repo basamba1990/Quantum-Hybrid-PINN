@@ -1,0 +1,30 @@
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    location    "system";
+    object      controlDict;
+}
+
+// TEMPLATE ONLY: requires a conformal mesh and a verified thermo-boiling solver.
+application     foamMultiRun;
+regionSolvers
+{
+    LH2             multiphaseInterFoam;
+    aluminium2219   solid;
+    polyurethane10mm solid;
+}
+startFrom       startTime;
+startTime       0;
+stopAt          endTime;
+endTime         600;
+deltaT          0.1;
+writeControl    adjustableRunTime;
+writeInterval   10;
+purgeWrite      0;
+writeFormat     binary;
+writePrecision  8;
+writeCompression off;
+runTimeModifiable true;
+maxCo           0.5;
+adjustTimeStep  yes;

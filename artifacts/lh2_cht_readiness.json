@@ -1,0 +1,70 @@
+{
+  "case": "/home/ubuntu/Quantum-Hybrid-PINN/pilot_case/PILOT-LH2-001/cht_multiregion",
+  "status": "BLOCKED",
+  "scientificStatus": "THERMAL_LH2_VOF_CHT_NOT_VALIDATED",
+  "checks": [
+    {
+      "check": "command:foamMultiRun",
+      "ok": true
+    },
+    {
+      "check": "command:chtMultiRegionFoam",
+      "ok": true
+    },
+    {
+      "check": "command:splitMeshRegions",
+      "ok": true
+    },
+    {
+      "check": "command:foamToVTK",
+      "ok": true
+    },
+    {
+      "check": "regionProperties",
+      "ok": true,
+      "declared": [
+        "LH2",
+        "aluminium2219",
+        "polyurethane10mm",
+        "polyurethane20mm",
+        "polyurethane30mm"
+      ]
+    },
+    {
+      "check": "foamMultiRun-control",
+      "ok": true
+    },
+    {
+      "check": "thermo-boiling-contract",
+      "ok": false,
+      "missing": [
+        "h_lh2",
+        "h_fg(p)",
+        "T_sat(p)",
+        "evaporation",
+        "condensation",
+        "wall_heat_transfer"
+      ]
+    },
+    {
+      "check": "checkMesh-evidence",
+      "ok": false
+    }
+  ],
+  "requiredRegions": [
+    "LH2",
+    "aluminium2219",
+    "polyurethane10mm",
+    "polyurethane20mm",
+    "polyurethane30mm"
+  ],
+  "requiredThermoContract": [
+    "h_lh2",
+    "h_fg(p)",
+    "T_sat(p)",
+    "evaporation",
+    "condensation",
+    "wall_heat_transfer"
+  ],
+  "note": "chtMultiRegionFoam couples fluid/solid energy but does not by itself implement LH2 liquid-vapor phase change; use a dedicated multiphase solver/custom closure before claiming boil-off CFD."
+}

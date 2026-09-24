@@ -1,0 +1,18 @@
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      regionProperties;
+}
+
+// TEMPLATE ONLY. Generate the actual regions with snappyHexMesh and
+// splitMeshRegions -cellZones after creating conformal concentric surfaces.
+regions
+(
+    LH2
+    aluminium2219
+    polyurethane10mm
+    polyurethane20mm
+    polyurethane30mm
+);
