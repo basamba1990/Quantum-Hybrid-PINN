@@ -8,12 +8,17 @@ case = root / "case"
 (case / "constant" / "triSurface").mkdir(parents=True, exist_ok=True)
 (case / "system").mkdir(parents=True, exist_ok=True)
 
-# Article-derived closed analytic reconstruction: total height 0.450 m,
-# inner diameter 0.386 m, dome heights 0.0991/0.10145 m.
+# Article-derived reconstruction. The literal 450 mm interpretation produced
+# 44.63 L, so the cylindrical height is solved for the nominal 50 L volume.
 r = 0.193
-h_total = 0.450
 h_bottom = 0.0991
 h_top = 0.10145
+target_volume = 0.050
+# The generated dome coordinates are half-ellipsoids: r(theta)=r*sin(theta),
+# z(theta)=h*cos(theta), hence V_dome = 2/3*pi*r^2*h.
+dome_volume = (2.0/3.0) * math.pi * r*r * (h_bottom + h_top)
+h_cylinder = (target_volume-dome_volume)/(math.pi*r*r)
+h_total = h_bottom + h_cylinder + h_top
 z0 = 0.0
 z1 = h_bottom
 z2 = h_total - h_top
@@ -69,7 +74,7 @@ with stl_path.open("w") as f:
 
 foam='''FoamFile { version 2.0; format ascii; class dictionary; object %s; }\n'''
 (case/"system/blockMeshDict").write_text(foam%"blockMeshDict"+'''scale 1;
-vertices ((-0.24 -0.24 -0.04) (0.24 -0.24 -0.04) (0.24 0.24 -0.04) (-0.24 0.24 -0.04) (-0.24 -0.24 0.49) (0.24 -0.24 0.49) (0.24 0.24 0.49) (-0.24 0.24 0.49));
+vertices ((-0.24 -0.24 -0.05) (0.24 -0.24 -0.05) (0.24 0.24 -0.05) (-0.24 0.24 -0.05) (-0.24 -0.24 0.55) (0.24 -0.24 0.55) (0.24 0.24 0.55) (-0.24 0.24 0.55));
 blocks
 (
     hex (0 1 2 3 4 5 6 7) (24 24 42) simpleGrading (1 1 1)
@@ -92,7 +97,7 @@ mergeTolerance 1e-6;
 snap true;
 addLayers false;
 geometry { tank { type triSurfaceMesh; file "lh2_tank_analytic.stl"; name tankWall; } }
-castellatedMeshControls { maxLocalCells 300000; maxGlobalCells 300000; minRefinementCells 10; nCellsBetweenLevels 2; resolveFeatureAngle 30; features (); refinementSurfaces { tankWall { level (2 2); patchInfo { type wall; } } } refinementRegions {} locationInMesh (0 0 0.225); allowFreeStandingZoneFaces true; }
+castellatedMeshControls { maxLocalCells 500000; maxGlobalCells 500000; minRefinementCells 10; nCellsBetweenLevels 2; resolveFeatureAngle 30; features (); refinementSurfaces { tankWall { level (3 3); patchInfo { type wall; } } } refinementRegions {} locationInMesh (0 0 0.225); allowFreeStandingZoneFaces true; }
 snapControls { nSmoothPatch 3; tolerance 2.0; nSolveIter 30; nRelaxIter 5; }
 addLayersControls
 {
@@ -154,6 +159,7 @@ boundaryField { tankWall { type noSlip; } }
 internalField uniform 0;
 boundaryField { tankWall { type zeroGradient; } }
 ''')
-(root/"geometry_manifest.json").write_text('''{\n  "geometryId": "LH2-TANK-ANALYTIC-50L-V1",\n  "source": "Jeong et al., Fluids 2023, 8, 239, attached PDF",\n  "status": "RECONSTRUCTED_PARAMETERIZED_NOT_AUTHOR_CAD",\n  "closedSolid": true,\n  "dimensions_m": {"innerDiameter": 0.386, "totalHeight": 0.450, "bottomDomeHeight": 0.0991, "topDomeHeight": 0.10145, "wallThickness": 0.003},\n  "assumptions": ["axisymmetric analytic surface", "straight cylindrical section between described dome heights", "single-phase incompressible pimpleFoam pipeline validation; not a thermo-boiling LH2 reproduction"],\n  "meshMethod": "blockMesh background plus snappyHexMesh surface refinement"\n}\n''')
+(root/"geometry_manifest.json").write_text(f'''{{\n  "geometryId": "LH2-TANK-ANALYTIC-50L-V2",\n  "source": "Jeong et al., Fluids 2023, 8, 239, attached PDF",\n  "status": "RECONSTRUCTED_PARAMETERIZED_NOT_AUTHOR_CAD",\n  "closedSolid": true,\n  "capacityTarget_L": 50.0,\n  "dimensions_m": {{"innerDiameter": 0.386, "totalHeight": {h_total:.12g}, "cylindricalHeight": {h_cylinder:.12g}, "bottomDomeHeight": 0.0991, "topDomeHeight": 0.10145, "wallThickness": 0.003}},\n  "capacityCorrection": "cylindrical height solved from nominal 50 L because literal 450 mm interpretation produced 44.63 L",\n  "assumptions": ["axisymmetric analytic surface", "straight cylindrical section between described dome heights", "single-phase incompressible pimpleFoam pipeline validation; not a thermo-boiling LH2 reproduction"],\n  "meshMethod": "blockMesh background plus snappyHexMesh surface refinement"\n}}\n''')
+
 (root/"README.md").write_text('''# LH2-TANK-TRANSIENT-RUN-001\n\nThis benchmark uses a closed analytic reconstruction of the 50 L LH2 tank described by Jeong et al. (Fluids 2023, 8, 239). It is not the author CAD. The executable validation case is incompressible laminar `pimpleFoam` with `snappyHexMesh`; thermo-boiling physics are not claimed.\n''')
 print(root)
