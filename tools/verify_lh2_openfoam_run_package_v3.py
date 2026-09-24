@@ -30,7 +30,7 @@ def main() -> int:
                 failures.append('frame:' + frame['file'])
         if len(sidecar['frames']) != 8:
             failures.append('expected 8 frames')
-        if status['moduleStatus'] != 'SCALAR_CLOSURE_PROTOTYPE_UNCOMPILED':
+        if status['moduleStatus'] != 'COMPILED_FVMODEL_SMOKE_TEST_PASSED_NOT_TANK_VALIDATED':
             failures.append('unexpected module status')
         if failures:
             print(json.dumps({'status': 'FAIL', 'failures': failures}, indent=2))

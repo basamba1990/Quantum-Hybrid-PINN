@@ -11,9 +11,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 INPUT_ZIP = Path('/home/ubuntu/upload/lh2_openfoam_run_package.zip')
-WORK = Path('/home/ubuntu/lh2_openfoam_run_package_v3')
+WORK = Path('/home/ubuntu/lh2_openfoam_run_package_v4')
 ROOT = WORK / 'lh2_openfoam_run'
-ZIP = Path('/home/ubuntu/lh2_openfoam_run_package_v3.zip')
+ZIP = Path('/home/ubuntu/lh2_openfoam_run_package_v4.zip')
 FRAMES = REPO / 'pilot_case/LH2-TANK-TRANSIENT-RUN-001/run/frames'
 SIDECAR = REPO / 'pilot_case/LH2-TANK-TRANSIENT-RUN-001/run/sidecar.json'
 STL = REPO / 'pilot_case/LH2-TANK-TRANSIENT-RUN-001/case/constant/triSurface/lh2_tank_analytic.stl'
@@ -48,19 +48,28 @@ def main() -> None:
 
     sidecar = json.loads(SIDECAR.read_text())
     sidecar.update({
-        'caseId': 'LH2-OPENFOAM-RUN-PACKAGE-V3',
+        'caseId': 'LH2-OPENFOAM-RUN-PACKAGE-V4',
         'meshRevision': 'lh2-tank-analytic-concentric-surfaces-v1',
         'assetStatus': 'NATIVE_OPENFOAM_HYDRODYNAMIC_FRAMES_WITH_PHASE_CHANGE_PROTOTYPE',
         'solverStatus': 'pimpleFoam_hydrodynamic_only',
         'vofPhaseChangeStatus': 'NOT_IMPLEMENTED_IN_FRAMES',
         'conformalMultiRegionStatus': 'CONCENTRIC_SURFACES_PREPARED_SPLIT_PENDING',
-        'sourcePackage': 'lh2_openfoam_run_package_v3',
+        'sourcePackage': 'lh2_openfoam_run_package_v4',
         'warning': 'Frames are native OpenFOAM pimpleFoam hydrodynamic outputs; they are not article-faithful LH2 thermal VOF boiling outputs.'
     })
     (ROOT / 'sidecar.json').write_text(json.dumps(sidecar, indent=2, ensure_ascii=False) + '\n')
 
     source_out = ROOT / 'src/lh2ThermalMultiphaseVoF'
     shutil.copytree(SOURCE, source_out, dirs_exist_ok=True)
+
+    library = Path('/home/ubuntu/OpenFOAM/root-12/platforms/linux64GccDPInt32Opt/lib/liblh2ThermalMultiphaseVoF.so')
+    if library.is_file():
+        (ROOT / 'lib').mkdir(exist_ok=True)
+        shutil.copy2(library, ROOT / 'lib/liblh2ThermalMultiphaseVoF.so')
+    for evidence in (Path('/home/ubuntu/lh2RanzMarshall_wmake_v5.log'), Path('/home/ubuntu/lh2_source_smoke_v5.log')):
+        if evidence.is_file():
+            (ROOT / 'logs').mkdir(exist_ok=True)
+            shutil.copy2(evidence, ROOT / 'logs' / evidence.name)
 
     mesh = ROOT / 'mesh'
     (mesh / 'source').mkdir(parents=True, exist_ok=True)
@@ -83,8 +92,8 @@ def main() -> None:
     }, indent=2) + '\n')
 
     status = {
-        'packageVersion': 'v3',
-        'moduleStatus': 'SCALAR_CLOSURE_PROTOTYPE_UNCOMPILED',
+        'packageVersion': 'v4',
+        'moduleStatus': 'COMPILED_FVMODEL_SMOKE_TEST_PASSED_NOT_TANK_VALIDATED',
         'meshStatus': 'CONCENTRIC_SURFACES_PREPARED_CONFORMAL_SPLIT_PENDING',
         'framesStatus': 'NATIVE_OPENFOAM_PIMPLEFOAM_HYDRODYNAMIC_ONLY',
         'sidecarStatus': 'HASHED_AND_PROVENANCE_DECLARED_NOT_THERMAL_VOF_VALIDATED',
@@ -98,13 +107,13 @@ def main() -> None:
     (ROOT / 'BUILD_STATUS.json').write_text(json.dumps(status, indent=2) + '\n')
 
     readme = ROOT / 'README.md'
-    readme.write_text(readme.read_text() + '''\n\n## v3 additions\n\nThis package adds eight native OpenFOAM transient frames and a SHA-256 sidecar copied from the corrected analytic-tank pimpleFoam evidence, the scalar Ranz-Marshall LH2 closure prototype, and concentric shell surface inputs. It intentionally labels the remaining conformal multi-region split and thermal VOF integration as pending.\n''')
+    readme.write_text(readme.read_text() + '''\n\n## v4 additions\n\nThis package adds the compiled `liblh2ThermalMultiphaseVoF.so`, its OpenFOAM 12 smoke-test logs, eight native OpenFOAM transient frames and a SHA-256 sidecar copied from the corrected analytic-tank pimpleFoam evidence. The remaining conformal multi-region split and tank thermal VOF validation are intentionally marked pending.\n''')
 
     files = []
     for path in sorted(ROOT.rglob('*')):
         if path.is_file() and path.name not in {'MANIFEST.sha256', 'MANIFEST.json'}:
             files.append({'file': str(path.relative_to(WORK)), 'sha256': sha256(path), 'bytes': path.stat().st_size})
-    (ROOT / 'MANIFEST.json').write_text(json.dumps({'package': 'lh2_openfoam_run_package_v3', 'files': files}, indent=2) + '\n')
+    (ROOT / 'MANIFEST.json').write_text(json.dumps({'package': 'lh2_openfoam_run_package_v4', 'files': files}, indent=2) + '\n')
     (ROOT / 'MANIFEST.sha256').write_text('\n'.join(f"{item['sha256']}  {item['file']}" for item in files) + '\n')
 
     with zipfile.ZipFile(ZIP, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:

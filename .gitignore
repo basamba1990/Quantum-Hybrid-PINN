@@ -10,3 +10,7 @@ pilot_case/reports/
 
 # Local deployment secrets (never commit)
 apps/web/.env.local
+
+# OpenFOAM generated build outputs
+src/lh2ThermalMultiphaseVoF/Make/linux64GccDPInt32Opt/
+src/lh2ThermalMultiphaseVoF/lnInclude/
