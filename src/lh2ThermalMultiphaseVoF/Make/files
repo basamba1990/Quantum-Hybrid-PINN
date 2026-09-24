@@ -1,0 +1,2 @@
+# Integration target: link this closure into a custom foamRun solver.
+# The scalar closure is header-only until OpenFOAM field coupling is implemented.
