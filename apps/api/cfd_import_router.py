@@ -41,7 +41,11 @@ router = APIRouter(prefix="/v2/cfd", tags=["cfd-import"])
 logger = logging.getLogger("cfd_import")
 
 MAX_UPLOAD_BYTES = int(os.getenv("CFD_IMPORT_MAX_BYTES", str(50 * 1024 * 1024)))
-MAX_TOTAL_UPLOAD_BYTES = int(os.getenv("CFD_IMPORT_MAX_TOTAL_BYTES", str(64 * 1024 * 1024)))
+# The storage-backed path processes one frame at a time, so it can safely accept
+# multi-frame transient runs without retaining the complete upload in memory.
+# Keep the limit configurable while making it large enough for the production
+# LH2 package (8 frames, approximately 204 MiB total).
+MAX_TOTAL_UPLOAD_BYTES = int(os.getenv("CFD_IMPORT_MAX_TOTAL_BYTES", str(256 * 1024 * 1024)))
 MAX_FILES_PER_IMPORT = int(os.getenv("CFD_IMPORT_MAX_FILES", "32"))
 _IMPORT_LOCK = asyncio.Lock()
 _ALLOWED_VTU = {".vtu"}
