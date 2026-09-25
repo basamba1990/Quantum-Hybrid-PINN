@@ -93,6 +93,25 @@ export function CFDImportForm({ caseId, projectId, analysisId, onBeforeImport, o
       setError('Select at least one VTU frame and its JSON sidecar.')
       return
     }
+    try {
+      const sidecarMetadata = JSON.parse(await sidecar.text()) as { caseId?: unknown }
+      const declaredCaseId = typeof sidecarMetadata.caseId === 'string' ? sidecarMetadata.caseId.trim() : ''
+      if (!declaredCaseId) {
+        throw new Error('The sidecar must declare a non-empty caseId before upload.')
+      }
+      if (declaredCaseId !== caseId.trim()) {
+        throw new Error(`Case ID mismatch: the sidecar declares “${declaredCaseId}”. Enter that exact value before uploading.`)
+      }
+    } catch (caught) {
+      const message = caught instanceof SyntaxError
+        ? 'Sidecar rejected: invalid JSON.'
+        : caught instanceof Error
+          ? caught.message
+          : 'Sidecar validation failed.'
+      setError(message)
+      toast.error(message)
+      return
+    }
     setBusy(true)
     let ensuredProjectId = projectId
     try {

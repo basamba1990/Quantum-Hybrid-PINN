@@ -103,10 +103,14 @@ export default function AnalysisDetailPage() {
           // authenticated proxy so a successful import becomes renderable after
           // a reload while preserving its UNVALIDATED status.
           try {
+            const cfdController = new AbortController()
+            const cfdTimeout = window.setTimeout(() => cfdController.abort(), 15_000)
             const cfdResponse = await fetch(`/api/cfd/${encodeURIComponent(analysisId)}`, {
               cache: 'no-store',
               credentials: 'include',
+              signal: cfdController.signal,
             })
+            window.clearTimeout(cfdTimeout)
             if (cfdResponse.ok) {
               const cfdPayload = await cfdResponse.json()
               if (cfdPayload?.dataset && typeof cfdPayload.dataset === 'object') {
